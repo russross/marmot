@@ -167,4 +167,109 @@ t.section("SE 1400", "02", "Rex Frisbey", ["macs"]);
 
 t.section("IT 4990", "01", "Jamie Bennion", ["flex"]);
 
+t.hard_conflict_clique(["CS 2420", "CS 2450", "CS 2810", "CS 3005"]);   // 3rd/4th semester classes
+t.hard_conflict_clique(["CS 2420", "CS 2450", "CS 2810"]);               // grad plan: 2nd year fall
+t.hard_conflict_clique(["CS 3005", "CS 3520", "SE 3200"]);               // grad plan: 2nd year spring
+t.hard_conflict_clique(["CS 3310", "CS 3400", "SE 3530"]);               // grad plan: 3nd year fall
+t.hard_conflict_clique(["CS 3510", "CS 4307", "SE 4550"]);               // grad plan: 3nd year spring
+t.hard_conflict_clique(["CS 4300"]);                                    // grad plan: 4th year fall
+t.hard_conflict_clique(["CS 3600", "CS 4600"]);                         // grad plan: 4th year spring
+
+// CS upper division core
+t.conflict_clique(90, [
+    "CS 2450",
+    "CS 3150", "CS 3310", "CS 3400", "CS 3410", "CS 3510", "CS 3520", "CS 3530", "CS 3600",
+    "CS 4300", "CS 4307", "CS 4320", "CS 4550", "CS 4600",
+    "SE 3200"]);
+
+// CS electives
+t.conflict_clique(30, [
+    "CS 2450",
+    "CS 3150", "CS 3310", "CS 3400", "CS 3410", "CS 3500", "CS 3510", "CS 3520", "CS 3530", "CS 3600",
+    "CS 4300", "CS 4307", "CS 4320", "CS 4550", "CS 4600", "CS 4990",
+    "SE 3010", "SE 3020", "SE 3100", "SE 3200", "SE 3400", "SE 4200",
+    "IT 2700", "IT 3100", "IT 3110", "IT 4200"]);
+
+// CS classes that do not require CS2810 so they can be taken concurrently
+t.conflict_clique(45, ["CS 2810", "SE 3020", "SE 3200", "CS 3500"]);
+
+// CS classes that do not require CS3005 so they can be taken concurrently
+t.conflict_clique(45, ["CS 3005", "CS 3150", "CS 3310", "CS 3410", "CS 3510", "CS 3520", "CS 3530"]);
+
+// DS: TODO
+t.conflict_clique(45, ["CS 2500", "CS 2810", "CS 3005"]);
+
+// SE upper division core
+t.conflict_clique(90, [
+    "CS 2450", "CS 3150", "CS 3310", "CS 3510", "CS 4307",
+    "IT 2300",
+    "SE 3010", "SE 3020", "SE 3100", "SE 3150", "SE 3200", "SE 3400",
+    "SE 4200", "SE 4600"]); // IT 1100, SE 1400
+
+// Entrepreneurial and marketing track
+t.conflict_clique(90, [
+    "CS 2450", "CS 3150", "CS 3310", "CS 3510", "CS 4307",
+    "IT 2300",
+    "SE 3010", "SE 3020", "SE 3100", "SE 3150", "SE 3200", "SE 3400", "SE 3500", "SE 3550",
+    "SE 4200", "SE 4600"]); // IT 1100 SE 1400
+
+// DevOps track
+t.conflict_clique(90, [
+    "CS 2450", "CS 3150", "CS 3310", "CS 3510", "CS 4307",
+    "IT 2300", "IT 3110", "IT 3300", "IT 4200",
+    "SE 3010", "SE 3020", "SE 3100", "SE 3150", "SE 3200", "SE 3400",
+    "SE 4200", "SE 4600"]); // IT 1100 SE 1400
+
+// Application track
+t.conflict_clique(90, [
+    "CS 2450", "CS 3150", "CS 3310", "CS 3500", "CS 3510", "CS 4307",
+    "IT 2300",
+    "SE 3010", "SE 3020", "SE 3100", "SE 3150", "SE 3200", "SE 3400", "SE 3450",
+    "SE 4200", "SE 4600"]); // IT 1100 SE 1400
+
+// Data science track
+t.conflict_clique(90, [
+    "CS 2450", "CS 3150", "CS 3310", "CS 3510", "CS 4300", "CS 4307", "CS 4320",
+    "IT 2300",
+    "SE 3010", "SE 3020", "SE 3100", "SE 3150", "SE 3200", "SE 3400",
+    "SE 4200", "SE 4600"]); // IT 1100 SE 1400
+
+// IT conflicts
+//t.conflict_clique(50, ["IT 1100", "IT 1200"]); // when there is only one in-person section of each
+t.conflict_clique(90, [
+    "IT 2300", "IT 2400", "IT 2500", "IT 2700",
+    "IT 3100", "IT 3110", "IT 3150", "IT 3300", "IT 3400",
+    "IT 4100", "IT 4200", "IT 4310", "IT 4400", "IT 4510", "IT 4600"]);
+
+// IT choose 2 section
+t.conflict_clique(60, [
+    "CS 3005",
+    "IT 2300", "IT 2400", "IT 2500", "IT 2700",
+    "IT 3100", "IT 3110", "IT 3150", "IT 3300", "IT 3400",
+    "IT 4100", "IT 4200", "IT 4310", "IT 4400", "IT 4510", "IT 4600",
+    "SE 3200", "SE 3400"]);
+
+// CS2450 is a prereq for SE3100 so they can be scheduled at the same time
+t.clear_conflict_clique(["CS 2450", "SE 3100"]);
+// CS2450 is a prereq for SE3150 so they can be scheduled at the same time
+t.clear_conflict_clique(["CS 2450", "SE 3150"]);
+// SE3200 is a prereq for SE4200 so they can be scheduled at the same time
+t.clear_conflict_clique(["SE 3200", "SE 4200"]);
+// students take either CS4307 or IT2300 but not both
+t.clear_conflict_clique(["CS 4307", "IT 2300"]);
+
+// multiple-section courses must be taught at different times
+t.hard_conflict_clique(["CS 1400"]);
+t.hard_conflict_clique(["CS 1410"]);
+t.hard_conflict_clique(["CS 2450"]);
+t.hard_conflict_clique(["CS 2810"]);
+t.hard_conflict_clique(["IT 1100"]);
+t.hard_conflict_clique(["SE 1400"]);
+
+
+// courses that must be scheduled at the same time
+//anticonflict: 50 CS1400 CS1030
+//anticonflict: 50 SE1400 IT1100 // temporarily removed because of new hire planning
+//anticonflict: 50 CS4600 SE4600
+
 t

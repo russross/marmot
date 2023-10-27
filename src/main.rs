@@ -205,7 +205,11 @@ impl Input {
                         return Err(format!("unknown time slot name {}", time_name).into());
                     };
                     if times.iter().any(|t| t.time == time_slot) {
-                        return Err(format!("time slot {} appears twice for instructor {}", time_name, name).into());
+                        return Err(format!(
+                            "time slot {} appears twice for instructor {}",
+                            time_name, name
+                        )
+                        .into());
                     }
                     times.push(TimeWithPenalty {
                         time: time_slot,
@@ -278,15 +282,37 @@ impl Input {
                     let mut found = false;
 
                     // check for matching rooms
-                    for (room_i, _room) in self.rooms.iter().enumerate().filter(|(_, r)| r.name == tag || r.tags.contains(&tag)) {
+                    for (room_i, _room) in self
+                        .rooms
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, r)| r.name == tag || r.tags.contains(&tag))
+                    {
                         found = true;
-                        add_room_with_penalty_keep_worst(&mut rwp, RoomWithPenalty{ room: room_i, penalty: badness });
+                        add_room_with_penalty_keep_worst(
+                            &mut rwp,
+                            RoomWithPenalty {
+                                room: room_i,
+                                penalty: badness,
+                            },
+                        );
                     }
 
                     // check for matching times
-                    for (time_i, _time) in self.time_slots.iter().enumerate().filter(|(_, t)| t.name == tag || t.tags.contains(&tag)) {
+                    for (time_i, _time) in self
+                        .time_slots
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, t)| t.name == tag || t.tags.contains(&tag))
+                    {
                         found = true;
-                        add_time_with_penalty_keep_worst(&mut twp, TimeWithPenalty{ time: time_i, penalty: badness });
+                        add_time_with_penalty_keep_worst(
+                            &mut twp,
+                            TimeWithPenalty {
+                                time: time_i,
+                                penalty: badness,
+                            },
+                        );
                     }
 
                     if !found {
@@ -346,7 +372,11 @@ impl Input {
                 course, section).into());
         }
         rtp.sort();
-        if self.sections.iter().any(|s| s.course == course.to_string() && s.section == section.to_string()) {
+        if self
+            .sections
+            .iter()
+            .any(|s| s.course == course.to_string() && s.section == section.to_string())
+        {
             return Err(format!("course {}-{} appears more than once", course, section).into());
         }
         self.sections.push(Section {
@@ -354,9 +384,127 @@ impl Input {
             section: section.into(),
             instructors: instructors,
             room_times: rtp,
+            hard_conflicts: Vec::new(),
+            soft_conflicts: Vec::new(),
         });
 
         Ok(())
+    }
+
+    fn make_hard_conflict_clique(&mut self, sections_raw: Vec<rhai::Dynamic>) -> Result<(), Box<rhai::EvalAltResult>> {
+        self.make_conflict_clique(100, true, sections_raw)
+    }
+
+    fn clear_conflict_clique(&mut self, sections_raw: Vec<rhai::Dynamic>) -> Result<(), Box<rhai::EvalAltResult>> {
+        self.make_conflict_clique(0, false, sections_raw)
+    }
+
+    fn make_soft_conflict_clique(&mut self, badness_raw: i64, sections_raw: Vec<rhai::Dynamic>) -> Result<(), Box<rhai::EvalAltResult>> {
+        if badness_raw < 1 || badness_raw > 99 {
+            return Err("badness for a soft conflict clique must be between 1 and 99".into());
+        }
+        self.make_conflict_clique(badness_raw, true, sections_raw)
+    }
+
+    fn make_conflict_clique(
+        &mut self,
+        badness_raw: i64,
+        maximize: bool,
+        sections_raw: Vec<rhai::Dynamic>,
+    ) -> Result<(), Box<rhai::EvalAltResult>> {
+        // parse and sanity check the inputs
+        if badness_raw < 0 || badness_raw > 100 {
+            return Err("badness for a conflict clique must be between 0 and 100".into());
+        }
+        let badness = badness_raw as u16;
+        let mut sections = Vec::new();
+        for elt in sections_raw {
+            let (course, section) = split_course_and_section(elt)?;
+            let mut list = self.find_sections_by_name(&course, &section);
+            if list.is_empty() {
+                match section {
+                    Some(s) => println!(
+                        "warning: conflict references section {}-{}, but no such section found",
+                        course, s
+                    ),
+                    None => println!(
+                        "warning: conflict references course {}, but no such course found",
+                        course
+                    ),
+                }
+            } else {
+                sections.append(&mut list);
+            }
+        }
+
+        // process every pairing (except element vs self)
+        for &left_i in sections.iter() {
+            for &right_i in sections.iter() {
+                if left_i == right_i {
+                    continue;
+                }
+
+                let left = &mut self.sections[left_i];
+                if badness == 100 {
+                    if !maximize {
+                        return Err("make_conflict_clique does not support badness=100 and !maximize".into());
+                    }
+
+                    // set the hard conflict and remove any soft conflict
+                    if !left.hard_conflicts.iter().any(|&i| i == right_i) {
+                        left.hard_conflicts.push(right_i);
+                    }
+                    left.soft_conflicts.retain(|elt| elt.section != right_i);
+                } else if badness == 0 {
+                    if maximize {
+                        return Err("make_conflict_clique does not support badness=0 and maximize".into());
+                    }
+
+                    // clear hard and soft conflicts
+                    left.hard_conflicts.retain(|&i| i != right_i);
+                    left.soft_conflicts.retain(|elt| elt.section != right_i);
+                } else {
+                    // when maximizing, a hard conflict wins. when minimizing, remove hard conflict
+                    if maximize {
+                        if left.hard_conflicts.iter().any(|&i| i == right_i) {
+                            continue;
+                        }
+                    } else {
+                        left.hard_conflicts.retain(|&i| i != right_i);
+                    }
+
+                    match left.soft_conflicts.iter().position(|elt| elt.section == right_i) {
+                        Some(i) => {
+                            // adjust an existing entry
+                            left.soft_conflicts[i].penalty = if maximize {
+                                std::cmp::max(left.soft_conflicts[i].penalty, badness)
+                            } else {
+                                std::cmp::min(left.soft_conflicts[i].penalty, badness)
+                            };
+                        },
+                        None => {
+                            // add a new entry
+                            left.soft_conflicts.push(SectionWithPenalty{ section: right_i, penalty: badness });
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn find_sections_by_name(&self, course: &String, section: &Option<String>) -> Vec<usize> {
+        let mut list = Vec::new();
+        self.sections.iter().enumerate().for_each(|(i, s)| {
+            if s.course == *course {
+                match section {
+                    None => list.push(i),
+                    Some(name) if *name == s.section => list.push(i),
+                    _ => (),
+                }
+            }
+        });
+        list
     }
 }
 
@@ -386,6 +534,23 @@ fn split_tag_and_penalty(input: rhai::Dynamic) -> Result<(String, u16), String> 
     }
 }
 
+fn split_course_and_section(input: rhai::Dynamic) -> Result<(String, Option<String>), String> {
+    if input.is_string() {
+        Ok((input.into_string()?, None))
+    } else if input.is_array() {
+        let mut array = input.into_array()?;
+        if array.len() != 2 || !array[0].is_string() || !array[1].is_string() {
+            Err("course must be in form \"COURSE\" or [\"COURSE\", \"SECTION\"]".into())
+        } else {
+            let sec = array.pop().unwrap().into_string()?;
+            let course = array.pop().unwrap().into_string()?;
+            Ok((course, Some(sec)))
+        }
+    } else {
+        Err("course must be in form \"COURSE\" or [\"COURSE\", \"SECTION\"]".into())
+    }
+}
+
 fn date_range_slots(start: time::Date, end: time::Date) -> usize {
     let size = ((end - start).whole_days() + 1) * 24 * 60 / 5;
     if size <= 0 {
@@ -404,7 +569,7 @@ fn add_room_with_penalty_keep_worst(list: &mut Vec<RoomWithPenalty>, rwp: RoomWi
 fn add_time_with_penalty_keep_worst(list: &mut Vec<TimeWithPenalty>, twp: TimeWithPenalty) {
     match list.iter().position(|elt| elt.time == twp.time) {
         Some(i) => list[i].penalty = std::cmp::max(list[i].penalty, twp.penalty),
-        None=> list.push(twp),
+        None => list.push(twp),
     }
 }
 
@@ -457,6 +622,21 @@ impl PartialOrd for RoomTimeWithPenalty {
     }
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Ord)]
+struct SectionWithPenalty {
+    section: usize,
+    penalty: u16,
+}
+
+impl PartialOrd for SectionWithPenalty {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        if self.section != other.section {
+            return Some(self.section.cmp(&other.section));
+        }
+        return Some(self.penalty.cmp(&other.penalty));
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Instructor {
     name: String,
@@ -470,6 +650,8 @@ struct Section {
     section: String,
     instructors: Vec<usize>,
     room_times: Vec<RoomTimeWithPenalty>,
+    hard_conflicts: Vec<usize>,
+    soft_conflicts: Vec<SectionWithPenalty>,
 }
 
 #[derive(Debug, Clone)]
@@ -555,7 +737,10 @@ fn main() -> Result<(), Box<rhai::EvalAltResult>> {
         .register_fn("time", Input::make_time_slot)
         .register_fn("room", Input::make_room)
         .register_fn("instructor", Input::make_instructor)
-        .register_fn("section", Input::make_section);
+        .register_fn("section", Input::make_section)
+        .register_fn("hard_conflict_clique", Input::make_hard_conflict_clique)
+        .register_fn("clear_conflict_clique", Input::clear_conflict_clique)
+        .register_fn("conflict_clique", Input::make_soft_conflict_clique);
     let mut term = engine.eval_file::<Input>("setup.rhai".into())?;
     let mut day = term.start;
     println!("{}", day);
@@ -583,7 +768,6 @@ fn main() -> Result<(), Box<rhai::EvalAltResult>> {
         }
         println!("");
     }
-    term.sections.sort_by_key(|s| format!("{}-{}", s.course, s.section));
     for sec in &term.sections {
         print!("{}-{} [", sec.course, sec.section);
         for (i, inst_i) in sec.instructors.iter().enumerate() {
@@ -605,6 +789,20 @@ fn main() -> Result<(), Box<rhai::EvalAltResult>> {
             }
         }
         println!("");
+        if !sec.hard_conflicts.is_empty() {
+            print!("    hard conflicts:");
+            for &i in sec.hard_conflicts.iter() {
+                print!(" {}-{}", term.sections[i].course, term.sections[i].section);
+            }
+            println!("");
+        }
+        if !sec.soft_conflicts.is_empty() {
+            print!("    soft conflicts:");
+            for elt in sec.soft_conflicts.iter() {
+                print!(" {}-{}:{}", term.sections[elt.section].course, term.sections[elt.section].section, elt.penalty);
+            }
+            println!("");
+        }
     }
     Ok(())
 }
