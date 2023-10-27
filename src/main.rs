@@ -8,6 +8,7 @@ struct Input {
     time_slots: Vec<TimeSlot>,
     instructors: Vec<Instructor>,
     sections: Vec<Section>,
+    missing: Vec<String>,
 }
 
 impl Input {
@@ -50,6 +51,7 @@ impl Input {
             time_slots: Vec::new(),
             instructors: Vec::new(),
             sections: Vec::new(),
+            missing: Vec::new(),
         })
     }
 
@@ -379,6 +381,11 @@ impl Input {
         {
             return Err(format!("course {}-{} appears more than once", course, section).into());
         }
+        for instructor in &instructors {
+            self.instructors[*instructor]
+                .sections
+                .push(self.sections.len());
+        }
         self.sections.push(Section {
             course: course.into(),
             section: section.into(),
@@ -391,15 +398,25 @@ impl Input {
         Ok(())
     }
 
-    fn make_hard_conflict_clique(&mut self, sections_raw: Vec<rhai::Dynamic>) -> Result<(), Box<rhai::EvalAltResult>> {
+    fn make_hard_conflict_clique(
+        &mut self,
+        sections_raw: Vec<rhai::Dynamic>,
+    ) -> Result<(), Box<rhai::EvalAltResult>> {
         self.make_conflict_clique(100, true, sections_raw)
     }
 
-    fn clear_conflict_clique(&mut self, sections_raw: Vec<rhai::Dynamic>) -> Result<(), Box<rhai::EvalAltResult>> {
+    fn clear_conflict_clique(
+        &mut self,
+        sections_raw: Vec<rhai::Dynamic>,
+    ) -> Result<(), Box<rhai::EvalAltResult>> {
         self.make_conflict_clique(0, false, sections_raw)
     }
 
-    fn make_soft_conflict_clique(&mut self, badness_raw: i64, sections_raw: Vec<rhai::Dynamic>) -> Result<(), Box<rhai::EvalAltResult>> {
+    fn make_soft_conflict_clique(
+        &mut self,
+        badness_raw: i64,
+        sections_raw: Vec<rhai::Dynamic>,
+    ) -> Result<(), Box<rhai::EvalAltResult>> {
         if badness_raw < 1 || badness_raw > 99 {
             return Err("badness for a soft conflict clique must be between 1 and 99".into());
         }
@@ -417,20 +434,22 @@ impl Input {
             return Err("badness for a conflict clique must be between 0 and 100".into());
         }
         let badness = badness_raw as u16;
+        if badness == 100 && !maximize {
+            return Err("make_conflict_clique does not support badness=100 and !maximize".into());
+        } else if badness == 0 && maximize {
+            return Err("make_conflict_clique does not support badness=0 and maximize".into());
+        }
         let mut sections = Vec::new();
         for elt in sections_raw {
             let (course, section) = split_course_and_section(elt)?;
             let mut list = self.find_sections_by_name(&course, &section);
             if list.is_empty() {
-                match section {
-                    Some(s) => println!(
-                        "warning: conflict references section {}-{}, but no such section found",
-                        course, s
-                    ),
-                    None => println!(
-                        "warning: conflict references course {}, but no such course found",
-                        course
-                    ),
+                let missing = match section {
+                    Some(s) => format!("{}-{}", course, s),
+                    None => course,
+                };
+                if !self.missing.contains(&missing) {
+                    self.missing.push(missing);
                 }
             } else {
                 sections.append(&mut list);
@@ -445,49 +464,15 @@ impl Input {
                 }
 
                 let left = &mut self.sections[left_i];
-                if badness == 100 {
-                    if !maximize {
-                        return Err("make_conflict_clique does not support badness=100 and !maximize".into());
-                    }
-
-                    // set the hard conflict and remove any soft conflict
-                    if !left.hard_conflicts.iter().any(|&i| i == right_i) {
-                        left.hard_conflicts.push(right_i);
-                    }
-                    left.soft_conflicts.retain(|elt| elt.section != right_i);
-                } else if badness == 0 {
+                let old = left.get_conflict(right_i);
+                left.set_conflict(
+                    right_i,
                     if maximize {
-                        return Err("make_conflict_clique does not support badness=0 and maximize".into());
-                    }
-
-                    // clear hard and soft conflicts
-                    left.hard_conflicts.retain(|&i| i != right_i);
-                    left.soft_conflicts.retain(|elt| elt.section != right_i);
-                } else {
-                    // when maximizing, a hard conflict wins. when minimizing, remove hard conflict
-                    if maximize {
-                        if left.hard_conflicts.iter().any(|&i| i == right_i) {
-                            continue;
-                        }
+                        std::cmp::max(old, badness)
                     } else {
-                        left.hard_conflicts.retain(|&i| i != right_i);
-                    }
-
-                    match left.soft_conflicts.iter().position(|elt| elt.section == right_i) {
-                        Some(i) => {
-                            // adjust an existing entry
-                            left.soft_conflicts[i].penalty = if maximize {
-                                std::cmp::max(left.soft_conflicts[i].penalty, badness)
-                            } else {
-                                std::cmp::min(left.soft_conflicts[i].penalty, badness)
-                            };
-                        },
-                        None => {
-                            // add a new entry
-                            left.soft_conflicts.push(SectionWithPenalty{ section: right_i, penalty: badness });
-                        }
-                    }
-                }
+                        std::cmp::min(old, badness)
+                    },
+                );
             }
         }
         Ok(())
@@ -654,6 +639,47 @@ struct Section {
     soft_conflicts: Vec<SectionWithPenalty>,
 }
 
+impl Section {
+    fn get_conflict(&self, other: usize) -> u16 {
+        for elt in &self.hard_conflicts {
+            if *elt == other {
+                return 100;
+            }
+        }
+        for elt in &self.soft_conflicts {
+            if elt.section == other {
+                return elt.penalty;
+            }
+        }
+        0
+    }
+
+    fn set_conflict(&mut self, other: usize, penalty: u16) {
+        if penalty == 0 {
+            self.hard_conflicts.retain(|&elt| elt != other);
+            self.soft_conflicts.retain(|elt| elt.section != other);
+        } else if penalty == 100 {
+            if !self.hard_conflicts.iter().any(|&elt| elt == other) {
+                self.hard_conflicts.push(other);
+            }
+            self.soft_conflicts.retain(|elt| elt.section != other);
+        } else {
+            self.hard_conflicts.retain(|&elt| elt != other);
+            match self
+                .soft_conflicts
+                .iter()
+                .position(|elt| elt.section == other)
+            {
+                Some(i) => self.soft_conflicts[i].penalty = penalty,
+                None => self.soft_conflicts.push(SectionWithPenalty {
+                    section: other,
+                    penalty: penalty,
+                }),
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Bits {
     size: usize,
@@ -742,14 +768,20 @@ fn main() -> Result<(), Box<rhai::EvalAltResult>> {
         .register_fn("clear_conflict_clique", Input::clear_conflict_clique)
         .register_fn("conflict_clique", Input::make_soft_conflict_clique);
     let mut term = engine.eval_file::<Input>("setup.rhai".into())?;
-    let mut day = term.start;
-    println!("{}", day);
-    while day <= term.end {
-        if day == term.end {
-            println!("{}", day);
+
+    // add hard conflicts between all the sections an instructor teaches
+    for instructor in &term.instructors {
+        for left in &instructor.sections {
+            for right in &instructor.sections {
+                if left == right {
+                    continue;
+                };
+                term.sections[*left].set_conflict(*right, 100);
+            }
         }
-        day = day.next_day().unwrap();
     }
+
+    println!("term: {}", term.name);
     for room in &term.rooms {
         print!("{} {} tags:", room.name, room.capacity);
         for tag in &room.tags {
@@ -757,7 +789,13 @@ fn main() -> Result<(), Box<rhai::EvalAltResult>> {
         }
         println!("");
     }
-    for inst in &term.instructors {
+    let mut instructor_order = Vec::new();
+    for i in 0..term.instructors.len() {
+        instructor_order.push(i);
+    }
+    instructor_order.sort_by_key(|&i| term.instructors[i].name.clone());
+    for inst_i in instructor_order {
+        let inst = &term.instructors[inst_i];
         print!("{}", inst.name);
         for time in &inst.available_times {
             if time.penalty == 0 {
@@ -768,7 +806,14 @@ fn main() -> Result<(), Box<rhai::EvalAltResult>> {
         }
         println!("");
     }
-    for sec in &term.sections {
+    let mut section_order = Vec::new();
+    for i in 0..term.sections.len() {
+        section_order.push(i);
+    }
+    section_order
+        .sort_by_key(|&i| format!("{}-{}", term.sections[i].course, term.sections[i].section));
+    for sec_i in section_order {
+        let sec = &term.sections[sec_i];
         print!("{}-{} [", sec.course, sec.section);
         for (i, inst_i) in sec.instructors.iter().enumerate() {
             if i > 0 {
@@ -799,10 +844,26 @@ fn main() -> Result<(), Box<rhai::EvalAltResult>> {
         if !sec.soft_conflicts.is_empty() {
             print!("    soft conflicts:");
             for elt in sec.soft_conflicts.iter() {
-                print!(" {}-{}:{}", term.sections[elt.section].course, term.sections[elt.section].section, elt.penalty);
+                print!(
+                    " {}-{}:{}",
+                    term.sections[elt.section].course,
+                    term.sections[elt.section].section,
+                    elt.penalty
+                );
             }
             println!("");
         }
     }
+    term.missing.sort();
+    if term.missing.len() > 0 {
+        print!("unknown courses:");
+        let mut sep = " ";
+        for elt in &term.missing {
+            print!("{}{}", sep, elt);
+            sep = ", ";
+        }
+        println!("");
+    }
+
     Ok(())
 }
