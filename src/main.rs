@@ -148,11 +148,13 @@ impl Input {
         let my_index = self.time_slots.len();
         for (other_index, other) in self.time_slots.iter_mut().enumerate() {
             if !slots.is_disjoint(&other.slots)? {
-                println!("timeslot {} conflicts with {}", name, other.name);
                 conflicts.push(other_index);
                 other.conflicts.push(my_index);
             }
         }
+
+        // a time slot always conflicts with itself
+        conflicts.push(self.time_slots.len());
 
         self.time_slots.push(TimeSlot {
             name: name.into(),
@@ -393,6 +395,7 @@ impl Input {
             room_times: rtp,
             hard_conflicts: Vec::new(),
             soft_conflicts: Vec::new(),
+            cross_listings: vec![self.sections.len()],
         });
 
         Ok(())
@@ -491,6 +494,48 @@ impl Input {
         });
         list
     }
+
+    fn make_cross_listing(
+        &mut self,
+        sections_raw: Vec<rhai::Dynamic>,
+    ) -> Result<(), Box<rhai::EvalAltResult>> {
+        let mut sections = Vec::new();
+        for elt in sections_raw {
+            let (course, section) = split_course_and_section(elt)?;
+            if section == None {
+                return Err(
+                    "cross listings must be between specific sections, not just courses".into(),
+                );
+            }
+            let section_list = self.find_sections_by_name(&course, &section);
+            if section_list.len() != 1 {
+                return Err(format!(
+                    "section {}-{} not found in cross listing",
+                    course,
+                    section.unwrap()
+                )
+                .into());
+            }
+
+            sections.push(section_list[0]);
+        }
+        sections.sort();
+        sections.dedup();
+        if sections.len() < 2 {
+            return Err("cross listings must include at least two sections".into());
+        }
+        for &left_i in &sections {
+            for &right_i in &sections {
+                if left_i == right_i {
+                    continue;
+                }
+                self.sections[left_i].cross_listings.push(right_i);
+            }
+            self.sections[left_i].cross_listings.sort();
+            self.sections[left_i].cross_listings.dedup();
+        }
+        Ok(())
+    }
 }
 
 fn get_tags(tags: Vec<rhai::Dynamic>) -> Result<Vec<String>, Box<rhai::EvalAltResult>> {
@@ -572,8 +617,17 @@ struct TimeSlot {
     days: Vec<time::Weekday>,
     start_time: time::Time,
     duration: time::Duration,
+
+    // a list of all overlapping time slots
+    // a time slot IS always in its own conflict list
     conflicts: Vec<usize>,
     tags: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+struct RoomTime {
+    room: usize,
+    time_slot: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -637,6 +691,10 @@ struct Section {
     room_times: Vec<RoomTimeWithPenalty>,
     hard_conflicts: Vec<usize>,
     soft_conflicts: Vec<SectionWithPenalty>,
+
+    // every course is in its own cross_listings vector, which must be a clique
+    // placement occurs on the section with the lowest index, others tag along
+    cross_listings: Vec<usize>,
 }
 
 impl Section {
@@ -766,7 +824,8 @@ fn main() -> Result<(), Box<rhai::EvalAltResult>> {
         .register_fn("section", Input::make_section)
         .register_fn("hard_conflict_clique", Input::make_hard_conflict_clique)
         .register_fn("clear_conflict_clique", Input::clear_conflict_clique)
-        .register_fn("conflict_clique", Input::make_soft_conflict_clique);
+        .register_fn("conflict_clique", Input::make_soft_conflict_clique)
+        .register_fn("crosslist", Input::make_cross_listing);
     let mut term = engine.eval_file::<Input>("setup.rhai".into())?;
 
     // add hard conflicts between all the sections an instructor teaches
@@ -781,7 +840,30 @@ fn main() -> Result<(), Box<rhai::EvalAltResult>> {
         }
     }
 
-    println!("term: {}", term.name);
+    println!("term: {} from {} to {}", term.name, term.start, term.end);
+
+    for (i, time_slot) in term.time_slots.iter().enumerate() {
+        print!("time slot {}: ", time_slot.name);
+        let mut sep = "";
+        for elt in &time_slot.days {
+            print!("{}{}", sep, elt);
+            sep = ", ";
+        }
+        print!(" at {} for {}", time_slot.start_time, time_slot.duration);
+        if time_slot.conflicts.len() > 1 {
+            print!(", conflicts with ");
+            sep = "";
+            for elt in &time_slot.conflicts {
+                if *elt == i {
+                    continue;
+                }
+                print!("{}{}", sep, term.time_slots[*elt].name);
+                sep = ", ";
+            }
+        }
+        println!("");
+    }
+
     for room in &term.rooms {
         print!("{} {} tags:", room.name, room.capacity);
         for tag in &room.tags {
@@ -814,7 +896,19 @@ fn main() -> Result<(), Box<rhai::EvalAltResult>> {
         .sort_by_key(|&i| format!("{}-{}", term.sections[i].course, term.sections[i].section));
     for sec_i in section_order {
         let sec = &term.sections[sec_i];
-        print!("{}-{} [", sec.course, sec.section);
+        print!("{}-{}", sec.course, sec.section);
+        if sec.cross_listings.len() > 1 {
+            for &other in sec.cross_listings.iter() {
+                if sec_i == other {
+                    continue;
+                }
+                print!(
+                    " x {}-{}",
+                    term.sections[other].course, term.sections[other].section
+                );
+            }
+        }
+        print!(" [");
         for (i, inst_i) in sec.instructors.iter().enumerate() {
             if i > 0 {
                 print!(", ");
@@ -866,4 +960,87 @@ fn main() -> Result<(), Box<rhai::EvalAltResult>> {
     }
 
     Ok(())
+}
+
+struct Solver {
+    room_placements: Vec<RoomPlacements>,
+    sections: Vec<SolverSection>,
+}
+
+struct RoomPlacements {
+    time_slot_placements: Vec<Option<usize>>,
+}
+
+struct SolverSection {
+    placement: Option<RoomTime>,
+    tickets: u64,
+}
+
+impl Solver {
+    fn new(input: &Input) -> Self {
+        let mut room_placements = Vec::with_capacity(input.rooms.len());
+        for _ in 0..input.rooms.len() {
+            room_placements.push(RoomPlacements {
+                time_slot_placements: vec![None; input.time_slots.len()],
+            });
+        }
+        let mut sections = Vec::with_capacity(input.sections.len());
+        for _ in 0..input.sections.len() {
+            sections.push(SolverSection {
+                placement: None,
+                tickets: 0,
+            });
+        }
+        Solver {
+            room_placements: room_placements,
+            sections: sections,
+        }
+    }
+
+    // remove a section from its current room/time placement (if any)
+    // remove it from both sections and room_placements
+    fn remove_placement(&mut self, section: usize) {
+        if let Some(RoomTime { room, time_slot }) =
+            std::mem::take(&mut self.sections[section].placement)
+        {
+            assert!(std::mem::take(&mut self.room_placements[room].time_slot_placements[time_slot]) == Some(section),
+            "Solver::remove_placement: placement by section does not match placement by room and time");
+        }
+    }
+
+    // remove any sections that will be in conflict with a section about to be placed
+    //
+    // this includes:
+    // * anything in the same room in an overlapping time slot
+    // * anything in the hard conflict list of this section (or a cross listing)
+    //   in the same/an overlapping time slot
+    fn displace_conflict(&mut self, input: &Input, section: usize, room: usize, time_slot: usize) {
+        // is this slot (or an overlapping time in the same room) already occupied?
+        for overlapping in &input.time_slots[time_slot].conflicts {
+            if let Some(existing) = self.room_placements[room].time_slot_placements[*overlapping] {
+                self.remove_placement(existing);
+            }
+        }
+        //cases:
+        //any overlapping time in self? weird case;
+        //same room & overlapping time,
+        //hard conflict courses from conflict list
+        let existing =
+            std::mem::take(&mut self.room_placements[room].time_slot_placements[time_slot]);
+        if let Some(other) = existing {
+            let section_placement = std::mem::take(&mut self.sections[other].placement);
+
+            // sanity check
+            let Some(RoomTime {
+                room: other_room,
+                time_slot: other_time_slot,
+            }) = section_placement
+            else {
+                panic!("Solver::displace_conflict room placement found but solver section is None");
+            };
+            if other_room != room || other_time_slot != time_slot {
+                panic!("Solver::displace_conflict room placement does not match solver section");
+            };
+        }
+    }
 }

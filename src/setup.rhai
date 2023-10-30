@@ -105,7 +105,10 @@ t.section("CS 4600", "01", "Curtis Larsen", [["flex", 1], "Smith 116", "mw", "mw
 
 t.section("SE 3010", "01", "DJ Holt", ["flex", "macs", "MW1500+75"]); // same day as SE4200
 t.section("SE 4200", "01", "DJ Holt", ["flex", "macs", "MW1330+75"]);
-t.section("SE 4600", "01", "DJ Holt", ["flex"]); // with cross-listed CS4600-02 section; all senior projects at same time
+// with cross-listed CS4600-02 section; all senior projects at same time
+t.section("SE 4600", "01", "DJ Holt", ["flex"]);
+t.section("CS 4600", "02", "DJ Holt", ["flex"]);
+t.crosslist([["SE 4600", "01"], ["CS 4600", "02"]]);
 // schedule SE4600 same time as CS4600-01: Curtis and I will each have a section of CS4600, and my section will be cross-listed with SE4600
 // note all CS cross-listings above
 
@@ -168,10 +171,10 @@ t.section("SE 1400", "02", "Rex Frisbey", ["macs"]);
 t.section("IT 4990", "01", "Jamie Bennion", ["flex"]);
 
 t.hard_conflict_clique(["CS 2420", "CS 2450", "CS 2810", "CS 3005"]);   // 3rd/4th semester classes
-t.hard_conflict_clique(["CS 2420", "CS 2450", "CS 2810"]);               // grad plan: 2nd year fall
-t.hard_conflict_clique(["CS 3005", "CS 3520", "SE 3200"]);               // grad plan: 2nd year spring
-t.hard_conflict_clique(["CS 3310", "CS 3400", "SE 3530"]);               // grad plan: 3nd year fall
-t.hard_conflict_clique(["CS 3510", "CS 4307", "SE 4550"]);               // grad plan: 3nd year spring
+t.hard_conflict_clique(["CS 2420", "CS 2450", "CS 2810"]);              // grad plan: 2nd year fall
+t.hard_conflict_clique(["CS 3005", "CS 3520", "SE 3200"]);              // grad plan: 2nd year spring
+t.hard_conflict_clique(["CS 3310", "CS 3400", "SE 3530"]);              // grad plan: 3nd year fall
+t.hard_conflict_clique(["CS 3510", "CS 4307", "SE 4550"]);              // grad plan: 3nd year spring
 t.hard_conflict_clique(["CS 4300"]);                                    // grad plan: 4th year fall
 t.hard_conflict_clique(["CS 3600", "CS 4600"]);                         // grad plan: 4th year spring
 
