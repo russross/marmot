@@ -12,7 +12,6 @@ pub fn input() -> Result<Input, String> {
     holiday!(t, 2024, 3, 15);
 
     room!(t, name: "Smith 107", capacity: 32, tags: "flex");
-    room!(t, name: "Smith 107", capacity: 32, tags: "flex");
     room!(t, name: "Smith 108", capacity: 32, tags: "flex");
     room!(t, name: "Smith 109", capacity: 32, tags: "flex");
     room!(t, name: "Smith 112", capacity: 24, tags: "macs");
@@ -51,7 +50,7 @@ pub fn input() -> Result<Input, String> {
             "MW1500+75",
             "TR1030+75",
             "TR1330+75",
-            "TR1500+75" with penalty 10
+            "TR1500+75" with penalty 10,
     );
     //t.preference("oneday");
 
@@ -63,7 +62,7 @@ pub fn input() -> Result<Input, String> {
             "MWF1100+50",
             "MW1200+75" with penalty 10,
             "MW1330+75",
-            "TR1330+75" with penalty 5
+            "TR1330+75" with penalty 5,
     );
     instructor!(t,
         name:
@@ -79,7 +78,7 @@ pub fn input() -> Result<Input, String> {
             "TR1030+75" with penalty 10,
             "TR1200+75" with penalty 10,
             "TR1330+75",
-            "TR1500+75"
+            "TR1500+75",
     );
     //t.preference("twodays");
 
@@ -94,7 +93,7 @@ pub fn input() -> Result<Input, String> {
             "TR1030+75",
             "TR1200+75",
             "TR1330+75",
-            "TR1500+75" with penalty 10
+            "TR1500+75" with penalty 10,
     );
     //t.preference("twodays");
 
@@ -102,7 +101,7 @@ pub fn input() -> Result<Input, String> {
         name:
             "Eric Pedersen",
         available:
-            "TR1200+75"
+            "TR1200+75",
     );
 
     instructor!(t,
@@ -120,7 +119,7 @@ pub fn input() -> Result<Input, String> {
             "TR1030+75",
             "TR1200+75",
             "TR1330+75",
-            "TR1500+75" with penalty 5
+            "TR1500+75" with penalty 5,
     );
     //t.preference("twodays");
 
@@ -131,7 +130,7 @@ pub fn input() -> Result<Input, String> {
             "MWF0800+50",
             "MW1630+75",
             "TR1630+75",
-            "T1800+150"
+            "T1800+150",
     );
 
     instructor!(t,
@@ -141,7 +140,7 @@ pub fn input() -> Result<Input, String> {
             "MWF0900+50",
             "MWF1000+50",
             "MWF1100+50",
-            "MW1330+75"
+            "MW1330+75",
     );
     //t.preference("oneday");
 
@@ -153,7 +152,7 @@ pub fn input() -> Result<Input, String> {
             "TR1030+75",
             "TR1200+75",
             "TR1330+75",
-            "MW1500+75" with penalty 15
+            "MW1500+75" with penalty 15,
     );
 
     instructor!(t,
@@ -163,7 +162,7 @@ pub fn input() -> Result<Input, String> {
             "MW1200+75",
             "TR0900+75",
             "TR1030+75",
-            "TR1200+75"
+            "TR1200+75",
     );
     //t.preference("oneday");
 
@@ -181,7 +180,7 @@ pub fn input() -> Result<Input, String> {
             "TR1030+75",
             "TR1200+75",
             "TR1330+75",
-            "TR1500+75" with penalty 10
+            "TR1500+75" with penalty 10,
     );
     //t.preference("twodays");
 
@@ -195,7 +194,7 @@ pub fn input() -> Result<Input, String> {
             "TR1200+75" with penalty 5,
             "TR1330+75",
             "TR1500+75",
-            "R1900+50"
+            "R1900+50",
      );
     //t.preference("twodays");
 
@@ -208,21 +207,21 @@ pub fn input() -> Result<Input, String> {
             "MW1500+75" with penalty 10,
             "TR1200+75",
             "TR1330+75",
-            "TR1500+75" with penalty 10
+            "TR1500+75" with penalty 10,
     );
 
     instructor!(t,
         name:
             "Rex Frisbey",
         available:
-            "MWF1100+50"
+            "MWF1100+50",
     );
 
     instructor!(t,
         name:
             "Jamie Bennion",
         available:
-            "W1800+150"
+            "W1800+150",
     );
 
     section!(t, course: "CS 2420"-"01",
@@ -481,7 +480,7 @@ pub fn input() -> Result<Input, String> {
                         "SE 4200", "SE 4600"); // IT 1100 SE 1400
 
     // IT conflicts
-    //conflict!(t, set penalty to 50, ["IT 1100", "IT 1200"]); // when there is only one in-person section of each
+    //conflict!(t, set penalty to 50, clique: "IT 1100", "IT 1200"); // when there is only one in-person section of each
     conflict!(t, set penalty to 90,
                 clique: "IT 2300", "IT 2400", "IT 2500", "IT 2700",
                         "IT 3100", "IT 3110", "IT 3150", "IT 3300", "IT 3400",
@@ -495,14 +494,10 @@ pub fn input() -> Result<Input, String> {
                         "IT 4100", "IT 4200", "IT 4310", "IT 4400", "IT 4510", "IT 4600",
                         "SE 3200", "SE 3400");
 
-    // CS2450 is a prereq for SE3100 so they can be scheduled at the same time
-    conflict!(t, remove penalty, clique: "CS 2450", "SE 3100");
-    // CS2450 is a prereq for SE3150 so they can be scheduled at the same time
-    conflict!(t, remove penalty, clique: "CS 2450", "SE 3150");
-    // SE3200 is a prereq for SE4200 so they can be scheduled at the same time
-    conflict!(t, remove penalty, clique: "SE 3200", "SE 4200");
-    // students take either CS4307 or IT2300 but not both
-    conflict!(t, remove penalty, clique: "CS 4307", "IT 2300");
+    conflict!(t, remove penalty, clique: "CS 2450", "SE 3100"); // CS2450 is a prereq for SE3100 so no conflict
+    conflict!(t, remove penalty, clique: "CS 2450", "SE 3150"); // CS2450 is a prereq for SE3150 so no conflict
+    conflict!(t, remove penalty, clique: "SE 3200", "SE 4200"); // SE3200 is a prereq for SE4200 so no conflict
+    conflict!(t, remove penalty, clique: "CS 4307", "IT 2300"); // students take either CS4307 or IT2300 but not both so no conflict
 
     // multiple-section courses must be taught at different times
     conflict!(t, set hard, clique: "CS 1400");
@@ -513,9 +508,9 @@ pub fn input() -> Result<Input, String> {
     conflict!(t, set hard, clique: "SE 1400");
 
     // courses that must be scheduled at the same time
-    //anticonflict: 50 CS1400 CS1030
-    //anticonflict: 50 SE1400 IT1100 // temporarily removed because of new hire planning
-    //anticonflict: 50 CS4600 SE4600
+    //anticonflict!(t, set penalty to 50, clique: "CS 1400", "CS 1030");
+    //anticonflict!(t, set penalty to 50, clique: "SE 1400", "IT 1100"); // temporarily removed because of new hire planning
+    //anticonflict!(t, set penalty to 50, clique: "CS 4600", "SE 4600");
 
     Ok(t)
 }

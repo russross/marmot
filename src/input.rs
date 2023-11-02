@@ -71,12 +71,16 @@ impl Input {
         Ok(())
     }
 
-    pub fn time(&mut self, name: &str, tags: Vec<&str>) -> Result<(), String> {
+    pub fn make_time(&mut self, name: &str, tags: Vec<&str>) -> Result<(), String> {
         // example: MWF0900+50
         let re = regex::Regex::new(
             r"^([mtwrfsuMTWRFSU]+)([0-1][0-9]|2[0-3])([0-5][05])\+([1-9][0-9]?[05])$",
         )
         .unwrap();
+
+        if self.time_slots.iter().any(|elt| elt.name == name.to_string()) {
+            return Err(format!("cannot have two time slots with name \"{}\"", name));
+        }
 
         let Some(caps) = re.captures(name) else {
             return Err(format!(
@@ -176,8 +180,12 @@ impl Input {
         if cap > 10000 {
             return Err("room cannot have capacity > 10000".into());
         }
+        let name_s = name.to_string();
+        if self.rooms.iter().any(|elt| elt.name == name.to_string()) {
+            return Err(format!("cannot have two rooms with name \"{}\"", name_s).into());
+        }
         self.rooms.push(Room {
-            name: name.into(),
+            name: name_s,
             capacity: cap,
             tags: tags.iter().map(|s| s.to_string()).collect(),
         });
@@ -327,7 +335,7 @@ impl Input {
             return Err(format!("no valid room/time combinations found for {}-{} after considering instructor availability",
                 course, section).into());
         }
-        rtp.sort();
+        rtp.sort_by_key(|elt| (elt.room, elt.time_slot, elt.penalty));
         if self
             .sections
             .iter()
@@ -513,6 +521,7 @@ pub struct TimeSlot {
     pub tags: Vec<String>,
 }
 
+#[derive(Clone)]
 pub struct RoomTime {
     pub room: usize,
     pub time_slot: usize,
@@ -529,38 +538,15 @@ pub struct RoomWithPenalty {
     pub penalty: u16,
 }
 
-#[derive(Eq, PartialEq, Ord)]
 pub struct RoomTimeWithPenalty {
     pub room: usize,
     pub time_slot: usize,
     pub penalty: u16,
 }
 
-impl PartialOrd for RoomTimeWithPenalty {
-    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        if self.room != other.room {
-            return Some(self.room.cmp(&other.room));
-        }
-        if self.time_slot != other.time_slot {
-            return Some(self.time_slot.cmp(&other.time_slot));
-        }
-        return Some(self.penalty.cmp(&other.penalty));
-    }
-}
-
-#[derive(Eq, PartialEq, Ord)]
 pub struct SectionWithPenalty {
     pub section: usize,
     pub penalty: u16,
-}
-
-impl PartialOrd for SectionWithPenalty {
-    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        if self.section != other.section {
-            return Some(self.section.cmp(&other.section));
-        }
-        return Some(self.penalty.cmp(&other.penalty));
-    }
 }
 
 pub struct Instructor {
@@ -713,10 +699,10 @@ macro_rules! room {
 
 macro_rules! time {
     ($input:expr, name: $name:expr) => (
-        $input.time($name, vec![])?
+        $input.make_time($name, vec![])?
     );
     ($input:expr, name: $name:expr, tags: $($tag:expr),*) => (
-        $input.time($name, vec![$($tag,)*])?
+        $input.make_time($name, vec![$($tag,)*])?
     );
 }
 

@@ -1,15 +1,18 @@
 use super::input::*;
 use rand::Rng;
 
+#[derive(Clone)]
 pub struct Solver {
     pub room_placements: Vec<RoomPlacements>,
     pub sections: Vec<SolverSection>,
 }
 
+#[derive(Clone)]
 pub struct RoomPlacements {
     pub time_slot_placements: Vec<Option<usize>>,
 }
 
+#[derive(Clone)]
 pub struct SolverSection {
     pub placement: Option<RoomTime>,
     pub tickets: u64,
@@ -47,18 +50,18 @@ impl Solver {
         }
     }
 
-    pub fn add_placement(&mut self, section: usize, room: usize, time_slot: usize) {
+    pub fn add_placement(&mut self, section: usize, room_time: &RoomTime) {
         if let Some(RoomTime {
             room: _r,
             time_slot: _t,
         }) = std::mem::replace(
             &mut self.sections[section].placement,
-            Some(RoomTime { room, time_slot }),
+            Some(RoomTime{ room: room_time.room, time_slot: room_time.time_slot }),
         ) {
             panic!("Solver::add_placement section already filled");
         }
         if let Some(_s) = std::mem::replace(
-            &mut self.room_placements[room].time_slot_placements[time_slot],
+            &mut self.room_placements[room_time.room].time_slot_placements[room_time.time_slot],
             Some(section),
         ) {
             panic!("Solver::add_placement room time pair already filled");
@@ -75,13 +78,12 @@ impl Solver {
         &mut self,
         input: &Input,
         section: usize,
-        room: usize,
-        time_slot: usize,
+        room_time: &RoomTime,
     ) {
         // is this slot (or an overlapping time in the same room) already occupied?
         let mut evictees = Vec::new();
-        for overlapping in &input.time_slots[time_slot].conflicts {
-            if let Some(existing) = self.room_placements[room].time_slot_placements[*overlapping] {
+        for overlapping in &input.time_slots[room_time.time_slot].conflicts {
+            if let Some(existing) = self.room_placements[room_time.room].time_slot_placements[*overlapping] {
                 evictees.push(existing);
             }
         }
@@ -94,7 +96,7 @@ impl Solver {
                     time_slot: t,
                 }) = self.sections[main_cross_listing].placement
                 {
-                    if input.time_slots[time_slot].conflicts.contains(&t) {
+                    if input.time_slots[room_time.time_slot].conflicts.contains(&t) {
                         evictees.push(main_cross_listing);
                     }
                 }
@@ -104,10 +106,46 @@ impl Solver {
         evictees.iter().for_each(|&i| self.remove_placement(i));
     }
 
-    //pub fn select_section_to_place(&mut self, input: &Input) {
-    //    let mut rng = rand::thread_rng();
-    //    let selection = rng.gen_range(0..input.sections.len());
-    //}
+    pub fn select_section_to_place(&self, input: &Input) -> usize {
+        let mut rng = rand::thread_rng();
+        loop {
+            let i = rng.gen_range(0..self.sections.len());
+
+            // for cross-listed classes, the first in the list is the one we place
+            if input.sections[i].cross_listings[0] != i {
+                continue;
+            }
+
+            // bias toward unplaced sections
+            if self.sections[i].placement.is_some() && rng.gen_range(0..10) > 0 {
+                continue;
+            }
+
+            return i;
+        }
+    }
+
+    pub fn select_room_time_to_place(&self, input: &Input, section_i: usize) -> RoomTime {
+        let mut rng = rand::thread_rng();
+        let room_times = &input.sections[section_i].room_times;
+        let i = rng.gen_range(0..room_times.len());
+        let RoomTimeWithPenalty{ room, time_slot, .. } = room_times[i];
+        RoomTime{ room: room, time_slot: time_slot }
+    }
+
+    pub fn compute_score(&self, input: &Input) -> u64 {
+        // just count placements
+        let mut score = self.sections.len() as u64;
+        for (i, section) in self.sections.iter().enumerate() {
+            if section.placement.is_some() {
+                score -= 1;
+            }
+            if input.sections[i].cross_listings.len() > 1 && input.sections[i].cross_listings[0] != i {
+                score -= 1;
+            }
+        }
+        score
+    }
 
     pub fn print_schedule(&self, input: &Input) {
         let mut name_len = 0;
@@ -204,21 +242,35 @@ impl Solver {
         }
         println!("+");
     }
+}
 
-    pub fn run_stupid_solver(&mut self, term: &Input) {
-        let mut rng = rand::thread_rng();
-        for _ in 0..10000 {
-            let section_i = rng.gen_range(0..term.sections.len());
-            let section = &term.sections[section_i];
-            if section.cross_listings[0] != section_i {
-                continue;
+pub fn solve(input: &Input, iterations: usize) {
+    let mut solver = Solver::new(input);
+    let mut best_score = u64::MAX;
+    for _ in 0..iterations {
+        let section = solver.select_section_to_place(input);
+        let room_time = solver.select_room_time_to_place(input, section);
+        solver.remove_placement(section);
+        solver.displace_conflicts(input, section, &room_time);
+        solver.add_placement(section, &room_time);
+        let score = solver.compute_score(input);
+        if score < best_score {
+            best_score = score;
+            solver.print_schedule(input);
+            println!("score = {}", score);
+            if score > 0 {
+                println!("unplaced sections:");
+                for (i, section) in solver.sections.iter().enumerate() {
+                    if section.placement.is_some() {
+                        continue;
+                    }
+                    if input.sections[i].cross_listings.len() > 1 && input.sections[i].cross_listings[0] != i {
+                        continue;
+                    }
+                    println!("    {}-{}", input.sections[i].course, input.sections[i].section);
+                }
             }
-            let &RoomTimeWithPenalty {
-                room, time_slot, ..
-            } = &section.room_times[rng.gen_range(0..section.room_times.len())];
-            self.remove_placement(section_i);
-            self.displace_conflicts(&term, section_i, room, time_slot);
-            self.add_placement(section_i, room, time_slot);
         }
     }
 }
+

@@ -48,7 +48,7 @@ fn main() {
     for i in 0..term.instructors.len() {
         instructor_order.push(i);
     }
-    instructor_order.sort_by_key(|&i| term.instructors[i].name.clone());
+    instructor_order.sort_by_key(|&i| &term.instructors[i].name);
     for inst_i in instructor_order {
         let inst = &term.instructors[inst_i];
         print!("{}", inst.name);
@@ -131,7 +131,5 @@ fn main() {
         println!("");
     }
 
-    let mut solver = Solver::new(&term);
-    solver.run_stupid_solver(&term);
-    solver.print_schedule(&term);
+    solve(&term, 1000000);
 }
