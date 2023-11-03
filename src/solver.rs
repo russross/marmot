@@ -147,6 +147,10 @@ impl Solver {
         score
     }
 
+    pub fn compute_lottery_tickets(&mut self, input: &Input) -> u64 {
+        0
+    }
+
     pub fn print_schedule(&self, input: &Input) {
         let mut name_len = 0;
         for (instructor_i, instructor) in input.instructors.iter().enumerate() {
@@ -270,8 +274,6 @@ pub fn solve(input: &Input, iterations: usize) {
                     }
                     println!("    {}-{}", input.sections[i].course, input.sections[i].section);
                 }
-            } else {
-                break;
             }
         }
     }

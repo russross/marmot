@@ -195,7 +195,7 @@ impl Input {
     pub fn make_instructor(
         &mut self,
         name: &str,
-        available_times: Vec<(String, u16)>,
+        available_times: Vec<(String, u64)>,
     ) -> Result<(), String> {
         let mut times: Vec<TimeWithPenalty> = Vec::new();
         for (time_name, badness) in available_times {
@@ -237,7 +237,7 @@ impl Input {
         course: String,
         section: String,
         instructor_names: Vec<String>,
-        rooms_and_times: Vec<(String, u16)>,
+        rooms_and_times: Vec<(String, u64)>,
     ) -> Result<(), String> {
         // start with instructors
         let mut instructors = Vec::new();
@@ -371,7 +371,7 @@ impl Input {
         if badness_raw < 0 || badness_raw > 100 {
             return Err("badness for a conflict clique must be between 0 and 100".into());
         }
-        let badness = badness_raw as u16;
+        let badness = badness_raw as u64;
         if badness == 100 && !maximize {
             return Err("make_conflict_clique does not support badness=100 and !maximize".into());
         } else if badness == 0 && maximize {
@@ -530,23 +530,23 @@ pub struct RoomTime {
 #[derive(Clone)]
 pub struct TimeWithPenalty {
     pub time_slot: usize,
-    pub penalty: u16,
+    pub penalty: u64,
 }
 
 pub struct RoomWithPenalty {
     pub room: usize,
-    pub penalty: u16,
+    pub penalty: u64,
 }
 
 pub struct RoomTimeWithPenalty {
     pub room: usize,
     pub time_slot: usize,
-    pub penalty: u16,
+    pub penalty: u64,
 }
 
 pub struct SectionWithPenalty {
     pub section: usize,
-    pub penalty: u16,
+    pub penalty: u64,
 }
 
 pub struct Instructor {
@@ -569,7 +569,7 @@ pub struct Section {
 }
 
 impl Section {
-    pub fn get_conflict(&self, other: usize) -> u16 {
+    pub fn get_conflict(&self, other: usize) -> u64 {
         for elt in &self.hard_conflicts {
             if *elt == other {
                 return 100;
@@ -583,7 +583,7 @@ impl Section {
         0
     }
 
-    pub fn set_conflict(&mut self, other: usize, penalty: u16) {
+    pub fn set_conflict(&mut self, other: usize, penalty: u64) {
         if penalty == 0 {
             self.hard_conflicts.retain(|&elt| elt != other);
             self.soft_conflicts.retain(|elt| elt.section != other);
@@ -689,11 +689,11 @@ macro_rules! holiday {
 }
 
 macro_rules! room {
-    ($input:expr, name: $name:expr, capacity: $capacity:expr) => (
-        $input.make_room($name, $capacity, vec![])?
-    );
     ($input:expr, name: $name:expr, capacity: $capacity:expr, tags: $($tag:expr),*) => (
         $input.make_room($name, $capacity, vec![$($tag,)*])?
+    );
+    ($input:expr, name: $name:expr, capacity: $capacity:expr) => (
+        $input.make_room($name, $capacity, vec![])?
     );
 }
 
