@@ -131,5 +131,5 @@ fn main() {
         println!("");
     }
 
-    solve(&term, 1000000);
+    solve(&term, 10_000_000);
 }

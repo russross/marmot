@@ -256,10 +256,11 @@ pub fn solve(input: &Input, iterations: usize) {
         let score = solver.compute_score(input);
         if score < best_score {
             best_score = score;
+            println!("");
+            println!("");
             solver.print_schedule(input);
-            println!("score = {}", score);
             if score > 0 {
-                println!("unplaced sections:");
+                println!("unplaced sections (×{}):", score);
                 for (i, section) in solver.sections.iter().enumerate() {
                     if section.placement.is_some() {
                         continue;
@@ -269,6 +270,8 @@ pub fn solve(input: &Input, iterations: usize) {
                     }
                     println!("    {}-{}", input.sections[i].course, input.sections[i].section);
                 }
+            } else {
+                break;
             }
         }
     }
