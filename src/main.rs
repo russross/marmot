@@ -10,7 +10,7 @@ fn main() {
         Err(msg) => {
             println!("Error in the input: {}", msg);
             return;
-        },
+        }
     };
 
     println!("term: {} from {} to {}", term.name, term.start, term.end);
@@ -34,7 +34,7 @@ fn main() {
                 sep = ", ";
             }
         }
-        println!("");
+        println!();
     }
 
     for room in &term.rooms {
@@ -42,7 +42,7 @@ fn main() {
         for tag in &room.tags {
             print!(" {}", tag);
         }
-        println!("");
+        println!();
     }
     let mut instructor_order = Vec::new();
     for i in 0..term.instructors.len() {
@@ -59,7 +59,7 @@ fn main() {
                 print!(" {}:{}", term.time_slots[twp.time_slot].name, twp.penalty);
             }
         }
-        println!("");
+        println!();
     }
     let mut section_order = Vec::new();
     for i in 0..term.sections.len() {
@@ -100,13 +100,13 @@ fn main() {
                 print!(":{}", rtp.penalty);
             }
         }
-        println!("");
+        println!();
         if !sec.hard_conflicts.is_empty() {
             print!("    hard conflicts:");
             for &i in sec.hard_conflicts.iter() {
                 print!(" {}-{}", term.sections[i].course, term.sections[i].section);
             }
-            println!("");
+            println!();
         }
         if !sec.soft_conflicts.is_empty() {
             print!("    soft conflicts:");
@@ -118,17 +118,17 @@ fn main() {
                     elt.penalty
                 );
             }
-            println!("");
+            println!();
         }
     }
-    if term.missing.len() > 0 {
+    if !term.missing.is_empty() {
         print!("unknown courses:");
         let mut sep = " ";
         for elt in &term.missing {
             print!("{}{}", sep, elt);
             sep = ", ";
         }
-        println!("");
+        println!();
     }
 
     solve(&term, 10_000_000);

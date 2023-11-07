@@ -185,17 +185,17 @@ pub fn input() -> Result<Input, String> {
     //t.preference("twodays");
 
     instructor!(t,
-        name:
-            "Ren Quinn",
-        available:
-            "MWF0900+50",
-            "MWF1000+50",
-            "MWF1100+50",
-            "TR1200+75" with penalty 5,
-            "TR1330+75",
-            "TR1500+75",
-            "R1900+50",
-     );
+       name:
+           "Ren Quinn",
+       available:
+           "MWF0900+50",
+           "MWF1000+50",
+           "MWF1100+50",
+           "TR1200+75" with penalty 5,
+           "TR1330+75",
+           "TR1500+75",
+           "R1900+50",
+    );
     //t.preference("twodays");
 
     instructor!(t,
@@ -375,7 +375,8 @@ pub fn input() -> Result<Input, String> {
                 rooms and times: "flex");
     section!(t, course: "CS 4991"-"01",
                 instructor: "Ren Quinn",
-                rooms and times: "Smith 116", "R1900+50"); // overload acm
+                rooms and times: "Smith 116", "R1900+50");
+    // overload acm
     // course: CS4992 flex F1300 // overload seminar
     // course: CS4800R not scheduled
     // CS4991R is actually R1900-1950
@@ -401,21 +402,20 @@ pub fn input() -> Result<Input, String> {
                 instructor: "Jamie Bennion",
                 rooms and times: "flex");
 
-
     conflict!(t, set hard,
-                clique: "CS 2420", "CS 2450", "CS 2810", "CS 3005");    // 3rd/4th semester classes
+                clique: "CS 2420", "CS 2450", "CS 2810", "CS 3005"); // 3rd/4th semester classes
     conflict!(t, set hard,
-                clique: "CS 2420", "CS 2450", "CS 2810");               // grad plan: 2nd year fall
+                clique: "CS 2420", "CS 2450", "CS 2810"); // grad plan: 2nd year fall
     conflict!(t, set hard,
-                clique: "CS 3005", "CS 3520", "SE 3200");               // grad plan: 2nd year spring
+                clique: "CS 3005", "CS 3520", "SE 3200"); // grad plan: 2nd year spring
     conflict!(t, set hard,
-                clique: "CS 3310", "CS 3400", "SE 3530");               // grad plan: 3nd year fall
+                clique: "CS 3310", "CS 3400", "SE 3530"); // grad plan: 3nd year fall
     conflict!(t, set hard,
-                clique: "CS 3510", "CS 4307", "SE 4550");               // grad plan: 3nd year spring
+                clique: "CS 3510", "CS 4307", "SE 4550"); // grad plan: 3nd year spring
     conflict!(t, set hard,
-                clique: "CS 4300");                                     // grad plan: 4th year fall
+                clique: "CS 4300"); // grad plan: 4th year fall
     conflict!(t, set hard,
-                clique: "CS 3600", "CS 4600");                          // grad plan: 4th year spring
+                clique: "CS 3600", "CS 4600"); // grad plan: 4th year spring
 
     // CS upper division core
     conflict!(t, set penalty to 90,

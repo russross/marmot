@@ -14,6 +14,42 @@ pub fn setup() -> Result<Input, String> {
         }
     }
 
+    // compute combined conflicts across cross-listings
+    for i in 0..input.sections.len() {
+        if !input.sections[i].is_primary_cross_listing(i) {
+            continue;
+        }
+        let mut hard_conflicts = Vec::new();
+        let mut soft_conflicts = Vec::new();
+        for &self_cross_listing in &input.sections[i].cross_listings {
+            for &other in &input.sections[self_cross_listing].hard_conflicts {
+                hard_conflicts.push(input.sections[other].get_primary_cross_listing());
+            }
+            for &SectionWithPenalty { section, penalty } in
+                &input.sections[self_cross_listing].soft_conflicts
+            {
+                soft_conflicts.push(SectionWithPenalty {
+                    section: input.sections[section].get_primary_cross_listing(),
+                    penalty,
+                });
+            }
+        }
+        hard_conflicts.sort();
+        hard_conflicts.dedup();
+
+        // sort highest penalty first...
+        soft_conflicts.sort_by_key(|elt| (elt.section, u64::MAX - elt.penalty));
+        // ... so dedup will remove the lower penalty instances
+        soft_conflicts.dedup_by_key(|elt| elt.section);
+
+        // copy the combined list to all cross-listings
+        // even though only the primary will be used in solving
+        for &self_cross_listing in &input.sections[i].cross_listings.clone() {
+            input.sections[self_cross_listing].hard_conflicts_combined = hard_conflicts.clone();
+            input.sections[i].soft_conflicts_combined = soft_conflicts.clone();
+        }
+    }
+
     Ok(input)
 }
 
@@ -59,7 +95,10 @@ impl Input {
 
     pub fn make_holiday(&mut self, holiday: time::Date) -> Result<(), String> {
         if holiday < self.start || holiday > self.end {
-            return Err(format!("block_out_holiday: {} is outside the term", holiday).into());
+            return Err(format!(
+                "block_out_holiday: {} is outside the term",
+                holiday
+            ));
         }
         let mut index = ((holiday - self.start).whole_days() * 24 * 60 / 5) as usize;
         for _hour in 0..24 {
@@ -78,7 +117,7 @@ impl Input {
         )
         .unwrap();
 
-        if self.time_slots.iter().any(|elt| elt.name == name.to_string()) {
+        if self.time_slots.iter().any(|elt| elt.name == *name) {
             return Err(format!("cannot have two time slots with name \"{}\"", name));
         }
 
@@ -86,8 +125,7 @@ impl Input {
             return Err(format!(
                 "unrecognized time format: '{}' should be like 'MWF0900+50'",
                 name
-            )
-            .into());
+            ));
         };
         let weekday_part = &caps[1];
         let hour_part = &caps[2];
@@ -181,8 +219,8 @@ impl Input {
             return Err("room cannot have capacity > 10000".into());
         }
         let name_s = name.to_string();
-        if self.rooms.iter().any(|elt| elt.name == name.to_string()) {
-            return Err(format!("cannot have two rooms with name \"{}\"", name_s).into());
+        if self.rooms.iter().any(|elt| elt.name == *name) {
+            return Err(format!("cannot have two rooms with name \"{}\"", name_s));
         }
         self.rooms.push(Room {
             name: name_s,
@@ -200,14 +238,13 @@ impl Input {
         let mut times: Vec<TimeWithPenalty> = Vec::new();
         for (time_name, badness) in available_times {
             let Ok(time_slot) = self.find_time_slot_by_name(&time_name) else {
-                return Err(format!("unknown time slot name {}", time_name).into());
+                return Err(format!("unknown time slot name {}", time_name));
             };
             if times.iter().any(|t| t.time_slot == time_slot) {
                 return Err(format!(
                     "time slot {} appears twice for instructor {}",
                     time_name, name
-                )
-                .into());
+                ));
             }
             times.push(TimeWithPenalty {
                 time_slot: time_slot,
@@ -215,7 +252,7 @@ impl Input {
             });
         }
         if self.find_instructor_by_name(&name.into()).is_ok() {
-            return Err(format!("duplicate instructor name: {}", name).into());
+            return Err(format!("duplicate instructor name: {}", name));
         }
         self.instructors.push(Instructor {
             name: name.into(),
@@ -251,53 +288,51 @@ impl Input {
         let mut twp = Vec::new();
 
         for (tag, badness) in rooms_and_times {
-                    let mut found = false;
+            let mut found = false;
 
-                    // check for matching rooms
-                    for (room_i, _room) in self
-                        .rooms
-                        .iter()
-                        .enumerate()
-                        .filter(|(_, r)| r.name == tag || r.tags.contains(&tag))
-                    {
-                        found = true;
-                        add_room_with_penalty_keep_worst(
-                            &mut rwp,
-                            RoomWithPenalty {
-                                room: room_i,
-                                penalty: badness,
-                            },
-                        );
-                    }
+            // check for matching rooms
+            for (room_i, _room) in self
+                .rooms
+                .iter()
+                .enumerate()
+                .filter(|(_, r)| r.name == tag || r.tags.contains(&tag))
+            {
+                found = true;
+                add_room_with_penalty_keep_worst(
+                    &mut rwp,
+                    RoomWithPenalty {
+                        room: room_i,
+                        penalty: badness,
+                    },
+                );
+            }
 
-                    // check for matching times
-                    for (time_i, _time) in self
-                        .time_slots
-                        .iter()
-                        .enumerate()
-                        .filter(|(_, t)| t.name == tag || t.tags.contains(&tag))
-                    {
-                        found = true;
-                        add_time_with_penalty_keep_worst(
-                            &mut twp,
-                            TimeWithPenalty {
-                                time_slot: time_i,
-                                penalty: badness,
-                            },
-                        );
-                    }
+            // check for matching times
+            for (time_i, _time) in self
+                .time_slots
+                .iter()
+                .enumerate()
+                .filter(|(_, t)| t.name == tag || t.tags.contains(&tag))
+            {
+                found = true;
+                add_time_with_penalty_keep_worst(
+                    &mut twp,
+                    TimeWithPenalty {
+                        time_slot: time_i,
+                        penalty: badness,
+                    },
+                );
+            }
 
-                    if !found {
-                        return Err(
-                            format!("unrecognized constraint tag for section: {}", tag).into()
-                        );
-                    }
+            if !found {
+                return Err(format!("unrecognized constraint tag for section: {}", tag));
+            }
         }
 
-        if rwp.len() == 0 {
-            return Err(format!("no rooms found for {}-{}", course, section).into());
+        if rwp.is_empty() {
+            return Err(format!("no rooms found for {}-{}", course, section));
         }
-        if twp.len() == 0 {
+        if twp.is_empty() {
             // just copy the availability of the first instructor and that will be
             // intersected with other instructors below
             twp.extend(
@@ -331,17 +366,20 @@ impl Input {
                 });
             }
         }
-        if rtp.len() == 0 {
+        if rtp.is_empty() {
             return Err(format!("no valid room/time combinations found for {}-{} after considering instructor availability",
-                course, section).into());
+                course, section));
         }
         rtp.sort_by_key(|elt| (elt.room, elt.time_slot, elt.penalty));
         if self
             .sections
             .iter()
-            .any(|s| s.course == course.to_string() && s.section == section.to_string())
+            .any(|s| s.course == course && s.section == section)
         {
-            return Err(format!("course {}-{} appears more than once", course, section).into());
+            return Err(format!(
+                "course {}-{} appears more than once",
+                course, section
+            ));
         }
         for instructor in &instructors {
             self.instructors[*instructor]
@@ -349,13 +387,15 @@ impl Input {
                 .push(self.sections.len());
         }
         self.sections.push(Section {
-            course: course.into(),
-            section: section.into(),
+            course: course,
+            section: section,
             instructors: instructors,
             room_times: rtp,
             hard_conflicts: Vec::new(),
             soft_conflicts: Vec::new(),
             cross_listings: vec![self.sections.len()],
+            hard_conflicts_combined: Vec::new(),
+            soft_conflicts_combined: Vec::new(),
         });
 
         Ok(())
@@ -368,7 +408,7 @@ impl Input {
         sections_raw: Vec<(String, Option<String>)>,
     ) -> Result<(), String> {
         // parse and sanity check the inputs
-        if badness_raw < 0 || badness_raw > 100 {
+        if !(0..=100).contains(&badness_raw) {
             return Err("badness for a conflict clique must be between 0 and 100".into());
         }
         let badness = badness_raw as u64;
@@ -439,10 +479,8 @@ impl Input {
             if section_list.len() != 1 {
                 return Err(format!(
                     "section {}-{} not found in cross-listing",
-                    course,
-                    section,
-                )
-                .into());
+                    course, section
+                ));
             }
 
             sections.push(section_list[0]);
@@ -463,6 +501,10 @@ impl Input {
             self.sections[left_i].cross_listings.dedup();
         }
         Ok(())
+    }
+
+    pub fn time_slots_conflict(&self, a: usize, b: usize) -> bool {
+        self.time_slots[a].conflicts.contains(&b)
     }
 }
 
@@ -490,14 +532,13 @@ pub fn add_time_with_penalty_keep_worst(list: &mut Vec<TimeWithPenalty>, twp: Ti
 
 pub fn date(year: i32, month: u8, day: u8) -> Result<time::Date, String> {
     let Ok(m) = time::Month::try_from(month) else {
-        return Err(format!("date input with invalid month {}", month).into());
+        return Err(format!("date input with invalid month {}", month));
     };
     let Ok(d) = time::Date::from_calendar_date(year, m, day) else {
         return Err(format!(
             "date {}-{}-{} is invalid, should be year-month-day",
             year, month, day
-        )
-        .into());
+        ));
     };
     Ok(d)
 }
@@ -544,6 +585,7 @@ pub struct RoomTimeWithPenalty {
     pub penalty: u64,
 }
 
+#[derive(Clone)]
 pub struct SectionWithPenalty {
     pub section: usize,
     pub penalty: u64,
@@ -566,6 +608,11 @@ pub struct Section {
     // every course is in its own cross_listings vector, which must be a clique
     // placement occurs on the section with the lowest index, others tag along
     pub cross_listings: Vec<usize>,
+
+    // combined conflicts across all cross listings (using worst penalty)
+    // all sections are indexed on primary cross-listing in these lists
+    pub hard_conflicts_combined: Vec<usize>,
+    pub soft_conflicts_combined: Vec<SectionWithPenalty>,
 }
 
 impl Section {
@@ -607,6 +654,14 @@ impl Section {
             }
         }
     }
+
+    pub fn is_primary_cross_listing(&self, index: usize) -> bool {
+        index == self.cross_listings[0]
+    }
+
+    pub fn get_primary_cross_listing(&self) -> usize {
+        self.cross_listings[0]
+    }
 }
 
 pub struct Bits {
@@ -632,8 +687,7 @@ impl Bits {
             return Err(format!(
                 "Bits::get index out of range: {} requested but size is {}",
                 index, self.size
-            )
-            .into());
+            ));
         }
         Ok(self.bits[index / 64] & (1 << (index % 64)) != 0)
     }
@@ -788,4 +842,7 @@ macro_rules! conflict {
     };
 }
 
-pub(crate) use {holiday, room, time, instructor, section, crosslist, conflict, name_with_penalty_list, course_with_section_list};
+pub(crate) use {
+    conflict, course_with_section_list, crosslist, holiday, instructor, name_with_penalty_list,
+    room, section, time,
+};
