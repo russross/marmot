@@ -131,5 +131,10 @@ fn main() {
         println!();
     }
 
-    solve(&term, 10_000_000);
+    let iterations = 100_000;
+    let start = time::Instant::now();
+    solve(&term, iterations);
+    let elapsed = start.elapsed();
+    let rate = (iterations as f64) / elapsed.as_seconds_f64();
+    println!("solved at a rate of {}/second", rate as i64);
 }

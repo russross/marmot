@@ -38,7 +38,7 @@ pub fn setup() -> Result<Input, String> {
         hard_conflicts.dedup();
 
         // sort highest penalty first...
-        soft_conflicts.sort_by_key(|elt| (elt.section, u64::MAX - elt.penalty));
+        soft_conflicts.sort_by_key(|elt| (elt.section, -elt.penalty));
         // ... so dedup will remove the lower penalty instances
         soft_conflicts.dedup_by_key(|elt| elt.section);
 
@@ -82,9 +82,9 @@ impl Input {
         }
         Self {
             name: name.into(),
-            start: start,
-            end: end,
-            slots: slots,
+            start,
+            end,
+            slots,
             rooms: Vec::new(),
             time_slots: Vec::new(),
             instructors: Vec::new(),
@@ -193,11 +193,11 @@ impl Input {
 
         self.time_slots.push(TimeSlot {
             name: name.into(),
-            slots: slots,
-            days: days,
-            start_time: start_time,
-            duration: duration,
-            conflicts: conflicts,
+            slots,
+            days,
+            start_time,
+            duration,
+            conflicts,
             tags: tags.iter().map(|s| s.to_string()).collect(),
         });
 
@@ -233,10 +233,10 @@ impl Input {
     pub fn make_instructor(
         &mut self,
         name: &str,
-        available_times: Vec<(String, u64)>,
+        available_times: Vec<(String, i64)>,
     ) -> Result<(), String> {
         let mut times: Vec<TimeWithPenalty> = Vec::new();
-        for (time_name, badness) in available_times {
+        for (time_name, penalty) in available_times {
             let Ok(time_slot) = self.find_time_slot_by_name(&time_name) else {
                 return Err(format!("unknown time slot name {}", time_name));
             };
@@ -246,10 +246,13 @@ impl Input {
                     time_name, name
                 ));
             }
-            times.push(TimeWithPenalty {
-                time_slot: time_slot,
-                penalty: badness,
-            });
+            if !(0..=99).contains(&penalty) {
+                return Err(format!(
+                    "penalty for instructor {} time slots must be between 0 and 99",
+                    name
+                ));
+            }
+            times.push(TimeWithPenalty { time_slot, penalty });
         }
         if self.find_instructor_by_name(&name.into()).is_ok() {
             return Err(format!("duplicate instructor name: {}", name));
@@ -274,7 +277,7 @@ impl Input {
         course: String,
         section: String,
         instructor_names: Vec<String>,
-        rooms_and_times: Vec<(String, u64)>,
+        rooms_and_times: Vec<(String, i64)>,
     ) -> Result<(), String> {
         // start with instructors
         let mut instructors = Vec::new();
@@ -345,7 +348,7 @@ impl Input {
 
         // calculate badness for each room/time and filter by
         // instructor availability (including badness)
-        let mut rtp = Vec::new();
+        let mut room_times = Vec::new();
         'rt: for time_slot in twp.iter() {
             let mut time_penalty = time_slot.penalty;
             for instructor_i in instructors.iter() {
@@ -359,18 +362,18 @@ impl Input {
                 }
             }
             for room in rwp.iter() {
-                rtp.push(RoomTimeWithPenalty {
+                room_times.push(RoomTimeWithPenalty {
                     room: room.room,
                     time_slot: time_slot.time_slot,
                     penalty: std::cmp::min(99, room.penalty + time_penalty),
                 });
             }
         }
-        if rtp.is_empty() {
+        if room_times.is_empty() {
             return Err(format!("no valid room/time combinations found for {}-{} after considering instructor availability",
                 course, section));
         }
-        rtp.sort_by_key(|elt| (elt.room, elt.time_slot, elt.penalty));
+        room_times.sort_by_key(|elt| (elt.room, elt.time_slot, elt.penalty));
         if self
             .sections
             .iter()
@@ -387,10 +390,10 @@ impl Input {
                 .push(self.sections.len());
         }
         self.sections.push(Section {
-            course: course,
-            section: section,
-            instructors: instructors,
-            room_times: rtp,
+            course,
+            section,
+            instructors,
+            room_times,
             hard_conflicts: Vec::new(),
             soft_conflicts: Vec::new(),
             cross_listings: vec![self.sections.len()],
@@ -403,15 +406,14 @@ impl Input {
 
     pub fn make_conflict_clique(
         &mut self,
-        badness_raw: i64,
+        badness: i64,
         maximize: bool,
         sections_raw: Vec<(String, Option<String>)>,
     ) -> Result<(), String> {
         // parse and sanity check the inputs
-        if !(0..=100).contains(&badness_raw) {
+        if !(0..=100).contains(&badness) {
             return Err("badness for a conflict clique must be between 0 and 100".into());
         }
-        let badness = badness_raw as u64;
         if badness == 100 && !maximize {
             return Err("make_conflict_clique does not support badness=100 and !maximize".into());
         } else if badness == 0 && maximize {
@@ -571,24 +573,24 @@ pub struct RoomTime {
 #[derive(Clone)]
 pub struct TimeWithPenalty {
     pub time_slot: usize,
-    pub penalty: u64,
+    pub penalty: i64,
 }
 
 pub struct RoomWithPenalty {
     pub room: usize,
-    pub penalty: u64,
+    pub penalty: i64,
 }
 
 pub struct RoomTimeWithPenalty {
     pub room: usize,
     pub time_slot: usize,
-    pub penalty: u64,
+    pub penalty: i64,
 }
 
 #[derive(Clone)]
 pub struct SectionWithPenalty {
     pub section: usize,
-    pub penalty: u64,
+    pub penalty: i64,
 }
 
 pub struct Instructor {
@@ -616,7 +618,7 @@ pub struct Section {
 }
 
 impl Section {
-    pub fn get_conflict(&self, other: usize) -> u64 {
+    pub fn get_conflict(&self, other: usize) -> i64 {
         for elt in &self.hard_conflicts {
             if *elt == other {
                 return 100;
@@ -630,7 +632,8 @@ impl Section {
         0
     }
 
-    pub fn set_conflict(&mut self, other: usize, penalty: u64) {
+    pub fn set_conflict(&mut self, other: usize, penalty: i64) {
+        assert!((0..=100).contains(&penalty));
         if penalty == 0 {
             self.hard_conflicts.retain(|&elt| elt != other);
             self.soft_conflicts.retain(|elt| elt.section != other);
@@ -649,7 +652,7 @@ impl Section {
                 Some(i) => self.soft_conflicts[i].penalty = penalty,
                 None => self.soft_conflicts.push(SectionWithPenalty {
                     section: other,
-                    penalty: penalty,
+                    penalty,
                 }),
             }
         }
@@ -676,10 +679,7 @@ impl Bits {
         for _i in 0..chunks {
             bits.push(0);
         }
-        Bits {
-            size: size,
-            bits: bits,
-        }
+        Bits { size, bits }
     }
 
     pub fn _get(&self, index: usize) -> Result<bool, String> {
