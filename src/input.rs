@@ -16,7 +16,7 @@ pub fn setup() -> Result<Input, String> {
 
     // compute combined conflicts across cross-listings
     for i in 0..input.sections.len() {
-        if !input.sections[i].is_primary_cross_listing(i) {
+        if !input.is_primary_cross_listing(i) {
             continue;
         }
         let mut hard_conflicts = Vec::new();
@@ -349,10 +349,10 @@ impl Input {
         // calculate badness for each room/time and filter by
         // instructor availability (including badness)
         let mut room_times = Vec::new();
-        'rt: for time_slot in twp.iter() {
+        'rt: for time_slot in &twp {
             let mut time_penalty = time_slot.penalty;
-            for instructor_i in instructors.iter() {
-                match self.instructors[*instructor_i]
+            for &instructor_i in &instructors {
+                match self.instructors[instructor_i]
                     .available_times
                     .iter()
                     .find(|itwp| itwp.time_slot == time_slot.time_slot)
@@ -361,7 +361,7 @@ impl Input {
                     None => continue 'rt,
                 }
             }
-            for room in rwp.iter() {
+            for room in &rwp {
                 room_times.push(RoomTimeWithPenalty {
                     room: room.room,
                     time_slot: time_slot.time_slot,
@@ -384,8 +384,8 @@ impl Input {
                 course, section
             ));
         }
-        for instructor in &instructors {
-            self.instructors[*instructor]
+        for &instructor in &instructors {
+            self.instructors[instructor]
                 .sections
                 .push(self.sections.len());
         }
@@ -490,7 +490,7 @@ impl Input {
         sections.sort();
         sections.dedup();
         if sections.len() < 2 {
-            return Err("cross-listings must include at least two sections".into());
+            return Err("cross-listings must include at least two unique sections".into());
         }
         for &left_i in &sections {
             for &right_i in &sections {
@@ -502,11 +502,62 @@ impl Input {
             self.sections[left_i].cross_listings.sort();
             self.sections[left_i].cross_listings.dedup();
         }
+
+        // calculate a combined room time list and apply it to all cross-listings
+        // this is the intersection of room/time availability with max penalty
+        let mut rtp = Vec::new();
+        let first = sections[0];
+        'a: for &RoomTimeWithPenalty {
+            room, time_slot, ..
+        } in &self.sections[first].room_times
+        {
+            // every cross-listing must have this slot
+            let mut worst_penalty = 0;
+            for &section_i in &sections {
+                match self.sections[section_i]
+                    .room_times
+                    .iter()
+                    .find(|elt| elt.room == room && elt.time_slot == time_slot)
+                {
+                    Some(RoomTimeWithPenalty { penalty, .. }) => {
+                        worst_penalty = std::cmp::max(worst_penalty, *penalty)
+                    }
+                    None => continue 'a,
+                }
+            }
+            if worst_penalty > 99 {
+                continue;
+            }
+            rtp.push(RoomTimeWithPenalty {
+                room,
+                time_slot,
+                penalty: worst_penalty,
+            });
+        }
+
+        // the cross-listed sections have to agree on at least one room and time
+        if rtp.is_empty() {
+            return Err(format!(
+                "cross-listing that includes {}-{} has no viable room+time combination",
+                self.sections[first].course, self.sections[first].section
+            ));
+        }
+        rtp.sort_by_key(|elt| (elt.room, elt.time_slot, elt.penalty));
+
+        // apply this list to every member of the cross-listing
+        for &section in &sections {
+            self.sections[section].room_times = rtp.clone();
+        }
+
         Ok(())
     }
 
     pub fn time_slots_conflict(&self, a: usize, b: usize) -> bool {
         self.time_slots[a].conflicts.contains(&b)
+    }
+
+    pub fn is_primary_cross_listing(&self, index: usize) -> bool {
+        index == self.sections[index].cross_listings[0]
     }
 }
 
@@ -581,6 +632,7 @@ pub struct RoomWithPenalty {
     pub penalty: i64,
 }
 
+#[derive(Clone)]
 pub struct RoomTimeWithPenalty {
     pub room: usize,
     pub time_slot: usize,
@@ -600,11 +652,22 @@ pub struct Instructor {
 }
 
 pub struct Section {
+    // course name, e.g.: "CS 2810"
     pub course: String,
+    // section name, e.g.: "01"
     pub section: String,
+
+    // includes only the instructors explicity assigned to this section (not cross-listings)
     pub instructors: Vec<usize>,
+
+    // a combined list of room+times that are acceptable to all instructors and cross-listings
+    // with the worst penalty found
     pub room_times: Vec<RoomTimeWithPenalty>,
+
+    // hard conflicts that named this section directly, not including cross-listings
     pub hard_conflicts: Vec<usize>,
+
+    // soft conflicts that named this section directly, not including cross-listings
     pub soft_conflicts: Vec<SectionWithPenalty>,
 
     // every course is in its own cross_listings vector, which must be a clique
@@ -656,10 +719,6 @@ impl Section {
                 }),
             }
         }
-    }
-
-    pub fn is_primary_cross_listing(&self, index: usize) -> bool {
-        index == self.cross_listings[0]
     }
 
     pub fn get_primary_cross_listing(&self) -> usize {

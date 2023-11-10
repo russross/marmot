@@ -131,7 +131,7 @@ fn main() {
         println!();
     }
 
-    let iterations = 100_000;
+    let iterations = 10_000_000;
     let start = time::Instant::now();
     solve(&term, iterations);
     let elapsed = start.elapsed();

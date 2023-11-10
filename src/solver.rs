@@ -39,25 +39,32 @@ pub struct Problem {
 }
 
 pub struct UndoLog {
-    pub sections_placed: Vec<usize>,
-    pub sections_displaced: Vec<(usize, RoomTime)>,
+    pub entries: Vec<UndoEntry>,
+}
+
+pub enum UndoEntry {
+    Placed(usize),
+    Displaced(usize, RoomTime),
 }
 
 impl UndoLog {
     pub fn new() -> Self {
         UndoLog {
-            sections_placed: Vec::new(),
-            sections_displaced: Vec::new(),
+            entries: Vec::new(),
         }
     }
 
     pub fn undo(&mut self, solver: &mut Solver) {
         let mut redo = UndoLog::new();
-        for section in self.sections_placed.drain(..) {
-            solver.remove_placement(section, &mut redo);
-        }
-        for (section, rt) in self.sections_displaced.drain(..) {
-            solver.add_placement(section, rt, &mut redo);
+        loop {
+            // play the log in reverse order
+            match self.entries.pop() {
+                Some(UndoEntry::Placed(section)) => solver.remove_placement(section, &mut redo),
+                Some(UndoEntry::Displaced(section, room_time)) => {
+                    solver.add_placement_without_displacing(section, room_time, &mut redo)
+                }
+                None => return,
+            }
         }
     }
 }
@@ -88,10 +95,20 @@ impl Solver {
         }
     }
 
-    pub fn set_placement(&mut self, input: &Input, section_i: usize, room_time: RoomTime, undo: &mut UndoLog) {
+    pub fn is_placed(&self, section_i: usize) -> bool {
+        self.sections[section_i].placement.is_some()
+    }
+
+    pub fn set_placement(
+        &mut self,
+        input: &Input,
+        section_i: usize,
+        room_time: RoomTime,
+        undo: &mut UndoLog,
+    ) {
         self.remove_placement(section_i, undo);
         self.displace_conflicts(input, section_i, &room_time, undo);
-        self.add_placement(section_i, room_time, undo);
+        self.add_placement_without_displacing(section_i, room_time, undo);
     }
 
     // remove a section from its current room/time placement (if any)
@@ -101,11 +118,16 @@ impl Solver {
             assert!(std::mem::take(&mut self.room_placements[rt.room].time_slot_placements[rt.time_slot]) == Some(section),
             "Solver::remove_placement: placement by section does not match placement by room and time");
 
-            undo.sections_displaced.push((section, rt));
+            undo.entries.push(UndoEntry::Displaced(section, rt));
         }
     }
 
-    pub fn add_placement(&mut self, section: usize, room_time: RoomTime, undo: &mut UndoLog) {
+    pub fn add_placement_without_displacing(
+        &mut self,
+        section: usize,
+        room_time: RoomTime,
+        undo: &mut UndoLog,
+    ) {
         let RoomTime { room, time_slot } = room_time;
         let old_by_section =
             std::mem::replace(&mut self.sections[section].placement, Some(room_time));
@@ -117,7 +139,7 @@ impl Solver {
         );
         assert!(old_by_room_time.is_none());
 
-        undo.sections_placed.push(section);
+        undo.entries.push(UndoEntry::Placed(section));
     }
 
     // remove any sections that will be in conflict with a section about to be placed
@@ -160,39 +182,50 @@ impl Solver {
     pub fn compute_speculative_deltas(&mut self, input: &Input) {
         let old_score = self.score;
         for section_i in 0..input.sections.len() {
-            if !input.sections[section_i].is_primary_cross_listing(section_i) {
-                continue;
-            }
-            let current = match self.sections[section_i].placement {
-                Some(RoomTime{room, time_slot}) => (room, time_slot),
-                None => (usize::MAX, usize::MAX),
-            };
-            let mut low = None;
-            for rtp_i in 0..input.sections[section_i].room_times.len() {
-                let RoomTimeWithPenalty{ room, time_slot, ..} = input.sections[section_i].room_times[rtp_i];
-                if (room, time_slot) == current {
-                    self.sections[section_i].speculative_deltas[rtp_i] = None;
-                } else {
-                    let rt = RoomTime{ room, time_slot };
-                    let mut undo = UndoLog::new();
-                    self.set_placement(input, section_i, rt, &mut undo);
-
-                    // see how it affected the score
-                    self.compute_score(input, false);
-                    let delta = self.score - old_score;
-                    self.sections[section_i].speculative_deltas[rtp_i] = Some(delta);
-
-                    low = match low {
-                        Some(n) => Some(std::cmp::min(n, delta)),
-                        None => Some(delta),
-                    };
-
-                    // undo the changes
-                    undo.undo(self);
-                }
-            }
-            self.sections[section_i].speculative_delta_min = low;
+            self.compute_speculative_deltas_section(input, section_i, old_score);
         }
+    }
+
+    pub fn compute_speculative_deltas_section(
+        &mut self,
+        input: &Input,
+        section_i: usize,
+        old_score: i64,
+    ) {
+        if !input.is_primary_cross_listing(section_i) {
+            return;
+        }
+        let current = match self.sections[section_i].placement {
+            Some(RoomTime { room, time_slot }) => (room, time_slot),
+            None => (usize::MAX, usize::MAX),
+        };
+        let mut low = None;
+        for rtp_i in 0..input.sections[section_i].room_times.len() {
+            let RoomTimeWithPenalty {
+                room, time_slot, ..
+            } = input.sections[section_i].room_times[rtp_i];
+            if (room, time_slot) == current {
+                self.sections[section_i].speculative_deltas[rtp_i] = None;
+            } else {
+                let rt = RoomTime { room, time_slot };
+                let mut undo = UndoLog::new();
+                self.set_placement(input, section_i, rt, &mut undo);
+
+                // see how it affected the score
+                self.compute_score(input, false);
+                let delta = self.score - old_score;
+                self.sections[section_i].speculative_deltas[rtp_i] = Some(delta);
+
+                low = match low {
+                    Some(n) => Some(std::cmp::min(n, delta)),
+                    None => Some(delta),
+                };
+
+                // undo the changes
+                undo.undo(self);
+            }
+        }
+        self.sections[section_i].speculative_delta_min = low;
     }
 
     pub fn select_section_to_place(&mut self, input: &Input) -> usize {
@@ -201,20 +234,23 @@ impl Solver {
         self.compute_speculative_deltas(&input);
         let mut pool_size = 0;
         for (i, section) in self.sections.iter_mut().enumerate() {
-            if !input.sections[i].is_primary_cross_listing(i) {
+            if !input.is_primary_cross_listing(i) {
                 continue;
             }
             match section.speculative_delta_min {
                 Some(delta) => {
-                    section.tickets = std::cmp::max(1, -delta);
+                    section.tickets = std::cmp::max(1, -delta+1);
                     if section.placement.is_none() {
-                        section.tickets = std::cmp::min(section.tickets, MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION);
+                        section.tickets = std::cmp::min(
+                            section.tickets,
+                            MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION,
+                        );
                     }
                     pool_size += section.tickets;
-                },
+                }
                 None => {
                     section.tickets = 0;
-                },
+                }
             };
         }
         assert!(pool_size > 0);
@@ -237,7 +273,7 @@ impl Solver {
         let mut pool_size = 0;
         for elt in &self.sections[section_i].speculative_deltas {
             pool_size += match elt {
-                Some(delta) => std::cmp::max(1, -delta),
+                Some(delta) => std::cmp::max(1, -delta+1),
                 None => 0,
             };
         }
@@ -247,17 +283,63 @@ impl Solver {
         let mut winner = rng.gen_range(0..pool_size);
 
         // find the winner
-        for (i, elt) in self.sections[section_i].speculative_deltas.iter().enumerate() {
+        for (i, elt) in self.sections[section_i]
+            .speculative_deltas
+            .iter()
+            .enumerate()
+        {
             if let Some(delta) = elt {
-                let tickets = std::cmp::max(1, -delta);
+                let tickets = std::cmp::max(1, -delta+1);
                 if winner < tickets {
-                    let RoomTimeWithPenalty{room, time_slot, ..} = input.sections[section_i].room_times[i];
-                    return RoomTime{room, time_slot};
+                    let RoomTimeWithPenalty {
+                        room, time_slot, ..
+                    } = input.sections[section_i].room_times[i];
+                    return RoomTime { room, time_slot };
                 }
                 winner -= tickets;
             }
         }
         panic!("cannot get here");
+    }
+
+    pub fn select_section_to_place_fast(&mut self, input: &Input) -> usize {
+        let mut rng = rand::thread_rng();
+
+        let mut pool_size = 0;
+        for (i, section) in self.sections.iter_mut().enumerate() {
+            if !input.is_primary_cross_listing(i) {
+                assert!(section.tickets == 0);
+                continue;
+            }
+            section.tickets = std::cmp::max(1, section.penalty+1);
+            if section.placement.is_none() {
+                section.tickets =
+                    std::cmp::max(section.tickets, MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION);
+            } else if input.sections[i].room_times.len() == 1 {
+                // if it is already placed and there is only one placement possible,
+                // then placing it again would be a no-op
+                section.tickets = 0;
+            }
+            pool_size += section.tickets;
+        }
+        assert!(pool_size > 0);
+
+        // pick a winner
+        let mut winner = rng.gen_range(0..pool_size);
+
+        // find the winner
+        for (i, elt) in self.sections.iter().enumerate() {
+            if winner < elt.tickets {
+                return i;
+            }
+            winner -= elt.tickets;
+        }
+        panic!("cannot get here");
+    }
+
+    pub fn select_room_time_to_place_fast(&mut self, input: &Input, section_i: usize) -> RoomTime {
+        self.compute_speculative_deltas_section(input, section_i, self.score);
+        self.select_room_time_to_place(input, section_i)
     }
 
     pub fn compute_score(&mut self, input: &Input, gather_problems: bool) {
@@ -272,10 +354,11 @@ impl Solver {
         // and add a big penalty for each unplaced section
         for i in 0..self.sections.len() {
             self.compute_score_section_soft_conflicts(input, i, gather_problems);
-            if input.sections[i].is_primary_cross_listing(i) && self.sections[i].placement.is_none()
-            {
+            if input.is_primary_cross_listing(i) && !self.is_placed(i) {
                 self.score += PENALTY_FOR_UNPLACED_SECTION;
             }
+
+            self.compute_score_room_and_time_penalties(input, i, gather_problems);
         }
     }
 
@@ -286,7 +369,7 @@ impl Solver {
         gather_problems: bool,
     ) {
         // calculate conflicts via the primary cross-listing
-        if !input.sections[section_i].is_primary_cross_listing(section_i) {
+        if !input.is_primary_cross_listing(section_i) {
             return;
         }
 
@@ -348,7 +431,6 @@ impl Solver {
                     input.sections[soft_conflict_section].section,
                     input.time_slots[my_time_slot].name
                 )
-                .to_string()
             } else {
                 format!(
                     "curriculum conflict: {}-{} at {} overlaps {}-{} at {}",
@@ -359,7 +441,6 @@ impl Solver {
                     input.sections[soft_conflict_section].section,
                     input.time_slots[other_time_slot].name
                 )
-                .to_string()
             };
 
             let mut sections = Vec::new();
@@ -391,6 +472,80 @@ impl Solver {
                 time_slots,
             });
         }
+    }
+
+    pub fn compute_score_room_and_time_penalties(
+        &mut self,
+        input: &Input,
+        section_i: usize,
+        gather_problems: bool,
+    ) {
+        // calculate conflicts via the primary cross-listing
+        if !input.is_primary_cross_listing(section_i) {
+            return;
+        }
+
+        // grab the time slot we are placed in; quit if not placed
+        let Some(RoomTime {
+            room, time_slot, ..
+        }) = self.sections[section_i].placement
+        else {
+            return;
+        };
+
+        // find the penalty associated with this placement
+        let elt = &input.sections[section_i];
+        let Some(RoomTimeWithPenalty { penalty, .. }) = elt
+            .room_times
+            .iter()
+            .find(|elt| elt.room == room && elt.time_slot == time_slot)
+        else {
+            panic!(
+                "section {}-{} placed at room+time that does not appear in its list",
+                elt.course, elt.section
+            );
+        };
+
+        // everyone happy?
+        if *penalty == 0 {
+            return;
+        }
+
+        self.sections[section_i].penalty += *penalty;
+        self.score += *penalty;
+
+        if !gather_problems {
+            return;
+        }
+
+        // build the problem record
+        let message = format!(
+            "section room/time preference: {}-{} meets in {} at {}",
+            elt.course, elt.section, input.rooms[room].name, input.time_slots[time_slot].name
+        );
+
+        let mut sections = Vec::new();
+        let mut instructors = Vec::new();
+        for &elt in &input.sections[section_i].cross_listings {
+            sections.push(elt);
+            for &inst in &input.sections[elt].instructors {
+                instructors.push(inst);
+            }
+        }
+        let mut time_slots = vec![time_slot];
+        sections.sort();
+        sections.dedup();
+        instructors.sort();
+        instructors.dedup();
+        time_slots.sort();
+        time_slots.dedup();
+        self.problems.push(Problem {
+            penalty: *penalty,
+            message,
+            sections,
+            instructors,
+            time_slots,
+        });
     }
 
     pub fn print_schedule(&self, input: &Input) {
@@ -532,46 +687,6 @@ pub fn solve(input: &Input, iterations: usize) {
                         input.sections[i].course, input.sections[i].section
                     );
                 }
-                /*
-                // print the lottery tickets
-                println!();
-                let mut pool_size = 0;
-                for i in 0..solver.sections.len() {
-                    solver.compute_lottery_tickets(input, i);
-                    println!("section {}-{} has {} tickets", input.sections[i].course, input.sections[i].section, solver.sections[i].tickets);
-                    pool_size += solver.sections[i].tickets;
-                }
-                println!("total of {} lottery tickets", pool_size);
-                */
-
-                /*
-                solver.compute_speculative_deltas(input);
-                let _ = solver.select_section_to_place(input);
-
-                println!("deltas:");
-                for i in 0..solver.sections.len() {
-                    if !input.sections[i].is_primary_cross_listing(i) {
-                        continue;
-                    }
-                    let min = match solver.sections[i].speculative_delta_min {
-                        Some(delta) => delta.to_string(),
-                        None => "*".to_string(),
-                    };
-                    println!("    section {}-{}: min delta {} tickets {}", input.sections[i].course, input.sections[i].section, min, solver.sections[i].tickets);
-                    print!("       ");
-                    for elt in &solver.sections[i].speculative_deltas {
-                        match elt {
-                            Some(delta) => {
-                                print!(" {}", delta);
-                            },
-                            None => {
-                                print!(" *");
-                            },
-                        };
-                    }
-                    println!();
-                }
-                */
             }
         }
     }
