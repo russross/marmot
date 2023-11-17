@@ -1,52 +1,162 @@
+
+
 pub fn setup() -> Result<Input, String> {
     let mut input = super::data::input()?;
     input.missing.sort();
 
+    // sort rooms
+    {
+        // make a map of old numbers to new
+        let re = regex::Regex::new(r"^(.*) +(.*)$").unwrap();
+        let mut room_map_to_old: Vec<usize> = (0..input.rooms.len()).collect();
+        room_map_to_old.sort_by_key(|&i| {
+            re.replace(&input.rooms[i].name, |caps: &regex::Captures|
+                format!("{} {:0>4}", &caps[1], &caps[2]))
+        });
+        let mut room_map_to_new = vec![0; room_map_to_old.len()];
+        for (new, &old) in room_map_to_old.iter().enumerate() {
+            room_map_to_new[old] = new;
+        }
+
+        // sort the actual rooms
+        let mut sorted_rooms = Vec::new();
+        for &i in &room_map_to_old {
+            let old = &mut input.rooms[i];
+            sorted_rooms.push(Room{
+                name: std::mem::take(&mut old.name),
+                capacity: std::mem::take(&mut old.capacity),
+                tags: std::mem::take(&mut old.tags),
+            });
+        }
+        input.rooms = sorted_rooms;
+
+        // remap all references in sections
+        for section in &mut input.sections {
+            for elt in section.room_times.iter_mut() {
+                elt.room = room_map_to_new[elt.room];
+            }
+            section.room_times.sort_by_key(|elt| (elt.room, elt.time_slot, elt.penalty));
+        }
+    }
+
+    // sort instructors
+    {
+        // make a map of old numbers to new
+        let mut instructor_map_to_old: Vec<usize> = (0..input.instructors.len()).collect();
+        instructor_map_to_old.sort_by_key(|&i| &input.instructors[i].name);
+        let mut instructor_map_to_new = vec![0; instructor_map_to_old.len()];
+        for (new, &old) in instructor_map_to_old.iter().enumerate() {
+            instructor_map_to_new[old] = new;
+        }
+
+        // sort the actual instructors
+        let mut sorted_instructors = Vec::new();
+        for &i in &instructor_map_to_old {
+            let old = &mut input.instructors[i];
+            sorted_instructors.push(Instructor{
+                name: std::mem::take(&mut old.name),
+                available_times: std::mem::take(&mut old.available_times),
+                sections: std::mem::take(&mut old.sections),
+            });
+        }
+        input.instructors = sorted_instructors;
+
+        // remap all references in sections
+        for section in &mut input.sections {
+            for elt in section.instructors.iter_mut() {
+                *elt = instructor_map_to_new[*elt];
+            }
+            section.instructors.sort();
+        }
+    }
+
+    // sort sections
+    {
+        // get a list of primary cross-listings
+        let mut primaries = Vec::new();
+        for section in &input.sections {
+            if section.cross_listings.is_empty() {
+                continue;
+            }
+            
+            // collect the list of all cross-listing names
+            let mut names = Vec::new();
+            for &i in &section.cross_listings {
+                names.push((input.sections[i].course.clone(), input.sections[i].section.clone()));
+            }
+            names.sort();
+            primaries.push(names.remove(0));
+        }
+
+        // make a map of old numbers to new
+        let mut section_map_to_old: Vec<usize> = (0..input.sections.len()).collect();
+        section_map_to_old.sort_by_key(|&i| (
+            input.sections[i].cross_listings.len() > 1 && !primaries.contains(&(input.sections[i].course.clone(), input.sections[i].section.clone())),
+            &input.sections[i].course,
+            &input.sections[i].section
+        ));
+        let mut section_map_to_new = vec![0; section_map_to_old.len()];
+        for (new, &old) in section_map_to_old.iter().enumerate() {
+            section_map_to_new[old] = new;
+        }
+
+        // sort the actual sections
+        let mut sorted_sections = Vec::new();
+        for &i in &section_map_to_old {
+            let old = &mut input.sections[i];
+            sorted_sections.push(Section{
+                course: std::mem::take(&mut old.course),
+                section: std::mem::take(&mut old.section),
+                instructors: std::mem::take(&mut old.instructors),
+                room_times: std::mem::take(&mut old.room_times),
+                hard_conflicts: std::mem::take(&mut old.hard_conflicts),
+                soft_conflicts: std::mem::take(&mut old.soft_conflicts),
+                cross_listings: std::mem::take(&mut old.cross_listings),
+            });
+        }
+        input.sections = sorted_sections;
+
+        // remap all references in sections
+        for section in &mut input.sections {
+            for elt in section.hard_conflicts.iter_mut() {
+                *elt = section_map_to_new[*elt];
+            }
+            section.hard_conflicts.sort();
+            for elt in section.soft_conflicts.iter_mut() {
+                elt.section = section_map_to_new[elt.section];
+            }
+            section.soft_conflicts.sort_by_key(|elt| elt.section);
+            for elt in section.cross_listings.iter_mut() {
+                *elt = section_map_to_new[*elt];
+            }
+            section.cross_listings.sort();
+        }
+
+        // remap all references in instructors
+        for instructor in &mut input.instructors {
+            for elt in instructor.sections.iter_mut() {
+                *elt = section_map_to_new[*elt];
+            }
+            instructor.sections.sort();
+        }
+    }
+
     // add hard conflicts between all the sections an instructor teaches
     for instructor in &input.instructors {
-        for left in &instructor.sections {
-            for right in &instructor.sections {
+        for &left in &instructor.sections {
+            for &right in &instructor.sections {
                 if left == right {
                     continue;
                 };
-                input.sections[*left].set_conflict(*right, 100);
+                input.sections[left].set_conflict(right, 100);
             }
         }
     }
 
-    // compute combined conflicts across cross-listings
-    for i in 0..input.sections.len() {
-        if !input.is_primary_cross_listing(i) {
-            continue;
-        }
-        let mut hard_conflicts = Vec::new();
-        let mut soft_conflicts = Vec::new();
-        for &self_cross_listing in &input.sections[i].cross_listings {
-            for &other in &input.sections[self_cross_listing].hard_conflicts {
-                hard_conflicts.push(input.sections[other].get_primary_cross_listing());
-            }
-            for &SectionWithPenalty { section, penalty } in
-                &input.sections[self_cross_listing].soft_conflicts
-            {
-                soft_conflicts.push(SectionWithPenalty {
-                    section: input.sections[section].get_primary_cross_listing(),
-                    penalty,
-                });
-            }
-        }
-        hard_conflicts.sort();
-        hard_conflicts.dedup();
-
-        // sort highest penalty first...
-        soft_conflicts.sort_by_key(|elt| (elt.section, -elt.penalty));
-        // ... so dedup will remove the lower penalty instances
-        soft_conflicts.dedup_by_key(|elt| elt.section);
-
-        // copy the combined list to all cross-listings
-        // even though only the primary will be used in solving
-        for &self_cross_listing in &input.sections[i].cross_listings.clone() {
-            input.sections[self_cross_listing].hard_conflicts_combined = hard_conflicts.clone();
-            input.sections[i].soft_conflicts_combined = soft_conflicts.clone();
+    // compute time slot conflict lookup table
+    for i in 0..input.time_slots.len() {
+        for j in 0..input.time_slots.len() {
+            input.time_slot_conflicts.push(input.time_slots[i].conflicts.contains(&j));
         }
     }
 
@@ -63,6 +173,8 @@ pub struct Input {
     pub instructors: Vec<Instructor>,
     pub sections: Vec<Section>,
     pub missing: Vec<String>,
+
+    time_slot_conflicts: Vec<bool>,
 }
 
 impl Input {
@@ -90,6 +202,8 @@ impl Input {
             instructors: Vec::new(),
             sections: Vec::new(),
             missing: Vec::new(),
+
+            time_slot_conflicts: Vec::new(),
         }
     }
 
@@ -233,7 +347,7 @@ impl Input {
     pub fn make_instructor(
         &mut self,
         name: &str,
-        available_times: Vec<(String, i64)>,
+        available_times: Vec<(String, isize)>,
     ) -> Result<(), String> {
         let mut times: Vec<TimeWithPenalty> = Vec::new();
         for (time_name, penalty) in available_times {
@@ -277,7 +391,7 @@ impl Input {
         course: String,
         section: String,
         instructor_names: Vec<String>,
-        rooms_and_times: Vec<(String, i64)>,
+        rooms_and_times: Vec<(String, isize)>,
     ) -> Result<(), String> {
         // start with instructors
         let mut instructors = Vec::new();
@@ -336,6 +450,10 @@ impl Input {
             return Err(format!("no rooms found for {}-{}", course, section));
         }
         if twp.is_empty() {
+            if self.instructors.is_empty() {
+                return Err(format!("section {}-{} does not specify any time slots and has no instructors to inherit them from", course, section));
+            }
+
             // just copy the availability of the first instructor and that will be
             // intersected with other instructors below
             twp.extend(
@@ -351,16 +469,20 @@ impl Input {
         let mut room_times = Vec::new();
         'rt: for time_slot in &twp {
             let mut time_penalty = time_slot.penalty;
+
+            // if there is no instructor, the time list will not be filtered by instructor
+            // so the section list will be kept as-is
             for &instructor_i in &instructors {
                 match self.instructors[instructor_i]
                     .available_times
                     .iter()
                     .find(|itwp| itwp.time_slot == time_slot.time_slot)
-                {
-                    Some(itwp) => time_penalty = std::cmp::max(time_penalty, itwp.penalty),
-                    None => continue 'rt,
-                }
+                    {
+                        Some(itwp) => time_penalty = std::cmp::max(time_penalty, itwp.penalty),
+                            None => continue 'rt,
+                    }
             }
+
             for room in &rwp {
                 room_times.push(RoomTimeWithPenalty {
                     room: room.room,
@@ -397,8 +519,6 @@ impl Input {
             hard_conflicts: Vec::new(),
             soft_conflicts: Vec::new(),
             cross_listings: vec![self.sections.len()],
-            hard_conflicts_combined: Vec::new(),
-            soft_conflicts_combined: Vec::new(),
         });
 
         Ok(())
@@ -406,7 +526,7 @@ impl Input {
 
     pub fn make_conflict_clique(
         &mut self,
-        badness: i64,
+        badness: isize,
         maximize: bool,
         sections_raw: Vec<(String, Option<String>)>,
     ) -> Result<(), String> {
@@ -490,70 +610,21 @@ impl Input {
         sections.sort();
         sections.dedup();
         if sections.len() < 2 {
-            return Err("cross-listings must include at least two unique sections".into());
+            return Err(format!("cross-listing that includes {}-{} must include at least two unique sections", self.sections[sections[0]].course, self.sections[sections[0]].section));
         }
-        for &left_i in &sections {
-            for &right_i in &sections {
-                if left_i == right_i {
-                    continue;
-                }
-                self.sections[left_i].cross_listings.push(right_i);
+        for &i in &sections {
+            if self.sections[i].cross_listings.len() != 1 {
+                return Err(format!("cannot cross list {}-{} because it is already cross-listed", self.sections[i].course, self.sections[i].section));
             }
-            self.sections[left_i].cross_listings.sort();
-            self.sections[left_i].cross_listings.dedup();
-        }
-
-        // calculate a combined room time list and apply it to all cross-listings
-        // this is the intersection of room/time availability with max penalty
-        let mut rtp = Vec::new();
-        let first = sections[0];
-        'a: for &RoomTimeWithPenalty {
-            room, time_slot, ..
-        } in &self.sections[first].room_times
-        {
-            // every cross-listing must have this slot
-            let mut worst_penalty = 0;
-            for &section_i in &sections {
-                match self.sections[section_i]
-                    .room_times
-                    .iter()
-                    .find(|elt| elt.room == room && elt.time_slot == time_slot)
-                {
-                    Some(RoomTimeWithPenalty { penalty, .. }) => {
-                        worst_penalty = std::cmp::max(worst_penalty, *penalty)
-                    }
-                    None => continue 'a,
-                }
-            }
-            if worst_penalty > 99 {
-                continue;
-            }
-            rtp.push(RoomTimeWithPenalty {
-                room,
-                time_slot,
-                penalty: worst_penalty,
-            });
-        }
-
-        // the cross-listed sections have to agree on at least one room and time
-        if rtp.is_empty() {
-            return Err(format!(
-                "cross-listing that includes {}-{} has no viable room+time combination",
-                self.sections[first].course, self.sections[first].section
-            ));
-        }
-        rtp.sort_by_key(|elt| (elt.room, elt.time_slot, elt.penalty));
-
-        // apply this list to every member of the cross-listing
-        for &section in &sections {
-            self.sections[section].room_times = rtp.clone();
+            self.sections[i].cross_listings = sections.clone();
         }
 
         Ok(())
     }
 
     pub fn time_slots_conflict(&self, a: usize, b: usize) -> bool {
-        self.time_slots[a].conflicts.contains(&b)
+        self.time_slot_conflicts[a * self.time_slots.len() + b]
+        //self.time_slots[a].conflicts.contains(&b)
     }
 
     pub fn is_primary_cross_listing(&self, index: usize) -> bool {
@@ -624,25 +695,25 @@ pub struct RoomTime {
 #[derive(Clone)]
 pub struct TimeWithPenalty {
     pub time_slot: usize,
-    pub penalty: i64,
+    pub penalty: isize,
 }
 
 pub struct RoomWithPenalty {
     pub room: usize,
-    pub penalty: i64,
+    pub penalty: isize,
 }
 
 #[derive(Clone)]
 pub struct RoomTimeWithPenalty {
     pub room: usize,
     pub time_slot: usize,
-    pub penalty: i64,
+    pub penalty: isize,
 }
 
 #[derive(Clone)]
 pub struct SectionWithPenalty {
     pub section: usize,
-    pub penalty: i64,
+    pub penalty: isize,
 }
 
 pub struct Instructor {
@@ -673,15 +744,10 @@ pub struct Section {
     // every course is in its own cross_listings vector, which must be a clique
     // placement occurs on the section with the lowest index, others tag along
     pub cross_listings: Vec<usize>,
-
-    // combined conflicts across all cross listings (using worst penalty)
-    // all sections are indexed on primary cross-listing in these lists
-    pub hard_conflicts_combined: Vec<usize>,
-    pub soft_conflicts_combined: Vec<SectionWithPenalty>,
 }
 
 impl Section {
-    pub fn get_conflict(&self, other: usize) -> i64 {
+    pub fn get_conflict(&self, other: usize) -> isize {
         for elt in &self.hard_conflicts {
             if *elt == other {
                 return 100;
@@ -695,7 +761,7 @@ impl Section {
         0
     }
 
-    pub fn set_conflict(&mut self, other: usize, penalty: i64) {
+    pub fn set_conflict(&mut self, other: usize, penalty: isize) {
         assert!((0..=100).contains(&penalty));
         if penalty == 0 {
             self.hard_conflicts.retain(|&elt| elt != other);
@@ -811,23 +877,23 @@ macro_rules! room {
 }
 
 macro_rules! time {
-    ($input:expr, name: $name:expr) => (
+    ($input:expr, name: $name:literal) => (
         $input.make_time($name, vec![])?
     );
-    ($input:expr, name: $name:expr, tags: $($tag:expr),*) => (
+    ($input:expr, name: $name:literal, tags: $($tag:literal),*) => (
         $input.make_time($name, vec![$($tag,)*])?
     );
 }
 
 macro_rules! name_with_penalty_list {
     ($vec:expr, ) => {};
-    ($vec:expr, $name:literal with penalty $pen:expr) => (
+    ($vec:expr, $name:literal with penalty $pen:literal) => (
         $vec.push(($name.to_string(), $pen));
     );
     ($vec:expr, $name:literal) => (
         $vec.push(($name.to_string(), 0));
     );
-    ($vec:expr, $name:literal with penalty $pen:expr, $($rest:tt)*) => {
+    ($vec:expr, $name:literal with penalty $pen:literal, $($rest:tt)*) => {
         $vec.push(($name.to_string(), $pen));
         name_with_penalty_list!($vec, $($rest)*);
     };
@@ -864,6 +930,13 @@ macro_rules! instructor {
 }
 
 macro_rules! section {
+    ($input:expr, course: $course:literal - $section:literal,
+    rooms and times: $($rest:tt)*) => {
+        let mut list = Vec::new();
+        name_with_penalty_list!(list, $($rest)*);
+        $input.make_section($course.to_string(), $section.to_string(),
+            vec![], list)?
+    };
     ($input:expr, course: $course:literal - $section:literal,
     instructor: $inst:literal $(and $insts:literal)*,
     rooms and times: $($rest:tt)*) => {

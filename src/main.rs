@@ -15,6 +15,7 @@ fn main() {
 
     println!("term: {} from {} to {}", term.name, term.start, term.end);
 
+    /*
     for (i, time_slot) in term.time_slots.iter().enumerate() {
         print!("time slot {}: ", time_slot.name);
         let mut sep = "";
@@ -36,6 +37,7 @@ fn main() {
         }
         println!();
     }
+    */
 
     for room in &term.rooms {
         print!("{} {} tags:", room.name, room.capacity);
@@ -44,13 +46,7 @@ fn main() {
         }
         println!();
     }
-    let mut instructor_order = Vec::new();
-    for i in 0..term.instructors.len() {
-        instructor_order.push(i);
-    }
-    instructor_order.sort_by_key(|&i| &term.instructors[i].name);
-    for inst_i in instructor_order {
-        let inst = &term.instructors[inst_i];
+    for inst in &term.instructors {
         print!("{}", inst.name);
         for twp in &inst.available_times {
             if twp.penalty == 0 {
@@ -61,14 +57,7 @@ fn main() {
         }
         println!();
     }
-    let mut section_order = Vec::new();
-    for i in 0..term.sections.len() {
-        section_order.push(i);
-    }
-    section_order
-        .sort_by_key(|&i| format!("{}-{}", term.sections[i].course, term.sections[i].section));
-    for sec_i in section_order {
-        let sec = &term.sections[sec_i];
+    for (sec_i, sec) in term.sections.iter().enumerate() {
         print!("{}-{}", sec.course, sec.section);
         if sec.cross_listings.len() > 1 {
             for &other in sec.cross_listings.iter() {
@@ -121,6 +110,7 @@ fn main() {
             println!();
         }
     }
+
     if !term.missing.is_empty() {
         print!("unknown courses:");
         let mut sep = " ";
@@ -130,11 +120,20 @@ fn main() {
         }
         println!();
     }
+    println!("{} rooms, {} time slots, {} instructors, {} sections",
+            term.rooms.len(),
+            term.time_slots.len(),
+            term.instructors.len(),
+            term.sections.len(),
+    );
 
-    let iterations = 10_000_000;
-    let start = time::Instant::now();
-    solve(&term, iterations);
-    let elapsed = start.elapsed();
-    let rate = (iterations as f64) / elapsed.as_seconds_f64();
-    println!("solved at a rate of {}/second", rate as i64);
+    let iterations = 10_000;
+    let solver = match Solver::new(&term) {
+        Ok(s) => s,
+        Err(msg) => {
+            eprintln!("{}", msg);
+            return;
+        },
+    };
+    solve(solver, &term, iterations);
 }
