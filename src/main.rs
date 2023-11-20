@@ -37,8 +37,6 @@ fn main() {
         }
         println!();
     }
-    */
-
     for room in &term.rooms {
         print!("{} {} tags:", room.name, room.capacity);
         for tag in &room.tags {
@@ -120,6 +118,7 @@ fn main() {
         }
         println!();
     }
+    */
     println!("{} rooms, {} time slots, {} instructors, {} sections",
             term.rooms.len(),
             term.time_slots.len(),
@@ -127,7 +126,7 @@ fn main() {
             term.sections.len(),
     );
 
-    let iterations = 10_000;
+    let iterations = 50_000;
     let solver = match Solver::new(&term) {
         Ok(s) => s,
         Err(msg) => {
