@@ -128,7 +128,7 @@ fn main() {
         term.sections.len(),
     );
 
-    let iterations = 200_000;
+    let iterations = 50_000;
     let solver = match Solver::new(&term) {
         Ok(s) => s,
         Err(msg) => {

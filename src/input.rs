@@ -886,113 +886,105 @@ macro_rules! holiday {
 }
 
 macro_rules! room {
-    ($input:expr, name: $name:expr, capacity: $capacity:expr, tags: $($tag:expr),*) => (
-        $input.make_room($name, $capacity, vec![$($tag,)*])?
-    );
-    ($input:expr, name: $name:expr, capacity: $capacity:expr) => (
-        $input.make_room($name, $capacity, vec![])?
+    ($input:expr,
+            name: $name:expr,
+            capacity: $capacity:expr
+            $(, tags: $($tag:expr),+)?) => (
+        $input.make_room(
+            $name,
+            $capacity,
+            vec![$($($tag,)+)?])?
     );
 }
 
 macro_rules! time {
-    ($input:expr, name: $name:literal) => (
-        $input.make_time($name, vec![])?
-    );
-    ($input:expr, name: $name:literal, tags: $($tag:literal),*) => (
-        $input.make_time($name, vec![$($tag,)*])?
+    ($input:expr,
+            name: $name:literal
+            $(, tags: $($tag:literal),+)?) => (
+        $input.make_time(
+            $name,
+            vec![$($($tag,)+)?])?
     );
 }
 
-macro_rules! name_with_penalty_list {
-    ($vec:expr, ) => {};
-    ($vec:expr, $name:literal with penalty $pen:literal) => (
-        $vec.push(($name.to_string(), $pen));
-    );
-    ($vec:expr, $name:literal) => (
-        $vec.push(($name.to_string(), 0));
-    );
-    ($vec:expr, $name:literal with penalty $pen:literal, $($rest:tt)*) => {
-        $vec.push(($name.to_string(), $pen));
-        name_with_penalty_list!($vec, $($rest)*);
+macro_rules! course_with_optional_section {
+    ($course:literal - $section:literal) => {
+        ($course.to_string(), Some($section.to_string()))
     };
-    ($vec:expr, $name:literal, $($rest:tt)*) => {
-        $vec.push(($name.to_string(), 0));
-        name_with_penalty_list!($vec, $($rest)*);
+    ($course:literal) => {
+        ($course.to_string(), None)
     };
 }
 
-macro_rules! course_with_section_list {
-    ($vec:expr, ) => {};
-    ($vec:expr, $course:literal - $section:literal) => (
-        $vec.push(($course.to_string(), Some($section.to_string())));
-    );
-    ($vec:expr, $course:literal) => (
-        $vec.push(($course.to_string(), None));
-    );
-    ($vec:expr, $course:literal - $section:literal, $($rest:tt)*) => {
-        $vec.push(($course.to_string(), Some($section.to_string())));
-        course_with_section_list!($vec, $($rest)*);
+macro_rules! name_with_optional_penalty {
+    ($name:literal with penalty $pen:literal) => {
+        ($name.to_string(), $pen)
     };
-    ($vec:expr, $course:literal, $($rest:tt)*) => {
-        $vec.push(($course.to_string(), None));
-        course_with_section_list!($vec, $($rest)*);
+    ($name:literal) => {
+        ($name.to_string(), 0)
     };
 }
 
 macro_rules! instructor {
-    ($input:expr, name: $name:expr, available: $($rest:tt)*) => {
-        let mut list = Vec::new();
-        name_with_penalty_list!(list, $($rest)*);
-        $input.make_instructor($name, list)?;
+    ($input:expr,
+            name: $name:expr,
+            available: $($tag:literal $(with penalty $pen:literal)?),+ $(,)?) => {
+        $input.make_instructor(
+            $name,
+            vec![ $(name_with_optional_penalty!($tag $(with penalty $pen)?),)+ ]
+        )?
     };
 }
 
 macro_rules! section {
-    ($input:expr, course: $course:literal - $section:literal,
-    rooms and times: $($rest:tt)*) => {
-        let mut list = Vec::new();
-        name_with_penalty_list!(list, $($rest)*);
-        $input.make_section($course.to_string(), $section.to_string(),
-            vec![], list)?
-    };
-    ($input:expr, course: $course:literal - $section:literal,
-    instructor: $inst:literal $(and $insts:literal)*,
-    rooms and times: $($rest:tt)*) => {
-        let mut list = Vec::new();
-        name_with_penalty_list!(list, $($rest)*);
-        $input.make_section($course.to_string(), $section.to_string(),
-            vec![$inst.to_string(), $($insts.to_string(), )*], list)?
+    ($input:expr,
+            course: $course:literal - $section:literal,
+            $(instructor: $inst:literal $(and $insts:literal)*,)?
+            rooms and times: $($tag:literal $(with penalty $pen:literal)?),+ $(,)?) => {
+        $input.make_section(
+            $course.to_string(), $section.to_string(),
+            vec![ $($inst.to_string(), $($insts.to_string(), )*)? ],
+            vec![ $(name_with_optional_penalty!($tag $(with penalty $pen)?),)+ ]
+        )?
     };
 }
 
 macro_rules! crosslist {
-    ($input:expr, $course:literal - $section:literal
-    $(cross-list with $courses:literal - $sections:literal)*) => {
-        $input.make_cross_listing(vec![($course.to_string(), $section.to_string()),
-            $(($courses.to_string(), $sections.to_string()), )*])?
+    ($input:expr,
+            $course:literal - $section:literal
+            $(cross-list with $courses:literal - $sections:literal)+) => {
+        $input.make_cross_listing(vec![
+            ($course.to_string(), $section.to_string()),
+            $(($courses.to_string(), $sections.to_string()), )+
+        ])?
     };
 }
 
 macro_rules! conflict {
-    ($input:expr, set hard, clique: $($rest:tt)*) => {
-        let mut list = Vec::new();
-        course_with_section_list!(list, $($rest)*);
-        $input.make_conflict_clique(100, true, list)?;
+    ($input:expr,
+            set hard,
+            clique: $($course:literal $(- $section:literal)?),+ $(,)?) => {
+        $input.make_conflict_clique(
+            100, true,
+            vec![ $(course_with_optional_section!($course $(- $section)?),)+ ])?;
     };
-    ($input:expr, set penalty to $penalty:expr, clique: $($rest:tt)*) => {
-        assert!($penalty > 0 && $penalty < 100);
-        let mut list = Vec::new();
-        course_with_section_list!(list, $($rest)*);
-        $input.make_conflict_clique($penalty, true, list)?;
+    ($input:expr,
+            set penalty to $penalty:expr,
+            clique: $($course:literal $(- $section:literal)?),+ $(,)?) => {
+        $input.make_conflict_clique(
+            $penalty, true,
+            vec![ $(course_with_optional_section!($course $(- $section)?),)+ ])?;
     };
-    ($input:expr, remove penalty, clique: $($rest:tt)*) => {
-        let mut list = Vec::new();
-        course_with_section_list!(list, $($rest)*);
-        $input.make_conflict_clique(0, false, list)?;
+    ($input:expr,
+            remove penalty,
+            clique: $($course:literal $(- $section:literal)?),+ $(,)?) => {
+        $input.make_conflict_clique(
+            0, false,
+            vec![ $(course_with_optional_section!($course $(- $section)?),)+ ])?;
     };
 }
 
 pub(crate) use {
-    conflict, course_with_section_list, crosslist, holiday, instructor, name_with_penalty_list,
-    room, section, time,
+    conflict, course_with_optional_section, crosslist, holiday, instructor,
+    name_with_optional_penalty, room, section, time,
 };

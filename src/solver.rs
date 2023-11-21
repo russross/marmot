@@ -127,7 +127,7 @@ impl SectionScore {
         }
     }
 
-    pub fn gather_adjacent_sections(&self, adjacent: &mut Vec<usize>, exclude: &Vec<usize>) {
+    pub fn gather_adjacent_sections(&self, adjacent: &mut Vec<usize>, exclude: &[usize]) {
         for SectionScoreRecord { details, .. } in &self.score_records {
             details.gather_adjacent_sections(adjacent, exclude);
         }
@@ -269,16 +269,11 @@ impl PlacementLog {
         }
 
         // revert all moved sections and adjacent sections to their pre-move scores
-        loop {
-            match self.pre_scores.pop() {
-                Some((section, score)) => {
-                    let s = &mut solver.sections[section];
-                    solver.score -= s.score.global;
-                    s.score = score;
-                    solver.score += s.score.global;
-                }
-                None => break,
-            }
+        while let Some((section, score)) = self.pre_scores.pop() {
+            let s = &mut solver.sections[section];
+            solver.score -= s.score.global;
+            s.score = score;
+            solver.score += s.score.global;
         }
     }
 }
@@ -532,10 +527,10 @@ impl Solver {
         self.sections[section].speculative_delta_min = low;
     }
 
-    pub fn select_section_to_place(&mut self, input: &Input) -> usize {
+    pub fn select_section_to_place_slow(&mut self, input: &Input) -> usize {
         let mut rng = rand::thread_rng();
 
-        self.compute_speculative_deltas(&input);
+        self.compute_speculative_deltas(input);
         let mut pool_size = 0;
         for section in self.sections.iter_mut() {
             match section.speculative_delta_min {
@@ -569,7 +564,11 @@ impl Solver {
         panic!("cannot get here");
     }
 
-    pub fn select_room_time_to_place(&self, _input: &Input, section: usize) -> RoomTimeWithPenalty {
+    pub fn select_room_time_to_place_slow(
+        &self,
+        _input: &Input,
+        section: usize,
+    ) -> RoomTimeWithPenalty {
         let room_times = &self.sections[section].room_times;
 
         if room_times.len() == 1 {
@@ -658,7 +657,32 @@ impl Solver {
         if !is_placed && choices > 1 || is_placed && choices > 2 {
             self.compute_speculative_deltas_section(input, section, self.score);
         }
-        self.select_room_time_to_place(input, section)
+        self.select_room_time_to_place_slow(input, section)
+    }
+
+    pub fn select_room_time_to_place_random(
+        &mut self,
+        _input: &Input,
+        section: usize,
+    ) -> RoomTimeWithPenalty {
+        let (room, time_slot) = match self.sections[section].placement {
+            Some(RoomTimeWithPenalty {
+                room, time_slot, ..
+            }) => (room, time_slot),
+            None => (usize::MAX, usize::MAX),
+        };
+
+        let mut rng = rand::thread_rng();
+        let room_times = &self.sections[section].room_times;
+        loop {
+            let winner = rng.gen_range(0..room_times.len());
+
+            // don't place it back where it already is
+            if room_times[winner].room == room && room_times[winner].time_slot == time_slot {
+                continue;
+            }
+            return room_times[winner].clone();
+        }
     }
 
     // compute all scores for a section in its curent placement
@@ -672,8 +696,8 @@ impl Solver {
 
         let mut records = Vec::new();
 
-        match &self.sections[section].placement {
-            &Some(RoomTimeWithPenalty { penalty, .. }) => {
+        match self.sections[section].placement {
+            Some(RoomTimeWithPenalty { penalty, .. }) => {
                 // room/time penalty handled as a special case
                 // since the penalty is stored as part of the placement record
                 if penalty != 0 {
@@ -689,7 +713,7 @@ impl Solver {
                     elt.check(self, input, section, &mut records);
                 }
             }
-            &None => {
+            None => {
                 // unplaced sections are a special case
                 records.push(SectionScoreRecord {
                     local: PENALTY_FOR_UNPLACED_SECTION,
@@ -819,15 +843,8 @@ impl EvictionTracker {
     }
 
     pub fn add_eviction(&mut self, placed: usize, displaced: usize) {
-        if !self.0.contains_key(&displaced) {
-            self.0.insert(displaced, std::collections::HashMap::new());
-        }
-        let bullies = self.0.get_mut(&displaced).unwrap();
-        let count = match bullies.get(&placed) {
-            Some(n) => n + 1,
-            None => 1,
-        };
-        bullies.insert(placed, count);
+        let bullies = self.0.entry(displaced).or_default();
+        bullies.entry(placed).and_modify(|n| *n += 1).or_insert(1);
     }
 
     pub fn get_top_evictors(&self, displaced: usize, max_count: usize) -> Vec<(usize, isize)> {
@@ -851,8 +868,8 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
     println!("initial score = {}", solver.score);
 
     for iteration in 0..iterations {
-        let section = solver.select_section_to_place(input);
-        let room_time = solver.select_room_time_to_place(input, section);
+        let section = solver.select_section_to_place_slow(input);
+        let room_time = solver.select_room_time_to_place_slow(input, section);
         let undo = PlacementLog::move_section(&mut solver, input, section, room_time);
         for elt in &undo.entries {
             if let &PlacementEntry::Remove(loser, _) = elt {

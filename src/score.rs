@@ -170,7 +170,7 @@ pub enum SectionScoreDetails {
 
 impl SectionScoreDetails {
     // gather sections that are involved in the score, but skip any in the exclude list
-    pub fn gather_adjacent_sections(&self, adjacent: &mut Vec<usize>, exclude: &Vec<usize>) {
+    pub fn gather_adjacent_sections(&self, adjacent: &mut Vec<usize>, exclude: &[usize]) {
         match self {
             SectionScoreDetails::SoftConflict { sections } => {
                 for section in sections {
