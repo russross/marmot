@@ -569,7 +569,7 @@ impl Solver {
         panic!("cannot get here");
     }
 
-    pub fn select_room_time_to_place(&self, section: usize) -> RoomTimeWithPenalty {
+    pub fn select_room_time_to_place(&self, _input: &Input, section: usize) -> RoomTimeWithPenalty {
         let room_times = &self.sections[section].room_times;
 
         if room_times.len() == 1 {
@@ -658,7 +658,7 @@ impl Solver {
         if !is_placed && choices > 1 || is_placed && choices > 2 {
             self.compute_speculative_deltas_section(input, section, self.score);
         }
-        self.select_room_time_to_place(section)
+        self.select_room_time_to_place(input, section)
     }
 
     // compute all scores for a section in its curent placement
@@ -852,7 +852,7 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
 
     for iteration in 0..iterations {
         let section = solver.select_section_to_place(input);
-        let room_time = solver.select_room_time_to_place(section);
+        let room_time = solver.select_room_time_to_place(input, section);
         let undo = PlacementLog::move_section(&mut solver, input, section, room_time);
         for elt in &undo.entries {
             if let &PlacementEntry::Remove(loser, _) = elt {
