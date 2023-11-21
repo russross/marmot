@@ -1,5 +1,6 @@
 pub mod data;
 pub mod input;
+pub mod score;
 pub mod solver;
 use self::input::*;
 use self::solver::*;
@@ -119,20 +120,21 @@ fn main() {
         println!();
     }
     */
-    println!("{} rooms, {} time slots, {} instructors, {} sections",
-            term.rooms.len(),
-            term.time_slots.len(),
-            term.instructors.len(),
-            term.sections.len(),
+    println!(
+        "{} rooms, {} time slots, {} instructors, {} sections",
+        term.rooms.len(),
+        term.time_slots.len(),
+        term.instructors.len(),
+        term.sections.len(),
     );
 
-    let iterations = 50_000;
+    let iterations = 100_000;
     let solver = match Solver::new(&term) {
         Ok(s) => s,
         Err(msg) => {
             eprintln!("{}", msg);
             return;
-        },
+        }
     };
     solve(solver, &term, iterations);
 }

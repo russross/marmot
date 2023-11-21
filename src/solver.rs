@@ -1,4 +1,5 @@
 use super::input::*;
+use super::score::*;
 use rand::Rng;
 
 const PENALTY_FOR_UNPLACED_SECTION: isize = 1000;
@@ -36,7 +37,8 @@ pub struct SolverSection {
     pub room_times: Vec<RoomTimeWithPenalty>,
     pub instructors: Vec<usize>,
     pub hard_conflicts: Vec<usize>,
-    pub soft_conflicts: Vec<SectionWithPenalty>,
+
+    pub score_criteria: Vec<ScoreCriterion>,
 
     // map from input.section[_].room_times to the effect on the score
     // if we placed this section at that room/time
@@ -106,121 +108,39 @@ pub struct SectionScore {
 
 impl SectionScore {
     pub fn new() -> Self {
-        SectionScore{ local: 0, global: 0, score_records: Vec::new() }
+        SectionScore {
+            local: 0,
+            global: 0,
+            score_records: Vec::new(),
+        }
     }
 
     pub fn new_unplaced(section: usize) -> Self {
-        SectionScore{
+        SectionScore {
             local: PENALTY_FOR_UNPLACED_SECTION,
             global: PENALTY_FOR_UNPLACED_SECTION,
-            score_records: vec![
-                SectionScoreRecord::SectionNotPlaced {
-                    section,
-                    local: PENALTY_FOR_UNPLACED_SECTION,
-                    global: PENALTY_FOR_UNPLACED_SECTION,
-                }
-            ],
+            score_records: vec![SectionScoreRecord {
+                local: PENALTY_FOR_UNPLACED_SECTION,
+                global: PENALTY_FOR_UNPLACED_SECTION,
+                details: SectionScoreDetails::SectionNotPlaced { section },
+            }],
         }
     }
 
     pub fn gather_adjacent_sections(&self, adjacent: &mut Vec<usize>, exclude: &Vec<usize>) {
-        for record in &self.score_records {
-            record.gather_adjacent_sections(adjacent, exclude);
+        for SectionScoreRecord { details, .. } in &self.score_records {
+            details.gather_adjacent_sections(adjacent, exclude);
         }
     }
 
-    pub fn gather_score_messages(&self, solver: &Solver, input: &Input, list: &mut Vec<(isize, String)>) {
+    pub fn gather_score_messages(
+        &self,
+        solver: &Solver,
+        input: &Input,
+        list: &mut Vec<(isize, String)>,
+    ) {
         for record in &self.score_records {
             record.gather_score_messages(solver, input, list);
-        }
-    }
-}
-
-#[derive(Clone)]
-pub enum SectionScoreRecord {
-    CurriculumConflict{ sections: Vec<usize>, local: isize, global: isize },
-    RoomTimePenalty{ section: usize, local: isize, global: isize },
-    SectionNotPlaced{ section: usize, local: isize, global: isize },
-}
-
-impl SectionScoreRecord {
-    // gather sections that are involved in the score, but skip any in the exclude list
-    pub fn gather_adjacent_sections(&self, adjacent: &mut Vec<usize>, exclude: &Vec<usize>) {
-        match self {
-            SectionScoreRecord::CurriculumConflict{ sections, .. } => {
-                for section in sections {
-                    if !exclude.contains(section) {
-                        adjacent.push(*section);
-                    }
-                }
-            },
-            SectionScoreRecord::RoomTimePenalty{ section, .. } => {
-                if !exclude.contains(section) {
-                    adjacent.push(*section);
-                }
-            },
-            SectionScoreRecord::SectionNotPlaced{ section, .. }  => {
-                if !exclude.contains(section) {
-                    adjacent.push(*section);
-                }
-            },
-        }
-    }
-
-    pub fn gather_score_messages(&self, solver: &Solver, input: &Input, list: &mut Vec<(isize, String)>) {
-        match self {
-            SectionScoreRecord::CurriculumConflict{ sections, global, .. } => {
-                if *global == 0 {
-                    return;
-                }
-
-                assert!(sections.len() == 2);
-                let (a, b) = (sections[0], sections[1]);
-
-                let Some(RoomTimeWithPenalty{ time_slot: ts_a, .. }) = solver.sections[a].placement else {
-                    panic!("RoomTimePenalty on unplaced section");
-                };
-                let Some(RoomTimeWithPenalty{ time_slot: ts_b, .. }) = solver.sections[b].placement else {
-                    panic!("RoomTimePenalty on unplaced section");
-                };
-                let message = if ts_a == ts_b {
-                    format!("soft conflict: {}-{} and {}-{} both meet at {}",
-                        input.sections[a].course, input.sections[a].section,
-                        input.sections[b].course, input.sections[b].section,
-                        input.time_slots[ts_a].name)
-                } else {
-                    format!("soft conflict: {}-{} at {} overlaps {}-{} at {}",
-                        input.sections[a].course, input.sections[a].section,
-                        input.time_slots[ts_a].name,
-                        input.sections[b].course, input.sections[b].section,
-                        input.time_slots[ts_b].name)
-                };
-                list.push((*global, message));
-            },
-            SectionScoreRecord::RoomTimePenalty{ section, global, .. } => {
-                if *global == 0 {
-                    return;
-                }
-
-                let Some(RoomTimeWithPenalty{room, time_slot, ..}) = solver.sections[*section].placement else {
-                    panic!("RoomTimePenalty on unplaced section");
-                };
-                let elt = &input.sections[*section];
-
-                let message = format!("room/time combination: {}-{} meets in {} at {}",
-                    elt.course, elt.section,
-                    input.rooms[room].name,
-                    input.time_slots[time_slot].name);
-                list.push((*global, message));
-            },
-            SectionScoreRecord::SectionNotPlaced{ section, global, .. }  => {
-                if *global == 0 {
-                    return;
-                }
-
-                let message = format!("unplaced: {}-{}", input.sections[*section].course, input.sections[*section].section);
-                list.push((*global, message));
-            },
         }
     }
 }
@@ -253,7 +173,12 @@ impl PlacementLog {
     // *   update the score based on the move
     //
     // returns a log with enough information to revert the move
-    pub fn move_section(solver: &mut Solver, input: &Input, section: usize, room_time: RoomTimeWithPenalty) -> Self {
+    pub fn move_section(
+        solver: &mut Solver,
+        input: &Input,
+        section: usize,
+        room_time: RoomTimeWithPenalty,
+    ) -> Self {
         let mut entries = Vec::new();
 
         // move the section and record displacements
@@ -277,7 +202,9 @@ impl PlacementLog {
 
         for &section in &sections_being_moved {
             // gather adjacent sections based on the old scoring
-            solver.sections[section].score.gather_adjacent_sections(&mut adjacent, &sections_being_moved);
+            solver.sections[section]
+                .score
+                .gather_adjacent_sections(&mut adjacent, &sections_being_moved);
 
             // undo the old score on section being moved
             solver.score -= solver.sections[section].score.global;
@@ -293,7 +220,9 @@ impl PlacementLog {
             solver.score += solver.sections[section].score.global;
 
             // gather adjacent sections based on the new scoring
-            solver.sections[section].score.gather_adjacent_sections(&mut adjacent, &sections_being_moved);
+            solver.sections[section]
+                .score
+                .gather_adjacent_sections(&mut adjacent, &sections_being_moved);
         }
 
         // dedup adjacent section list
@@ -315,7 +244,10 @@ impl PlacementLog {
             solver.score += solver.sections[section].score.global;
         }
 
-        PlacementLog { entries, pre_scores }
+        PlacementLog {
+            entries,
+            pre_scores,
+        }
     }
 
     pub fn revert_move(&mut self, solver: &mut Solver) {
@@ -328,10 +260,10 @@ impl PlacementLog {
             match self.entries.pop() {
                 Some(PlacementEntry::Add(section)) => {
                     solver.remove_placement(section, &mut dev_null);
-                },
+                }
                 Some(PlacementEntry::Remove(section, room_time)) => {
                     solver.add_placement_without_displacing(section, &room_time, &mut dev_null);
-                },
+                }
                 None => break,
             }
         }
@@ -344,7 +276,7 @@ impl PlacementLog {
                     solver.score -= s.score.global;
                     s.score = score;
                     solver.score += s.score.global;
-                },
+                }
                 None => break,
             }
         }
@@ -369,6 +301,7 @@ impl Solver {
             // compute combined conflicts across cross-listings
             let mut hard_conflicts = Vec::new();
             let mut soft_conflicts = Vec::new();
+            let mut score_criteria = Vec::new();
             for &self_cross_listing in &input.sections[i].cross_listings {
                 for &other in &input.sections[self_cross_listing].hard_conflicts {
                     hard_conflicts.push(input.sections[other].get_primary_cross_listing());
@@ -390,6 +323,12 @@ impl Solver {
             // ... so dedup will remove the lower penalty instances
             soft_conflicts.dedup_by_key(|elt| elt.section);
 
+            if !soft_conflicts.is_empty() {
+                score_criteria.push(ScoreCriterion::SoftConflict {
+                    sections_with_penalties: soft_conflicts,
+                });
+            }
+
             // compute the combined room/time pairs and penalties across cross-listings
             let room_times = if input.sections[i].cross_listings.len() == 1 {
                 // only a single section, so keep the original input data
@@ -404,7 +343,10 @@ impl Solver {
                     // every cross-listing must have this slot
                     let mut worst_penalty = 0;
                     for &section_i in &input.sections[i].cross_listings {
-                        match input.sections[section_i].room_times.iter().find(|elt| elt.room == room && elt.time_slot == time_slot)
+                        match input.sections[section_i]
+                            .room_times
+                            .iter()
+                            .find(|elt| elt.room == room && elt.time_slot == time_slot)
                         {
                             Some(RoomTimeWithPenalty { penalty, .. }) => {
                                 worst_penalty = std::cmp::max(worst_penalty, *penalty)
@@ -442,7 +384,7 @@ impl Solver {
 
             let score = SectionScore::new_unplaced(sections.len());
             total_score += score.global;
-            
+
             sections.push(SolverSection {
                 placement: None,
                 tickets: 0,
@@ -450,7 +392,7 @@ impl Solver {
                 room_times,
                 instructors,
                 hard_conflicts,
-                soft_conflicts,
+                score_criteria,
                 speculative_deltas: vec![None; input.sections[i].room_times.len()],
                 speculative_delta_min: None,
             });
@@ -469,7 +411,10 @@ impl Solver {
     // remove a section from its current room/time placement (if any)
     // remove it from both sections and room_placements
     pub fn remove_placement(&mut self, section: usize, undo: &mut Vec<PlacementEntry>) {
-        if let Some(RoomTimeWithPenalty{ room, time_slot, .. }) = self.sections[section].placement {
+        if let Some(RoomTimeWithPenalty {
+            room, time_slot, ..
+        }) = self.sections[section].placement
+        {
             assert!(std::mem::take(&mut self.room_placements[room].time_slot_placements[time_slot]) == Some(section),
             "Solver::remove_placement: placement by section does not match placement by room and time");
             let rtp = std::mem::take(&mut self.sections[section].placement).unwrap();
@@ -477,11 +422,20 @@ impl Solver {
         }
     }
 
-    pub fn add_placement_without_displacing(&mut self, section: usize, room_time: &RoomTimeWithPenalty, undo: &mut Vec<PlacementEntry>) {
-        let &RoomTimeWithPenalty { room, time_slot, .. } = room_time;
+    pub fn add_placement_without_displacing(
+        &mut self,
+        section: usize,
+        room_time: &RoomTimeWithPenalty,
+        undo: &mut Vec<PlacementEntry>,
+    ) {
+        let &RoomTimeWithPenalty {
+            room, time_slot, ..
+        } = room_time;
 
-        let old_by_section =
-            std::mem::replace(&mut self.sections[section].placement, Some(room_time.clone()));
+        let old_by_section = std::mem::replace(
+            &mut self.sections[section].placement,
+            Some(room_time.clone()),
+        );
         assert!(old_by_section.is_none());
 
         let old_by_room_time = std::mem::replace(
@@ -499,7 +453,13 @@ impl Solver {
     // * anything in the same room in an overlapping time slot
     // * anything in the hard conflict list of this section (or a cross listing)
     //   in the same/an overlapping time slot
-    pub fn displace_conflicts(&mut self, input: &Input, section: usize, room_time: &RoomTimeWithPenalty, undo: &mut Vec<PlacementEntry>) {
+    pub fn displace_conflicts(
+        &mut self,
+        input: &Input,
+        section: usize,
+        room_time: &RoomTimeWithPenalty,
+        undo: &mut Vec<PlacementEntry>,
+    ) {
         // is this slot (or an overlapping time in the same room) already occupied?
         let mut evictees = Vec::new();
         for overlapping in &input.time_slots[room_time.time_slot].conflicts {
@@ -512,7 +472,9 @@ impl Solver {
 
         // find any hard conflicts in overlapping time slots
         for &hard_conflict in &self.sections[section].hard_conflicts {
-            if let Some(RoomTimeWithPenalty { time_slot, .. }) = self.sections[hard_conflict].placement {
+            if let Some(RoomTimeWithPenalty { time_slot, .. }) =
+                self.sections[hard_conflict].placement
+            {
                 if input.time_slots_conflict(room_time.time_slot, time_slot) {
                     evictees.push(hard_conflict);
                 }
@@ -538,7 +500,9 @@ impl Solver {
         old_score: isize,
     ) {
         let current = match self.sections[section].placement {
-            Some(RoomTimeWithPenalty { room, time_slot, .. }) => (room, time_slot),
+            Some(RoomTimeWithPenalty {
+                room, time_slot, ..
+            }) => (room, time_slot),
             None => (usize::MAX, usize::MAX),
         };
         let mut low = None;
@@ -576,7 +540,7 @@ impl Solver {
         for section in self.sections.iter_mut() {
             match section.speculative_delta_min {
                 Some(delta) => {
-                    section.tickets = std::cmp::max(1, -delta+1);
+                    section.tickets = std::cmp::max(1, -delta + 1);
                     if section.placement.is_none() {
                         section.tickets = std::cmp::min(
                             section.tickets,
@@ -613,7 +577,10 @@ impl Solver {
             return room_times[0].clone();
         } else if room_times.len() == 2 && self.is_placed(section) {
             // special case: only two choices and one is current, so switch
-            let Some(RoomTimeWithPenalty{ room, time_slot, .. }) = self.sections[section].placement else {
+            let Some(RoomTimeWithPenalty {
+                room, time_slot, ..
+            }) = self.sections[section].placement
+            else {
                 panic!("cannot happen");
             };
             let other = if room == room_times[0].room && time_slot == room_times[0].time_slot {
@@ -628,7 +595,7 @@ impl Solver {
         let mut pool_size = 0;
         for elt in &self.sections[section].speculative_deltas {
             pool_size += match elt {
-                Some(delta) => std::cmp::max(1, -delta+1),
+                Some(delta) => std::cmp::max(1, -delta + 1),
                 None => 0,
             };
         }
@@ -638,13 +605,9 @@ impl Solver {
         let mut winner = rng.gen_range(0..pool_size);
 
         // find the winner
-        for (i, elt) in self.sections[section]
-            .speculative_deltas
-            .iter()
-            .enumerate()
-        {
+        for (i, elt) in self.sections[section].speculative_deltas.iter().enumerate() {
             if let Some(delta) = elt {
-                let tickets = std::cmp::max(1, -delta+1);
+                let tickets = std::cmp::max(1, -delta + 1);
                 if winner < tickets {
                     return self.sections[section].room_times[i].clone();
                 }
@@ -659,7 +622,7 @@ impl Solver {
 
         let mut pool_size = 0;
         for (i, section) in self.sections.iter_mut().enumerate() {
-            section.tickets = std::cmp::max(1, section.score.local+1);
+            section.tickets = std::cmp::max(1, section.score.local + 1);
             if section.placement.is_none() {
                 section.tickets =
                     std::cmp::max(section.tickets, MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION);
@@ -685,7 +648,11 @@ impl Solver {
         panic!("cannot get here");
     }
 
-    pub fn select_room_time_to_place_fast(&mut self, input: &Input, section: usize) -> RoomTimeWithPenalty {
+    pub fn select_room_time_to_place_fast(
+        &mut self,
+        input: &Input,
+        section: usize,
+    ) -> RoomTimeWithPenalty {
         let is_placed = self.is_placed(section);
         let choices = self.sections[section].room_times.len();
         if !is_placed && choices > 1 || is_placed && choices > 2 {
@@ -694,83 +661,50 @@ impl Solver {
         self.select_room_time_to_place(section)
     }
 
-    // note: applies the score to the section's local and global score records, but does not touch
-    // the overall solver score
+    // compute all scores for a section in its curent placement
+    // the section's score is fully update, including local and global
+    // totals and the detail log,
+    // but the overall solver score is not modified
     pub fn compute_section_score(&mut self, input: &Input, section: usize) {
-        if self.is_placed(section) {
-            self.compute_score_room_and_time_penalties(section);
-            self.compute_score_section_soft_conflicts(input, section);
-        } else {
-            let s = &mut self.sections[section].score;
-            s.score_records.push(SectionScoreRecord::SectionNotPlaced{ section, local: PENALTY_FOR_UNPLACED_SECTION, global: PENALTY_FOR_UNPLACED_SECTION });
-            s.local += PENALTY_FOR_UNPLACED_SECTION;
-            s.global += PENALTY_FOR_UNPLACED_SECTION;
-        }
-    }
+        assert!(self.sections[section].score.local == 0);
+        assert!(self.sections[section].score.global == 0);
+        assert!(self.sections[section].score.score_records.is_empty());
 
-    // note: applies the score to the section's local and global score records, but does not touch
-    // the overall solver score
-    pub fn compute_score_section_soft_conflicts(&mut self, input: &Input, section: usize) {
-        // grab the time slot we are placed in; quit if not placed
-        let Some(RoomTimeWithPenalty {
-            time_slot: my_time_slot,
-            ..
-        }) = self.sections[section].placement
-        else {
-            return;
+        let mut records = Vec::new();
+
+        match &self.sections[section].placement {
+            &Some(RoomTimeWithPenalty { penalty, .. }) => {
+                // room/time penalty handled as a special case
+                // since the penalty is stored as part of the placement record
+                if penalty != 0 {
+                    records.push(SectionScoreRecord {
+                        local: penalty,
+                        global: penalty,
+                        details: SectionScoreDetails::RoomTimePenalty { section },
+                    });
+                }
+
+                // loop over the other scoring criteria
+                for elt in &self.sections[section].score_criteria {
+                    elt.check(self, input, section, &mut records);
+                }
+            }
+            &None => {
+                // unplaced sections are a special case
+                records.push(SectionScoreRecord {
+                    local: PENALTY_FOR_UNPLACED_SECTION,
+                    global: PENALTY_FOR_UNPLACED_SECTION,
+                    details: SectionScoreDetails::SectionNotPlaced { section },
+                });
+            }
         };
 
-        // look at the conflicts across all cross-listings
-        for sp_i in 0..self.sections[section].soft_conflicts.len() {
-            let &SectionWithPenalty{ section: soft_conflict_section, penalty } = &self.sections[section].soft_conflicts[sp_i];
-
-            // check for placement of the conflicting course
-            let Some(RoomTimeWithPenalty {
-                time_slot: other_time_slot,
-                ..
-            }) = self.sections[soft_conflict_section].placement
-            else {
-                continue;
-            };
-
-            // we only care if there is an overlap
-            if !input.time_slots_conflict(my_time_slot, other_time_slot) {
-                continue;
-            }
-
-            // if we make it this far, there is a soft conflict
-            let s = &mut self.sections[section].score;
-            s.score_records.push(SectionScoreRecord::CurriculumConflict{
-                sections: vec![section, soft_conflict_section],
-                local: penalty,
-                global: if section < soft_conflict_section { penalty } else { 0 },
-            });
-            s.local += penalty;
-
-            // we will discover each conflict twice (A conflicts with B and B conflicts with A),
-            // only the lower-numbered section will affect the overall score
-            if section < soft_conflict_section {
-                s.global += penalty;
-            }
+        // compute the totals and apply to the main score record
+        for &SectionScoreRecord { local, global, .. } in &records {
+            self.sections[section].score.local += local;
+            self.sections[section].score.global += global;
         }
-    }
-
-    // note: applies the score to the section's local and global score records, but does not touch
-    // the overall solver score
-    pub fn compute_score_room_and_time_penalties(&mut self, section: usize) {
-        // grab the time slot we are placed in; quit if not placed or no penalty
-        let Some(RoomTimeWithPenalty { penalty, .. }) = self.sections[section].placement else {
-            return;
-        };
-        if penalty == 0 {
-            return;
-        }
-
-        // if we make it this far, there is a soft conflict
-        let s = &mut self.sections[section].score;
-        s.score_records.push(SectionScoreRecord::RoomTimePenalty{ section, local: penalty, global: penalty });
-        s.local += penalty;
-        s.global += penalty;
+        self.sections[section].score.score_records = records;
     }
 
     pub fn print_schedule(&self, input: &Input) {
@@ -780,11 +714,21 @@ impl Solver {
             if !section.instructors.is_empty() {
                 let plus = if section.instructors.len() == 1 { 0 } else { 1 };
                 let instructor = section.instructors[0];
-                name_len = std::cmp::max(name_len, input.instructors[instructor].name.len() + 1 + plus);
+                name_len = std::cmp::max(
+                    name_len,
+                    input.instructors[instructor].name.len() + 1 + plus,
+                );
             }
             if section.cross_listings[0] == section_i {
-                let plus = if section.cross_listings.len() == 1 { 0 } else { 1 };
-                name_len = std::cmp::max(name_len, section.course.len() + section.section.len() + 1 + plus);
+                let plus = if section.cross_listings.len() == 1 {
+                    0
+                } else {
+                    1
+                };
+                name_len = std::cmp::max(
+                    name_len,
+                    section.course.len() + section.section.len() + 1 + plus,
+                );
             }
         }
 
@@ -865,7 +809,9 @@ impl Solver {
     }
 }
 
-pub struct EvictionTracker(std::collections::HashMap<usize, std::collections::HashMap<usize, isize>>);
+pub struct EvictionTracker(
+    std::collections::HashMap<usize, std::collections::HashMap<usize, isize>>,
+);
 
 impl EvictionTracker {
     pub fn new() -> Self {
@@ -878,8 +824,8 @@ impl EvictionTracker {
         }
         let bullies = self.0.get_mut(&displaced).unwrap();
         let count = match bullies.get(&placed) {
-            Some(n) => n+1,
-                None => 1 as isize,
+            Some(n) => n + 1,
+            None => 1,
         };
         bullies.insert(placed, count);
     }
@@ -896,7 +842,6 @@ impl EvictionTracker {
         lst
     }
 }
-
 
 pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
     let mut evicted_by = EvictionTracker::new();
@@ -915,22 +860,28 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
             }
         }
         let score = solver.score;
-        if score < best_score || iterations == 2*solver.sections.len() {
+        if score < best_score
+        /*|| iterations == 2*solver.sections.len()*/
+        {
             if score < best_score {
                 best_score = score;
                 winner = solver.clone();
+                /*
                 if iteration < 2 * solver.sections.len() {
                     continue
                 }
+                */
             }
 
             println!();
             println!();
-            //winner.print_schedule(input);
+            winner.print_schedule(input);
             println!("score = {}", score);
             let mut problems = Vec::new();
             for i in 0..winner.sections.len() {
-                winner.sections[i].score.gather_score_messages(&winner, input, &mut problems);
+                winner.sections[i]
+                    .score
+                    .gather_score_messages(&winner, input, &mut problems);
             }
             problems.sort_by_key(|(score, _)| -score);
 
@@ -946,14 +897,20 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
                     if section.placement.is_some() {
                         continue;
                     }
-                    print!("unplaced: {}-{}", input.sections[i].course, input.sections[i].section);
+                    print!(
+                        "unplaced: {}-{}",
+                        input.sections[i].course, input.sections[i].section
+                    );
 
                     // report who displaces this section the most
                     let lst = evicted_by.get_top_evictors(i, 5);
                     if !lst.is_empty() {
                         print!(" displaced by");
                         for (sec, count) in lst {
-                            print!(" {}-{}×{}", input.sections[sec].course, input.sections[sec].section, count);
+                            print!(
+                                " {}-{}×{}",
+                                input.sections[sec].course, input.sections[sec].section, count
+                            );
                         }
                     }
                     println!();

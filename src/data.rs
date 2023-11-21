@@ -39,7 +39,7 @@ pub fn input() -> Result<Input, String> {
     time!(t, name: "R1900+50");
 
     input_computing(&mut t)?;
-    input_set(&mut t)?;
+    //input_set(&mut t)?;
 
     Ok(t)
 }
