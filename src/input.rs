@@ -1,6 +1,7 @@
 pub fn setup() -> Result<Input, String> {
     let mut input = super::data::input()?;
     input.missing.sort();
+    input.missing.dedup();
 
     // sort rooms
     {
@@ -149,12 +150,27 @@ pub fn setup() -> Result<Input, String> {
             }
             instructor.sections.sort();
         }
+
+        // remap all references in anticonflicts
+        for elt in &mut input.anticonflicts {
+            elt.1 = section_map_to_new[elt.1];
+            for sec in elt.2.iter_mut() {
+                *sec = section_map_to_new[*sec];
+            }
+            elt.2.sort();
+        }
     }
 
     // add hard conflicts between all the sections an instructor teaches
     for instructor in &input.instructors {
         for &left in &instructor.sections {
+            if input.sections[left].cross_listings[0] != left {
+                continue;
+            }
             for &right in &instructor.sections {
+                if input.sections[right].cross_listings[0] != right {
+                    continue;
+                }
                 if left == right {
                     continue;
                 };
@@ -185,8 +201,9 @@ pub struct Input {
     pub instructors: Vec<Instructor>,
     pub sections: Vec<Section>,
     pub missing: Vec<String>,
+    pub time_slot_conflicts: Vec<bool>,
 
-    time_slot_conflicts: Vec<bool>,
+    pub anticonflicts: Vec<(isize, usize, Vec<usize>)>,
 }
 
 impl Input {
@@ -214,8 +231,9 @@ impl Input {
             instructors: Vec::new(),
             sections: Vec::new(),
             missing: Vec::new(),
-
             time_slot_conflicts: Vec::new(),
+
+            anticonflicts: Vec::new(),
         }
     }
 
@@ -555,13 +573,10 @@ impl Input {
         for (course, section) in sections_raw {
             let mut list = self.find_sections_by_name(&course, &section);
             if list.is_empty() {
-                let missing = match section {
+                self.missing.push(match section {
                     Some(s) => format!("{}-{}", course, s),
                     None => course,
-                };
-                if !self.missing.contains(&missing) {
-                    self.missing.push(missing);
-                }
+                });
             } else {
                 sections.append(&mut list);
             }
@@ -586,6 +601,51 @@ impl Input {
                 );
             }
         }
+        Ok(())
+    }
+
+    pub fn make_anti_conflict(
+        &mut self,
+        badness: isize,
+        single_raw: (String, String),
+        group_raw: Vec<(String, Option<String>)>,
+    ) -> Result<(), String> {
+        // parse and sanity check the inputs
+        if !(1..100).contains(&badness) {
+            return Err("badness for an anticonflict must be between 1 and 99".into());
+        }
+
+        // look up the group sections first
+        let mut group = Vec::new();
+        for (course, section) in group_raw {
+            let mut list = self.find_sections_by_name(&course, &section);
+            if list.is_empty() {
+                self.missing.push(match section {
+                    Some(s) => format!("{}-{}", course, s),
+                    None => course,
+                });
+            } else {
+                group.append(&mut list);
+            }
+        }
+
+        // see if the single section is present in the data
+        let single_list = self.find_sections_by_name(&single_raw.0, &Some(single_raw.1.clone()));
+        if single_list.len() != 1 {
+            self.missing
+                .push(format!("{}-{}", single_raw.0, single_raw.1));
+        }
+
+        // single and group must both exist
+        if group.is_empty() || single_list.len() != 1 {
+            return Ok(());
+        }
+        let single = single_list[0];
+        group.sort();
+        group.dedup();
+
+        self.anticonflicts.push((badness, single, group));
+
         Ok(())
     }
 
@@ -984,7 +1044,19 @@ macro_rules! conflict {
     };
 }
 
+macro_rules! anticonflict {
+    ($input:expr,
+            set penalty to $penalty:expr,
+            single: $single_course:literal - $single_section:literal,
+            group: $($group_course:literal $(- $group_section:literal)?),+ $(,)?) => {
+        $input.make_anti_conflict(
+            $penalty,
+            ($single_course.to_string(), $single_section.to_string()),
+            vec![ $(course_with_optional_section!($group_course $(- $group_section)?),)+ ])?;
+    };
+}
+
 pub(crate) use {
-    conflict, course_with_optional_section, crosslist, holiday, instructor,
+    anticonflict, conflict, course_with_optional_section, crosslist, holiday, instructor,
     name_with_optional_penalty, room, section, time,
 };

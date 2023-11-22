@@ -3,8 +3,19 @@ use super::solver::*;
 
 #[derive(Clone)]
 pub enum ScoreCriterion {
+    // if this section overlaps any section in the list,
+    // the associated penalty is applied
     SoftConflict {
         sections_with_penalties: Vec<SectionWithPenalty>,
+    },
+
+    // section single must share a time slot with a section from group
+    // if it does not, the penalty is applied locally to every section
+    // in the group and globally for the single section
+    AntiConflict {
+        penalty: isize,
+        single: usize,
+        group: Vec<usize>,
     },
 }
 
@@ -58,7 +69,50 @@ impl ScoreCriterion {
                     });
                 }
             }
-        };
+
+            ScoreCriterion::AntiConflict {
+                penalty,
+                single,
+                group,
+            } => {
+                // grab the time slot of the single section
+                let Some(RoomTimeWithPenalty { time_slot, .. }) =
+                    solver.sections[*single].placement
+                else {
+                    // single section is unplaced, move on
+                    return;
+                };
+
+                // only consider placed sections from the group
+                let mut placed = Vec::new();
+                for &elt in group {
+                    if solver.sections[elt].placement.is_some() {
+                        placed.push(elt);
+                    }
+                }
+
+                // no complaint if no members of the group are placed
+                if placed.is_empty() {
+                    return;
+                }
+
+                // if any member of the group matches, we are okay
+                if placed
+                    .iter()
+                    .any(|&i| solver.sections[i].is_placed_at_time_slot(time_slot))
+                {
+                    return;
+                }
+                records.push(SectionScoreRecord {
+                    local: *penalty,
+                    global: if section == *single { *penalty } else { 0 },
+                    details: SectionScoreDetails::AntiConflict {
+                        single: *single,
+                        group: placed,
+                    },
+                });
+            }
+        }
     }
 }
 
@@ -157,6 +211,38 @@ impl SectionScoreRecord {
                 );
                 list.push((*global, message));
             }
+
+            SectionScoreRecord {
+                details: SectionScoreDetails::AntiConflict { single, group },
+                global,
+                ..
+            } => {
+                let message = if group.len() == 1 {
+                    let other = group[0];
+                    format!(
+                        "anticonflict: section {}-{} is not at the same time as {}-{}",
+                        input.sections[*single].course,
+                        input.sections[*single].section,
+                        input.sections[other].course,
+                        input.sections[other].section
+                    )
+                } else {
+                    let mut s = format!(
+                        "anticonflict: section {}-{} is not at the same time as ",
+                        input.sections[*single].course, input.sections[*single].section
+                    );
+                    let mut or = "";
+                    for elt in group {
+                        s.push_str(or);
+                        or = " or ";
+                        s.push_str(&input.sections[*elt].course);
+                        s.push('-');
+                        s.push_str(&input.sections[*elt].section);
+                    }
+                    s
+                };
+                list.push((*global, message));
+            }
         }
     }
 }
@@ -166,6 +252,7 @@ pub enum SectionScoreDetails {
     SoftConflict { sections: Vec<usize> },
     RoomTimePenalty { section: usize },
     SectionNotPlaced { section: usize },
+    AntiConflict { single: usize, group: Vec<usize> },
 }
 
 impl SectionScoreDetails {
@@ -187,6 +274,16 @@ impl SectionScoreDetails {
             SectionScoreDetails::SectionNotPlaced { section } => {
                 if !exclude.contains(section) {
                     adjacent.push(*section);
+                }
+            }
+            SectionScoreDetails::AntiConflict { single, group } => {
+                if !exclude.contains(single) {
+                    adjacent.push(*single);
+                }
+                for section in group {
+                    if !exclude.contains(section) {
+                        adjacent.push(*section);
+                    }
                 }
             }
         }

@@ -514,9 +514,10 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
     conflict!(t, set hard, clique: "SE 1400");
 
     // courses that must be scheduled at the same time
-    //anticonflict!(t, set penalty to 50, clique: "CS 1400", "CS 1030");
+    anticonflict!(t, set penalty to 50, single: "CS 1030"-"01", group: "CS 1400");
     //anticonflict!(t, set penalty to 50, clique: "SE 1400", "IT 1100"); // temporarily removed because of new hire planning
-    //anticonflict!(t, set penalty to 50, clique: "CS 4600", "SE 4600");
+    conflict!(t, remove penalty, clique: "CS 4600", "SE 4600");
+    anticonflict!(t, set penalty to 50, single: "CS 4600"-"01", group: "CS 4600"-"02");
 
     Ok(())
 }

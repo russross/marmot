@@ -56,6 +56,7 @@ fn main() {
         }
         println!();
     }
+    */
     for (sec_i, sec) in term.sections.iter().enumerate() {
         print!("{}-{}", sec.course, sec.section);
         if sec.cross_listings.len() > 1 {
@@ -119,7 +120,6 @@ fn main() {
         }
         println!();
     }
-    */
     println!(
         "{} rooms, {} time slots, {} instructors, {} sections",
         term.rooms.len(),
@@ -128,7 +128,7 @@ fn main() {
         term.sections.len(),
     );
 
-    let iterations = 50_000;
+    let iterations = 100_000;
     let solver = match Solver::new(&term) {
         Ok(s) => s,
         Err(msg) => {

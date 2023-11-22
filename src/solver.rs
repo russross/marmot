@@ -49,6 +49,15 @@ pub struct SolverSection {
     pub speculative_delta_min: Option<isize>,
 }
 
+impl SolverSection {
+    pub fn is_placed_at_time_slot(&self, time_slot: usize) -> bool {
+        match self.placement {
+            Some(RoomTimeWithPenalty { time_slot: ts, .. }) => time_slot == ts,
+            None => false,
+        }
+    }
+}
+
 // Notes on scoring:
 // *   A section can be scored independently of any other sections,
 //     instructors, etc.
@@ -106,6 +115,7 @@ pub struct SectionScore {
     pub score_records: Vec<SectionScoreRecord>,
 }
 
+#[allow(clippy::new_without_default)]
 impl SectionScore {
     pub fn new() -> Self {
         SectionScore {
@@ -392,6 +402,37 @@ impl Solver {
                 speculative_delta_min: None,
             });
         }
+
+        // build and place anticonflict rules
+        for (penalty, single, group) in &input.anticonflicts {
+            // use primary cross listings
+            let single_primary = input.sections[*single].cross_listings[0];
+            let mut group_primaries: Vec<usize> = group
+                .iter()
+                .map(|&elt| input.sections[elt].cross_listings[0])
+                .collect();
+            group_primaries.sort();
+            group_primaries.dedup();
+            if group_primaries.contains(&single_primary) {
+                return Err(format!(
+                    "section {}-{} cannot be an anticonflict with itself",
+                    input.sections[single_primary].course, input.sections[single_primary].section
+                ));
+            }
+            let criterion = ScoreCriterion::AntiConflict {
+                penalty: *penalty,
+                single: single_primary,
+                group: group_primaries.clone(),
+            };
+
+            sections[single_primary]
+                .score_criteria
+                .push(criterion.clone());
+            for &elt in &group_primaries {
+                sections[elt].score_criteria.push(criterion.clone());
+            }
+        }
+
         Ok(Solver {
             room_placements,
             sections,
@@ -837,6 +878,7 @@ pub struct EvictionTracker(
     std::collections::HashMap<usize, std::collections::HashMap<usize, isize>>,
 );
 
+#[allow(clippy::new_without_default)]
 impl EvictionTracker {
     pub fn new() -> Self {
         EvictionTracker(std::collections::HashMap::new())
