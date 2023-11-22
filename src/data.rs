@@ -39,7 +39,7 @@ pub fn input() -> Result<Input, String> {
     time!(t, name: "R1900+50");
 
     input_computing(&mut t)?;
-    //input_set(&mut t)?;
+    input_set(&mut t)?;
 
     Ok(t)
 }
@@ -506,17 +506,16 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
     conflict!(t, remove penalty, clique: "CS 4307", "IT 2300"); // students take either CS4307 or IT2300 but not both so no conflict
 
     // multiple-section courses must be taught at different times
-    conflict!(t, set hard, clique: "CS 1400");
-    conflict!(t, set hard, clique: "CS 1410");
-    conflict!(t, set hard, clique: "CS 2450");
-    conflict!(t, set hard, clique: "CS 2810");
-    conflict!(t, set hard, clique: "IT 1100");
-    conflict!(t, set hard, clique: "SE 1400");
+    conflict!(t, set hard, clique: "CS 1400"-"01", "CS 1400"-"02", "CS 1400"-"03", "CS 1400"-"04");
+    conflict!(t, set hard, clique: "CS 1410"-"01", "CS 1410"-"02");
+    conflict!(t, set hard, clique: "CS 2450"-"01", "CS 2450"-"02");
+    conflict!(t, set hard, clique: "CS 2810"-"01", "CS 2810"-"02");
+    conflict!(t, set hard, clique: "IT 1100"-"01", "IT 1100"-"02");
+    conflict!(t, set hard, clique: "SE 1400"-"01", "SE 1400"-"02");
 
     // courses that must be scheduled at the same time
     anticonflict!(t, set penalty to 50, single: "CS 1030"-"01", group: "CS 1400");
     //anticonflict!(t, set penalty to 50, clique: "SE 1400", "IT 1100"); // temporarily removed because of new hire planning
-    conflict!(t, remove penalty, clique: "CS 4600", "SE 4600");
     anticonflict!(t, set penalty to 50, single: "CS 4600"-"01", group: "CS 4600"-"02");
 
     Ok(())

@@ -1,3 +1,4 @@
+pub mod bits;
 pub mod data;
 pub mod input;
 pub mod score;
@@ -128,7 +129,7 @@ fn main() {
         term.sections.len(),
     );
 
-    let iterations = 100_000;
+    let iterations = 50_000_000;
     let solver = match Solver::new(&term) {
         Ok(s) => s,
         Err(msg) => {

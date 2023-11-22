@@ -24,10 +24,14 @@ pub struct SolverSection {
 
     // the number of lottery tickets assigned to this section
     // higher means it is more likely to be selected for re-assignment,
-    // zero means it will not be moved (but could still be displaced
+    // zero means it will not be selected (but could still be displaced
     // by another section moving)
     pub tickets: isize,
 
+    // scoring that will be applied specifically to this section
+    pub score_criteria: Vec<ScoreCriterion>,
+
+    // scoring info for the current placement
     pub score: SectionScore,
 
     // these lists combine the relevant data across all cross-listings
@@ -38,8 +42,6 @@ pub struct SolverSection {
     pub instructors: Vec<usize>,
     pub hard_conflicts: Vec<usize>,
 
-    pub score_criteria: Vec<ScoreCriterion>,
-
     // map from input.section[_].room_times to the effect on the score
     // if we placed this section at that room/time
     pub speculative_deltas: Vec<Option<isize>>,
@@ -47,6 +49,10 @@ pub struct SolverSection {
     // the maximum penalty improvement possible if this section was moved
     // computed as the minimum delta in speculative_deltas
     pub speculative_delta_min: Option<isize>,
+
+    // if a section is a non-primary cross listing, it is basically ignored
+    // by the solver and just exists to keep the numbering in sync with input
+    pub is_secondary_cross_listing: bool,
 }
 
 impl SolverSection {
@@ -299,23 +305,40 @@ impl Solver {
         let mut sections = Vec::new();
         let mut total_score = 0;
         for i in 0..input.sections.len() {
+            // non-primary cross listing sections are ignored
             if !input.is_primary_cross_listing(i) {
-                break;
+                sections.push(SolverSection {
+                    placement: None,
+                    tickets: 0,
+                    score: SectionScore::new(),
+                    room_times: Vec::new(),
+                    instructors: Vec::new(),
+                    hard_conflicts: Vec::new(),
+                    score_criteria: Vec::new(),
+                    speculative_deltas: Vec::new(),
+                    speculative_delta_min: None,
+                    is_secondary_cross_listing: true,
+                });
+                continue;
             }
 
             // compute combined conflicts across cross-listings
             let mut hard_conflicts = Vec::new();
             let mut soft_conflicts = Vec::new();
             let mut score_criteria = Vec::new();
-            for &self_cross_listing in &input.sections[i].cross_listings {
+            let mut cross_listings = input.sections[i].cross_listings.clone();
+            if cross_listings.is_empty() {
+                cross_listings.push(i);
+            }
+            for &self_cross_listing in &cross_listings {
                 for &other in &input.sections[self_cross_listing].hard_conflicts {
-                    hard_conflicts.push(input.sections[other].get_primary_cross_listing());
+                    hard_conflicts.push(input.get_primary_cross_listing(other));
                 }
                 for &SectionWithPenalty { section, penalty } in
                     &input.sections[self_cross_listing].soft_conflicts
                 {
                     soft_conflicts.push(SectionWithPenalty {
-                        section: input.sections[section].get_primary_cross_listing(),
+                        section: input.get_primary_cross_listing(section),
                         penalty,
                     });
                 }
@@ -335,7 +358,7 @@ impl Solver {
             }
 
             // compute the combined room/time pairs and penalties across cross-listings
-            let room_times = if input.sections[i].cross_listings.len() == 1 {
+            let room_times = if cross_listings.len() == 1 {
                 // only a single section, so keep the original input data
                 input.sections[i].room_times.clone()
             } else {
@@ -347,7 +370,7 @@ impl Solver {
                 {
                     // every cross-listing must have this slot
                     let mut worst_penalty = 0;
-                    for &section_i in &input.sections[i].cross_listings {
+                    for &section_i in &cross_listings {
                         match input.sections[section_i]
                             .room_times
                             .iter()
@@ -379,7 +402,7 @@ impl Solver {
 
             // get all instructors across all cross-listings
             let mut instructors = Vec::new();
-            for &cross_listing in &input.sections[i].cross_listings {
+            for &cross_listing in &cross_listings {
                 for &instructor in &input.sections[cross_listing].instructors {
                     instructors.push(instructor);
                 }
@@ -400,16 +423,17 @@ impl Solver {
                 score_criteria,
                 speculative_deltas: vec![None; input.sections[i].room_times.len()],
                 speculative_delta_min: None,
+                is_secondary_cross_listing: false,
             });
         }
 
         // build and place anticonflict rules
         for (penalty, single, group) in &input.anticonflicts {
             // use primary cross listings
-            let single_primary = input.sections[*single].cross_listings[0];
+            let single_primary = input.get_primary_cross_listing(*single);
             let mut group_primaries: Vec<usize> = group
                 .iter()
-                .map(|&elt| input.sections[elt].cross_listings[0])
+                .map(|&elt| input.get_primary_cross_listing(elt))
                 .collect();
             group_primaries.sort();
             group_primaries.dedup();
@@ -447,6 +471,8 @@ impl Solver {
     // remove a section from its current room/time placement (if any)
     // remove it from both sections and room_placements
     pub fn remove_placement(&mut self, section: usize, undo: &mut Vec<PlacementEntry>) {
+        assert!(!self.sections[section].is_secondary_cross_listing);
+
         if let Some(RoomTimeWithPenalty {
             room, time_slot, ..
         }) = self.sections[section].placement
@@ -464,6 +490,8 @@ impl Solver {
         room_time: &RoomTimeWithPenalty,
         undo: &mut Vec<PlacementEntry>,
     ) {
+        assert!(!self.sections[section].is_secondary_cross_listing);
+
         let &RoomTimeWithPenalty {
             room, time_slot, ..
         } = room_time;
@@ -496,6 +524,8 @@ impl Solver {
         room_time: &RoomTimeWithPenalty,
         undo: &mut Vec<PlacementEntry>,
     ) {
+        assert!(!self.sections[section].is_secondary_cross_listing);
+
         // is this slot (or an overlapping time in the same room) already occupied?
         let mut evictees = Vec::new();
         for overlapping in &input.time_slots[room_time.time_slot].conflicts {
@@ -525,6 +555,9 @@ impl Solver {
     pub fn compute_speculative_deltas(&mut self, input: &Input) {
         let old_score = self.score;
         for section_i in 0..self.sections.len() {
+            if self.sections[section_i].is_secondary_cross_listing {
+                continue;
+            }
             self.compute_speculative_deltas_section(input, section_i, old_score);
         }
     }
@@ -535,6 +568,8 @@ impl Solver {
         section: usize,
         old_score: isize,
     ) {
+        assert!(!self.sections[section].is_secondary_cross_listing);
+
         let current = match self.sections[section].placement {
             Some(RoomTimeWithPenalty {
                 room, time_slot, ..
@@ -574,6 +609,10 @@ impl Solver {
         self.compute_speculative_deltas(input);
         let mut pool_size = 0;
         for section in self.sections.iter_mut() {
+            if section.is_secondary_cross_listing {
+                section.tickets = 0;
+                continue;
+            }
             match section.speculative_delta_min {
                 Some(delta) => {
                     section.tickets = std::cmp::max(1, -delta + 1);
@@ -610,6 +649,8 @@ impl Solver {
         _input: &Input,
         section: usize,
     ) -> RoomTimeWithPenalty {
+        assert!(!self.sections[section].is_secondary_cross_listing);
+
         let room_times = &self.sections[section].room_times;
 
         if room_times.len() == 1 {
@@ -662,6 +703,9 @@ impl Solver {
 
         let mut pool_size = 0;
         for (i, section) in self.sections.iter_mut().enumerate() {
+            if section.is_secondary_cross_listing {
+                continue;
+            }
             section.tickets = std::cmp::max(1, section.score.local + 1);
             if section.placement.is_none() {
                 section.tickets =
@@ -693,6 +737,8 @@ impl Solver {
         input: &Input,
         section: usize,
     ) -> RoomTimeWithPenalty {
+        assert!(!self.sections[section].is_secondary_cross_listing);
+
         let is_placed = self.is_placed(section);
         let choices = self.sections[section].room_times.len();
         if !is_placed && choices > 1 || is_placed && choices > 2 {
@@ -706,6 +752,8 @@ impl Solver {
         _input: &Input,
         section: usize,
     ) -> RoomTimeWithPenalty {
+        assert!(!self.sections[section].is_secondary_cross_listing);
+
         let (room, time_slot) = match self.sections[section].placement {
             Some(RoomTimeWithPenalty {
                 room, time_slot, ..
@@ -731,6 +779,8 @@ impl Solver {
     // totals and the detail log,
     // but the overall solver score is not modified
     pub fn compute_section_score(&mut self, input: &Input, section: usize) {
+        assert!(!self.sections[section].is_secondary_cross_listing);
+
         assert!(self.sections[section].score.local == 0);
         assert!(self.sections[section].score.global == 0);
         assert!(self.sections[section].score.score_records.is_empty());
@@ -776,6 +826,9 @@ impl Solver {
         let no_instructor_msg = "(no instructor)".to_string();
         let mut name_len = no_instructor_msg.len();
         for (section_i, section) in input.sections.iter().enumerate() {
+            if self.sections[section_i].is_secondary_cross_listing {
+                continue;
+            }
             if !section.instructors.is_empty() {
                 let plus = if section.instructors.len() == 1 { 0 } else { 1 };
                 let instructor = section.instructors[0];
@@ -784,17 +837,15 @@ impl Solver {
                     input.instructors[instructor].name.len() + 1 + plus,
                 );
             }
-            if section.cross_listings[0] == section_i {
-                let plus = if section.cross_listings.len() == 1 {
-                    0
-                } else {
-                    1
-                };
-                name_len = std::cmp::max(
-                    name_len,
-                    section.course.len() + section.section.len() + 1 + plus,
-                );
-            }
+            let plus = if section.cross_listings.is_empty() {
+                0
+            } else {
+                1
+            };
+            name_len = std::cmp::max(
+                name_len,
+                section.course.len() + section.section.len() + 1 + plus,
+            );
         }
 
         for room in &input.rooms {
@@ -851,7 +902,7 @@ impl Solver {
                 if let Some(section_i) =
                     self.room_placements[room_i].time_slot_placements[time_slot_i]
                 {
-                    let section = &input.sections[input.sections[section_i].cross_listings[0]];
+                    let section = &input.sections[input.get_primary_cross_listing(section_i)];
                     let name = format!("{}-{}", section.course, section.section);
                     if input.sections[section_i].cross_listings.len() > 1 {
                         print!("| {:<width$}+ ", name, width = name_len - 1);
@@ -953,7 +1004,7 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
                     println!("[{:width$}]  {}", score, message, width = digits);
                 }
                 for (i, section) in winner.sections.iter().enumerate() {
-                    if section.placement.is_some() {
+                    if section.is_secondary_cross_listing || section.placement.is_some() {
                         continue;
                     }
                     print!(
