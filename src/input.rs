@@ -279,11 +279,14 @@ impl Input {
 
     pub fn make_section(
         &mut self,
-        course: String,
-        section: String,
+        section_raw: &str,
         instructor_names: Vec<String>,
         rooms_and_times: Vec<(String, isize)>,
     ) -> Result<(), String> {
+        let (course, Some(section)) = parse_section_name(section_raw)? else {
+            return Err(format!("section name {section_raw} must include section, like 'CS 1400-01'"));
+        };
+
         // start with instructors
         let mut instructors = Vec::new();
         for name in &instructor_names {
@@ -429,7 +432,7 @@ impl Input {
         &mut self,
         badness: isize,
         maximize: bool,
-        sections_raw: Vec<(String, Option<String>)>,
+        sections_raw: Vec<&str>,
     ) -> Result<(), String> {
         // parse and sanity check the inputs
         if !(0..=100).contains(&badness) {
@@ -441,13 +444,10 @@ impl Input {
             return Err("make_conflict_clique does not support badness=0 and maximize".into());
         }
         let mut courses = Vec::new();
-        for (course, section) in sections_raw {
-            let list = self.find_sections_by_name(&course, &section);
+        for section_raw in sections_raw {
+            let list = self.find_sections_by_name(section_raw)?;
             if list.is_empty() {
-                self.missing.push(match section {
-                    Some(s) => format!("{}-{}", course, s),
-                    None => course,
-                });
+                self.missing.push(section_raw.to_string());
             } else {
                 courses.push(list);
             }
@@ -482,8 +482,8 @@ impl Input {
     pub fn make_anti_conflict(
         &mut self,
         badness: isize,
-        single_raw: (String, Option<String>),
-        group_raw: Vec<(String, Option<String>)>,
+        single_raw: &str,
+        group_raw: Vec<&str>,
     ) -> Result<(), String> {
         // parse and sanity check the inputs
         if !(1..100).contains(&badness) {
@@ -492,30 +492,24 @@ impl Input {
 
         // look up the group sections first
         let mut group = Vec::new();
-        for (course, section) in group_raw {
-            let mut list = self.find_sections_by_name(&course, &section);
+        for raw in group_raw {
+            let mut list = self.find_sections_by_name(raw)?;
             if list.is_empty() {
-                self.missing.push(match section {
-                    Some(s) => format!("{}-{}", course, s),
-                    None => course,
-                });
+                self.missing.push(raw.to_string());
             } else {
                 group.append(&mut list);
             }
         }
 
         // see if the single section is present in the data
-        let single_list = self.find_sections_by_name(&single_raw.0, &single_raw.1);
+        let single_list = self.find_sections_by_name(single_raw)?;
         if single_list.is_empty() {
-            self.missing.push(match single_raw.1 {
-                Some(s) => format!("{}-{}", single_raw.0, s),
-                None => single_raw.0.clone(),
-            });
+            self.missing.push(single_raw.to_string());
         }
 
         // single must be a single section
         if single_list.len() > 1 {
-            return Err(format!("anticonflict: single {} must be a single section", single_raw.0));
+            return Err(format!("anticonflict: single {} must be a single section", single_raw));
         }
 
         // single and group must both exist
@@ -531,32 +525,30 @@ impl Input {
         Ok(())
     }
 
-    pub fn find_sections_by_name(&self, course: &String, section: &Option<String>) -> Vec<usize> {
+    pub fn find_sections_by_name(&self, course_raw: &str) -> Result<Vec<usize>, String> {
+        let (course, section) = parse_section_name(course_raw)?;
         let mut list = Vec::new();
         self.sections.iter().enumerate().for_each(|(i, s)| {
             if s.course == *course {
-                match section {
+                match &section {
                     None => list.push(i),
                     Some(name) if *name == s.section => list.push(i),
                     _ => (),
                 }
             }
         });
-        list
+        Ok(list)
     }
 
     pub fn make_cross_listing(
         &mut self,
-        sections_raw: Vec<(String, String)>,
+        sections_raw: Vec<&str>,
     ) -> Result<(), String> {
         let mut sections = Vec::new();
-        for (course, section) in &sections_raw {
-            let section_list = self.find_sections_by_name(course, &Some(section.clone()));
+        for section_raw in &sections_raw {
+            let section_list = self.find_sections_by_name(section_raw)?;
             if section_list.len() != 1 {
-                return Err(format!(
-                    "section {}-{} not found in cross-listing",
-                    course, section
-                ));
+                return Err(format!("section {section_raw} not found in cross-listing"));
             }
 
             sections.push(section_list[0]);
@@ -598,6 +590,20 @@ impl Input {
         }
         self.sections[index].cross_listings[0]
     }
+}
+
+pub fn parse_section_name(name: &str) -> Result<(String, Option<String>), String> {
+    // example CS 1400-01
+    let re = regex::Regex::new(r"^([^ ]+ [^- ]+)(?:-([^ ]+))?$").unwrap();
+    let Some(caps) = re.captures(name) else {
+        return Err(format!("unrecognized section name format: '{}' should be like 'CS 1400-01' or 'CS 1400'", name));
+    };
+    let course_part = caps.get(1).unwrap().as_str().to_string();
+    let section_part = match caps.get(2) {
+        Some(s) => Some(s.as_str().to_string()),
+        None => None,
+    };
+    Ok((course_part, section_part))
 }
 
 pub fn date_range_slots(start: time::Date, end: time::Date) -> usize {
@@ -789,15 +795,6 @@ macro_rules! time {
     );
 }
 
-macro_rules! course_with_optional_section {
-    ($course:literal - $section:literal) => {
-        ($course.to_string(), Some($section.to_string()))
-    };
-    ($course:literal) => {
-        ($course.to_string(), None)
-    };
-}
-
 macro_rules! name_with_optional_penalty {
     ($name:literal with penalty $pen:literal) => {
         ($name.to_string(), $pen)
@@ -820,11 +817,11 @@ macro_rules! instructor {
 
 macro_rules! section {
     ($input:expr,
-            course: $course:literal - $section:literal,
+            course: $section:literal,
             $(instructor: $inst:literal $(and $insts:literal)*,)?
             rooms and times: $($tag:literal $(with penalty $pen:literal)?),+ $(,)?) => {
         $input.make_section(
-            $course.to_string(), $section.to_string(),
+            $section,
             vec![ $($inst.to_string(), $($insts.to_string(), )*)? ],
             vec![ $(name_with_optional_penalty!($tag $(with penalty $pen)?),)+ ]
         )?
@@ -833,11 +830,11 @@ macro_rules! section {
 
 macro_rules! crosslist {
     ($input:expr,
-            $course:literal - $section:literal
-            $(cross-list with $courses:literal - $sections:literal)+) => {
+            $section:literal
+            $(cross-list with $sections:literal)+) => {
         $input.make_cross_listing(vec![
-            ($course.to_string(), $section.to_string()),
-            $(($courses.to_string(), $sections.to_string()), )+
+            $section,
+            $($sections, )+
         ])?
     };
 }
@@ -845,40 +842,40 @@ macro_rules! crosslist {
 macro_rules! conflict {
     ($input:expr,
             set hard,
-            clique: $($course:literal $(- $section:literal)?),+ $(,)?) => {
+            clique: $($sections:literal),+ $(,)?) => {
         $input.make_conflict_clique(
             100, true,
-            vec![ $(course_with_optional_section!($course $(- $section)?),)+ ])?;
+            vec![ $($sections, )+ ])?;
     };
     ($input:expr,
             set penalty to $penalty:expr,
-            clique: $($course:literal $(- $section:literal)?),+ $(,)?) => {
+            clique: $($sections:literal),+ $(,)?) => {
         $input.make_conflict_clique(
             $penalty, true,
-            vec![ $(course_with_optional_section!($course $(- $section)?),)+ ])?;
+            vec![ $($sections, )+ ])?;
     };
     ($input:expr,
             remove penalty,
-            clique: $($course:literal $(- $section:literal)?),+ $(,)?) => {
+            clique: $($sections:literal),+ $(,)?) => {
         $input.make_conflict_clique(
             0, false,
-            vec![ $(course_with_optional_section!($course $(- $section)?),)+ ])?;
+            vec![ $($sections, )+ ])?;
     };
 }
 
 macro_rules! anticonflict {
     ($input:expr,
             set penalty to $penalty:expr,
-            single: $single_course:literal $(- $single_section:literal)?,
-            group: $($group_course:literal $(- $group_section:literal)?),+ $(,)?) => {
+            single: $single_course:literal,
+            group: $($group_course:literal),+ $(,)?) => {
         $input.make_anti_conflict(
             $penalty,
-            course_with_optional_section!($single_course $(- $single_section)?),
-            vec![ $(course_with_optional_section!($group_course $(- $group_section)?),)+ ])?;
+            $single_course,
+            vec![ $($group_course, )+ ])?;
     };
 }
 
 pub(crate) use {
-    anticonflict, conflict, course_with_optional_section, crosslist, holiday, instructor,
+    anticonflict, conflict, crosslist, holiday, instructor,
     name_with_optional_penalty, room, section, time,
 };

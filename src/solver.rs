@@ -961,8 +961,8 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
     println!("initial score = {}", solver.score);
 
     for iteration in 0..iterations {
-        let section = solver.select_section_to_place_slow(input);
-        let room_time = solver.select_room_time_to_place_slow(input, section);
+        let section = solver.select_section_to_place_fast(input);
+        let room_time = solver.select_room_time_to_place_random(input, section);
         let undo = PlacementLog::move_section(&mut solver, input, section, room_time);
         for elt in &undo.entries {
             if let &PlacementEntry::Remove(loser, _) = elt {
@@ -985,7 +985,7 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
 
             println!();
             println!();
-            winner.print_schedule(input);
+            //winner.print_schedule(input);
             println!("score = {}", score);
             let mut problems = Vec::new();
             for i in 0..winner.sections.len() {

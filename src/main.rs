@@ -5,6 +5,7 @@ pub mod score;
 pub mod solver;
 use self::input::*;
 use self::solver::*;
+use self::score::*;
 
 fn main() {
     let term = match setup() {
@@ -58,9 +59,17 @@ fn main() {
         println!();
     }
     */
+    let solver = match Solver::new(&term) {
+        Ok(s) => s,
+        Err(msg) => {
+            eprintln!("{}", msg);
+            return;
+        }
+    };
     for (sec_i, sec) in term.sections.iter().enumerate() {
+        let solve = &solver.sections[sec_i];
         print!("{}-{}", sec.course, sec.section);
-        if sec.cross_listings.len() > 1 {
+        if !sec.cross_listings.is_empty() {
             for &other in sec.cross_listings.iter() {
                 if sec_i == other {
                     continue;
@@ -72,7 +81,7 @@ fn main() {
             }
         }
         print!(" [");
-        for (i, inst_i) in sec.instructors.iter().enumerate() {
+        for (i, inst_i) in solve.instructors.iter().enumerate() {
             if i > 0 {
                 print!(", ");
             }
@@ -80,7 +89,7 @@ fn main() {
         }
         print!("]");
         let mut prev_room = term.rooms.len();
-        for rtp in sec.room_times.iter() {
+        for rtp in solve.room_times.iter() {
             if rtp.room != prev_room {
                 prev_room = rtp.room;
                 print!("\n    {}:", &term.rooms[rtp.room].name);
@@ -91,16 +100,44 @@ fn main() {
             }
         }
         println!();
-        if !sec.hard_conflicts.is_empty() {
+        if !solve.hard_conflicts.is_empty() {
             print!("    hard conflicts:");
-            for &i in sec.hard_conflicts.iter() {
+            for &i in solve.hard_conflicts.iter() {
                 print!(" {}-{}", term.sections[i].course, term.sections[i].section);
             }
             println!();
         }
+        for elt in &solve.score_criteria {
+            match elt {
+                ScoreCriterion::SoftConflict{ sections_with_penalties } => {
+                    print!("    soft conflicts:");
+                    for elt in sections_with_penalties {
+                        print!(
+                            " {}-{}:{}",
+                            term.sections[elt.section].course,
+                            term.sections[elt.section].section,
+                            elt.penalty
+                        );
+                    }
+                    println!();
+                },
+
+                ScoreCriterion::AntiConflict { penalty, single, group } => {
+                    print!("    anticonflict: penalty {}, {} should be in time slot with ", penalty, term.sections[*single].get_name());
+                    let mut sep = "";
+                    for &other in group {
+                        print!("{}{}", sep, term.sections[other].get_name());
+                        sep = ", ";
+                    }
+                    println!();
+                },
+            }
+        }
+
+        /*
         if !sec.soft_conflicts.is_empty() {
             print!("    soft conflicts:");
-            for elt in sec.soft_conflicts.iter() {
+            for elt in &sec.soft_conflicts {
                 print!(
                     " {}-{}:{}",
                     term.sections[elt.section].course,
@@ -110,6 +147,7 @@ fn main() {
             }
             println!();
         }
+        */
     }
 
     if !term.missing.is_empty() {
@@ -130,12 +168,5 @@ fn main() {
     );
 
     let iterations = 50_000_000;
-    let solver = match Solver::new(&term) {
-        Ok(s) => s,
-        Err(msg) => {
-            eprintln!("{}", msg);
-            return;
-        }
-    };
     solve(solver, &term, iterations);
 }
