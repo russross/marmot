@@ -392,8 +392,8 @@ impl Solver {
                 // the cross-listed sections have to agree on at least one room and time
                 if rtp.is_empty() {
                     return Err(format!(
-                        "cross-listing that includes {}-{} has no viable room+time combination",
-                        input.sections[i].course, input.sections[i].section
+                        "cross-listing that includes {} has no viable room+time combination",
+                        input.sections[i].get_name()
                     ));
                 }
                 rtp.sort_by_key(|elt| (elt.room, elt.time_slot, elt.penalty));
@@ -439,8 +439,8 @@ impl Solver {
             group_primaries.dedup();
             if group_primaries.contains(&single_primary) {
                 return Err(format!(
-                    "section {}-{} cannot be an anticonflict with itself",
-                    input.sections[single_primary].course, input.sections[single_primary].section
+                    "section {} cannot be an anticonflict with itself",
+                    input.sections[single_primary].get_name()
                 ));
             }
             let criterion = ScoreCriterion::AntiConflict {
@@ -903,7 +903,7 @@ impl Solver {
                     self.room_placements[room_i].time_slot_placements[time_slot_i]
                 {
                     let section = &input.sections[input.get_primary_cross_listing(section_i)];
-                    let name = format!("{}-{}", section.course, section.section);
+                    let name = section.get_name();
                     if input.sections[section_i].cross_listings.len() > 1 {
                         print!("| {:<width$}+ ", name, width = name_len - 1);
                     } else {
@@ -961,8 +961,8 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
     println!("initial score = {}", solver.score);
 
     for iteration in 0..iterations {
-        let section = solver.select_section_to_place_fast(input);
-        let room_time = solver.select_room_time_to_place_random(input, section);
+        let section = solver.select_section_to_place_slow(input);
+        let room_time = solver.select_room_time_to_place_slow(input, section);
         let undo = PlacementLog::move_section(&mut solver, input, section, room_time);
         for elt in &undo.entries {
             if let &PlacementEntry::Remove(loser, _) = elt {
@@ -1007,20 +1007,14 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
                     if section.is_secondary_cross_listing || section.placement.is_some() {
                         continue;
                     }
-                    print!(
-                        "unplaced: {}-{}",
-                        input.sections[i].course, input.sections[i].section
-                    );
+                    print!("unplaced: {}", input.sections[i].get_name());
 
                     // report who displaces this section the most
                     let lst = evicted_by.get_top_evictors(i, 5);
                     if !lst.is_empty() {
                         print!(" displaced by");
                         for (sec, count) in lst {
-                            print!(
-                                " {}-{}×{}",
-                                input.sections[sec].course, input.sections[sec].section, count
-                            );
+                            print!(" {}×{}", input.sections[sec].get_name(), count);
                         }
                     }
                     println!();

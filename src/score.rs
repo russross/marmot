@@ -156,21 +156,17 @@ impl SectionScoreRecord {
                 };
                 let message = if ts_a == ts_b {
                     format!(
-                        "soft conflict: {}-{} and {}-{} both meet at {}",
-                        input.sections[a].course,
-                        input.sections[a].section,
-                        input.sections[b].course,
-                        input.sections[b].section,
+                        "soft conflict: {} and {} both meet at {}",
+                        input.sections[a].get_name(),
+                        input.sections[b].get_name(),
                         input.time_slots[ts_a].name
                     )
                 } else {
                     format!(
-                        "soft conflict: {}-{} at {} overlaps {}-{} at {}",
-                        input.sections[a].course,
-                        input.sections[a].section,
+                        "soft conflict: {} at {} overlaps {} at {}",
+                        input.sections[a].get_name(),
                         input.time_slots[ts_a].name,
-                        input.sections[b].course,
-                        input.sections[b].section,
+                        input.sections[b].get_name(),
                         input.time_slots[ts_b].name
                     )
                 };
@@ -191,9 +187,8 @@ impl SectionScoreRecord {
                 let elt = &input.sections[*section];
 
                 let message = format!(
-                    "room/time combination: {}-{} meets in {} at {}",
-                    elt.course,
-                    elt.section,
+                    "room/time combination: {} meets in {} at {}",
+                    elt.get_name(),
                     input.rooms[room].name,
                     input.time_slots[time_slot].name
                 );
@@ -205,10 +200,7 @@ impl SectionScoreRecord {
                 global,
                 ..
             } => {
-                let message = format!(
-                    "unplaced section: {}-{}",
-                    input.sections[*section].course, input.sections[*section].section
-                );
+                let message = format!("unplaced section: {}", input.sections[*section].get_name());
                 list.push((*global, message));
             }
 
@@ -220,24 +212,20 @@ impl SectionScoreRecord {
                 let message = if group.len() == 1 {
                     let other = group[0];
                     format!(
-                        "anticonflict: section {}-{} is not at the same time as {}-{}",
-                        input.sections[*single].course,
-                        input.sections[*single].section,
-                        input.sections[other].course,
-                        input.sections[other].section
+                        "anticonflict: section {} is not at the same time as {}",
+                        input.sections[*single].get_name(),
+                        input.sections[other].get_name()
                     )
                 } else {
                     let mut s = format!(
-                        "anticonflict: section {}-{} is not at the same time as ",
-                        input.sections[*single].course, input.sections[*single].section
+                        "anticonflict: section {} is not at the same time as ",
+                        input.sections[*single].get_name()
                     );
                     let mut or = "";
                     for elt in group {
                         s.push_str(or);
                         or = " or ";
-                        s.push_str(&input.sections[*elt].course);
-                        s.push('-');
-                        s.push_str(&input.sections[*elt].section);
+                        s.push_str(&input.sections[*elt].get_name());
                     }
                     s
                 };

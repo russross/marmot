@@ -2944,10 +2944,14 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Alexander R Tye",
                 rooms and times: "SET 527", "F1400+170");
 
+    crosslist!(t, "GEO 2700R-01" cross-list with "ENVS 2700R-01");
+
     // GEO 3110-01: Scientific Writing
     section!(t, course: "GEO 3110-01",
                 instructor: "Jerald D Harris",
                 rooms and times: "SET 408", "MWF1100+50");
+
+    crosslist!(t, "ENVS 3110-01" cross-list with "GEO 3110-01");
 
     // GEO 3500-01: Geomorphology
     section!(t, course: "GEO 3500-01",
@@ -3574,6 +3578,8 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Brant A Ross",
                 rooms and times: "SET 219", "MWF1330+180");
 
+    crosslist!(t, "ECE 4010-01" cross-list with "MECH 4010-01");
+
     // MECH 4500-01: Advanced Engineering Math
     section!(t, course: "MECH 4500-01",
                 instructor: "Scott A Skeen",
@@ -3759,13 +3765,19 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "PHYS 3600-01",
                 rooms and times: "SET 104", "MTWF0900+50");
 
+    crosslist!(t, "MECH 3600-01" cross-list with "MECH 3602-01" cross-list with "PHYS 3600-01");
+
     // PHYS 3605-01: Thermodynamics Lab
     section!(t, course: "PHYS 3605-01",
                 rooms and times: "SET 104", "R1400+110");
 
+    crosslist!(t, "MECH 3605-01" cross-list with "PHYS 3605-01");
+
     // PHYS 3605-02: Thermodynamics Lab
     section!(t, course: "PHYS 3605-02",
                 rooms and times: "SET 104", "R1600+110");
+
+    crosslist!(t, "MECH 3605-02" cross-list with "PHYS 3605-02");
 
     // SCI 4700-01: Secondary Sci Teaching Methods
     section!(t, course: "SCI 4700-01",

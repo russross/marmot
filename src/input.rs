@@ -9,12 +9,16 @@ pub fn setup() -> Result<Input, String> {
     for instructor in &input.instructors {
         for &left in &instructor.sections {
             // we only care about primary cross listings, so ignore others
-            if !input.sections[left].cross_listings.is_empty() && input.sections[left].cross_listings[0] != left {
+            if !input.sections[left].cross_listings.is_empty()
+                && input.sections[left].cross_listings[0] != left
+            {
                 continue;
             }
             for &right in &instructor.sections {
                 // we only care about primary cross listings, so ignore others
-                if !input.sections[right].cross_listings.is_empty() && input.sections[right].cross_listings[0] != right {
+                if !input.sections[right].cross_listings.is_empty()
+                    && input.sections[right].cross_listings[0] != right
+                {
                     continue;
                 }
                 if left == right {
@@ -284,7 +288,9 @@ impl Input {
         rooms_and_times: Vec<(String, isize)>,
     ) -> Result<(), String> {
         let (course, Some(section)) = parse_section_name(section_raw)? else {
-            return Err(format!("section name {section_raw} must include section, like 'CS 1400-01'"));
+            return Err(format!(
+                "section name {section_raw} must include section, like 'CS 1400-01'"
+            ));
         };
 
         // start with instructors
@@ -342,11 +348,11 @@ impl Input {
         }
 
         if rwp.is_empty() {
-            return Err(format!("no rooms found for {}-{}", course, section));
+            return Err(format!("no rooms found for {}", section_raw));
         }
         if twp.is_empty() {
             if self.instructors.is_empty() {
-                return Err(format!("section {}-{} does not specify any time slots and has no instructors to inherit them from", course, section));
+                return Err(format!("section {} does not specify any time slots and has no instructors to inherit them from", section_raw));
             }
 
             // just copy the availability of the first instructor and that will be
@@ -389,8 +395,8 @@ impl Input {
             }
         }
         if room_times.is_empty() {
-            return Err(format!("no valid room/time combinations found for {}-{} after considering instructor availability",
-                course, section));
+            return Err(format!("no valid room/time combinations found for {} after considering instructor availability",
+                section_raw));
         }
         room_times.sort_by_key(|elt| (elt.room, elt.time_slot, elt.penalty));
         if self
@@ -398,10 +404,7 @@ impl Input {
             .iter()
             .any(|s| s.course == course && s.section == section)
         {
-            return Err(format!(
-                "course {}-{} appears more than once",
-                course, section
-            ));
+            return Err(format!("section {} appears more than once", section_raw));
         }
         for &instructor in &instructors {
             self.instructors[instructor]
@@ -509,7 +512,10 @@ impl Input {
 
         // single must be a single section
         if single_list.len() > 1 {
-            return Err(format!("anticonflict: single {} must be a single section", single_raw));
+            return Err(format!(
+                "anticonflict: single {} must be a single section",
+                single_raw
+            ));
         }
 
         // single and group must both exist
@@ -540,10 +546,7 @@ impl Input {
         Ok(list)
     }
 
-    pub fn make_cross_listing(
-        &mut self,
-        sections_raw: Vec<&str>,
-    ) -> Result<(), String> {
+    pub fn make_cross_listing(&mut self, sections_raw: Vec<&str>) -> Result<(), String> {
         let mut sections = Vec::new();
         for section_raw in &sections_raw {
             let section_list = self.find_sections_by_name(section_raw)?;
@@ -557,15 +560,15 @@ impl Input {
         sections.dedup();
         if sections.len() < 2 {
             return Err(format!(
-                "cross-listing that includes {}-{} must include at least two unique sections",
-                self.sections[sections[0]].course, self.sections[sections[0]].section
+                "cross-listing that includes {} must include at least two unique sections",
+                self.sections[sections[0]].get_name()
             ));
         }
         for &i in &sections {
             if !self.sections[i].cross_listings.is_empty() {
                 return Err(format!(
-                    "cannot cross list {}-{} because it is already cross-listed",
-                    self.sections[i].course, self.sections[i].section
+                    "cannot cross list {} because it is already cross-listed",
+                    self.sections[i].get_name()
                 ));
             }
             self.sections[i].cross_listings = sections.clone();
@@ -580,8 +583,8 @@ impl Input {
     }
 
     pub fn is_primary_cross_listing(&self, index: usize) -> bool {
-        self.sections[index].cross_listings.is_empty() ||
-        index == self.sections[index].cross_listings[0]
+        self.sections[index].cross_listings.is_empty()
+            || index == self.sections[index].cross_listings[0]
     }
 
     pub fn get_primary_cross_listing(&self, index: usize) -> usize {
@@ -596,13 +599,13 @@ pub fn parse_section_name(name: &str) -> Result<(String, Option<String>), String
     // example CS 1400-01
     let re = regex::Regex::new(r"^([^ ]+ [^- ]+)(?:-([^ ]+))?$").unwrap();
     let Some(caps) = re.captures(name) else {
-        return Err(format!("unrecognized section name format: '{}' should be like 'CS 1400-01' or 'CS 1400'", name));
+        return Err(format!(
+            "unrecognized section name format: '{}' should be like 'CS 1400-01' or 'CS 1400'",
+            name
+        ));
     };
     let course_part = caps.get(1).unwrap().as_str().to_string();
-    let section_part = match caps.get(2) {
-        Some(s) => Some(s.as_str().to_string()),
-        None => None,
-    };
+    let section_part = caps.get(2).map(|s| s.as_str().to_string());
     Ok((course_part, section_part))
 }
 
@@ -876,6 +879,6 @@ macro_rules! anticonflict {
 }
 
 pub(crate) use {
-    anticonflict, conflict, crosslist, holiday, instructor,
-    name_with_optional_penalty, room, section, time,
+    anticonflict, conflict, crosslist, holiday, instructor, name_with_optional_penalty, room,
+    section, time,
 };
