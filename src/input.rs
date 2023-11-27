@@ -142,19 +142,7 @@ impl Input {
         let length_part = &caps[4];
 
         // extract days of week
-        let mut days = Vec::new();
-        for day in weekday_part.chars() {
-            match day {
-                'm' | 'M' => days.push(time::Weekday::Monday),
-                't' | 'T' => days.push(time::Weekday::Tuesday),
-                'w' | 'W' => days.push(time::Weekday::Wednesday),
-                'r' | 'R' => days.push(time::Weekday::Thursday),
-                'f' | 'F' => days.push(time::Weekday::Friday),
-                's' | 'S' => days.push(time::Weekday::Saturday),
-                'u' | 'U' => days.push(time::Weekday::Sunday),
-                _ => return Err("Unknown day of week: I only understand mtwrfsu".into()),
-            }
-        }
+        let days = parse_days(weekday_part)?;
 
         // get start time
         let start_hour = hour_part.parse::<u8>().unwrap();
@@ -263,18 +251,19 @@ impl Input {
             }
             times.push(TimeWithPenalty { time_slot, penalty });
         }
-        if self.find_instructor_by_name(&name.into()).is_ok() {
+        if self.find_instructor_by_name(name).is_ok() {
             return Err(format!("duplicate instructor name: {}", name));
         }
         self.instructors.push(Instructor {
             name: name.into(),
             available_times: times,
             sections: Vec::new(),
+            distribution: Vec::new(),
         });
         Ok(())
     }
 
-    pub fn find_instructor_by_name(&self, name: &String) -> Result<usize, String> {
+    pub fn find_instructor_by_name(&self, name: &str) -> Result<usize, String> {
         let Some(i) = self.instructors.iter().position(|elt| elt.name == *name) else {
             return Err(format!("instructor named \"{}\" not found", name));
         };
@@ -284,7 +273,7 @@ impl Input {
     pub fn make_section(
         &mut self,
         section_raw: &str,
-        instructor_names: Vec<String>,
+        instructor_names: Vec<&str>,
         rooms_and_times: Vec<(String, isize)>,
     ) -> Result<(), String> {
         let (course, Some(section)) = parse_section_name(section_raw)? else {
@@ -595,6 +584,23 @@ impl Input {
     }
 }
 
+pub fn parse_days(weekday_raw: &str) -> Result<Vec<time::Weekday>, String> {
+    let mut days = Vec::new();
+    for day in weekday_raw.chars() {
+        match day {
+            'm' | 'M' => days.push(time::Weekday::Monday),
+            't' | 'T' => days.push(time::Weekday::Tuesday),
+            'w' | 'W' => days.push(time::Weekday::Wednesday),
+            'r' | 'R' => days.push(time::Weekday::Thursday),
+            'f' | 'F' => days.push(time::Weekday::Friday),
+            's' | 'S' => days.push(time::Weekday::Saturday),
+            'u' | 'U' => days.push(time::Weekday::Sunday),
+            _ => return Err(format!("Unknown day of week in {}: I only understand mtwrfsu", weekday_raw)),
+        }
+    }
+    Ok(days)
+}
+
 pub fn parse_section_name(name: &str) -> Result<(String, Option<String>), String> {
     // example CS 1400-01
     let re = regex::Regex::new(r"^([^ ]+ [^- ]+)(?:-([^ ]+))?$").unwrap();
@@ -697,6 +703,29 @@ pub struct Instructor {
     pub name: String,
     pub available_times: Vec<TimeWithPenalty>,
     pub sections: Vec<usize>,
+    pub distribution: Vec<DistributionPreference>,
+}
+
+pub enum DistributionPreference {
+    // classes on the same day should occur in clusters
+    Cluster{ days: Vec<time::Weekday>, max_gap: time::Duration, limits: Vec<DurationWithPenalty> },
+
+    // clusters of classes on the same day should have gaps betwwen them
+    Gap{ days: Vec<time::Weekday>, limits: Vec<DurationWithPenalty> },
+
+    // zero or more days from the list should be free of classes
+    DaysOff{ days: Vec<time::Weekday>, days_off: u8, penalty: isize },
+
+    // days that have classes should have the same number of classes
+    DaysEvenlySpread{ days: Vec<time::Weekday>, penalty: isize },
+}
+
+pub enum DurationWithPenalty {
+    // a duration shorter than this gets a penalty
+    TooShort{ duration: time::Duration, penalty: isize },
+
+    // a duration longer than this gets a penalty
+    TooLong{ duration: time::Duration, penalty: isize },
 }
 
 pub struct Section {
@@ -825,7 +854,7 @@ macro_rules! section {
             rooms and times: $($tag:literal $(with penalty $pen:literal)?),+ $(,)?) => {
         $input.make_section(
             $section,
-            vec![ $($inst.to_string(), $($insts.to_string(), )*)? ],
+            vec![ $($inst, $($insts, )*)? ],
             vec![ $(name_with_optional_penalty!($tag $(with penalty $pen)?),)+ ]
         )?
     };
@@ -878,7 +907,142 @@ macro_rules! anticonflict {
     };
 }
 
+macro_rules! duration_penalty {
+    (too short: less than $min:literal minutes incurs penalty $pen:literal) => {
+        DurationWithPenalty::TooShort {
+            duration: time::Duration::minutes($min),
+            penalty: $pen,
+        }
+    };
+    (too long: more than $min:literal minutes incurs penalty $pen:literal) => {
+        DurationWithPenalty::TooLong {
+            duration: time::Duration::minutes($min),
+            penalty: $pen,
+        }
+    };
+}
+
+macro_rules! cluster_preferences {
+    ($input:expr,
+            instructor: $inst:literal,
+            days: $days:literal,
+            max gap within cluster: $gap:literal minutes,
+            $(too $a:ident : $b:ident than $min:literal minutes incurs penalty $pen:literal),+ $(,)?) => {
+        let i = $input.find_instructor_by_name($inst)?;
+        $input.instructors[i].distribution.push(
+            DistributionPreference::Cluster {
+                days: parse_days($days)?,
+                max_gap: time::Duration::minutes($gap),
+                limits: vec![
+                    $(duration_penalty!(too $a: $b than $min minutes incurs penalty $pen)),+
+                ],
+            }
+        );
+    };
+}
+
+macro_rules! gap_preferences {
+    ($input:expr,
+            instructor: $inst:literal,
+            days: $days:literal,
+            $(too $a:ident : $b:ident than $min:literal minutes incurs penalty $pen:literal),+ $(,)?) => {
+        let i = $input.find_instructor_by_name($inst)?;
+        $input.instructors[i].distribution.push(
+            DistributionPreference::Gap {
+                days: parse_days($days)?,
+                limits: vec![
+                    $(duration_penalty!(too $a: $b than $min minutes incurs penalty $pen)),+
+                ],
+            }
+        );
+    };
+}
+
+macro_rules! days_off_preference {
+    ($input:expr,
+            instructor: $inst:literal,
+            days: $days:literal,
+            days off: $off:literal,
+            penalty: $pen:literal) => {
+        let i = $input.find_instructor_by_name($inst)?;
+        $input.instructors[i].distribution.push(
+            DistributionPreference::DaysOff{
+                days: parse_days($days)?,
+                days_off: $off,
+                penalty: $pen,
+            }
+        );
+    };
+}
+
+macro_rules! evenly_spread_out_preference {
+    ($input:expr,
+            instructor: $inst:literal,
+            days: $days:literal,
+            penalty: $pen:literal) => {
+        let i = $input.find_instructor_by_name($inst)?;
+        $input.instructors[i].distribution.push(
+            DistributionPreference::DaysEvenlySpread{
+                days: parse_days($days)?,
+                penalty: $pen,
+            }
+        );
+    };
+}
+
+
+// default instructor distribution preferences
+macro_rules! default_spread {
+    ($input:expr,
+            instructor: $inst:literal,
+            days: $days:literal,
+            days off: $off:literal) => {
+        cluster_preferences!($input,
+            instructor: $inst,
+            days: $days,
+            max gap within cluster: 15 minutes,
+            too short: less than 110 minutes incurs penalty 10,
+            too long: more than 165 minutes incurs penalty 15);
+        gap_preferences!($input,
+            instructor: $inst,
+            days: $days,
+            too short: less than 60 minutes incurs penalty 10,
+            too long: more than 105 minutes incurs penalty 10,
+            too long: more than 195 minutes incurs penalty 15);
+        days_off_preference!($input,
+            instructor: $inst,
+            days: $days,
+            days off: $off,
+            penalty: 15);
+        evenly_spread_out_preference!($input,
+            instructor: $inst,
+            days: $days,
+            penalty: 15);
+    };
+    ($input:expr,
+            instructor: $inst:literal,
+            days: $days:literal) => {
+        cluster_preferences!($input,
+            instructor: $inst,
+            days: $days,
+            max gap within cluster: 15 minutes,
+            too short: less than 110 minutes incurs penalty 10,
+            too long: more than 165 minutes incurs penalty 15);
+        gap_preferences!($input,
+            instructor: $inst,
+            days: $days,
+            too short: less than 60 minutes incurs penalty 10,
+            too long: more than 105 minutes incurs penalty 10,
+            too long: more than 195 minutes incurs penalty 15);
+        evenly_spread_out_preference!($input,
+            instructor: $inst,
+            days: $days,
+            penalty: 15);
+    };
+}
+
 pub(crate) use {
     anticonflict, conflict, crosslist, holiday, instructor, name_with_optional_penalty, room,
     section, time,
+    default_spread, duration_penalty, cluster_preferences, gap_preferences, days_off_preference, evenly_spread_out_preference,
 };

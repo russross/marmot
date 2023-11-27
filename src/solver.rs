@@ -10,6 +10,8 @@ pub struct Solver {
     pub sections: Vec<SolverSection>,
     pub room_placements: Vec<RoomPlacements>,
     pub score: isize,
+    pub unplaced_current: usize,
+    pub unplaced_best: usize,
 }
 
 #[derive(Clone)]
@@ -304,6 +306,7 @@ impl Solver {
         }
         let mut sections = Vec::new();
         let mut total_score = 0;
+        let mut unplaced_current = 0;
         for i in 0..input.sections.len() {
             // non-primary cross listing sections are ignored
             if !input.is_primary_cross_listing(i) {
@@ -411,6 +414,7 @@ impl Solver {
             instructors.dedup();
 
             let score = SectionScore::new_unplaced(sections.len());
+            unplaced_current += 1;
             total_score += score.global;
 
             sections.push(SolverSection {
@@ -461,6 +465,8 @@ impl Solver {
             room_placements,
             sections,
             score: total_score,
+            unplaced_current,
+            unplaced_best: unplaced_current,
         })
     }
 
@@ -481,6 +487,7 @@ impl Solver {
             "Solver::remove_placement: placement by section does not match placement by room and time");
             let rtp = std::mem::take(&mut self.sections[section].placement).unwrap();
             undo.push(PlacementEntry::Remove(section, rtp));
+            self.unplaced_current += 1;
         }
     }
 
@@ -507,6 +514,8 @@ impl Solver {
             Some(section),
         );
         assert!(old_by_room_time.is_none());
+
+        self.unplaced_current -= 1;
 
         undo.push(PlacementEntry::Add(section));
     }
@@ -615,13 +624,13 @@ impl Solver {
             }
             match section.speculative_delta_min {
                 Some(delta) => {
+                    // ignore MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION
+                    // if a move results in an additional placed section
+                    // it will already show a 1000 point improvement, whereas
+                    // using MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION here would give
+                    // the same boost to moves that do not actually increase the
+                    // number of placed sections
                     section.tickets = std::cmp::max(1, -delta + 1);
-                    if section.placement.is_none() {
-                        section.tickets = std::cmp::min(
-                            section.tickets,
-                            MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION,
-                        );
-                    }
                     pool_size += section.tickets;
                 }
                 None => {
@@ -704,12 +713,15 @@ impl Solver {
         let mut pool_size = 0;
         for (i, section) in self.sections.iter_mut().enumerate() {
             if section.is_secondary_cross_listing {
+                section.tickets = 0;
                 continue;
             }
             section.tickets = std::cmp::max(1, section.score.local + 1);
             if section.placement.is_none() {
-                section.tickets =
-                    std::cmp::max(section.tickets, MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION);
+                if self.unplaced_current > self.unplaced_best {
+                    section.tickets =
+                        std::cmp::max(section.tickets, MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION);
+                }
             } else if input.sections[i].room_times.len() == 1 {
                 // if it is already placed and there is only one placement possible,
                 // then placing it again would be a no-op
@@ -964,6 +976,7 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
         let section = solver.select_section_to_place_slow(input);
         let room_time = solver.select_room_time_to_place_slow(input, section);
         let undo = PlacementLog::move_section(&mut solver, input, section, room_time);
+        solver.unplaced_best = std::cmp::min(solver.unplaced_best, solver.unplaced_current);
         for elt in &undo.entries {
             if let &PlacementEntry::Remove(loser, _) = elt {
                 evicted_by.add_eviction(section, loser);
@@ -986,7 +999,7 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
             println!();
             println!();
             //winner.print_schedule(input);
-            println!("score = {}", score);
+            println!("score = {} with {} unplaced sections", score, winner.unplaced_current);
             let mut problems = Vec::new();
             for i in 0..winner.sections.len() {
                 winner.sections[i]
@@ -1003,6 +1016,7 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
                     }
                     println!("[{:width$}]  {}", score, message, width = digits);
                 }
+                /*
                 for (i, section) in winner.sections.iter().enumerate() {
                     if section.is_secondary_cross_listing || section.placement.is_some() {
                         continue;
@@ -1019,6 +1033,7 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
                     }
                     println!();
                 }
+                */
             }
 
             let elapsed = start.elapsed();
