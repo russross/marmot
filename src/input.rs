@@ -595,7 +595,12 @@ pub fn parse_days(weekday_raw: &str) -> Result<Vec<time::Weekday>, String> {
             'f' | 'F' => days.push(time::Weekday::Friday),
             's' | 'S' => days.push(time::Weekday::Saturday),
             'u' | 'U' => days.push(time::Weekday::Sunday),
-            _ => return Err(format!("Unknown day of week in {}: I only understand mtwrfsu", weekday_raw)),
+            _ => {
+                return Err(format!(
+                    "Unknown day of week in {}: I only understand mtwrfsu",
+                    weekday_raw
+                ))
+            }
         }
     }
     Ok(days)
@@ -709,22 +714,40 @@ pub struct Instructor {
 #[derive(Clone)]
 pub enum DistributionPreference {
     // classes on the same day should occur in clusters with tidy gaps between them
-    Clustering{ days: Vec<time::Weekday>, max_gap: time::Duration, cluster_limits: Vec<DurationWithPenalty>, gap_limits: Vec<DurationWithPenalty> },
+    Clustering {
+        days: Vec<time::Weekday>,
+        max_gap: time::Duration,
+        cluster_limits: Vec<DurationWithPenalty>,
+        gap_limits: Vec<DurationWithPenalty>,
+    },
 
     // zero or more days from the list should be free of classes
-    DaysOff{ days: Vec<time::Weekday>, days_off: u8, penalty: isize },
+    DaysOff {
+        days: Vec<time::Weekday>,
+        days_off: u8,
+        penalty: isize,
+    },
 
     // days that have classes should have the same number of classes
-    DaysEvenlySpread{ days: Vec<time::Weekday>, penalty: isize },
+    DaysEvenlySpread {
+        days: Vec<time::Weekday>,
+        penalty: isize,
+    },
 }
 
 #[derive(Clone)]
 pub enum DurationWithPenalty {
     // a duration shorter than this gets a penalty
-    TooShort{ duration: time::Duration, penalty: isize },
+    TooShort {
+        duration: time::Duration,
+        penalty: isize,
+    },
 
     // a duration longer than this gets a penalty
-    TooLong{ duration: time::Duration, penalty: isize },
+    TooLong {
+        duration: time::Duration,
+        penalty: isize,
+    },
 }
 
 pub struct Section {
@@ -952,13 +975,13 @@ macro_rules! days_off_preference {
             days off: $off:literal,
             penalty: $pen:literal) => {
         let i = $input.find_instructor_by_name($inst)?;
-        $input.instructors[i].distribution.push(
-            DistributionPreference::DaysOff{
+        $input.instructors[i]
+            .distribution
+            .push(DistributionPreference::DaysOff {
                 days: parse_days($days)?,
                 days_off: $off,
                 penalty: $pen,
-            }
-        );
+            });
     };
 }
 
@@ -968,15 +991,14 @@ macro_rules! evenly_spread_out_preference {
             days: $days:literal,
             penalty: $pen:literal) => {
         let i = $input.find_instructor_by_name($inst)?;
-        $input.instructors[i].distribution.push(
-            DistributionPreference::DaysEvenlySpread{
+        $input.instructors[i]
+            .distribution
+            .push(DistributionPreference::DaysEvenlySpread {
                 days: parse_days($days)?,
                 penalty: $pen,
-            }
-        );
+            });
     };
 }
-
 
 // default instructor distribution preferences
 macro_rules! default_clustering {
@@ -1023,7 +1045,7 @@ macro_rules! default_clustering {
 }
 
 pub(crate) use {
-    anticonflict, conflict, crosslist, holiday, instructor, name_with_optional_penalty, room,
-    section, time,
-    default_clustering, duration_penalty, clustering_preferences, days_off_preference, evenly_spread_out_preference,
+    anticonflict, clustering_preferences, conflict, crosslist, days_off_preference,
+    default_clustering, duration_penalty, evenly_spread_out_preference, holiday, instructor,
+    name_with_optional_penalty, room, section, time,
 };

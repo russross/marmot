@@ -137,18 +137,21 @@ impl ScoreCriterion {
                 for by_days in grouped_by_days {
                     // get the list of days
                     let days = match &by_days[0] {
-                        DistributionPreference::Clustering { days, ..} => days,
-                        DistributionPreference::DaysOff { days, ..} => days,
-                        DistributionPreference::DaysEvenlySpread { days, ..} => days,
+                        DistributionPreference::Clustering { days, .. } => days,
+                        DistributionPreference::DaysOff { days, .. } => days,
+                        DistributionPreference::DaysEvenlySpread { days, .. } => days,
                     };
 
                     // for each day with matching index, a list of (start minute, duration minutes)
                     // of classes scheduled on that day
-                    let mut schedule_by_day: Vec<Vec<(time::Time, time::Duration)>> = vec![Vec::new(); days.len()];
+                    let mut schedule_by_day: Vec<Vec<(time::Time, time::Duration)>> =
+                        vec![Vec::new(); days.len()];
 
                     for &section in sections {
                         // find when the section was placed
-                        let Some(RoomTimeWithPenalty {time_slot, ..}) = solver.sections[section].placement else {
+                        let Some(RoomTimeWithPenalty { time_slot, .. }) =
+                            solver.sections[section].placement
+                        else {
                             continue;
                         };
 
@@ -173,7 +176,12 @@ impl ScoreCriterion {
                     // now process the individual scoring criteria
                     for pref in by_days {
                         match pref {
-                            DistributionPreference::Clustering { max_gap, cluster_limits, gap_limits, .. } => {
+                            DistributionPreference::Clustering {
+                                max_gap,
+                                cluster_limits,
+                                gap_limits,
+                                ..
+                            } => {
                                 for day in &schedule_by_day {
                                     if day.is_empty() {
                                         continue;
@@ -190,8 +198,9 @@ impl ScoreCriterion {
                                     while cluster_start < day.len() {
                                         // keep adding sections while there are more and they start
                                         // soon enough after the end of the previous section
-                                        while cluster_end + 1 < day.len() &&
-                                                end_time + *max_gap >= day[cluster_end+1].0 {
+                                        while cluster_end + 1 < day.len()
+                                            && end_time + *max_gap >= day[cluster_end + 1].0
+                                        {
                                             cluster_end += 1;
                                             end_time = day[cluster_end].0 + day[cluster_end].1;
                                         }
@@ -204,8 +213,11 @@ impl ScoreCriterion {
 
                                         // test cluster size against all the limits
                                         for limit in cluster_limits {
-                                            match limit {
-                                                &DurationWithPenalty::TooShort { duration, penalty } => {
+                                            match *limit {
+                                                DurationWithPenalty::TooShort {
+                                                    duration,
+                                                    penalty,
+                                                } => {
                                                     if total_duration < duration {
                                                         if too_short_okay {
                                                             // used up the one freebie
@@ -220,8 +232,13 @@ impl ScoreCriterion {
                                                     }
                                                 }
 
-                                                &DurationWithPenalty::TooLong { duration, penalty } => {
-                                                    if total_duration > duration && penalty > worst_penalty {
+                                                DurationWithPenalty::TooLong {
+                                                    duration,
+                                                    penalty,
+                                                } => {
+                                                    if total_duration > duration
+                                                        && penalty > worst_penalty
+                                                    {
                                                         worst_penalty = penalty;
                                                         is_too_short = false;
                                                     }
@@ -232,7 +249,11 @@ impl ScoreCriterion {
                                         if worst_penalty > 0 {
                                             records.push(SectionScoreRecord {
                                                 local: worst_penalty,
-                                                global: if section == section_of_record { worst_penalty } else { 0 },
+                                                global: if section == section_of_record {
+                                                    worst_penalty
+                                                } else {
+                                                    0
+                                                },
                                                 details: SectionScoreDetails::Cluster {
                                                     instructor: *instructor,
                                                     is_too_short,
@@ -244,23 +265,31 @@ impl ScoreCriterion {
                                         // check the size of the gap between the end of this
                                         // cluster and the start of the next
                                         if cluster_end + 1 < day.len() {
-                                            let gap = day[cluster_end+1].0 - end_time;
+                                            let gap = day[cluster_end + 1].0 - end_time;
 
                                             // search the limits
                                             worst_penalty = 0;
                                             is_too_short = false;
 
                                             for limit in gap_limits {
-                                                match limit {
-                                                    &DurationWithPenalty::TooShort { duration, penalty } => {
-                                                        if gap < duration && penalty > worst_penalty {
+                                                match *limit {
+                                                    DurationWithPenalty::TooShort {
+                                                        duration,
+                                                        penalty,
+                                                    } => {
+                                                        if gap < duration && penalty > worst_penalty
+                                                        {
                                                             worst_penalty = penalty;
                                                             is_too_short = true;
                                                         }
                                                     }
 
-                                                    &DurationWithPenalty::TooLong { duration, penalty } => {
-                                                        if gap > duration && penalty > worst_penalty {
+                                                    DurationWithPenalty::TooLong {
+                                                        duration,
+                                                        penalty,
+                                                    } => {
+                                                        if gap > duration && penalty > worst_penalty
+                                                        {
                                                             worst_penalty = penalty;
                                                             is_too_short = false;
                                                         }
@@ -271,7 +300,11 @@ impl ScoreCriterion {
                                             if worst_penalty > 0 {
                                                 records.push(SectionScoreRecord {
                                                     local: worst_penalty,
-                                                    global: if section == section_of_record { worst_penalty } else { 0 },
+                                                    global: if section == section_of_record {
+                                                        worst_penalty
+                                                    } else {
+                                                        0
+                                                    },
                                                     details: SectionScoreDetails::Gap {
                                                         instructor: *instructor,
                                                         is_too_short,
@@ -287,7 +320,11 @@ impl ScoreCriterion {
                                 }
                             }
 
-                            &DistributionPreference::DaysOff { days_off: desired, penalty, .. } => {
+                            &DistributionPreference::DaysOff {
+                                days_off: desired,
+                                penalty,
+                                ..
+                            } => {
                                 let mut actual = 0;
                                 for day in &schedule_by_day {
                                     if day.is_empty() {
@@ -297,7 +334,11 @@ impl ScoreCriterion {
                                 if actual != desired {
                                     records.push(SectionScoreRecord {
                                         local: penalty,
-                                        global: if section == section_of_record { penalty } else { 0 },
+                                        global: if section == section_of_record {
+                                            penalty
+                                        } else {
+                                            0
+                                        },
                                         details: SectionScoreDetails::DaysOff {
                                             instructor: *instructor,
                                             desired,
@@ -326,7 +367,11 @@ impl ScoreCriterion {
                                 if most > fewest && most - fewest > 1 {
                                     records.push(SectionScoreRecord {
                                         local: penalty,
-                                        global: if section == section_of_record { penalty } else { 0 },
+                                        global: if section == section_of_record {
+                                            penalty
+                                        } else {
+                                            0
+                                        },
                                         details: SectionScoreDetails::DaysEvenlySpread {
                                             instructor: *instructor,
                                             sections: sections.clone(),
@@ -349,7 +394,8 @@ impl ScoreCriterion {
                 let mut rooms = Vec::new();
                 for &sec in sections {
                     // find when the section was placed
-                    let Some(RoomTimeWithPenalty{room, ..}) = solver.sections[sec].placement else {
+                    let Some(RoomTimeWithPenalty { room, .. }) = solver.sections[sec].placement
+                    else {
                         continue;
                     };
                     rooms.push(room);
@@ -360,7 +406,11 @@ impl ScoreCriterion {
                 if rooms.len() > *desired {
                     records.push(SectionScoreRecord {
                         local: *penalty,
-                        global: if section == section_of_record { *penalty } else { 0 },
+                        global: if section == section_of_record {
+                            *penalty
+                        } else {
+                            0
+                        },
                         details: SectionScoreDetails::TooManyRooms {
                             instructor: *instructor,
                             desired: *desired,
@@ -491,20 +541,30 @@ impl SectionScoreRecord {
             }
 
             SectionScoreRecord {
-                details: SectionScoreDetails::Cluster { instructor, is_too_short, .. },
+                details:
+                    SectionScoreDetails::Cluster {
+                        instructor,
+                        is_too_short,
+                        ..
+                    },
                 global,
                 ..
             } => {
                 let message = format!(
                     "class cluster: instructor {} has a cluster of classes that is too {}",
                     input.instructors[*instructor].name,
-                    if *is_too_short { "short" } else {"long"}
+                    if *is_too_short { "short" } else { "long" }
                 );
                 list.push((*global, message));
             }
 
             SectionScoreRecord {
-                details: SectionScoreDetails::Gap { instructor, is_too_short, .. },
+                details:
+                    SectionScoreDetails::Gap {
+                        instructor,
+                        is_too_short,
+                        ..
+                    },
                 global,
                 ..
             } => {
@@ -517,7 +577,13 @@ impl SectionScoreRecord {
             }
 
             SectionScoreRecord {
-                details: SectionScoreDetails::DaysOff { instructor, desired, actual, .. },
+                details:
+                    SectionScoreDetails::DaysOff {
+                        instructor,
+                        desired,
+                        actual,
+                        ..
+                    },
                 global,
                 ..
             } => {
@@ -544,7 +610,13 @@ impl SectionScoreRecord {
             }
 
             SectionScoreRecord {
-                details: SectionScoreDetails::TooManyRooms { instructor, desired, actual, .. },
+                details:
+                    SectionScoreDetails::TooManyRooms {
+                        instructor,
+                        desired,
+                        actual,
+                        ..
+                    },
                 global,
                 ..
             } => {
@@ -564,15 +636,45 @@ impl SectionScoreRecord {
 
 #[derive(Clone)]
 pub enum SectionScoreDetails {
-    SoftConflict { sections: Vec<usize> },
-    RoomTimePenalty { section: usize },
-    SectionNotPlaced { section: usize },
-    AntiConflict { single: usize, group: Vec<usize> },
-    Cluster { instructor: usize, is_too_short: bool, sections: Vec<usize> },
-    Gap { instructor: usize, is_too_short: bool, sections: Vec<usize> },
-    DaysOff { instructor: usize, desired: u8, actual: u8, sections: Vec<usize> },
-    DaysEvenlySpread { instructor: usize, sections: Vec<usize> },
-    TooManyRooms { instructor: usize, desired: usize, actual: usize, sections: Vec<usize> },
+    SoftConflict {
+        sections: Vec<usize>,
+    },
+    RoomTimePenalty {
+        section: usize,
+    },
+    SectionNotPlaced {
+        section: usize,
+    },
+    AntiConflict {
+        single: usize,
+        group: Vec<usize>,
+    },
+    Cluster {
+        instructor: usize,
+        is_too_short: bool,
+        sections: Vec<usize>,
+    },
+    Gap {
+        instructor: usize,
+        is_too_short: bool,
+        sections: Vec<usize>,
+    },
+    DaysOff {
+        instructor: usize,
+        desired: u8,
+        actual: u8,
+        sections: Vec<usize>,
+    },
+    DaysEvenlySpread {
+        instructor: usize,
+        sections: Vec<usize>,
+    },
+    TooManyRooms {
+        instructor: usize,
+        desired: usize,
+        actual: usize,
+        sections: Vec<usize>,
+    },
 }
 
 impl SectionScoreDetails {

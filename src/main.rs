@@ -140,12 +140,11 @@ fn main() {
                 } => {
                     for group in grouped_by_days {
                         let days = match &group[0] {
-                            DistributionPreference::Clustering{ days, .. } => days,
-                            DistributionPreference::DaysOff{ days, .. } => days,
-                            DistributionPreference::DaysEvenlySpread{ days, .. } => days,
+                            DistributionPreference::Clustering { days, .. } => days,
+                            DistributionPreference::DaysOff { days, .. } => days,
+                            DistributionPreference::DaysEvenlySpread { days, .. } => days,
                         };
-                        print!(
-                            "    class spread for ");
+                        print!("    class spread for ");
                         let mut sep = "";
                         for day in days {
                             match day {
@@ -159,7 +158,10 @@ fn main() {
                             }
                             sep = ", ";
                         }
-                        print!("; instructor {}; sections ", term.instructors[*instructor].name);
+                        print!(
+                            "; instructor {}; sections ",
+                            term.instructors[*instructor].name
+                        );
                         let mut sep = "";
                         for &sec in sections {
                             print!("{sep}{}", term.sections[sec].get_name());
@@ -168,13 +170,24 @@ fn main() {
                         println!();
                         for pref in group {
                             match pref {
-                                DistributionPreference::Clustering { max_gap, cluster_limits, gap_limits, .. } => {
+                                DistributionPreference::Clustering {
+                                    max_gap,
+                                    cluster_limits,
+                                    gap_limits,
+                                    ..
+                                } => {
                                     if !cluster_limits.is_empty() {
                                         print!("        cluster max:{}", max_gap);
                                         for limit in cluster_limits {
                                             match limit {
-                                                DurationWithPenalty::TooShort { duration, penalty } => print!(" [<{} penalty {}]", duration, penalty),
-                                                DurationWithPenalty::TooLong { duration, penalty } => print!(" [>{} penalty {}]", duration, penalty),
+                                                DurationWithPenalty::TooShort {
+                                                    duration,
+                                                    penalty,
+                                                } => print!(" [<{} penalty {}]", duration, penalty),
+                                                DurationWithPenalty::TooLong {
+                                                    duration,
+                                                    penalty,
+                                                } => print!(" [>{} penalty {}]", duration, penalty),
                                             }
                                         }
                                         println!();
@@ -184,15 +197,23 @@ fn main() {
                                         print!("        gap");
                                         for limit in gap_limits {
                                             match limit {
-                                                DurationWithPenalty::TooShort { duration, penalty } => print!(" [<{} penalty {}]", duration, penalty),
-                                                DurationWithPenalty::TooLong { duration, penalty } => print!(" [>{} penalty {}]", duration, penalty),
+                                                DurationWithPenalty::TooShort {
+                                                    duration,
+                                                    penalty,
+                                                } => print!(" [<{} penalty {}]", duration, penalty),
+                                                DurationWithPenalty::TooLong {
+                                                    duration,
+                                                    penalty,
+                                                } => print!(" [>{} penalty {}]", duration, penalty),
                                             }
                                         }
                                         println!();
                                     }
                                 }
-                                
-                                DistributionPreference::DaysOff { days_off, penalty, .. } => {
+
+                                DistributionPreference::DaysOff {
+                                    days_off, penalty, ..
+                                } => {
                                     println!("        days off:{} penalty {}", days_off, penalty);
                                 }
 
@@ -212,9 +233,7 @@ fn main() {
                 } => {
                     print!(
                         "    room count: penalty {}, {} should fit in {} rooms, sections: ",
-                        penalty,
-                        term.instructors[*instructor].name,
-                        desired,
+                        penalty, term.instructors[*instructor].name, desired,
                     );
                     let mut sep = "";
                     for &elt in sections {

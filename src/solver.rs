@@ -468,16 +468,20 @@ impl Solver {
                 continue;
             }
 
-            let mut sec_primaries: Vec<usize> = input.instructors[instructor].sections.iter().map(|&elt| input.get_primary_cross_listing(elt)).collect();
+            let mut sec_primaries: Vec<usize> = input.instructors[instructor]
+                .sections
+                .iter()
+                .map(|&elt| input.get_primary_cross_listing(elt))
+                .collect();
             sec_primaries.sort();
             sec_primaries.dedup();
 
             let mut groups = std::collections::HashMap::<u8, Vec<DistributionPreference>>::new();
             for dist in &input.instructors[instructor].distribution {
                 let days = match dist {
-                    DistributionPreference::Clustering{ days, .. } => days,
-                    DistributionPreference::DaysOff{ days, .. } => days,
-                    DistributionPreference::DaysEvenlySpread{ days, .. } => days,
+                    DistributionPreference::Clustering { days, .. } => days,
+                    DistributionPreference::DaysOff { days, .. } => days,
+                    DistributionPreference::DaysEvenlySpread { days, .. } => days,
                 };
 
                 let mut key = 0u8;
@@ -499,7 +503,7 @@ impl Solver {
                 grouped_by_days.push(group);
             }
 
-            let ics = ScoreCriterion::InstructorClassSpread{
+            let ics = ScoreCriterion::InstructorClassSpread {
                 instructor,
                 sections: sec_primaries.clone(),
                 grouped_by_days,
@@ -512,7 +516,11 @@ impl Solver {
 
         // calculate theoretical minimum rooms possible for each instructor
         for instructor in 0..input.instructors.len() {
-            let mut sec_primaries: Vec<usize> = input.instructors[instructor].sections.iter().map(|&elt| input.get_primary_cross_listing(elt)).collect();
+            let mut sec_primaries: Vec<usize> = input.instructors[instructor]
+                .sections
+                .iter()
+                .map(|&elt| input.get_primary_cross_listing(elt))
+                .collect();
             sec_primaries.sort();
             sec_primaries.dedup();
 
@@ -535,7 +543,11 @@ impl Solver {
                     'section_loop: for &section in &sec_primaries {
                         // is this section satisfied by one of the rooms in the set?
                         for &room in &room_set {
-                            if sections[section].room_times.iter().any(|elt| elt.room == *room) {
+                            if sections[section]
+                                .room_times
+                                .iter()
+                                .any(|elt| elt.room == *room)
+                            {
                                 continue 'section_loop;
                             }
                         }
@@ -552,12 +564,14 @@ impl Solver {
             // do not bother if the best we can do is a distinct room per section
             if k < sec_primaries.len() {
                 for &sec in &sec_primaries {
-                    sections[sec].score_criteria.push(ScoreCriterion::InstructorRoomCount{
-                        instructor,
-                        sections: sec_primaries.clone(),
-                        desired: k,
-                        penalty: 2,
-                    });
+                    sections[sec]
+                        .score_criteria
+                        .push(ScoreCriterion::InstructorRoomCount {
+                            instructor,
+                            sections: sec_primaries.clone(),
+                            desired: k,
+                            penalty: 2,
+                        });
                 }
             }
         }
@@ -1100,7 +1114,10 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
             println!();
             println!();
             winner.print_schedule(input);
-            println!("score = {} with {} unplaced sections", score, winner.unplaced_current);
+            println!(
+                "score = {} with {} unplaced sections",
+                score, winner.unplaced_current
+            );
             let mut problems = Vec::new();
             for i in 0..winner.sections.len() {
                 winner.sections[i]
