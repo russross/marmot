@@ -203,6 +203,26 @@ fn main() {
                         }
                     }
                 }
+
+                ScoreCriterion::InstructorRoomCount {
+                    instructor,
+                    sections,
+                    desired,
+                    penalty,
+                } => {
+                    print!(
+                        "    room count: penalty {}, {} should fit in {} rooms, sections: ",
+                        penalty,
+                        term.instructors[*instructor].name,
+                        desired,
+                    );
+                    let mut sep = "";
+                    for &elt in sections {
+                        print!("{}{}", sep, term.sections[elt].get_name());
+                        sep = ", ";
+                    }
+                    println!();
+                }
             }
         }
 

@@ -988,20 +988,20 @@ macro_rules! default_clustering {
             instructor: $inst,
             days: $days,
             max gap within cluster: 15 minutes,
-            cluster too short: less than 110 minutes incurs penalty 10,
-            cluster too long: more than 165 minutes incurs penalty 15,
+            cluster too short: less than 110 minutes incurs penalty 5,
+            cluster too long: more than 165 minutes incurs penalty 10,
             gap too short: less than 60 minutes incurs penalty 10,
-            gap too long: more than 105 minutes incurs penalty 10,
-            gap too long: more than 195 minutes incurs penalty 15);
+            gap too long: more than 105 minutes incurs penalty 5,
+            gap too long: more than 195 minutes incurs penalty 10);
         days_off_preference!($input,
             instructor: $inst,
             days: $days,
             days off: $off,
-            penalty: 15);
+            penalty: 10);
         evenly_spread_out_preference!($input,
             instructor: $inst,
             days: $days,
-            penalty: 15);
+            penalty: 10);
     };
     ($input:expr,
             instructor: $inst:literal,
@@ -1010,15 +1010,15 @@ macro_rules! default_clustering {
             instructor: $inst,
             days: $days,
             max gap within cluster: 15 minutes,
-            cluster too short: less than 110 minutes incurs penalty 10,
-            cluster too long: more than 165 minutes incurs penalty 15,
+            cluster too short: less than 110 minutes incurs penalty 5,
+            cluster too long: more than 165 minutes incurs penalty 10,
             gap too short: less than 60 minutes incurs penalty 10,
-            gap too long: more than 105 minutes incurs penalty 10,
-            gap too long: more than 195 minutes incurs penalty 15);
+            gap too long: more than 105 minutes incurs penalty 5,
+            gap too long: more than 195 minutes incurs penalty 10);
         evenly_spread_out_preference!($input,
             instructor: $inst,
             days: $days,
-            penalty: 15);
+            penalty: 10);
     };
 }
 

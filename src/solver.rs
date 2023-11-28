@@ -1,5 +1,6 @@
 use super::input::*;
 use super::score::*;
+use itertools::Itertools;
 use rand::Rng;
 
 const PENALTY_FOR_UNPLACED_SECTION: isize = 1000;
@@ -506,6 +507,58 @@ impl Solver {
 
             for &section in &sec_primaries {
                 sections[section].score_criteria.push(ics.clone());
+            }
+        }
+
+        // calculate theoretical minimum rooms possible for each instructor
+        for instructor in 0..input.instructors.len() {
+            let mut sec_primaries: Vec<usize> = input.instructors[instructor].sections.iter().map(|&elt| input.get_primary_cross_listing(elt)).collect();
+            sec_primaries.sort();
+            sec_primaries.dedup();
+
+            // get a list of all possible rooms the instructor could use
+            let mut all_possible = Vec::new();
+            for &section in &sec_primaries {
+                for &RoomTimeWithPenalty { room, .. } in &sections[section].room_times {
+                    all_possible.push(room);
+                }
+            }
+            all_possible.sort();
+            all_possible.dedup();
+
+            // note if the loop ends without finding a solution with
+            // fewer than the max number of rooms, it will leave the
+            // result at the max number without bothering to prove it
+            let mut k = 1;
+            'min_rooms_loop: while k < sec_primaries.len() {
+                'set_loop: for room_set in all_possible.iter().combinations(k) {
+                    'section_loop: for &section in &sec_primaries {
+                        // is this section satisfied by one of the rooms in the set?
+                        for &room in &room_set {
+                            if sections[section].room_times.iter().any(|elt| elt.room == *room) {
+                                continue 'section_loop;
+                            }
+                        }
+                        continue 'set_loop;
+                    }
+
+                    // success!
+                    break 'min_rooms_loop;
+                }
+
+                k += 1;
+            }
+
+            // do not bother if the best we can do is a distinct room per section
+            if k < sec_primaries.len() {
+                for &sec in &sec_primaries {
+                    sections[sec].score_criteria.push(ScoreCriterion::InstructorRoomCount{
+                        instructor,
+                        sections: sec_primaries.clone(),
+                        desired: k,
+                        penalty: 2,
+                    });
+                }
             }
         }
 

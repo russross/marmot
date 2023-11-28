@@ -23,6 +23,13 @@ pub enum ScoreCriterion {
         sections: Vec<usize>,
         grouped_by_days: Vec<Vec<DistributionPreference>>,
     },
+
+    InstructorRoomCount {
+        instructor: usize,
+        sections: Vec<usize>,
+        desired: usize,
+        penalty: isize,
+    },
 }
 
 impl ScoreCriterion {
@@ -281,7 +288,7 @@ impl ScoreCriterion {
                             }
 
                             &DistributionPreference::DaysOff { days_off: desired, penalty, .. } => {
-                                let mut actual = 0u8;
+                                let mut actual = 0;
                                 for day in &schedule_by_day {
                                     if day.is_empty() {
                                         actual += 1;
@@ -316,7 +323,7 @@ impl ScoreCriterion {
                                     fewest = std::cmp::min(fewest, count);
                                 }
 
-                                if most - fewest > 1 {
+                                if most > fewest && most - fewest > 1 {
                                     records.push(SectionScoreRecord {
                                         local: penalty,
                                         global: if section == section_of_record { penalty } else { 0 },
@@ -329,6 +336,38 @@ impl ScoreCriterion {
                             }
                         }
                     }
+                }
+            }
+
+            ScoreCriterion::InstructorRoomCount {
+                instructor,
+                sections,
+                desired,
+                penalty,
+            } => {
+                let section_of_record = *sections.iter().min().unwrap();
+                let mut rooms = Vec::new();
+                for &sec in sections {
+                    // find when the section was placed
+                    let Some(RoomTimeWithPenalty{room, ..}) = solver.sections[sec].placement else {
+                        continue;
+                    };
+                    rooms.push(room);
+                }
+                rooms.sort();
+                rooms.dedup();
+
+                if rooms.len() > *desired {
+                    records.push(SectionScoreRecord {
+                        local: *penalty,
+                        global: if section == section_of_record { *penalty } else { 0 },
+                        details: SectionScoreDetails::TooManyRooms {
+                            instructor: *instructor,
+                            desired: *desired,
+                            actual: rooms.len(),
+                            sections: sections.clone(),
+                        },
+                    });
                 }
             }
         }
@@ -503,6 +542,22 @@ impl SectionScoreRecord {
                 );
                 list.push((*global, message));
             }
+
+            SectionScoreRecord {
+                details: SectionScoreDetails::TooManyRooms { instructor, desired, actual, .. },
+                global,
+                ..
+            } => {
+                let message = format!(
+                    "room placement: instructor {} wanted all classes in {} room{} but got {} room{}",
+                    input.instructors[*instructor].name,
+                    desired,
+                    if *desired == 1 { "" } else { "s" },
+                    actual,
+                    if *actual == 1 { "" } else { "s" },
+                );
+                list.push((*global, message));
+            }
         }
     }
 }
@@ -517,6 +572,7 @@ pub enum SectionScoreDetails {
     Gap { instructor: usize, is_too_short: bool, sections: Vec<usize> },
     DaysOff { instructor: usize, desired: u8, actual: u8, sections: Vec<usize> },
     DaysEvenlySpread { instructor: usize, sections: Vec<usize> },
+    TooManyRooms { instructor: usize, desired: usize, actual: usize, sections: Vec<usize> },
 }
 
 impl SectionScoreDetails {
@@ -572,6 +628,13 @@ impl SectionScoreDetails {
                 }
             }
             SectionScoreDetails::DaysEvenlySpread { sections, .. } => {
+                for section in sections {
+                    if !exclude.contains(section) {
+                        adjacent.push(*section);
+                    }
+                }
+            }
+            SectionScoreDetails::TooManyRooms { sections, .. } => {
                 for section in sections {
                     if !exclude.contains(section) {
                         adjacent.push(*section);
