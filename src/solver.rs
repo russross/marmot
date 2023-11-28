@@ -461,6 +461,54 @@ impl Solver {
             }
         }
 
+        // collect and place instructor distribution rules
+        for instructor in 0..input.instructors.len() {
+            if input.instructors[instructor].distribution.is_empty() {
+                continue;
+            }
+
+            let mut sec_primaries: Vec<usize> = input.instructors[instructor].sections.iter().map(|&elt| input.get_primary_cross_listing(elt)).collect();
+            sec_primaries.sort();
+            sec_primaries.dedup();
+
+            let mut groups = std::collections::HashMap::<u8, Vec<DistributionPreference>>::new();
+            for dist in &input.instructors[instructor].distribution {
+                let days = match dist {
+                    DistributionPreference::Clustering{ days, .. } => days,
+                    DistributionPreference::DaysOff{ days, .. } => days,
+                    DistributionPreference::DaysEvenlySpread{ days, .. } => days,
+                };
+
+                let mut key = 0u8;
+                for &day in days {
+                    match day {
+                        time::Weekday::Sunday => key |= 0b1000000,
+                        time::Weekday::Monday => key |= 0b0100000,
+                        time::Weekday::Tuesday => key |= 0b0010000,
+                        time::Weekday::Wednesday => key |= 0b0001000,
+                        time::Weekday::Thursday => key |= 0b0000100,
+                        time::Weekday::Friday => key |= 0b0000010,
+                        time::Weekday::Saturday => key |= 0b0000001,
+                    }
+                }
+                groups.entry(key).or_default().push(dist.clone());
+            }
+            let mut grouped_by_days = Vec::new();
+            for (_, group) in groups.drain() {
+                grouped_by_days.push(group);
+            }
+
+            let ics = ScoreCriterion::InstructorClassSpread{
+                instructor,
+                sections: sec_primaries.clone(),
+                grouped_by_days,
+            };
+
+            for &section in &sec_primaries {
+                sections[section].score_criteria.push(ics.clone());
+            }
+        }
+
         Ok(Solver {
             room_placements,
             sections,
@@ -998,7 +1046,7 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
 
             println!();
             println!();
-            //winner.print_schedule(input);
+            winner.print_schedule(input);
             println!("score = {} with {} unplaced sections", score, winner.unplaced_current);
             let mut problems = Vec::new();
             for i in 0..winner.sections.len() {

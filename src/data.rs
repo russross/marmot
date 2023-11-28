@@ -39,7 +39,7 @@ pub fn input() -> Result<Input, String> {
     time!(t, name: "R1900+50");
 
     input_computing(&mut t)?;
-    input_set(&mut t)?;
+    //input_set(&mut t)?;
 
     Ok(t)
 }
@@ -59,7 +59,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "TR1330+75",
             "TR1500+75" with penalty 10,
     );
-    default_spread!(t, instructor: "Bart Stander", days: "mt", days off: 1);
+    default_clustering!(t, instructor: "Bart Stander", days: "mt", days off: 1);
 
     instructor!(t,
         name:
@@ -71,7 +71,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "MW1330+75",
             "TR1330+75" with penalty 5,
     );
-    default_spread!(t, instructor: "Carol Stander", days: "mt");
+    default_clustering!(t, instructor: "Carol Stander", days: "mt");
 
     instructor!(t,
         name:
@@ -89,7 +89,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "TR1330+75",
             "TR1500+75",
     );
-    default_spread!(t, instructor: "Curtis Larsen", days: "mt", days off: 0);
+    default_clustering!(t, instructor: "Curtis Larsen", days: "mt", days off: 0);
 
     instructor!(t,
         name:
@@ -104,7 +104,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "TR1330+75",
             "TR1500+75" with penalty 10,
     );
-    default_spread!(t, instructor: "DJ Holt", days: "mt", days off: 0);
+    default_clustering!(t, instructor: "DJ Holt", days: "mt", days off: 0);
 
     instructor!(t,
         name:
@@ -130,7 +130,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "TR1330+75",
             "TR1500+75" with penalty 5,
     );
-    default_spread!(t, instructor: "Jay Sneddon", days: "mt", days off: 0);
+    default_clustering!(t, instructor: "Jay Sneddon", days: "mt", days off: 0);
 
     instructor!(t,
         name:
@@ -151,7 +151,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "MWF1100+50",
             "MW1330+75",
     );
-    default_spread!(t, instructor: "Joe Francom", days: "mt", days off: 1);
+    default_clustering!(t, instructor: "Joe Francom", days: "mt", days off: 1);
 
     instructor!(t,
         name:
@@ -163,7 +163,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "TR1330+75",
             "MW1500+75" with penalty 15,
     );
-    default_spread!(t, instructor: "Lora Klein", days: "mt");
+    default_clustering!(t, instructor: "Lora Klein", days: "mt");
 
     instructor!(t,
         name:
@@ -174,7 +174,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "TR1030+75",
             "TR1200+75",
     );
-    default_spread!(t, instructor: "Matt Kearl", days: "mt", days off: 1);
+    default_clustering!(t, instructor: "Matt Kearl", days: "mt", days off: 1);
 
     instructor!(t,
         name:
@@ -192,7 +192,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "TR1330+75",
             "TR1500+75" with penalty 10,
     );
-    default_spread!(t, instructor: "Phil Daley", days: "mt", days off: 0);
+    default_clustering!(t, instructor: "Phil Daley", days: "mt", days off: 0);
 
     instructor!(t,
        name:
@@ -206,7 +206,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
            "TR1500+75",
            "R1900+50",
     );
-    default_spread!(t, instructor: "Ren Quinn", days: "mt", days off: 0);
+    default_clustering!(t, instructor: "Ren Quinn", days: "mt", days off: 0);
 
     instructor!(t,
         name:
@@ -219,7 +219,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "TR1330+75",
             "TR1500+75" with penalty 10,
     );
-    default_spread!(t, instructor: "Russ Ross", days: "mt", days off: 0);
+    default_clustering!(t, instructor: "Russ Ross", days: "mt", days off: 0);
 
     instructor!(t,
         name:

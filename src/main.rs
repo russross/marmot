@@ -78,11 +78,10 @@ fn main() {
             }
         }
         print!(" [");
-        for (i, inst_i) in solve.instructors.iter().enumerate() {
-            if i > 0 {
-                print!(", ");
-            }
-            print!("{}", &term.instructors[*inst_i].name);
+        let mut sep = "";
+        for &inst_i in &solve.instructors {
+            print!("{sep}{}", &term.instructors[inst_i].name);
+            sep = ", ";
         }
         print!("]");
         let mut prev_room = term.rooms.len();
@@ -132,6 +131,77 @@ fn main() {
                         sep = ", ";
                     }
                     println!();
+                }
+
+                ScoreCriterion::InstructorClassSpread {
+                    instructor,
+                    sections,
+                    grouped_by_days,
+                } => {
+                    for group in grouped_by_days {
+                        let days = match &group[0] {
+                            DistributionPreference::Clustering{ days, .. } => days,
+                            DistributionPreference::DaysOff{ days, .. } => days,
+                            DistributionPreference::DaysEvenlySpread{ days, .. } => days,
+                        };
+                        print!(
+                            "    class spread for ");
+                        let mut sep = "";
+                        for day in days {
+                            match day {
+                                time::Weekday::Sunday => print!("{sep}Sun"),
+                                time::Weekday::Monday => print!("{sep}Mon"),
+                                time::Weekday::Tuesday => print!("{sep}Tues"),
+                                time::Weekday::Wednesday => print!("{sep}Wed"),
+                                time::Weekday::Thursday => print!("{sep}Thurs"),
+                                time::Weekday::Friday => print!("{sep}Fri"),
+                                time::Weekday::Saturday => print!("{sep}Sat"),
+                            }
+                            sep = ", ";
+                        }
+                        print!("; instructor {}; sections ", term.instructors[*instructor].name);
+                        let mut sep = "";
+                        for &sec in sections {
+                            print!("{sep}{}", term.sections[sec].get_name());
+                            sep = ", ";
+                        }
+                        println!();
+                        for pref in group {
+                            match pref {
+                                DistributionPreference::Clustering { max_gap, cluster_limits, gap_limits, .. } => {
+                                    if !cluster_limits.is_empty() {
+                                        print!("        cluster max:{}", max_gap);
+                                        for limit in cluster_limits {
+                                            match limit {
+                                                DurationWithPenalty::TooShort { duration, penalty } => print!(" [<{} penalty {}]", duration, penalty),
+                                                DurationWithPenalty::TooLong { duration, penalty } => print!(" [>{} penalty {}]", duration, penalty),
+                                            }
+                                        }
+                                        println!();
+                                    }
+
+                                    if !gap_limits.is_empty() {
+                                        print!("        gap");
+                                        for limit in gap_limits {
+                                            match limit {
+                                                DurationWithPenalty::TooShort { duration, penalty } => print!(" [<{} penalty {}]", duration, penalty),
+                                                DurationWithPenalty::TooLong { duration, penalty } => print!(" [>{} penalty {}]", duration, penalty),
+                                            }
+                                        }
+                                        println!();
+                                    }
+                                }
+                                
+                                DistributionPreference::DaysOff { days_off, penalty, .. } => {
+                                    println!("        days off:{} penalty {}", days_off, penalty);
+                                }
+
+                                DistributionPreference::DaysEvenlySpread { penalty, .. } => {
+                                    println!("        days evenly spread penalty {}", penalty);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

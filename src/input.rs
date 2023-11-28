@@ -706,12 +706,10 @@ pub struct Instructor {
     pub distribution: Vec<DistributionPreference>,
 }
 
+#[derive(Clone)]
 pub enum DistributionPreference {
-    // classes on the same day should occur in clusters
-    Cluster{ days: Vec<time::Weekday>, max_gap: time::Duration, limits: Vec<DurationWithPenalty> },
-
-    // clusters of classes on the same day should have gaps betwwen them
-    Gap{ days: Vec<time::Weekday>, limits: Vec<DurationWithPenalty> },
+    // classes on the same day should occur in clusters with tidy gaps between them
+    Clustering{ days: Vec<time::Weekday>, max_gap: time::Duration, cluster_limits: Vec<DurationWithPenalty>, gap_limits: Vec<DurationWithPenalty> },
 
     // zero or more days from the list should be free of classes
     DaysOff{ days: Vec<time::Weekday>, days_off: u8, penalty: isize },
@@ -720,6 +718,7 @@ pub enum DistributionPreference {
     DaysEvenlySpread{ days: Vec<time::Weekday>, penalty: isize },
 }
 
+#[derive(Clone)]
 pub enum DurationWithPenalty {
     // a duration shorter than this gets a penalty
     TooShort{ duration: time::Duration, penalty: isize },
@@ -922,37 +921,25 @@ macro_rules! duration_penalty {
     };
 }
 
-macro_rules! cluster_preferences {
+macro_rules! clustering_preferences {
     ($input:expr,
             instructor: $inst:literal,
             days: $days:literal,
             max gap within cluster: $gap:literal minutes,
-            $(too $a:ident : $b:ident than $min:literal minutes incurs penalty $pen:literal),+ $(,)?) => {
+            $(cluster too $ca:ident : $cb:ident than $cmin:literal minutes incurs penalty $cpen:literal),*,
+            $(gap too $ga:ident : $gb:ident than $gmin:literal minutes incurs penalty $gpen:literal),* $(,)?) => {
+
         let i = $input.find_instructor_by_name($inst)?;
+        let cluster_limits = vec![$(duration_penalty!(too $ca: $cb than $cmin minutes incurs penalty $cpen)),+];
+        let gap_limits = vec![$(duration_penalty!(too $ga: $gb than $gmin minutes incurs penalty $gpen)),+];
+        assert!(!cluster_limits.is_empty() || !gap_limits.is_empty());
+
         $input.instructors[i].distribution.push(
-            DistributionPreference::Cluster {
+            DistributionPreference::Clustering {
                 days: parse_days($days)?,
                 max_gap: time::Duration::minutes($gap),
-                limits: vec![
-                    $(duration_penalty!(too $a: $b than $min minutes incurs penalty $pen)),+
-                ],
-            }
-        );
-    };
-}
-
-macro_rules! gap_preferences {
-    ($input:expr,
-            instructor: $inst:literal,
-            days: $days:literal,
-            $(too $a:ident : $b:ident than $min:literal minutes incurs penalty $pen:literal),+ $(,)?) => {
-        let i = $input.find_instructor_by_name($inst)?;
-        $input.instructors[i].distribution.push(
-            DistributionPreference::Gap {
-                days: parse_days($days)?,
-                limits: vec![
-                    $(duration_penalty!(too $a: $b than $min minutes incurs penalty $pen)),+
-                ],
+                cluster_limits,
+                gap_limits,
             }
         );
     };
@@ -992,23 +979,20 @@ macro_rules! evenly_spread_out_preference {
 
 
 // default instructor distribution preferences
-macro_rules! default_spread {
+macro_rules! default_clustering {
     ($input:expr,
             instructor: $inst:literal,
             days: $days:literal,
             days off: $off:literal) => {
-        cluster_preferences!($input,
+        clustering_preferences!($input,
             instructor: $inst,
             days: $days,
             max gap within cluster: 15 minutes,
-            too short: less than 110 minutes incurs penalty 10,
-            too long: more than 165 minutes incurs penalty 15);
-        gap_preferences!($input,
-            instructor: $inst,
-            days: $days,
-            too short: less than 60 minutes incurs penalty 10,
-            too long: more than 105 minutes incurs penalty 10,
-            too long: more than 195 minutes incurs penalty 15);
+            cluster too short: less than 110 minutes incurs penalty 10,
+            cluster too long: more than 165 minutes incurs penalty 15,
+            gap too short: less than 60 minutes incurs penalty 10,
+            gap too long: more than 105 minutes incurs penalty 10,
+            gap too long: more than 195 minutes incurs penalty 15);
         days_off_preference!($input,
             instructor: $inst,
             days: $days,
@@ -1022,18 +1006,15 @@ macro_rules! default_spread {
     ($input:expr,
             instructor: $inst:literal,
             days: $days:literal) => {
-        cluster_preferences!($input,
+        clustering_preferences!($input,
             instructor: $inst,
             days: $days,
             max gap within cluster: 15 minutes,
-            too short: less than 110 minutes incurs penalty 10,
-            too long: more than 165 minutes incurs penalty 15);
-        gap_preferences!($input,
-            instructor: $inst,
-            days: $days,
-            too short: less than 60 minutes incurs penalty 10,
-            too long: more than 105 minutes incurs penalty 10,
-            too long: more than 195 minutes incurs penalty 15);
+            cluster too short: less than 110 minutes incurs penalty 10,
+            cluster too long: more than 165 minutes incurs penalty 15,
+            gap too short: less than 60 minutes incurs penalty 10,
+            gap too long: more than 105 minutes incurs penalty 10,
+            gap too long: more than 195 minutes incurs penalty 15);
         evenly_spread_out_preference!($input,
             instructor: $inst,
             days: $days,
@@ -1044,5 +1025,5 @@ macro_rules! default_spread {
 pub(crate) use {
     anticonflict, conflict, crosslist, holiday, instructor, name_with_optional_penalty, room,
     section, time,
-    default_spread, duration_penalty, cluster_preferences, gap_preferences, days_off_preference, evenly_spread_out_preference,
+    default_clustering, duration_penalty, clustering_preferences, days_off_preference, evenly_spread_out_preference,
 };
