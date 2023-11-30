@@ -486,14 +486,14 @@ impl SectionScoreRecord {
                 };
                 let message = if ts_a == ts_b {
                     format!(
-                        "soft conflict: {} and {} both meet at {}",
+                        "course conflict: {} and {} both meet at {}",
                         input.sections[a].get_name(),
                         input.sections[b].get_name(),
                         input.time_slots[ts_a].name
                     )
                 } else {
                     format!(
-                        "soft conflict: {} at {} overlaps {} at {}",
+                        "course conflict: {} at {} overlaps {} at {}",
                         input.sections[a].get_name(),
                         input.time_slots[ts_a].name,
                         input.sections[b].get_name(),
@@ -517,7 +517,7 @@ impl SectionScoreRecord {
                 let elt = &input.sections[*section];
 
                 let message = format!(
-                    "room/time combination: {} meets in {} at {}",
+                    "room/time: {} meets in {} at {}",
                     elt.get_name(),
                     input.rooms[room].name,
                     input.time_slots[time_slot].name
@@ -573,7 +573,7 @@ impl SectionScoreRecord {
                 ..
             } => {
                 let message = format!(
-                    "class cluster: instructor {} has a cluster of classes that is too {}",
+                    "class cluster: {} has a cluster of classes that is too {}",
                     input.instructors[*instructor].name,
                     if *is_too_short { "short" } else { "long" }
                 );
@@ -591,7 +591,7 @@ impl SectionScoreRecord {
                 ..
             } => {
                 let message = format!(
-                    "class cluster: instructor {} has a gap between clusters of classes that is too {}",
+                    "class cluster: {} has a gap between clusters that is too {}",
                     input.instructors[*instructor].name,
                     if *is_too_short { "short" } else {"long"}
                 );
@@ -610,7 +610,7 @@ impl SectionScoreRecord {
                 ..
             } => {
                 let message = format!(
-                    "days off: instructor {} wanted {} day{} off but got {}",
+                    "days off: {} wanted {} day{} off but got {}",
                     input.instructors[*instructor].name,
                     desired,
                     if *desired == 1 { "" } else { "s" },
@@ -625,7 +625,7 @@ impl SectionScoreRecord {
                 ..
             } => {
                 let message = format!(
-                    "class spread: instructor {} does not have classes evenly spread across days",
+                    "class spread: {} has more classes some days than others",
                     input.instructors[*instructor].name
                 );
                 list.push((*global, message));
@@ -643,7 +643,7 @@ impl SectionScoreRecord {
                 ..
             } => {
                 let message = format!(
-                    "room placement: instructor {} wanted all classes in {} room{} but got {} room{}",
+                    "room placement: {} wanted all classes in {} room{} but got {} room{}",
                     input.instructors[*instructor].name,
                     desired,
                     if *desired == 1 { "" } else { "s" },
