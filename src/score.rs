@@ -422,6 +422,28 @@ impl ScoreCriterion {
             }
         }
     }
+
+    pub fn get_neighbors(&self) -> Vec<usize> {
+        match self {
+            ScoreCriterion::SoftConflict {
+                sections_with_penalties,
+                ..
+            } => sections_with_penalties
+                .iter()
+                .map(|elt| elt.section)
+                .collect(),
+
+            ScoreCriterion::AntiConflict { single, group, .. } => {
+                let mut list = group.clone();
+                list.push(*single);
+                list
+            }
+
+            ScoreCriterion::InstructorClassSpread { sections, .. } => sections.clone(),
+
+            ScoreCriterion::InstructorRoomCount { sections, .. } => sections.clone(),
+        }
+    }
 }
 
 #[derive(Clone)]

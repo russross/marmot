@@ -44,6 +44,7 @@ pub struct SolverSection {
     pub room_times: Vec<RoomTimeWithPenalty>,
     pub instructors: Vec<usize>,
     pub hard_conflicts: Vec<usize>,
+    pub neighbors: Vec<usize>,
 
     // map from input.section[_].room_times to the effect on the score
     // if we placed this section at that room/time
@@ -318,6 +319,7 @@ impl Solver {
                     room_times: Vec::new(),
                     instructors: Vec::new(),
                     hard_conflicts: Vec::new(),
+                    neighbors: Vec::new(),
                     score_criteria: Vec::new(),
                     speculative_deltas: Vec::new(),
                     speculative_delta_min: None,
@@ -425,6 +427,7 @@ impl Solver {
                 room_times,
                 instructors,
                 hard_conflicts,
+                neighbors: Vec::new(),
                 score_criteria,
                 speculative_deltas: vec![None; input.sections[i].room_times.len()],
                 speculative_delta_min: None,
@@ -546,7 +549,7 @@ impl Solver {
                             if sections[section]
                                 .room_times
                                 .iter()
-                                .any(|elt| elt.room == *room)
+                                .any(|elt| elt.room == *room && elt.penalty == 0)
                             {
                                 continue 'section_loop;
                             }
@@ -574,6 +577,18 @@ impl Solver {
                         });
                 }
             }
+        }
+
+        // gather list of neighbors for each section
+        for (i, section) in sections.iter_mut().enumerate() {
+            let mut neighbors = Vec::new();
+            for elt in &section.score_criteria {
+                neighbors.append(&mut elt.get_neighbors());
+            }
+            neighbors.retain(|&elt| elt != i);
+            neighbors.sort();
+            neighbors.dedup();
+            section.neighbors = neighbors;
         }
 
         Ok(Solver {
@@ -727,14 +742,14 @@ impl Solver {
         self.sections[section].speculative_delta_min = low;
     }
 
-    pub fn select_section_to_place_slow(&mut self, input: &Input) -> usize {
-        let mut rng = rand::thread_rng();
-
+    pub fn select_section_to_place(&mut self, input: &Input) -> usize {
         self.compute_speculative_deltas(input);
         let mut pool_size = 0;
+
+        // find the move that will improve the score the most
         for section in self.sections.iter_mut() {
             if section.is_secondary_cross_listing {
-                section.tickets = 0;
+                assert!(section.tickets == 0);
                 continue;
             }
             match section.speculative_delta_min {
@@ -745,7 +760,7 @@ impl Solver {
                     // using MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION here would give
                     // the same boost to moves that do not actually increase the
                     // number of placed sections
-                    section.tickets = std::cmp::max(1, -delta + 1);
+                    section.tickets = std::cmp::max(0, -delta);
                     pool_size += section.tickets;
                 }
                 None => {
@@ -753,10 +768,41 @@ impl Solver {
                 }
             };
         }
+
+        // if no move will make an improvement, use section scores instead
+        // (favoring sections with bad scores and thus more potential to improve)
+        if pool_size == 0 {
+            for (i, section) in self.sections.iter_mut().enumerate() {
+                if section.is_secondary_cross_listing {
+                    assert!(section.tickets == 0);
+                    continue;
+                }
+
+                // give everyone at least one ticket, sections with
+                // bad scores get more
+                section.tickets = std::cmp::max(1, section.score.local + 1);
+                if section.placement.is_none() {
+                    if self.unplaced_current > self.unplaced_best {
+                        // favor unplaced sections, but only when we have seen more placements
+                        // in the past (so we don't obsess over cycles of mutually-unplacable
+                        // sections)
+                        section.tickets = std::cmp::max(
+                            section.tickets,
+                            MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION,
+                        );
+                    }
+                } else if input.sections[i].room_times.len() == 1 {
+                    // if it is already placed and there is only one placement possible,
+                    // then placing it again would be a no-op
+                    section.tickets = 0;
+                }
+                pool_size += section.tickets;
+            }
+        }
         assert!(pool_size > 0);
 
         // pick a winner
-        let mut winner = rng.gen_range(0..pool_size);
+        let mut winner = rand::thread_rng().gen_range(0..pool_size);
 
         // find the winner
         for (i, elt) in self.sections.iter().enumerate() {
@@ -768,11 +814,7 @@ impl Solver {
         panic!("cannot get here");
     }
 
-    pub fn select_room_time_to_place_slow(
-        &self,
-        _input: &Input,
-        section: usize,
-    ) -> RoomTimeWithPenalty {
+    pub fn select_room_time_to_place(&self, _input: &Input, section: usize) -> RoomTimeWithPenalty {
         assert!(!self.sections[section].is_secondary_cross_listing);
 
         let room_times = &self.sections[section].room_times;
@@ -796,58 +838,77 @@ impl Solver {
             return room_times[other].clone();
         }
 
-        let mut rng = rand::thread_rng();
         let mut pool_size = 0;
         for elt in &self.sections[section].speculative_deltas {
             pool_size += match elt {
-                Some(delta) => std::cmp::max(1, -delta + 1),
+                Some(delta) => std::cmp::max(0, -delta),
                 None => 0,
             };
         }
-        assert!(pool_size > 0);
+        if pool_size > 0 {
+            // pick a winner
+            let mut winner = rand::thread_rng().gen_range(0..pool_size);
 
-        // pick a winner
-        let mut winner = rng.gen_range(0..pool_size);
-
-        // find the winner
-        for (i, elt) in self.sections[section].speculative_deltas.iter().enumerate() {
-            if let Some(delta) = elt {
-                let tickets = std::cmp::max(1, -delta + 1);
-                if winner < tickets {
-                    return self.sections[section].room_times[i].clone();
+            // find the winner
+            for (i, elt) in self.sections[section].speculative_deltas.iter().enumerate() {
+                if let Some(delta) = elt {
+                    let tickets = std::cmp::max(0, -delta);
+                    if winner < tickets {
+                        return self.sections[section].room_times[i].clone();
+                    }
+                    winner -= tickets;
                 }
-                winner -= tickets;
+            }
+        } else {
+            // no improvements possible so go with random
+            let (room, time_slot) = match self.sections[section].placement {
+                Some(RoomTimeWithPenalty {
+                    room, time_slot, ..
+                }) => (room, time_slot),
+                None => (usize::MAX, usize::MAX),
+            };
+
+            let mut rng = rand::thread_rng();
+            let room_times = &self.sections[section].room_times;
+            loop {
+                let winner = rng.gen_range(0..room_times.len());
+
+                // don't place it back where it already is
+                if room_times[winner].room == room && room_times[winner].time_slot == time_slot {
+                    continue;
+                }
+                return room_times[winner].clone();
             }
         }
+
         panic!("cannot get here");
     }
 
-    pub fn select_section_to_place_fast(&mut self, input: &Input) -> usize {
-        let mut rng = rand::thread_rng();
-
+    pub fn select_section_to_place_neighborhood(&mut self, _input: &Input) -> usize {
         let mut pool_size = 0;
-        for (i, section) in self.sections.iter_mut().enumerate() {
+        for i in 0..self.sections.len() {
+            let section = &self.sections[i];
             if section.is_secondary_cross_listing {
-                section.tickets = 0;
                 continue;
             }
-            section.tickets = std::cmp::max(1, section.score.local + 1);
-            if section.placement.is_none() {
-                if self.unplaced_current > self.unplaced_best {
-                    section.tickets =
-                        std::cmp::max(section.tickets, MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION);
-                }
-            } else if input.sections[i].room_times.len() == 1 {
+            if section.placement.is_some() && section.room_times.len() == 1 {
                 // if it is already placed and there is only one placement possible,
                 // then placing it again would be a no-op
-                section.tickets = 0;
+                self.sections[i].tickets = 0;
+                continue;
             }
-            pool_size += section.tickets;
+
+            let mut score = 1 + section.score.local;
+            for &elt in &section.neighbors {
+                score += self.sections[elt].score.local;
+            }
+            self.sections[i].tickets = score;
+            pool_size += score;
         }
         assert!(pool_size > 0);
 
         // pick a winner
-        let mut winner = rng.gen_range(0..pool_size);
+        let mut winner = rand::thread_rng().gen_range(0..pool_size);
 
         // find the winner
         for (i, elt) in self.sections.iter().enumerate() {
@@ -857,48 +918,6 @@ impl Solver {
             winner -= elt.tickets;
         }
         panic!("cannot get here");
-    }
-
-    pub fn select_room_time_to_place_fast(
-        &mut self,
-        input: &Input,
-        section: usize,
-    ) -> RoomTimeWithPenalty {
-        assert!(!self.sections[section].is_secondary_cross_listing);
-
-        let is_placed = self.is_placed(section);
-        let choices = self.sections[section].room_times.len();
-        if !is_placed && choices > 1 || is_placed && choices > 2 {
-            self.compute_speculative_deltas_section(input, section, self.score);
-        }
-        self.select_room_time_to_place_slow(input, section)
-    }
-
-    pub fn select_room_time_to_place_random(
-        &mut self,
-        _input: &Input,
-        section: usize,
-    ) -> RoomTimeWithPenalty {
-        assert!(!self.sections[section].is_secondary_cross_listing);
-
-        let (room, time_slot) = match self.sections[section].placement {
-            Some(RoomTimeWithPenalty {
-                room, time_slot, ..
-            }) => (room, time_slot),
-            None => (usize::MAX, usize::MAX),
-        };
-
-        let mut rng = rand::thread_rng();
-        let room_times = &self.sections[section].room_times;
-        loop {
-            let winner = rng.gen_range(0..room_times.len());
-
-            // don't place it back where it already is
-            if room_times[winner].room == room && room_times[winner].time_slot == time_slot {
-                continue;
-            }
-            return room_times[winner].clone();
-        }
     }
 
     // compute all scores for a section in its curent placement
@@ -1088,8 +1107,8 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
     println!("initial score = {}", solver.score);
 
     for iteration in 0..iterations {
-        let section = solver.select_section_to_place_slow(input);
-        let room_time = solver.select_room_time_to_place_slow(input, section);
+        let section = solver.select_section_to_place(input);
+        let room_time = solver.select_room_time_to_place(input, section);
         let undo = PlacementLog::move_section(&mut solver, input, section, room_time);
         solver.unplaced_best = std::cmp::min(solver.unplaced_best, solver.unplaced_current);
         for elt in &undo.entries {
