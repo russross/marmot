@@ -331,7 +331,7 @@ impl Input {
 
         for (t, badness) in rooms_and_times {
             let tag = t.to_string();
-            if !(0..=99).contains(&badness) {
+            if !(-1..=99).contains(&badness) {
                 return Err(format!(
                     "section {} cannot have a room/time penalty of {}",
                     section_raw, badness
@@ -347,7 +347,7 @@ impl Input {
                 .filter(|(_, r)| r.name == tag || r.tags.contains(&tag))
             {
                 found = true;
-                add_room_with_penalty_keep_worst(
+                add_room_with_penalty_keep_last(
                     &mut rwp,
                     RoomWithPenalty {
                         room: room_i,
@@ -364,7 +364,7 @@ impl Input {
                 .filter(|(_, t)| t.name == tag || t.tags.contains(&tag))
             {
                 found = true;
-                add_time_with_penalty_keep_worst(
+                add_time_with_penalty_keep_last(
                     &mut twp,
                     TimeWithPenalty {
                         time_slot: time_i,
@@ -388,26 +388,8 @@ impl Input {
             ));
         }
 
-        // calculate badness for each room/time
-        let mut room_times = Vec::new();
-        for time_slot in &twp {
-            // every room/time combination available for this section is
-            // recorded in the list
-            for room in &rwp {
-                room_times.push(RoomTimeWithPenalty {
-                    room: room.room,
-                    time_slot: time_slot.time_slot,
-                    penalty: std::cmp::min(99, room.penalty + time_slot.penalty),
-                });
-            }
-        }
-        if room_times.is_empty() {
-            return Err(format!(
-                "no valid room/time combinations found for {}",
-                section_raw
-            ));
-        }
-        room_times.sort_by_key(|elt| (elt.room, elt.time_slot, elt.penalty));
+        rwp.sort_by_key(|elt| elt.room);
+        twp.sort_by_key(|elt| elt.time_slot);
         if self
             .sections
             .iter()
@@ -425,7 +407,8 @@ impl Input {
             course,
             section,
             instructors,
-            room_times,
+            rooms: rwp,
+            time_slots: twp,
             hard_conflicts: Vec::new(),
             soft_conflicts: Vec::new(),
             cross_listings: Vec::new(),
@@ -664,6 +647,28 @@ pub fn add_time_with_penalty_keep_worst(list: &mut Vec<TimeWithPenalty>, twp: Ti
     }
 }
 
+pub fn add_room_with_penalty_keep_last(list: &mut Vec<RoomWithPenalty>, rwp: RoomWithPenalty) {
+    if rwp.penalty < 0 {
+        list.retain(|elt| elt.room != rwp.room);
+    } else {
+        match list.iter().position(|elt| elt.room == rwp.room) {
+            Some(i) => list[i].penalty = rwp.penalty,
+            None => list.push(rwp),
+        }
+    }
+}
+
+pub fn add_time_with_penalty_keep_last(list: &mut Vec<TimeWithPenalty>, twp: TimeWithPenalty) {
+    if twp.penalty < 0 {
+        list.retain(|elt| elt.time_slot != twp.time_slot);
+    } else {
+        match list.iter().position(|elt| elt.time_slot == twp.time_slot) {
+            Some(i) => list[i].penalty = twp.penalty,
+            None => list.push(twp),
+        }
+    }
+}
+
 pub fn date(year: i32, month: u8, day: u8) -> Result<time::Date, String> {
     let Ok(m) = time::Month::try_from(month) else {
         return Err(format!("date input with invalid month {}", month));
@@ -809,8 +814,9 @@ pub struct Section {
     // includes only the instructors explicity assigned to this section (not cross-listings)
     pub instructors: Vec<usize>,
 
-    // a list of room+times as directly input for this section with the worst penalty found
-    pub room_times: Vec<RoomTimeWithPenalty>,
+    // rooms and times as input
+    pub rooms: Vec<RoomWithPenalty>,
+    pub time_slots: Vec<TimeWithPenalty>,
 
     // hard conflicts that named this section directly, not including cross-listings
     pub hard_conflicts: Vec<usize>,

@@ -376,45 +376,71 @@ impl Solver {
             // compute the combined room/time pairs and penalties
             // considering cross-listings and instructor availability
             let mut room_times = Vec::new();
-            'slot: for &RoomTimeWithPenalty {
-                room,
+            let section = &input.sections[i];
+            'time_slot: for &TimeWithPenalty {
                 time_slot,
-                mut penalty,
-            } in &input.sections[i].room_times
+                penalty: mut time_slot_penalty,
+            } in &section.time_slots
             {
                 // make sure this time slot is acceptable to all cross-listings
                 // and find the max penalty
-                for &cross_listing in &input.sections[i].cross_listings {
+                for &cross_listing in &section.cross_listings {
                     match input.sections[cross_listing]
-                        .room_times
+                        .time_slots
                         .iter()
                         .find_map(|elt| {
-                            if elt.room == room && elt.time_slot == time_slot {
+                            if elt.time_slot == time_slot {
                                 Some(elt.penalty)
                             } else {
                                 None
                             }
                         }) {
-                        Some(pen) => penalty = std::cmp::max(pen, penalty),
-                        None => continue 'slot,
+                        Some(pen) => time_slot_penalty = std::cmp::max(pen, time_slot_penalty),
+                        None => continue 'time_slot,
                     };
                 }
 
                 // every instructor must be available during the entire time slot
+                let mut instructor_penalty = 0;
                 for &instructor in &instructors {
                     match input.instructors[instructor]
                         .get_time_slot_penalty(&input.time_slots[time_slot])
                     {
-                        Some(pen) => penalty += pen,
-                        None => continue 'slot,
+                        Some(pen) => instructor_penalty = std::cmp::max(pen, instructor_penalty),
+                        None => continue 'time_slot,
                     }
                 }
 
-                room_times.push(RoomTimeWithPenalty {
+                // cross this with every room
+                'room: for &RoomWithPenalty {
                     room,
-                    time_slot,
-                    penalty,
-                });
+                    penalty: mut room_penalty,
+                } in &section.rooms
+                {
+                    // make sure this room is acceptable to all cross-listings
+                    // and fine the max penalty
+                    for &cross_listing in &section.cross_listings {
+                        match input.sections[cross_listing].rooms.iter().find_map(|elt| {
+                            if elt.room == room {
+                                Some(elt.penalty)
+                            } else {
+                                None
+                            }
+                        }) {
+                            Some(pen) => room_penalty = std::cmp::max(pen, room_penalty),
+                            None => continue 'room,
+                        };
+                    }
+
+                    room_times.push(RoomTimeWithPenalty {
+                        room,
+                        time_slot,
+                        penalty: std::cmp::min(
+                            99,
+                            time_slot_penalty + room_penalty + instructor_penalty,
+                        ),
+                    });
+                }
             }
 
             // the cross-listings and instructors have to agree on at least one room and time
@@ -430,6 +456,8 @@ impl Solver {
             unplaced_current += 1;
             total_score += score.global;
 
+            let deltas = vec![None; room_times.len()];
+
             sections.push(SolverSection {
                 placement: None,
                 tickets: 0,
@@ -439,7 +467,7 @@ impl Solver {
                 hard_conflicts,
                 neighbors: Vec::new(),
                 score_criteria,
-                speculative_deltas: vec![None; input.sections[i].room_times.len()],
+                speculative_deltas: deltas,
                 speculative_delta_min: None,
                 is_secondary_cross_listing: false,
             });
@@ -782,7 +810,7 @@ impl Solver {
         // if no move will make an improvement, use section scores instead
         // (favoring sections with bad scores and thus more potential to improve)
         if pool_size == 0 {
-            for (i, section) in self.sections.iter_mut().enumerate() {
+            for section in &mut self.sections.iter_mut() {
                 if section.is_secondary_cross_listing {
                     assert!(section.tickets == 0);
                     continue;
@@ -801,7 +829,7 @@ impl Solver {
                             MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION,
                         );
                     }
-                } else if input.sections[i].room_times.len() == 1 {
+                } else if section.room_times.len() == 1 {
                     // if it is already placed and there is only one placement possible,
                     // then placing it again would be a no-op
                     section.tickets = 0;

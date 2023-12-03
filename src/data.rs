@@ -336,7 +336,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
                 rooms and times: "Smith 116", "R1900+50");
     section!(t, course: "CS 4992R-01",
                 instructor: "Ren Quinn",
-                rooms and times: "flex", "F1300+50");
+                rooms and times: "Smith 109", "F1300+50");
 
     section!(t, course: "CS 2810-01",
                 instructor: "Russ Ross",
