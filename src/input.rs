@@ -230,33 +230,61 @@ impl Input {
     pub fn make_instructor(
         &mut self,
         name: &str,
-        available_times: Vec<(String, isize)>,
+        available_times_raw: Vec<(&str, isize)>,
     ) -> Result<(), String> {
-        let mut times: Vec<TimeWithPenalty> = Vec::new();
-        for (time_name, penalty) in available_times {
-            let Ok(time_slot) = self.find_time_slot_by_name(&time_name) else {
-                return Err(format!("unknown time slot name {}", time_name));
-            };
-            if times.iter().any(|t| t.time_slot == time_slot) {
-                return Err(format!(
-                    "time slot {} appears twice for instructor {}",
-                    time_name, name
-                ));
-            }
-            if !(0..=99).contains(&penalty) {
-                return Err(format!(
-                    "penalty for instructor {} time slots must be between 0 and 99",
-                    name
-                ));
-            }
-            times.push(TimeWithPenalty { time_slot, penalty });
-        }
         if self.find_instructor_by_name(name).is_ok() {
             return Err(format!("duplicate instructor name: {}", name));
         }
+
+        let mut available_times = Vec::new();
+        for _ in 0..7 {
+            available_times.push(vec![-1isize; 24*12]);
+        }
+
+        // example: MTWRF 0900-1700
+        let re = regex::Regex::new(
+            r"^([mtwrfsuMTWRFSU]+) *([0-1][0-9]|2[0-3])([0-5][05])-([0-1][0-9]|2[0-4])([0-5][05])$",
+        )
+        .unwrap();
+
+        for (time_name, penalty) in available_times_raw {
+            if penalty < 0 || penalty > 99 {
+                return Err(format!("instructor {} cannot have an available time penalty of {}", name, penalty));
+            }
+
+            let Some(caps) = re.captures(time_name) else {
+                return Err(format!(
+                    "unrecognized time format '{}' should be like 'MTWRF 0900-1700' for instructor {}", time_name, name));
+            };
+
+            let days = parse_days(&caps[1])?;
+            let start_hour = caps[2].parse::<usize>().unwrap();
+            let start_minute = caps[3].parse::<usize>().unwrap();
+            let end_hour = caps[4].parse::<usize>().unwrap();
+            let end_minute = caps[5].parse::<usize>().unwrap();
+
+            if end_hour == 24 && end_minute != 0 {
+                return Err(format!(
+                    "available time for instructor {} cannot end after midnight", name));
+            }
+
+            let start_index = start_hour * 12 + start_minute/5;
+            let end_index = end_hour * 12 + end_minute/5;
+            if end_index <= start_index {
+                return Err(format!(
+                    "available time for instructor {} cannot end before it begins", name));
+            }
+            for &day_of_week in &days {
+                let day = &mut available_times[day_of_week.number_days_from_sunday() as usize];
+                for i in start_index..end_index {
+                    day[i] = std::cmp::max(day[i], penalty);
+                }
+            }
+        }
+
         self.instructors.push(Instructor {
             name: name.into(),
-            available_times: times,
+            available_times,
             sections: Vec::new(),
             distribution: Vec::new(),
         });
@@ -274,11 +302,11 @@ impl Input {
         &mut self,
         section_raw: &str,
         instructor_names: Vec<&str>,
-        rooms_and_times: Vec<(String, isize)>,
+        rooms_and_times: Vec<(&str, isize)>,
     ) -> Result<(), String> {
-        let (course, Some(section)) = parse_section_name(section_raw)? else {
+        let (prefix, course, Some(section)) = parse_section_name(section_raw)? else {
             return Err(format!(
-                "section name {section_raw} must include section, like 'CS 1400-01'"
+                "section name {section_raw} must include prefix, course, and section, like 'CS 1400-01'"
             ));
         };
 
@@ -294,7 +322,11 @@ impl Input {
         let mut rwp = Vec::new();
         let mut twp = Vec::new();
 
-        for (tag, badness) in rooms_and_times {
+        for (t, badness) in rooms_and_times {
+            let tag = t.to_string();
+            if badness < 0 || badness > 99 {
+                return Err(format!("section {} cannot have a room/time penalty of {}", section_raw, badness));
+            }
             let mut found = false;
 
             // check for matching rooms
@@ -340,58 +372,30 @@ impl Input {
             return Err(format!("no rooms found for {}", section_raw));
         }
         if twp.is_empty() {
-            if self.instructors.is_empty() {
-                return Err(format!("section {} does not specify any time slots and has no instructors to inherit them from", section_raw));
-            }
-
-            // just copy the availability of the first instructor and that will be
-            // intersected with other instructors below
-            twp.extend(
-                self.instructors[instructors[0]]
-                    .available_times
-                    .iter()
-                    .cloned(),
-            );
+            return Err(format!("section {} does not specify any time slots", section_raw));
         }
 
-        // calculate badness for each room/time and filter by
-        // instructor availability (including badness)
+        // calculate badness for each room/time
         let mut room_times = Vec::new();
-        'rt: for time_slot in &twp {
-            let mut time_penalty = time_slot.penalty;
-
-            // if there is no instructor, the time list will not be filtered by instructor
-            // so the section list will be kept as-is
-            for &instructor_i in &instructors {
-                match self.instructors[instructor_i]
-                    .available_times
-                    .iter()
-                    .find(|itwp| itwp.time_slot == time_slot.time_slot)
-                {
-                    Some(itwp) => time_penalty = std::cmp::max(time_penalty, itwp.penalty),
-                    None => continue 'rt,
-                }
-            }
-
+        for time_slot in &twp {
             // every room/time combination available for this section is
             // recorded in the list
             for room in &rwp {
                 room_times.push(RoomTimeWithPenalty {
                     room: room.room,
                     time_slot: time_slot.time_slot,
-                    penalty: std::cmp::min(99, room.penalty + time_penalty),
+                    penalty: std::cmp::min(99, room.penalty + time_slot.penalty),
                 });
             }
         }
         if room_times.is_empty() {
-            return Err(format!("no valid room/time combinations found for {} after considering instructor availability",
-                section_raw));
+            return Err(format!("no valid room/time combinations found for {}", section_raw));
         }
         room_times.sort_by_key(|elt| (elt.room, elt.time_slot, elt.penalty));
         if self
             .sections
             .iter()
-            .any(|s| s.course == course && s.section == section)
+            .any(|s| s.prefix == prefix && s.course == course && s.section == section)
         {
             return Err(format!("section {} appears more than once", section_raw));
         }
@@ -401,6 +405,7 @@ impl Input {
                 .push(self.sections.len());
         }
         self.sections.push(Section {
+            prefix,
             course,
             section,
             instructors,
@@ -521,10 +526,10 @@ impl Input {
     }
 
     pub fn find_sections_by_name(&self, course_raw: &str) -> Result<Vec<usize>, String> {
-        let (course, section) = parse_section_name(course_raw)?;
+        let (prefix, course, section) = parse_section_name(course_raw)?;
         let mut list = Vec::new();
         self.sections.iter().enumerate().for_each(|(i, s)| {
-            if s.course == *course {
+            if s.prefix == *prefix && s.course == *course {
                 match &section {
                     None => list.push(i),
                     Some(name) if *name == s.section => list.push(i),
@@ -606,18 +611,19 @@ pub fn parse_days(weekday_raw: &str) -> Result<Vec<time::Weekday>, String> {
     Ok(days)
 }
 
-pub fn parse_section_name(name: &str) -> Result<(String, Option<String>), String> {
+pub fn parse_section_name(name: &str) -> Result<(String, String, Option<String>), String> {
     // example CS 1400-01
-    let re = regex::Regex::new(r"^([^ ]+ [^- ]+)(?:-([^ ]+))?$").unwrap();
+    let re = regex::Regex::new(r"^([^ ]+) ([^- ]+)(?:-([^ ]+))?$").unwrap();
     let Some(caps) = re.captures(name) else {
         return Err(format!(
             "unrecognized section name format: '{}' should be like 'CS 1400-01' or 'CS 1400'",
             name
         ));
     };
-    let course_part = caps.get(1).unwrap().as_str().to_string();
-    let section_part = caps.get(2).map(|s| s.as_str().to_string());
-    Ok((course_part, section_part))
+    let prefix_part = caps.get(1).unwrap().as_str().to_string().to_uppercase();
+    let course_part = caps.get(2).unwrap().as_str().to_string().to_uppercase();
+    let section_part = caps.get(3).map(|s| s.as_str().to_string().to_uppercase());
+    Ok((prefix_part, course_part, section_part))
 }
 
 pub fn date_range_slots(start: time::Date, end: time::Date) -> usize {
@@ -706,9 +712,35 @@ pub struct SectionWithPenalty {
 
 pub struct Instructor {
     pub name: String,
-    pub available_times: Vec<TimeWithPenalty>,
+
+    // one entry per day of the week (time::Weekday::number_days_from_sunday())
+    // each day has a list of penalty values for each 5-minute slot,
+    // with -1 meaning impossible
+    pub available_times: Vec<Vec<isize>>,
     pub sections: Vec<usize>,
     pub distribution: Vec<DistributionPreference>,
+}
+
+impl Instructor {
+    pub fn get_time_slot_penalty(&self, time_slot: &TimeSlot) -> Option<isize> {
+        let start_hour = time_slot.start_time.hour() as usize;
+        let start_minute = time_slot.start_time.minute() as usize;
+        let minutes = time_slot.duration.whole_minutes() as usize;
+
+        let mut penalty = 0;
+        for &day_of_week in &time_slot.days {
+            let day = &self.available_times[day_of_week.number_days_from_sunday() as usize];
+            let start_index = start_hour*12 + start_minute/5;
+            let end_index = start_index + minutes/5;
+            for i in start_index..end_index {
+                if day[i] < 0 {
+                    return None;
+                }
+                penalty = std::cmp::max(penalty, day[i]);
+            }
+        }
+        Some(penalty)
+    }
 }
 
 #[derive(Clone)]
@@ -751,7 +783,9 @@ pub enum DurationWithPenalty {
 }
 
 pub struct Section {
-    // course name, e.g.: "CS 2810"
+    // prefix, e.g.: "CS"
+    pub prefix: String,
+    // course name, e.g.: "2810"
     pub course: String,
     // section name, e.g.: "01"
     pub section: String,
@@ -759,8 +793,7 @@ pub struct Section {
     // includes only the instructors explicity assigned to this section (not cross-listings)
     pub instructors: Vec<usize>,
 
-    // a combined list of room+times that are acceptable to all instructors and cross-listings
-    // with the worst penalty found
+    // a list of room+times as directly input for this section with the worst penalty found
     pub room_times: Vec<RoomTimeWithPenalty>,
 
     // hard conflicts that named this section directly, not including cross-listings
@@ -817,7 +850,7 @@ impl Section {
     }
 
     pub fn get_name(&self) -> String {
-        format!("{}-{}", self.course, self.section)
+        format!("{}-{}-{}", self.prefix, self.course, self.section)
     }
 }
 
@@ -851,10 +884,10 @@ macro_rules! time {
 
 macro_rules! name_with_optional_penalty {
     ($name:literal with penalty $pen:literal) => {
-        ($name.to_string(), $pen)
+        ($name, $pen)
     };
     ($name:literal) => {
-        ($name.to_string(), 0)
+        ($name, 0)
     };
 }
 

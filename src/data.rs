@@ -19,24 +19,25 @@ pub fn input() -> Result<Input, String> {
     room!(t, name: "Smith 116", capacity: 38, tags: "stadium");
     room!(t, name: "Smith 117", capacity: 38, tags: "stadium");
 
-    time!(t, name: "MWF0800+50", tags: "mwf");
-    time!(t, name: "MWF0900+50", tags: "mwf", "morning");
-    time!(t, name: "MWF1000+50", tags: "mwf", "morning");
-    time!(t, name: "MWF1100+50", tags: "mwf", "morning");
-    time!(t, name: "MW1200+75", tags: "mw", "afternoon");
-    time!(t, name: "MW1330+75", tags: "mw", "afternoon");
-    time!(t, name: "MW1500+75", tags: "mw", "afternoon");
-    time!(t, name: "MW1630+75", tags: "mw");
-    time!(t, name: "TR0900+75", tags: "tr", "morning");
-    time!(t, name: "TR1030+75", tags: "tr", "morning");
-    time!(t, name: "TR1200+75", tags: "tr", "afternoon");
-    time!(t, name: "TR1330+75", tags: "tr", "afternoon");
-    time!(t, name: "TR1500+75", tags: "tr", "afternoon");
-    time!(t, name: "TR1630+75", tags: "tr");
-    time!(t, name: "T1800+150", tags: "evening");
-    time!(t, name: "W1800+150", tags: "evening");
-    time!(t, name: "R1800+150", tags: "evening");
+    time!(t, name: "MWF0800+50", tags: "3 credit bell schedule", "3×50", "mwf");
+    time!(t, name: "MWF0900+50", tags: "3 credit bell schedule", "3×50", "mwf", "morning");
+    time!(t, name: "MWF1000+50", tags: "3 credit bell schedule", "3×50", "mwf", "morning");
+    time!(t, name: "MWF1100+50", tags: "3 credit bell schedule", "3×50", "mwf", "morning");
+    time!(t, name: "MW1200+75", tags: "3 credit bell schedule", "2×75", "mw", "afternoon");
+    time!(t, name: "MW1330+75", tags: "3 credit bell schedule", "2×75", "mw", "afternoon");
+    time!(t, name: "MW1500+75", tags: "3 credit bell schedule", "2×75", "mw", "afternoon");
+    time!(t, name: "MW1630+75", tags: "3 credit bell schedule", "2×75", "mw");
+    time!(t, name: "TR0900+75", tags: "3 credit bell schedule", "2×75", "tr", "morning");
+    time!(t, name: "TR1030+75", tags: "3 credit bell schedule", "2×75", "tr", "morning");
+    time!(t, name: "TR1200+75", tags: "3 credit bell schedule", "2×75", "tr", "afternoon");
+    time!(t, name: "TR1330+75", tags: "3 credit bell schedule", "2×75", "tr", "afternoon");
+    time!(t, name: "TR1500+75", tags: "3 credit bell schedule", "2×75", "tr", "afternoon");
+    time!(t, name: "TR1630+75", tags: "3 credit bell schedule", "2×75", "tr");
+    time!(t, name: "T1800+150", tags: "3 credit bell schedule", "1×150", "evening");
+    time!(t, name: "W1800+150", tags: "3 credit bell schedule", "1×150", "evening");
+    time!(t, name: "R1800+150", tags: "3 credit bell schedule", "1×150", "evening");
     time!(t, name: "R1900+50");
+    time!(t, name: "F1300+50");
 
     input_computing(&mut t)?;
     //input_set(&mut t)?;
@@ -49,15 +50,12 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
         name:
             "Bart Stander",
         available:
-            "MWF0900+50",
-            "MWF1000+50",
-            "MWF1100+50",
-            "MW1200+75" with penalty 10,
-            "MW1330+75",
-            "MW1500+75",
-            "TR1030+75",
-            "TR1330+75",
-            "TR1500+75" with penalty 10,
+            "MWF 0900-1200",
+            "MW  1200-1330" with penalty 10,
+            "MW  1330-1630",
+            "TR  1030-1200",
+            "TR  1330-1500",
+            "TR  1500-1630" with penalty 10,
     );
     default_clustering!(t, instructor: "Bart Stander", days: "mt", days off: 1);
 
@@ -65,11 +63,10 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
         name:
             "Carol Stander",
         available:
-            "MWF1000+50",
-            "MWF1100+50",
-            "MW1200+75" with penalty 10,
-            "MW1330+75",
-            "TR1330+75" with penalty 5,
+            "MWF 1000-1200",
+            "MW  1200-1330" with penalty 10,
+            "MW  1330-1500",
+            "TR  1330-1500" with penalty 5,
     );
     default_clustering!(t, instructor: "Carol Stander", days: "mt");
 
@@ -77,17 +74,13 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
         name:
             "Curtis Larsen",
         available:
-            "MWF0900+50",
-            "MWF1000+50",
-            "MWF1100+50" with penalty 10,
-            "MW1200+75" with penalty 10,
-            "MW1330+75",
-            "MW1500+75",
-            "TR0900+75",
-            "TR1030+75" with penalty 10,
-            "TR1200+75" with penalty 10,
-            "TR1330+75",
-            "TR1500+75",
+            "MWF 0900-1100",
+            "MWF 1100-1200" with penalty 10,
+            "MW  1200-1330" with penalty 10,
+            "MW  1330-1630",
+            "TR  0900-1030",
+            "TR  1030-1330" with penalty 10,
+            "TR  1330-1630",
     );
     default_clustering!(t, instructor: "Curtis Larsen", days: "mt", days off: 0);
 
@@ -95,14 +88,10 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
         name:
             "DJ Holt",
         available:
-            "MW1200+75",
-            "MW1330+75",
-            "MW1500+75" with penalty 10,
-            "TR0900+75",
-            "TR1030+75",
-            "TR1200+75",
-            "TR1330+75",
-            "TR1500+75" with penalty 10,
+            "MW 1200-1500",
+            "MW 1500-1630" with penalty 10,
+            "TR 0900-1500",
+            "TR 1500-1630" with penalty 10,
     );
     default_clustering!(t, instructor: "DJ Holt", days: "mt", days off: 0);
 
@@ -110,25 +99,18 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
         name:
             "Eric Pedersen",
         available:
-            "TR1200+75",
+            "TR  1200-1330",
     );
 
     instructor!(t,
         name:
             "Jay Sneddon",
         available:
-            "MWF0800+50" with penalty 15,
-            "MWF0900+50" with penalty 10,
-            "MWF1000+50" with penalty 10,
-            "MWF1100+50" with penalty 10,
-            "MW1200+75",
-            "MW1330+75",
-            "MW1500+75",
-            "TR0900+75",
-            "TR1030+75",
-            "TR1200+75",
-            "TR1330+75",
-            "TR1500+75" with penalty 5,
+            "MWF 0800-0900" with penalty 15,
+            "MWF 0900-1200" with penalty 10,
+            "MW  1200-1630",
+            "TR  0900-1500",
+            "TR  1500-1630" with penalty 5,
     );
     default_clustering!(t, instructor: "Jay Sneddon", days: "mt", days off: 0);
 
@@ -136,20 +118,18 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
         name:
             "Jeff Compas",
         available:
-            "MWF0800+50",
-            "MW1630+75",
-            "TR1630+75",
-            "T1800+150",
+            "MWF 0800-0900",
+            "MW  1630-1800",
+            "TR  1630-1800",
+            "T   1800-2030",
     );
 
     instructor!(t,
         name:
             "Joe Francom",
         available:
-            "MWF0900+50",
-            "MWF1000+50",
-            "MWF1100+50",
-            "MW1330+75",
+            "MWF 0900-1200",
+            "MW  1330-1500",
     );
     default_clustering!(t, instructor: "Joe Francom", days: "mt", days off: 1);
 
@@ -157,11 +137,8 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
         name:
             "Lora Klein",
         available:
-            "TR0900+75",
-            "TR1030+75",
-            "TR1200+75",
-            "TR1330+75",
-            "MW1500+75" with penalty 15,
+            "TR 0900-1500",
+            "MW 1500-1630" with penalty 15,
     );
     default_clustering!(t, instructor: "Lora Klein", days: "mt");
 
@@ -169,10 +146,8 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
         name:
             "Matt Kearl",
         available:
-            "MW1200+75",
-            "TR0900+75",
-            "TR1030+75",
-            "TR1200+75",
+            "MW 1200-1330",
+            "TR 0900-1330",
     );
     default_clustering!(t, instructor: "Matt Kearl", days: "mt", days off: 1);
 
@@ -180,17 +155,11 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
         name:
             "Phil Daley",
         available:
-            "MWF0900+50",
-            "MWF1000+50",
-            "MWF1100+50",
-            "MW1200+75",
-            "MW1330+75",
-            "MW1500+75" with penalty 10,
-            "TR0900+75",
-            "TR1030+75",
-            "TR1200+75",
-            "TR1330+75",
-            "TR1500+75" with penalty 10,
+            "MWF 0900-1200",
+            "MW  1200-1500",
+            "MW  1500-1630" with penalty 10,
+            "TR  0900-1500",
+            "TR  1500-1630" with penalty 10,
     );
     default_clustering!(t, instructor: "Phil Daley", days: "mt", days off: 0);
 
@@ -198,13 +167,11 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
        name:
            "Ren Quinn",
        available:
-           "MWF0900+50",
-           "MWF1000+50",
-           "MWF1100+50",
-           "TR1200+75" with penalty 5,
-           "TR1330+75",
-           "TR1500+75",
-           "R1900+50",
+           "MWF 0900-1200",
+           "TR  1200-1330" with penalty 5,
+           "TR  1330-1630",
+           "R   1900-2000",
+           "F   1300-1400",
     );
     default_clustering!(t, instructor: "Ren Quinn", days: "mt", days off: 0);
 
@@ -212,12 +179,8 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
         name:
             "Russ Ross",
         available:
-            "MW1200+75",
-            "MW1330+75",
-            "MW1500+75" with penalty 10,
-            "TR1200+75",
-            "TR1330+75",
-            "TR1500+75" with penalty 10,
+            "MTWR 1200-1500",
+            "MTWR 1500-1630" with penalty 10,
     );
     default_clustering!(t, instructor: "Russ Ross", days: "mt", days off: 0);
 
@@ -225,53 +188,48 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
         name:
             "Rex Frisbey",
         available:
-            "MWF1100+50",
+            "MWF 1100-1200",
     );
 
     instructor!(t,
         name:
             "Jamie Bennion",
         available:
-            "W1800+150",
+            "W 1800-2030",
     );
 
     section!(t, course: "CS 2420-01",
                 instructor: "Bart Stander",
-                rooms and times: "stadium", "flex" with penalty 10, "mwf");
-
+                rooms and times: "stadium", "flex" with penalty 10, "3×50");
     section!(t, course: "CS 3310-01",
                 instructor: "Bart Stander",
-                rooms and times: "stadium", "pcs");
+                rooms and times: "stadium", "pcs", "3 credit bell schedule");
     section!(t, course: "CS 3600-01",
                 instructor: "Bart Stander",
-                rooms and times: "pcs", "stadium" with penalty 10);
+                rooms and times: "pcs", "stadium" with penalty 10, "3 credit bell schedule");
     section!(t, course: "CS 4550-01",
                 instructor: "Bart Stander",
-                rooms and times: "pcs");
+                rooms and times: "pcs", "3 credit bell schedule");
 
     section!(t, course: "CS 1030-01",
                 instructor: "Carol Stander",
-                rooms and times: "flex");
+                rooms and times: "flex", "3 credit bell schedule");
     section!(t, course: "CS 1410-02",
                 instructor: "Carol Stander",
-                rooms and times: "flex");
-    //course: CS1410 online
-    //course: IT1100 online
+                rooms and times: "flex", "3 credit bell schedule");
 
     section!(t, course: "CS 3005-01",
                 instructor: "Curtis Larsen",
-                rooms and times: "Smith 116", "mwf");
+                rooms and times: "Smith 116", "3×50");
     section!(t, course: "CS 3510-01",
                 instructor: "Curtis Larsen",
-                rooms and times: "flex" with penalty 1, "Smith 116", "mw", "mwf", "tr" with penalty 10);
+                rooms and times: "Smith 116", "flex" with penalty 1, "3 credit bell schedule", "tr" with penalty 10);
     section!(t, course: "CS 4320-01",
                 instructor: "Curtis Larsen",
-                rooms and times: "flex" with penalty 1, "Smith 116", "mw", "mwf" with penalty 10, "tr");
+                rooms and times: "Smith 116", "flex" with penalty 1, "3×50" with penalty 10, "2×75");
     section!(t, course: "CS 4600-01",
                 instructor: "Curtis Larsen",
-                rooms and times: "flex" with penalty 1, "Smith 116", "mw", "mwf", "tr" with penalty 10);
-    // all senior projects at same time
-    // course: CS 4920R not scheduled
+                rooms and times: "Smith 116", "flex" with penalty 1, "3 credit bell schedule", "tr" with penalty 10);
 
     section!(t, course: "SE 3010-01",
                 instructor: "DJ Holt",
@@ -279,27 +237,25 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
     section!(t, course: "SE 4200-01",
                 instructor: "DJ Holt",
                 rooms and times: "flex", "macs", "MW1330+75");
-    // with cross-listed CS4600-02 section; all senior projects at same time
     section!(t, course: "SE 4600-01",
                 instructor: "DJ Holt",
-                rooms and times: "flex");
+                rooms and times: "flex", "3 credit bell schedule");
     section!(t, course: "CS 4600-02",
                 instructor: "DJ Holt",
-                rooms and times: "flex");
+                rooms and times: "flex", "3 credit bell schedule");
     crosslist!(t, "SE 4600-01" cross-list with "CS 4600-02");
-    // schedule SE4600 same time as CS4600-01: Curtis and I will each have a section of CS4600, and my section will be cross-listed with SE4600
-    // note all CS cross-listings above
+    anticonflict!(t, set penalty to 50, single: "CS 4600-01", group: "CS 4600-02");
 
     section!(t, course: "SE 3500-01",
                 instructor: "Eric Pedersen",
-                rooms and times: "flex");
+                rooms and times: "flex", "TR1200+75");
 
     section!(t, course: "IT 1200-01",
                 instructor: "Jay Sneddon",
                 rooms and times: "Smith 107", "tr");
     section!(t, course: "IT 2300-01",
                 instructor: "Jay Sneddon",
-                rooms and times: "Smith 107");
+                rooms and times: "Smith 107", "3 credit bell schedule");
     section!(t, course: "IT 2700-01",
                 instructor: "Jay Sneddon",
                 rooms and times: "Smith 107", "tr");
@@ -308,109 +264,100 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
                 rooms and times: "Smith 107", "mw", "mwf" with penalty 5);
     section!(t, course: "IT 3400-01",
                 instructor: "Jay Sneddon",
-                rooms and times: "Smith 107");
+                rooms and times: "Smith 107", "3 credit bell schedule");
 
     section!(t, course: "CS 1400-03",
                 instructor: "Jeff Compas",
-                rooms and times: "stadium");
+                rooms and times: "stadium", "3 credit bell schedule");
     section!(t, course: "CS 1400-04",
                 instructor: "Jeff Compas",
-                rooms and times: "stadium");
+                rooms and times: "stadium", "3 credit bell schedule");
     section!(t, course: "CS 2450-02",
                 instructor: "Jeff Compas",
-                rooms and times: "flex");
+                rooms and times: "flex", "3 credit bell schedule");
     section!(t, course: "SE 3100-01",
                 instructor: "Jeff Compas",
-                rooms and times: "flex");
-    //he needs two morning courses and two evening courses
-    //3 credit release for first semester
+                rooms and times: "flex", "3 credit bell schedule");
 
     section!(t, course: "IT 3110-01",
                 instructor: "Joe Francom",
-                rooms and times: "flex");
+                rooms and times: "flex", "3 credit bell schedule");
     section!(t, course: "IT 4510-01",
-                instructor: "Joe Francom",
-                rooms and times: "flex");
-    //online section of IT1500 1 credit
-    //online section of IT4600 3 credits
+                instructor: "Joe Francom" and "Phil Daley",
+                rooms and times: "flex", "3 credit bell schedule");
 
     section!(t, course: "SE 3200-01",
                 instructor: "Lora Klein",
-                rooms and times: "Smith 107" with penalty 5, "flex");
+                rooms and times: "Smith 107" with penalty 5, "flex", "3 credit bell schedule");
     //course: CS1410 ACE MW 9:30-10:45am, INV 112
     //course: CS1410 ACE MW 12:00-1:15pm, INV 112
-    // workload release for program development
 
     section!(t, course: "SE 3450-01",
                 instructor: "Matt Kearl",
-                rooms and times: "flex", "macs");
+                rooms and times: "flex", "macs", "3 credit bell schedule");
     section!(t, course: "SE 3550-01",
                 instructor: "Matt Kearl",
-                rooms and times: "flex", "macs");
+                rooms and times: "flex", "macs", "3 credit bell schedule");
     section!(t, course: "SE 1400-01",
                 instructor: "Matt Kearl",
-                rooms and times: "macs");
-    //course: SE1400 online
-    //course: SE4920 not scheduled
+                rooms and times: "macs", "3 credit bell schedule");
 
     section!(t, course: "IT 1100-01",
                 instructor: "Phil Daley",
-                rooms and times: "pcs");
+                rooms and times: "pcs", "3 credit bell schedule");
     section!(t, course: "IT 1100-02",
                 instructor: "Phil Daley",
-                rooms and times: "pcs");
+                rooms and times: "pcs", "3 credit bell schedule");
     section!(t, course: "IT 2400-01",
                 instructor: "Phil Daley",
-                rooms and times: "Smith 107");
+                rooms and times: "Smith 107", "3 credit bell schedule");
     section!(t, course: "IT 3100-01",
                 instructor: "Phil Daley",
-                rooms and times: "Smith 107");
+                rooms and times: "Smith 107", "3 credit bell schedule");
     // avoid IT 4510 so Phil can shadow Joe
-    // 3 credits release for network admin
 
     section!(t, course: "CS 1400-01",
                 instructor: "Ren Quinn",
-                rooms and times: "flex");
+                rooms and times: "flex", "3 credit bell schedule");
     section!(t, course: "CS 1400-02",
                 instructor: "Ren Quinn",
-                rooms and times: "flex");
+                rooms and times: "flex", "3 credit bell schedule");
     section!(t, course: "CS 1410-01",
                 instructor: "Ren Quinn",
-                rooms and times: "flex");
+                rooms and times: "flex", "3 credit bell schedule");
     section!(t, course: "CS 2450-01",
                 instructor: "Ren Quinn",
-                rooms and times: "flex");
+                rooms and times: "flex", "3 credit bell schedule");
     section!(t, course: "CS 3150-01",
                 instructor: "Ren Quinn",
-                rooms and times: "flex");
+                rooms and times: "flex", "3 credit bell schedule");
     section!(t, course: "CS 4991-01",
                 instructor: "Ren Quinn",
                 rooms and times: "Smith 116", "R1900+50");
-    // overload acm
-    // course: CS4992 flex F1300 // overload seminar
-    // course: CS4800R not scheduled
-    // CS4991R is actually R1900-1950
+    section!(t, course: "CS 4992R-01",
+                instructor: "Ren Quinn",
+                rooms and times: "flex", "F1300+50");
 
     section!(t, course: "CS 2810-01",
                 instructor: "Russ Ross",
-                rooms and times: "Smith 109");
+                rooms and times: "Smith 109", "3 credit bell schedule");
     section!(t, course: "CS 2810-02",
                 instructor: "Russ Ross",
-                rooms and times: "Smith 109");
+                rooms and times: "Smith 109", "3 credit bell schedule");
     section!(t, course: "CS 3410-01",
                 instructor: "Russ Ross",
-                rooms and times: "Smith 109");
+                rooms and times: "Smith 109", "3 credit bell schedule");
     section!(t, course: "CS 4307-01",
                 instructor: "Russ Ross",
-                rooms and times: "Smith 109");
+                rooms and times: "Smith 109", "3 credit bell schedule");
 
     section!(t, course: "SE 1400-02",
                 instructor: "Rex Frisbey",
-                rooms and times: "macs");
+                rooms and times: "macs", "3 credit bell schedule");
 
     section!(t, course: "IT 4990-01",
                 instructor: "Jamie Bennion",
-                rooms and times: "flex");
+                rooms and times: "flex", "3 credit bell schedule");
 
     conflict!(t, set hard,
                 clique: "CS 2420", "CS 2450", "CS 2810", "CS 3005"); // 3rd/4th semester classes
@@ -520,7 +467,6 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
     // courses that must be scheduled at the same time
     anticonflict!(t, set penalty to 50, single: "CS 1030-01", group: "CS 1400");
     //anticonflict!(t, set penalty to 50, clique: "SE 1400", "IT 1100"); // temporarily removed because of new hire planning
-    anticonflict!(t, set penalty to 50, single: "CS 4600-01", group: "CS 4600-02");
 
     Ok(())
 }

@@ -363,49 +363,6 @@ impl Solver {
                 });
             }
 
-            // compute the combined room/time pairs and penalties across cross-listings
-            let room_times = if cross_listings.len() == 1 {
-                // only a single section, so keep the original input data
-                input.sections[i].room_times.clone()
-            } else {
-                // this is the intersection of room/time availability with max penalty
-                let mut rtp = Vec::new();
-                'a: for &RoomTimeWithPenalty {
-                    room, time_slot, ..
-                } in &input.sections[i].room_times
-                {
-                    // every cross-listing must have this slot
-                    let mut worst_penalty = 0;
-                    for &section_i in &cross_listings {
-                        match input.sections[section_i]
-                            .room_times
-                            .iter()
-                            .find(|elt| elt.room == room && elt.time_slot == time_slot)
-                        {
-                            Some(RoomTimeWithPenalty { penalty, .. }) => {
-                                worst_penalty = std::cmp::max(worst_penalty, *penalty)
-                            }
-                            None => continue 'a,
-                        }
-                    }
-                    rtp.push(RoomTimeWithPenalty {
-                        room,
-                        time_slot,
-                        penalty: worst_penalty,
-                    });
-                }
-
-                // the cross-listed sections have to agree on at least one room and time
-                if rtp.is_empty() {
-                    return Err(format!(
-                        "cross-listing that includes {} has no viable room+time combination",
-                        input.sections[i].get_name()
-                    ));
-                }
-                rtp.sort_by_key(|elt| (elt.room, elt.time_slot, elt.penalty));
-                rtp
-            };
-
             // get all instructors across all cross-listings
             let mut instructors = Vec::new();
             for &cross_listing in &cross_listings {
@@ -415,6 +372,45 @@ impl Solver {
             }
             instructors.sort();
             instructors.dedup();
+
+            // compute the combined room/time pairs and penalties
+            // considering cross-listings and instructor availability
+            let mut room_times = Vec::new();
+            'slot: for &RoomTimeWithPenalty{room, time_slot, mut penalty} in &input.sections[i].room_times {
+                // make sure this time slot is acceptable to all cross-listings
+                // and find the max penalty
+                for &cross_listing in &input.sections[i].cross_listings {
+                    match input.sections[cross_listing].room_times.iter().find_map(|elt| {
+                        if elt.room == room && elt.time_slot == time_slot {
+                            Some(elt.penalty)
+                        } else {
+                            None
+                        }
+                    }) {
+                        Some(pen) => penalty = std::cmp::max(pen, penalty),
+                        None => continue 'slot,
+                    };
+                }
+
+                // every instructor must be available during the entire time slot
+                for &instructor in &instructors {
+                    match input.instructors[instructor].get_time_slot_penalty(&input.time_slots[time_slot]) {
+                        Some(pen) => penalty += pen,
+                        None => continue 'slot,
+                    }
+                }
+
+                room_times.push(RoomTimeWithPenalty { room, time_slot, penalty });
+            }
+
+            // the cross-listings and instructors have to agree on at least one room and time
+            if room_times.is_empty() {
+                return Err(format!(
+                    "section {} has no room+time combinations that work across all cross listings and instructors",
+                    input.sections[i].get_name()
+                ));
+            }
+            room_times.sort_by_key(|elt| (elt.room, elt.time_slot, elt.penalty));
 
             let score = SectionScore::new_unplaced(sections.len());
             unplaced_current += 1;
@@ -990,7 +986,7 @@ impl Solver {
             };
             name_len = std::cmp::max(
                 name_len,
-                section.course.len() + section.section.len() + 1 + plus,
+                section.get_name().len() + plus,
             );
         }
 
