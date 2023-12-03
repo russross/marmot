@@ -593,7 +593,7 @@ impl SectionScoreRecord {
                 let message = format!(
                     "class cluster: {} has a gap between clusters that is too {}",
                     input.instructors[*instructor].name,
-                    if *is_too_short { "short" } else {"long"}
+                    if *is_too_short { "short" } else { "long" }
                 );
                 list.push((*global, message));
             }

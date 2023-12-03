@@ -376,17 +376,25 @@ impl Solver {
             // compute the combined room/time pairs and penalties
             // considering cross-listings and instructor availability
             let mut room_times = Vec::new();
-            'slot: for &RoomTimeWithPenalty{room, time_slot, mut penalty} in &input.sections[i].room_times {
+            'slot: for &RoomTimeWithPenalty {
+                room,
+                time_slot,
+                mut penalty,
+            } in &input.sections[i].room_times
+            {
                 // make sure this time slot is acceptable to all cross-listings
                 // and find the max penalty
                 for &cross_listing in &input.sections[i].cross_listings {
-                    match input.sections[cross_listing].room_times.iter().find_map(|elt| {
-                        if elt.room == room && elt.time_slot == time_slot {
-                            Some(elt.penalty)
-                        } else {
-                            None
-                        }
-                    }) {
+                    match input.sections[cross_listing]
+                        .room_times
+                        .iter()
+                        .find_map(|elt| {
+                            if elt.room == room && elt.time_slot == time_slot {
+                                Some(elt.penalty)
+                            } else {
+                                None
+                            }
+                        }) {
                         Some(pen) => penalty = std::cmp::max(pen, penalty),
                         None => continue 'slot,
                     };
@@ -394,13 +402,19 @@ impl Solver {
 
                 // every instructor must be available during the entire time slot
                 for &instructor in &instructors {
-                    match input.instructors[instructor].get_time_slot_penalty(&input.time_slots[time_slot]) {
+                    match input.instructors[instructor]
+                        .get_time_slot_penalty(&input.time_slots[time_slot])
+                    {
                         Some(pen) => penalty += pen,
                         None => continue 'slot,
                     }
                 }
 
-                room_times.push(RoomTimeWithPenalty { room, time_slot, penalty });
+                room_times.push(RoomTimeWithPenalty {
+                    room,
+                    time_slot,
+                    penalty,
+                });
             }
 
             // the cross-listings and instructors have to agree on at least one room and time
@@ -984,10 +998,7 @@ impl Solver {
             } else {
                 1
             };
-            name_len = std::cmp::max(
-                name_len,
-                section.get_name().len() + plus,
-            );
+            name_len = std::cmp::max(name_len, section.get_name().len() + plus);
         }
 
         for room in &input.rooms {

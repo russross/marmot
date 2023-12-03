@@ -238,7 +238,7 @@ impl Input {
 
         let mut available_times = Vec::new();
         for _ in 0..7 {
-            available_times.push(vec![-1isize; 24*12]);
+            available_times.push(vec![-1isize; 24 * 12]);
         }
 
         // example: MTWRF 0900-1700
@@ -248,8 +248,11 @@ impl Input {
         .unwrap();
 
         for (time_name, penalty) in available_times_raw {
-            if penalty < 0 || penalty > 99 {
-                return Err(format!("instructor {} cannot have an available time penalty of {}", name, penalty));
+            if !(0..=99).contains(&penalty) {
+                return Err(format!(
+                    "instructor {} cannot have an available time penalty of {}",
+                    name, penalty
+                ));
             }
 
             let Some(caps) = re.captures(time_name) else {
@@ -265,19 +268,23 @@ impl Input {
 
             if end_hour == 24 && end_minute != 0 {
                 return Err(format!(
-                    "available time for instructor {} cannot end after midnight", name));
+                    "available time for instructor {} cannot end after midnight",
+                    name
+                ));
             }
 
-            let start_index = start_hour * 12 + start_minute/5;
-            let end_index = end_hour * 12 + end_minute/5;
+            let start_index = start_hour * 12 + start_minute / 5;
+            let end_index = end_hour * 12 + end_minute / 5;
             if end_index <= start_index {
                 return Err(format!(
-                    "available time for instructor {} cannot end before it begins", name));
+                    "available time for instructor {} cannot end before it begins",
+                    name
+                ));
             }
             for &day_of_week in &days {
                 let day = &mut available_times[day_of_week.number_days_from_sunday() as usize];
-                for i in start_index..end_index {
-                    day[i] = std::cmp::max(day[i], penalty);
+                for elt in day.iter_mut().take(end_index).skip(start_index) {
+                    *elt = std::cmp::max(*elt, penalty);
                 }
             }
         }
@@ -324,8 +331,11 @@ impl Input {
 
         for (t, badness) in rooms_and_times {
             let tag = t.to_string();
-            if badness < 0 || badness > 99 {
-                return Err(format!("section {} cannot have a room/time penalty of {}", section_raw, badness));
+            if !(0..=99).contains(&badness) {
+                return Err(format!(
+                    "section {} cannot have a room/time penalty of {}",
+                    section_raw, badness
+                ));
             }
             let mut found = false;
 
@@ -372,7 +382,10 @@ impl Input {
             return Err(format!("no rooms found for {}", section_raw));
         }
         if twp.is_empty() {
-            return Err(format!("section {} does not specify any time slots", section_raw));
+            return Err(format!(
+                "section {} does not specify any time slots",
+                section_raw
+            ));
         }
 
         // calculate badness for each room/time
@@ -389,7 +402,10 @@ impl Input {
             }
         }
         if room_times.is_empty() {
-            return Err(format!("no valid room/time combinations found for {}", section_raw));
+            return Err(format!(
+                "no valid room/time combinations found for {}",
+                section_raw
+            ));
         }
         room_times.sort_by_key(|elt| (elt.room, elt.time_slot, elt.penalty));
         if self
@@ -730,13 +746,13 @@ impl Instructor {
         let mut penalty = 0;
         for &day_of_week in &time_slot.days {
             let day = &self.available_times[day_of_week.number_days_from_sunday() as usize];
-            let start_index = start_hour*12 + start_minute/5;
-            let end_index = start_index + minutes/5;
-            for i in start_index..end_index {
-                if day[i] < 0 {
+            let start_index = start_hour * 12 + start_minute / 5;
+            let end_index = start_index + minutes / 5;
+            for &elt in day.iter().take(end_index).skip(start_index) {
+                if elt < 0 {
                     return None;
                 }
-                penalty = std::cmp::max(penalty, day[i]);
+                penalty = std::cmp::max(penalty, elt);
             }
         }
         Some(penalty)
