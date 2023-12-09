@@ -1,0 +1,361 @@
+#!/usr/bin/env python3
+
+import csv
+import re
+import sys
+
+key = {}
+
+room_tags = [
+    ('Math lecture', [
+        'SNOW 3', 'SNOW 112', 'SNOW 124', 'SNOW 125', 'SNOW 144',
+        'SNOW 145', 'SNOW 147', 'SNOW 150', 'SNOW 151',
+    ]),
+    ('Science large lecture', [
+        'SET 106', # large
+    ]),
+    ('Science medium lecture', [
+        'SET 106', # large
+        'SET 105', 'SET 201', 'SET 301', # medium
+    ]),
+    ('Science small lecture', [
+        'SET 106', # large
+        'SET 105', 'SET 201', 'SET 301', # medium
+        'SET 418', 'SET 420', 'SET 524', # small
+        'SNOW 128', 'SNOW 208', 'SNOW 216', # snow small lecture
+    ]),
+    ('Science Snow lecture', [
+        'SNOW 128', 'SNOW 208', 'SNOW 216', # snow small lecture
+    ]),
+]
+
+time_tags = [
+    ('1 credit bell schedule', [
+        'M0800+50', 'M0900+50', 'M1000+50', 'M1100+50',
+        'T0800+50', 'T0900+50', 'T1000+50', 'T1100+50',
+        'W0800+50', 'W0900+50', 'W1000+50', 'W1100+50',
+        'R0800+50', 'R0900+50', 'R1000+50', 'R1100+50',
+        'F0800+50', 'F0900+50', 'F1000+50', 'F1100+50',
+    ]),
+    ('1 credit extended bell schedule', [
+        'M0800+50', 'M0900+50', 'M1000+50', 'M1100+50', 'M1200+50',
+        'T0800+50', 'T0900+50', 'T1000+50', 'T1100+50', 'T1200+50',
+        'W0800+50', 'W0900+50', 'W1000+50', 'W1100+50', 'W1200+50',
+        'R0800+50', 'R0900+50', 'R1000+50', 'R1100+50', 'R1200+50',
+        'F0800+50', 'F0900+50', 'F1000+50', 'F1100+50', 'F1200+50',
+        'T1030+50', 'T1200+50', 'T1300+50', 'T1400+50', 'T1500+50', 'T1600+50',
+        'R1030+50', 'R1200+50', 'R1300+50', 'R1400+50', 'R1500+50', 'R1600+50',
+    ]),
+    ('1 credit evening', [
+        'T1800+50', 'W1800+50', 'R1800+50',
+    ]),
+    ('2 credit lecture', [
+        'MW0730+50',
+        'MW0800+50', 'MW0900+50', 'MW1000+50', 'MW1100+50',
+        'MF0800+50', 'MF0900+50', 'MF1000+50', 'MF1100+50',
+        'WF0800+50', 'WF0900+50', 'WF1000+50', 'WF1100+50',
+        'MW1200+50', 'MW1330+50', 'MW1500+50', 'MW1630+50',
+        'TR0730+50', 'TR0900+50', 'TR1030+50',
+        'TR1200+50', 'TR1330+50', 'TR1500+50', 'TR1630+50',
+    ]),
+    ('2 hour lab', [
+        'M0800+110', 'M0900+110', 'M1000+110', 'M1100+110', 'M1200+110', 'M1300+110', 'M1400+110', 'M1500+110', 'M1600+110', 'M1700+110',
+        'T0800+110', 'T0900+110', 'T1000+110', 'T1100+110', 'T1200+110', 'T1300+110', 'T1400+110', 'T1500+110', 'T1600+110', 'T1700+110',
+        'W0800+110', 'W0900+110', 'W1000+110', 'W1100+110', 'W1200+110', 'W1300+110', 'W1400+110', 'W1500+110', 'W1600+110', 'W1700+110',
+        'R0800+110', 'R0900+110', 'R1000+110', 'R1100+110', 'R1200+110', 'R1300+110', 'R1400+110', 'R1500+110', 'R1600+110', 'R1700+110',
+        'F0800+110', 'F0900+110', 'F1000+110', 'F1100+110', 'F1200+110', 'F1300+110',
+    ]),
+    ('2 hour lab evening', [
+        'T1800+110', 'W1800+110', 'R1800+110',
+    ]),
+    ('2 hour lab late evening', [
+        'T1900+110', 'W1900+110', 'R1900+110',
+    ]),
+    ('4 hour lab', [
+        'MW0600+110', 'MW0800+110', 'MW0900+110', 'MW1000+110', 'MW1100+110', 'MW1200+110',
+        'MW1300+110', 'MW1400+110', 'MW1500+110', 'MW1600+110', 'MW1700+110', 'MW1800+110',
+        'TR0600+110', 'TR0800+110', 'TR0900+110', 'TR1000+110', 'TR1100+110', 'TR1200+110',
+        'TR1300+110', 'TR1400+110', 'TR1500+110', 'TR1600+110', 'TR1700+110', 'TR1800+110',
+    ]),
+    ('3 credit bell schedule', [
+        'MW0730+75',
+        'MWF0800+50', 'MWF0900+50', 'MWF1000+50', 'MWF1100+50',
+        'MW1200+75', 'MW1330+75', 'MW1500+75', 'MW1630+75',
+        'TR0730+75', 'TR0900+75', 'TR1030+75',
+        'TR1200+75', 'TR1330+75', 'TR1500+75', 'TR1630+75',
+    ]),
+    ('3 credit evening', [
+        'T1800+150', 'W1800+150', 'R1800+150',
+    ]),
+    ('4 credit bell schedule', [
+        'MTWR0800+50', 'MTWF0800+50', 'MTRF0800+50', 'MWRF0800+50', 'TWRF0800+50',
+        'MTWR0900+50', 'MTWF0900+50', 'MTRF0900+50', 'MWRF0900+50', 'TWRF0900+50',
+        'MTWR1000+50', 'MTWF1000+50', 'MTRF1000+50', 'MWRF1000+50', 'TWRF1000+50',
+        'MTWR1100+50', 'MTWF1100+50', 'MTRF1100+50', 'MWRF1100+50', 'TWRF1100+50',
+        'MTWR1200+50', 'MTWF1200+50', 'MTRF1200+50', 'MWRF1200+50', 'TWRF1200+50',
+        'MW1300+100', 'MW1500+100',
+        'TR1300+100', 'TR1500+100',
+    ]),
+    ('4 credit 4×50 bell schedule', [
+        'MTWR0800+50', 'MTWF0800+50', 'MTRF0800+50', 'MWRF0800+50', 'TWRF0800+50',
+        'MTWR0900+50', 'MTWF0900+50', 'MTRF0900+50', 'MWRF0900+50', 'TWRF0900+50',
+        'MTWR1000+50', 'MTWF1000+50', 'MTRF1000+50', 'MWRF1000+50', 'TWRF1000+50',
+        'MTWR1100+50', 'MTWF1100+50', 'MTRF1100+50', 'MWRF1100+50', 'TWRF1100+50',
+        'MTWR1200+50', 'MTWF1200+50', 'MTRF1200+50', 'MWRF1200+50', 'TWRF1200+50',
+    ]),
+    ('4 credit 4×50 extended bell schedule', [
+        'MTWR0800+50', 'MTWF0800+50', 'MTRF0800+50', 'MWRF0800+50', 'TWRF0800+50',
+        'MTWR0900+50', 'MTWF0900+50', 'MTRF0900+50', 'MWRF0900+50', 'TWRF0900+50',
+        'MTWR1000+50', 'MTWF1000+50', 'MTRF1000+50', 'MWRF1000+50', 'TWRF1000+50',
+        'MTWR1100+50', 'MTWF1100+50', 'MTRF1100+50', 'MWRF1100+50', 'TWRF1100+50',
+        'MTWR1200+50', 'MTWF1200+50', 'MTRF1200+50', 'MWRF1200+50', 'TWRF1200+50',
+        'MTWR1300+50', 'MTWF1300+50', 'MTRF1300+50', 'MWRF1300+50', 'TWRF1300+50',
+        'MTWR1400+50', 'MTWF1400+50', 'MTRF1400+50', 'MWRF1400+50', 'TWRF1400+50',
+        'MTWR1500+50', 'MTWF1500+50', 'MTRF1500+50', 'MWRF1500+50', 'TWRF1500+50',
+    ]),
+    ('4 credit 2×100 bell schedule', [
+        'MW1300+100', 'MW1500+100',
+        'TR1300+100', 'TR1500+100',
+    ]),
+    ('5 credit bell schedule', [
+        'MTWRF0800+50', 'MTWRF0900+50', 'MTWRF1000+50', 'MTWRF1100+50', 'MTWRF1200+50',
+    ]),
+    ('5 credit extended bell schedule', [
+        'MTWRF0800+50', 'MTWRF0900+50', 'MTWRF1000+50', 'MTWRF1100+50', 'MTWRF1200+50',
+        'MTWRF1300+50', 'MTWRF1400+50', 'MTWRF1500+50', 'MTWRF1600+50',
+    ]),
+    ('3×50', [
+        'MWF0800+50', 'MWF0900+50', 'MWF1000+50', 'MWF1100+50',
+    ]),
+    ('2×75', [
+        'MW0730+75',
+        'MW1200+75', 'MW1330+75', 'MW1500+75', 'MW1630+75',
+        'TR0730+75', 'TR0900+75', 'TR1030+75',
+        'TR1200+75', 'TR1330+75', 'TR1500+75', 'TR1630+75',
+    ]),
+    ('mwf', [
+        'MWF0800+50', 'MWF0900+50', 'MWF1000+50', 'MWF1100+50',
+    ]),
+    ('mw', [
+        'MW0730+75',
+        'MW1200+75', 'MW1330+75', 'MW1500+75', 'MW1630+75',
+    ]),
+    ('tr', [
+        'TR0730+75', 'TR0900+75', 'TR1030+75',
+        'TR1200+75', 'TR1330+75', 'TR1500+75', 'TR1630+75',
+    ]),
+]
+
+
+room_to_tags = {}
+for (tag, rooms) in room_tags:
+    for room in rooms:
+        if room not in room_to_tags:
+            room_to_tags[room] = []
+        room_to_tags[room].append(tag)
+
+time_to_tags = {}
+for (tag, times) in time_tags:
+    for time in times:
+        if time not in time_to_tags:
+            time_to_tags[time] = []
+        time_to_tags[time].append(tag)
+
+def main():
+    global key
+    raw = []
+    headers = None
+    for name in sys.argv[1:]:
+        print(f'parsing {name}...')
+        rows = read_file(name)
+        headers = rows[0]
+        raw.extend(rows[1:])
+
+    for (pos, label) in enumerate(headers):
+        key[label] = pos
+
+    filtered = filter_out_the_unplaced(raw)
+    process(filtered)
+
+def read_file(filename):
+    result = []
+    with open(filename) as fp:
+        reader = csv.reader(fp)
+        for row in reader:
+            result.append(row)
+    return result
+
+def get(row, label):
+    return row[key[label]]
+
+def is_empty(row, label):
+    return get(row, label) in ('', 'None')
+
+def filter_out_the_unplaced(rows):
+    out = []
+    for row in rows:
+        if get(row, 'Bldg') == 'ONLINE':
+            continue
+        if is_empty(row, 'Bldg') or is_empty(row, 'Rm'):
+            continue
+        if is_empty(row, 'Days') or is_empty(row, 'Beg Time') or is_empty(row, 'End Time'):
+            continue
+        if get(row, 'Days') == 'S':
+            continue
+        if get(row, 'Active or Cncld') == 'C':
+            continue
+        sec = get(row, 'Section').upper()
+        if 'S' in sec or 'J' in sec or 'X' in sec or 'H' in sec:
+            continue
+        out.append(row)
+    return out
+
+def process(rows):
+    rooms = {}
+    times = {}
+    first_lasts = {}
+    dnumbers = {}
+    instructors = {}
+    sections = {}
+
+    # grab the bell schedule times first
+    times = { elt: True for elt in time_to_tags.keys() }
+
+    for row in rows:
+        # get the name
+        (lname, fname, mname) = (get(row, 'Lname'), get(row, 'Fname'), get(row, 'Minitial'))
+        if lname == '' and fname == '' and mname == '':
+            name = None
+        else:
+            if mname != '':
+                name = f'{fname} {mname} {lname}'
+            else:
+                name = f'{fname} {lname}'
+
+            dnumber = get(row, 'Fac ID')
+            if name in dnumbers and dnumbers[name] != dnumber:
+                print('Oh no!!! Two people with same names!!')
+                print(f'    {name} has dnumbers {dnumber} and {dnumbers[name]}')
+                sys.exit(1)
+            else:
+                dnumbers[name] = dnumber
+
+        # get the room and time
+        (b, r) = (get(row, 'Bldg'), get(row, 'Rm'))
+        room = f'{b} {r}'
+        (days, start, end) = (get(row, 'Days'), get(row, 'Beg Time'), get(row, 'End Time'))
+        start_minutes = int(start) // 100 * 60 + int(start) % 100
+        end_minutes = int(end) // 100 * 60 + int(end) % 100
+        minutes = end_minutes - start_minutes
+        minutes -= minutes%5
+        time = f'{days}{int(start):04}+{minutes}'
+        if not re.match(r'^M?T?W?R?F?S?U?$', days):
+            print(f'What kind of day is {repr(days)}?')
+            sys.exit(1)
+
+        # update the room and time lists
+        cap = int(get(row, 'Seats CAP'))
+        if room not in rooms:
+            rooms[room] = cap
+        rooms[room] = max(rooms[room], cap)
+        times[time] = True
+
+        # update the instructor record
+        if name is not None:
+            if name not in instructors:
+                instructors[name] = []
+            instructors[name].append(time)
+
+        # add a section record
+        (subj, course, section, title) = (get(row, 'Subject'), get(row, 'Course'), get(row, 'Section'), get(row, 'Title'))
+        alt = ''
+        section_name = f'{subj} {course}-{section}'
+        if section_name in sections:
+            alt = '-alt'
+            section_name += alt
+        if section_name in sections:
+            print(f'Really? Three records for a section? Really? Get it together {section_name}')
+            sys.exit(1)
+        sections[section_name] = [subj, course, section + alt, title, name, room, time, cap, get(row, 'Xlist')]
+
+    for room in sorted(rooms.keys()):
+        cap = rooms[room]
+        if room in room_to_tags:
+            tag_list = room_to_tags[room]
+            tags = ', '.join(f'"{elt}"' for elt in tag_list)
+            print(f'    room!(t, name: "{room}", capacity: {cap}, tags: {tags});')
+        else:
+            print(f'    room!(t, name: "{room}", capacity: {cap});')
+
+    print()
+    for time in sorted(times.keys(), key=lambda elt: (int(elt[elt.find('+')+1:]), elt.find('+'), elt)):
+        if time in time_to_tags:
+            tag_list = time_to_tags[time]
+            tags = ', '.join(f'"{elt}"' for elt in tag_list)
+            print(f'    time!(t, name: "{time}", tags: {tags});')
+        else:
+            print(f'    time!(t, name: "{time}");')
+
+    print()
+    for instructor in sorted(instructors.keys()):
+        times_used = instructors[instructor]
+        print('    instructor!(t,')
+        print('        name:')
+        print(f'            "{instructor}",')
+        print('        available:')
+        availability(times_used)
+        print('    );')
+        print('    //', ', '.join([str(elt) for elt in sorted(times_used)]))
+        print()
+
+    print()
+    for section_key in sorted(sections.keys()):
+        (subj, course, section, title, name, room, time, cap, xlist) = sections[section_key]
+        print(f'    // {subj} {course}-{section}: {title}')
+        if xlist != '':
+            print(f'    // xlist entry: {xlist}')
+        print(f'    // assigned to {room} at {time}')
+        if room in room_to_tags:
+            room = room_to_tags[room][0]
+        if time in time_to_tags:
+            time = time_to_tags[time][0]
+        prefix = ''
+        #if cap < 1: prefix = '// '
+        print(f'    {prefix}section!(t, course: "{subj} {course}-{section}",')
+        if name is not None:
+            print(f'    {prefix}            instructor: "{name}",')
+        print(f'    {prefix}            rooms and times:')
+        print(f'    {prefix}                "{room}",');
+        print(f'    {prefix}                "{time}",')
+        print(f'    {prefix});')
+        print()
+
+def availability(times):
+    earliest_by_day = {day: 8 for day in 'MTWRF'}
+    latest_by_day = {day: 17 for day in 'MTWRF'}
+    for elt in times:
+        m = re.match(r'^([MTWRFSU]+)(\d+)\+(\d+)$', elt)
+        days = m.group(1)
+        start = int(m.group(2)[:2]) * 60 + int(m.group(2)[2:])
+        duration = int(m.group(3))
+        end = start + duration
+        for day in days:
+            if day not in earliest_by_day:
+                earliest_by_day[day] = start
+            earliest_by_day[day] = min(start // 60, earliest_by_day[day])
+            if day not in latest_by_day:
+                latest_by_day[day] = end
+            latest_by_day[day] = max((end + 59) // 60, latest_by_day[day])
+    matching = {}
+    for day in 'MTWRFSU':
+        if day not in earliest_by_day:
+            continue
+        start = earliest_by_day[day]
+        end = latest_by_day[day]
+        if (start, end) not in matching:
+            matching[(start, end)] = ''
+        matching[(start, end)] += day
+    for ((start, end), days) in matching.items():
+        print(f'            "{days} {start:02}00-{end:02}00",')
+
+main()

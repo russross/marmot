@@ -2,6 +2,8 @@ use super::input::*;
 use super::score::*;
 use itertools::Itertools;
 use rand::Rng;
+use std::fmt::Write;
+use std::fs;
 
 const PENALTY_FOR_UNPLACED_SECTION: isize = 1000;
 const MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION: isize = 1000;
@@ -603,7 +605,8 @@ impl Solver {
             }
 
             // do not bother if the best we can do is a distinct room per section
-            if k < sec_primaries.len() {
+            //if k < sec_primaries.len() {
+            if k > sec_primaries.len() {
                 for &sec in &sec_primaries {
                     sections[sec]
                         .score_criteria
@@ -820,7 +823,7 @@ impl Solver {
                 // bad scores get more
                 section.tickets = std::cmp::max(1, section.score.local + 1);
                 if section.placement.is_none() {
-                    if self.unplaced_current > self.unplaced_best {
+                    //if self.unplaced_current > self.unplaced_best {
                         // favor unplaced sections, but only when we have seen more placements
                         // in the past (so we don't obsess over cycles of mutually-unplacable
                         // sections)
@@ -828,7 +831,7 @@ impl Solver {
                             section.tickets,
                             MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION,
                         );
-                    }
+                    //}
                 } else if section.room_times.len() == 1 {
                     // if it is already placed and there is only one placement possible,
                     // then placing it again would be a no-op
@@ -1104,6 +1107,84 @@ impl Solver {
         }
         println!("+");
     }
+
+    pub fn dump_json(&self, input: &Input) -> String {
+        let mut s = String::new();
+        let w = &mut s;
+
+        let mut list = Vec::new();
+        let gather = |f: &mut dyn FnMut(usize), i: usize| {
+            if input.sections[i].cross_listings.is_empty() {
+                f(i);
+            } else {
+                for &cross in &input.sections[i].cross_listings {
+                    f(cross);
+                }
+            }
+        };
+        let join = |lst: &mut Vec<String>| -> String {
+            lst.sort();
+            lst.dedup();
+            let s = if lst.is_empty() {
+                "".to_string()
+            } else {
+                format!("\"{}\"", lst.join("\", \""))
+            };
+            lst.clear();
+            s
+        };
+
+        write!(w, "window.placement = [").unwrap();
+        let mut comma = "";
+        for (i, section) in self.sections.iter().enumerate() {
+            if section.is_secondary_cross_listing {
+                continue;
+            }
+            
+            writeln!(w, "{comma}\n    {{").unwrap();
+            comma = ",";
+
+            // names
+            gather(&mut |i| list.push(input.sections[i].get_name()), i);
+            writeln!(w, "        \"names\": [{}],", join(&mut list)).unwrap();
+
+            // prefixes
+            gather(&mut |i| list.push(input.sections[i].prefix.clone()), i);
+            writeln!(w, "        \"prefixes\": [{}],", join(&mut list)).unwrap();
+
+            // instuctors
+            gather(&mut |i| {
+                for &elt in &input.sections[i].instructors {
+                    list.push(input.instructors[elt].name.clone());
+                }
+            }, i);
+            writeln!(w, "        \"instructors\": [{}],", join(&mut list)).unwrap();
+            if let Some(RoomTimeWithPenalty { room, time_slot, .. }) = section.placement {
+                writeln!(w, "        \"is_placed\": true,").unwrap();
+                writeln!(w, "        \"room\": \"{}\",", input.rooms[room].name).unwrap();
+                writeln!(w, "        \"time_slot\": \"{}\",", input.time_slots[time_slot].name).unwrap();
+            } else {
+                writeln!(w, "        \"is_placed\": false,").unwrap();
+            }
+            let mut problems = Vec::new();
+            section.score.gather_score_messages(self, input, &mut problems);
+            if problems.is_empty() {
+                writeln!(w, "        \"problems\": []").unwrap();
+            } else {
+                write!(w, "        \"problems\": [").unwrap();
+                let mut c = "";
+                for (score, msg) in &problems {
+                    write!(w, "{}\n            {{ \"score\": {}, \"message\": \"{}\" }}",
+                        c, score, msg).unwrap();
+                    c = ",";
+                }
+                writeln!(w, "\n        ]").unwrap();
+            }
+            write!(w, "    }}").unwrap();
+        }
+        writeln!(w, "\n];").unwrap();
+        s
+    }
 }
 
 pub struct EvictionTracker(
@@ -1136,7 +1217,7 @@ impl EvictionTracker {
 
 pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
     let mut evicted_by = EvictionTracker::new();
-    let mut winner = solver.clone();
+    let mut winner;
     let start = time::Instant::now();
     let mut best_score = solver.score;
     println!("initial score = {}", solver.score);
@@ -1153,64 +1234,56 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
         }
         let score = solver.score;
         if score < best_score
-        /*|| iterations == 2*solver.sections.len()*/
         {
-            if score < best_score {
-                best_score = score;
-                winner = solver.clone();
-                /*
-                if iteration < 2 * solver.sections.len() {
-                    continue
+            best_score = score;
+            winner = solver.clone();
+
+            if winner.unplaced_current < 5 {
+                let mut problems = Vec::new();
+                for i in 0..winner.sections.len() {
+                    winner.sections[i]
+                        .score
+                        .gather_score_messages(&winner, input, &mut problems);
                 }
-                */
-            }
+                problems.sort_by_key(|(score, _)| -score);
 
-            println!();
-            println!();
-            winner.print_schedule(input);
-            println!(
-                "score = {} with {} unplaced sections",
-                score, winner.unplaced_current
-            );
-            let mut problems = Vec::new();
-            for i in 0..winner.sections.len() {
-                winner.sections[i]
-                    .score
-                    .gather_score_messages(&winner, input, &mut problems);
-            }
-            problems.sort_by_key(|(score, _)| -score);
+                println!();
+                println!();
+                //winner.print_schedule(input);
+                fs::write("placements.js", winner.dump_json(input)).expect("unable to write placements.js");
+                //print!("{}", winner.dump_json(input));
 
-            if !problems.is_empty() {
-                let digits = problems[0].0.to_string().len();
-                for (score, message) in &problems {
-                    if *score == PENALTY_FOR_UNPLACED_SECTION {
-                        continue;
-                    }
-                    println!("[{:width$}]  {}", score, message, width = digits);
-                }
-                /*
-                for (i, section) in winner.sections.iter().enumerate() {
-                    if section.is_secondary_cross_listing || section.placement.is_some() {
-                        continue;
-                    }
-                    print!("unplaced: {}", input.sections[i].get_name());
-
-                    // report who displaces this section the most
-                    let lst = evicted_by.get_top_evictors(i, 5);
-                    if !lst.is_empty() {
-                        print!(" displaced by");
-                        for (sec, count) in lst {
-                            print!(" {}×{}", input.sections[sec].get_name(), count);
+                if !problems.is_empty() {
+                    let digits = problems[0].0.to_string().len();
+                    for (score, message) in &problems {
+                        if *score == PENALTY_FOR_UNPLACED_SECTION {
+                            continue;
                         }
+                        println!("[{:width$}]  {}", score, message, width = digits);
                     }
-                    println!();
+                    for (i, section) in winner.sections.iter().enumerate() {
+                        if section.is_secondary_cross_listing || section.placement.is_some() {
+                            continue;
+                        }
+                        print!("unplaced: {}", input.sections[i].get_name());
+
+                        // report who displaces this section the most
+                        let lst = evicted_by.get_top_evictors(i, 5);
+                        if !lst.is_empty() {
+                            print!(" displaced by");
+                            for (sec, count) in lst {
+                                print!(" {}×{}", input.sections[sec].get_name(), count);
+                            }
+                        }
+                        println!();
+                    }
                 }
-                */
             }
 
             let elapsed = start.elapsed();
             let rate = (iteration as f64) / elapsed.as_seconds_f64();
-            println!("solving at a rate of {}/second", rate as i64);
+            println!("score = {} with {} unplaced sections, solving at a rate of {}/second",
+                score, winner.unplaced_current, rate as i64);
         }
     }
 }
