@@ -1,38 +1,18 @@
 window.addEventListener('load', function () {
     let schedule = document.getElementById('schedule');
-
-    let hsv_to_rgb = function (h, s, v) {
-        let i = Math.floor(h * 6);
-        let f = h * 6 - i;
-        let p = v * (1 - s);
-        let q = v * (1 - f * s);
-        let t = v * (1 - (1 - f) * s);
-        let r, g, b;
-        switch (i % 6) {
-            case 0: r = v, g = t, b = p; break;
-            case 1: r = q, g = v, b = p; break;
-            case 2: r = p, g = v, b = t; break;
-            case 3: r = p, g = q, b = v; break;
-            case 4: r = t, g = p, b = v; break;
-            case 5: r = v, g = p, b = q; break;
-        }
-        return 'rgb(' +
-            Math.round(r*255) + ',' + Math.round(g*255) + ',' +  Math.round(b*255) +
-            ')';
-    };
-
-    let hash = function (s) {
-        s = s + s + s + s;
-        let hash = 0;
-        for (const ch of s) {
-            hash = (((hash<<5) - hash) + ch.charCodeAt(0)) % 0x10000;
-        }
-        return hash / 0x10000;
-    };
+    let prefixes = [];
+    (function (sched) {
+        let set = {};
+        for (section of sched)
+            for (elt of section.prefixes)
+                set[elt] = true;
+        for (prefix in set)
+            prefixes.push(prefix);
+        prefixes.sort();
+    })(window.placements);
 
     let build_room_time_grid = function (rooms, days) {
-        console.log(rooms.length + 1);
-        schedule.style.setProperty('--grid-columns', rooms.length + 1);
+        schedule.style.setProperty('--grid-columns', rooms.length);
         for (room of rooms) {
             let span = document.createElement('div');
             schedule.appendChild(span);
@@ -56,17 +36,16 @@ window.addEventListener('load', function () {
                 hour %= 12;
                 if (hour == 0) hour = 12;
                 if (minute == 0) {
-                    let h2 = document.createElement('h2');
+                    let h2 = document.createElement('div');
                     schedule.appendChild(h2);
                     h2.classList.add('time-name');
                     let m = minute < 10 ? '0' + minute : '' + minute;
                     h2.innerHTML = letter + '&nbsp;' + hour + ':' + m + '&nbsp;' + am;
-                    h2.style.gridRow = rows;
+                    h2.style.gridRow = '' + rows + '/ span 12';
                 }
             }
         }
-        schedule.style.setProperty('--grid-rows', rows);
-        console.log(rows);
+        schedule.style.setProperty('--grid-rows', rows-1);
 
         return row_key;
     };
@@ -81,21 +60,7 @@ window.addEventListener('load', function () {
         }
     }
     rooms.sort();
-    let row_key = build_room_time_grid(rooms, [['M', 7*60, 18*60], ['T', 7*60, 18*60]]);
-
-    let prefix_colors = {
-        'CS':   '#f42f82',
-        'IT':   '#1259B2',
-        'SE':   '#8068c0',
-        'BIOL': '#309090',
-        'CHEM': '#ff9a3c',
-        'ENVS': '#557b3f',
-        'MECH': 'silver',
-        'MATH': '#a03333',
-        'GEOG': 'darkblue',
-        'GEO':  'brown',
-        'PHYS': 'purple',
-    };
+    let row_key = build_room_time_grid(rooms, [['M', 6*60, 20*60], ['T', 6*60, 19*60]]);
 
     const split_time = /^([MTWRFSU]+)(\d\d)(\d\d)\+(\d+)$/;
     let format_date = function (time_slot) {
@@ -123,10 +88,9 @@ window.addEventListener('load', function () {
     let make_section = function (elt) {
         let box = document.createElement('div');
         box.classList.add('section');
-        //box.style.backgroundColor = '#777777';
-        //if (prefix_colors[section.prefixes[0]])
-            //box.style.backgroundColor = prefix_colors[section.prefixes[0]];
-        box.style.backgroundColor = hsv_to_rgb(hash(section.prefixes[0]));
+        let h = 360 * (prefixes.indexOf(section.prefixes[0]) + 0.5) / prefixes.length;
+        let color = 'lch(var(--l) var(--c) ' + h + ')';
+        box.style.backgroundColor = color;
 
         let name = document.createElement('h3');
         box.appendChild(name);

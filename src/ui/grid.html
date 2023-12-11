@@ -1,75 +1,14 @@
-<style>
-
-:root {
-  --grid-columns: 1;
-  --grid-rows: 1;
-}
-
-#schedule {
-  display: grid;
-  grid-gap: 5px;
-  grid-template-rows: repeat(var(--grid-rows), auto);
-  grid-template-columns: repeat(var(--grid-columns), 10em);
-}
-
-.time-name {
-  grid-column: 1;
-  display: block;
-  position: sticky;
-  left: 0;
-  z-index: 1000;
-  background-color: rbga(255,255,255,.9);
-
-}
-
-.room-name {
-  grid-row: 1;
-  display: block;
-  padding: 10px 5px 5px;
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-  background-color: rbga(255,255,255,.9);
-}
-
-body {
-  padding: 50px;
-  max-width: 2000px;
-  margin: 0 0;
-  line-height: 1.5;
-}
-
-.section {
-  padding: .5em;
-  border-radius: 2px;
-  font-size: 14px;
-  box-shadow:
-    rgba(255,255,255.6) 1px 1px 0,
-    rbga(0,0,0,.3) 4px 4px 0;
-  color: #fff;
-}
-
-.section,
-.section-time,
-.section-instructor {
-  display: block;
-}
-
-.section-name,
-.time-name {
-  margin: 0;
-  font-size: 1em;
-}
-
-.room-name,
-.time-name {
-  font-weight: bold;
-  font-size: .75em;
-}
-</style>
-
-<div id="schedule">
-</div>
-
-<script src="placement.js"></script>
-<script src="grid.js"></script>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Marmot</title>
+    <link rel="stylesheet" href="grid.css">
+    <script src="placement.js"></script>
+    <script src="grid.js"></script>
+  </head>
+  <body>
+    <div id="schedule">
+    </div>
+  </body>
+</html>
