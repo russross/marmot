@@ -459,14 +459,15 @@ impl SectionScoreRecord {
         solver: &Solver,
         input: &Input,
         list: &mut Vec<(isize, String)>,
+        include_dups: bool,
     ) {
         match self {
-            SectionScoreRecord { global: 0, .. } => {
+            SectionScoreRecord { global: 0, .. } if !include_dups => {
                 // ignore any record with no global score contribution
             }
             SectionScoreRecord {
                 details: SectionScoreDetails::SoftConflict { sections },
-                global,
+                local,
                 ..
             } => {
                 assert!(sections.len() == 2);
@@ -500,12 +501,12 @@ impl SectionScoreRecord {
                         input.time_slots[ts_b].name
                     )
                 };
-                list.push((*global, message));
+                list.push((*local, message));
             }
 
             SectionScoreRecord {
                 details: SectionScoreDetails::RoomTimePenalty { section },
-                global,
+                local,
                 ..
             } => {
                 let Some(RoomTimeWithPenalty {
@@ -522,21 +523,21 @@ impl SectionScoreRecord {
                     input.rooms[room].name,
                     input.time_slots[time_slot].name
                 );
-                list.push((*global, message));
+                list.push((*local, message));
             }
 
             SectionScoreRecord {
                 details: SectionScoreDetails::SectionNotPlaced { section },
-                global,
+                local,
                 ..
             } => {
                 let message = format!("unplaced section: {}", input.sections[*section].get_name());
-                list.push((*global, message));
+                list.push((*local, message));
             }
 
             SectionScoreRecord {
                 details: SectionScoreDetails::AntiConflict { single, group },
-                global,
+                local,
                 ..
             } => {
                 let message = if group.len() == 1 {
@@ -559,7 +560,7 @@ impl SectionScoreRecord {
                     }
                     s
                 };
-                list.push((*global, message));
+                list.push((*local, message));
             }
 
             SectionScoreRecord {
@@ -569,7 +570,7 @@ impl SectionScoreRecord {
                         is_too_short,
                         ..
                     },
-                global,
+                local,
                 ..
             } => {
                 let message = format!(
@@ -577,7 +578,7 @@ impl SectionScoreRecord {
                     input.instructors[*instructor].name,
                     if *is_too_short { "short" } else { "long" }
                 );
-                list.push((*global, message));
+                list.push((*local, message));
             }
 
             SectionScoreRecord {
@@ -587,7 +588,7 @@ impl SectionScoreRecord {
                         is_too_short,
                         ..
                     },
-                global,
+                local,
                 ..
             } => {
                 let message = format!(
@@ -595,7 +596,7 @@ impl SectionScoreRecord {
                     input.instructors[*instructor].name,
                     if *is_too_short { "short" } else { "long" }
                 );
-                list.push((*global, message));
+                list.push((*local, message));
             }
 
             SectionScoreRecord {
@@ -606,7 +607,7 @@ impl SectionScoreRecord {
                         actual,
                         ..
                     },
-                global,
+                local,
                 ..
             } => {
                 let message = format!(
@@ -616,19 +617,19 @@ impl SectionScoreRecord {
                     if *desired == 1 { "" } else { "s" },
                     actual
                 );
-                list.push((*global, message));
+                list.push((*local, message));
             }
 
             SectionScoreRecord {
                 details: SectionScoreDetails::DaysEvenlySpread { instructor, .. },
-                global,
+                local,
                 ..
             } => {
                 let message = format!(
                     "class spread: {} has more classes some days than others",
                     input.instructors[*instructor].name
                 );
-                list.push((*global, message));
+                list.push((*local, message));
             }
 
             SectionScoreRecord {
@@ -639,7 +640,7 @@ impl SectionScoreRecord {
                         actual,
                         ..
                     },
-                global,
+                local,
                 ..
             } => {
                 let message = format!(
@@ -650,7 +651,7 @@ impl SectionScoreRecord {
                     actual,
                     if *actual == 1 { "" } else { "s" },
                 );
-                list.push((*global, message));
+                list.push((*local, message));
             }
         }
     }

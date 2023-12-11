@@ -160,9 +160,10 @@ impl SectionScore {
         solver: &Solver,
         input: &Input,
         list: &mut Vec<(isize, String)>,
+        include_dups: bool,
     ) {
         for record in &self.score_records {
-            record.gather_score_messages(solver, input, list);
+            record.gather_score_messages(solver, input, list, include_dups);
         }
     }
 }
@@ -1167,7 +1168,7 @@ impl Solver {
                 writeln!(w, "        \"is_placed\": false,").unwrap();
             }
             let mut problems = Vec::new();
-            section.score.gather_score_messages(self, input, &mut problems);
+            section.score.gather_score_messages(self, input, &mut problems, true);
             if problems.is_empty() {
                 writeln!(w, "        \"problems\": []").unwrap();
             } else {
@@ -1243,14 +1244,14 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
                 for i in 0..winner.sections.len() {
                     winner.sections[i]
                         .score
-                        .gather_score_messages(&winner, input, &mut problems);
+                        .gather_score_messages(&winner, input, &mut problems, false);
                 }
                 problems.sort_by_key(|(score, _)| -score);
 
                 println!();
                 println!();
                 //winner.print_schedule(input);
-                fs::write("placements.js", winner.dump_json(input)).expect("unable to write placements.js");
+                fs::write("placement.js", winner.dump_json(input)).expect("unable to write placements.js");
                 //print!("{}", winner.dump_json(input));
 
                 if !problems.is_empty() {
