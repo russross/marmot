@@ -118,7 +118,7 @@ window.addEventListener('load', function () {
     let sections = [];
     let rooms = [];
     for (elt of window.placement) {
-        if (elt.is_placed && (elt.room.startsWith('SNOW ') || elt.room.startsWith('SET ') /*|| elt.room.startsWith('Smith ')*/)) {
+        if (elt.is_placed && (elt.room.startsWith('SNOW ') || elt.room.startsWith('SET ') || elt.room.startsWith('Smith '))) {
             sections.push(elt);
             if (!rooms.includes(elt.room))
                 rooms.push(elt.room);

@@ -739,6 +739,12 @@ impl Solver {
             if self.sections[section_i].is_secondary_cross_listing {
                 continue;
             }
+
+            // only move sections that have at least some potential for improvement
+            if self.sections[section_i].score.local == 0 {
+                self.sections[section_i].speculative_delta_min = None;
+                continue;
+            }
             self.compute_speculative_deltas_section(input, section_i, old_score);
         }
     }
@@ -824,7 +830,7 @@ impl Solver {
                 // bad scores get more
                 section.tickets = std::cmp::max(1, section.score.local + 1);
                 if section.placement.is_none() {
-                    //if self.unplaced_current > self.unplaced_best {
+                    if self.unplaced_current > self.unplaced_best {
                         // favor unplaced sections, but only when we have seen more placements
                         // in the past (so we don't obsess over cycles of mutually-unplacable
                         // sections)
@@ -832,7 +838,7 @@ impl Solver {
                             section.tickets,
                             MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION,
                         );
-                    //}
+                    }
                 } else if section.room_times.len() == 1 {
                     // if it is already placed and there is only one placement possible,
                     // then placing it again would be a no-op

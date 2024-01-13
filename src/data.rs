@@ -5458,3 +5458,58 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
 
     Ok(())
 }
+
+//envs envs emphasis
+conflict!(t, set penalty to 90, clique:
+	"ENVS 1210", "ENVS 1215",
+    "ENVS 2210",
+    "GEO 1110", "GEO 1115",
+    "GEOG 3600", "GEOG 3605",
+    "CHEM 1210",
+    "CHEM 1220",
+    "BIOL 1610",
+    "MATH 1060",
+    "ENVS 2700R",
+    "ENVS 4910",
+    "ENVS 3920");
+
+//envs geo emphasis
+ conflict!(set penalty to 90, clique:
+    "ENVS 1210", "ENVS 1215",
+    "ENVS 2210",
+    "GEO 1110", "GEO 1115",
+    "GEOG 3600", "GEOG 3605",
+    "CHEM 1210", "CHEM 1215",
+    "CHEM 1220", "CHEM 1225",
+    "BIOL 1610", "BIOL 1615",
+    "MATH 1060",
+
+    "GEO 1220", "GEO 1225",
+    "GEO 2700R"
+    );
+
+//remove penalty between classes and their prereqs
+conflict!(t, remove penalty, one: "CHEM 1210", many: "MATH 1050");
+conflict!(t, remove penalty, one: "CHEM 1210", many: "MATH 1050");
+conflict!(t, remove penalty, one: "ENVS 2700R", many: "ENVS 1210", "ENVS 1215");
+conflict!(t, remove penalty, one: "GEO 1220", many: "GEO 1110", "GEO 1115");
+conflict!(t, remove penalty, one: "GEO 12250", many: "GEO 1110", "GEO 1115");
+conflict!(t, remove penalty, one: "MATH 1060", many: "MATH 1050");
+
+//reduce scores by section count + lil more 
+conflict!(t, two section reduction: "BIOL 1610");
+conflict!(t, two section reduction: "ENVS 1215");
+conflict!(t, two section reduction: "MATH 1060");
+conflict!(t, three section reduction: "CHEM 1210");
+conflict!(t, three section reduction: "CHEM 1215");
+
+//multiple section scheduling conflict with themselves
+conflict!(t, set hard, clique: "CHEM 1210-01", "CHEM 1210-02");
+conflict!(t, set hard, clique: "CHEM 1220-01", "CHEM 1220-02");
+conflict!(t, set hard, clique: "BIOL 1610-01", "BIOL 1610-02");
+
+//class and coreq lab conflict
+conflict!(t, set hard, clique: "ENVS 1210-01", "ENVS 1215-01", "ENVS 1215-02");
+conflict!(t, set hard, clique: "GEO 1110", "GEO 1115");
+conflict!(t, set hard, clique: "GEO 1220", "GEO 1225");
+conflict!(t, set hard, clique: "GEOG 3600", "GEOG 3605");
