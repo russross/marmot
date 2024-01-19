@@ -1204,7 +1204,7 @@ macro_rules! add_prereqs {
 }
 
 pub(crate) use {
-    anticonflict, clustering_preferences, conflict, crosslist, days_off_preference,
+    add_prereqs, anticonflict, clustering_preferences, conflict, crosslist, days_off_preference,
     default_clustering, duration_penalty, evenly_spread_out_preference, holiday, instructor,
-    name_with_optional_penalty, room, section, time, add_prereqs,
+    name_with_optional_penalty, room, section, time,
 };
