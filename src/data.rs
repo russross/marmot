@@ -19,31 +19,30 @@ pub fn input() -> Result<Input, String> {
     room!(t, name: "Smith 116", capacity: 38, tags: "stadium");
     room!(t, name: "Smith 117", capacity: 38, tags: "stadium");
 
-//    time!(t, name: "MWF0800+50", tags: "3 credit bell schedule", "3×50", "mwf");
-//    time!(t, name: "MWF0900+50", tags: "3 credit bell schedule", "3×50", "mwf");
-//    time!(t, name: "MWF1000+50", tags: "3 credit bell schedule", "3×50", "mwf");
-//    time!(t, name: "MWF1100+50", tags: "3 credit bell schedule", "3×50", "mwf");
-//    time!(t, name: "MW1200+75", tags: "3 credit bell schedule", "2×75", "mw");
-//    time!(t, name: "MW1330+75", tags: "3 credit bell schedule", "2×75", "mw");
-//    time!(t, name: "MW1500+75", tags: "3 credit bell schedule", "2×75", "mw");
-//    time!(t, name: "MW1630+75", tags: "3 credit bell schedule", "2×75", "mw");
-//    time!(t, name: "TR0730+75", tags: "3 credit bell schedule", "2×75", "tr");
-//    time!(t, name: "TR0900+75", tags: "3 credit bell schedule", "2×75", "tr");
-//    time!(t, name: "TR1030+75", tags: "3 credit bell schedule", "2×75", "tr");
-//    time!(t, name: "TR1200+75", tags: "3 credit bell schedule", "2×75", "tr");
-//    time!(t, name: "TR1330+75", tags: "3 credit bell schedule", "2×75", "tr");
-//    time!(t, name: "TR1500+75", tags: "3 credit bell schedule", "2×75", "tr");
-//    time!(t, name: "TR1630+75", tags: "3 credit bell schedule", "2×75", "tr");
-//    time!(t, name: "T1800+150", tags: "3 credit evening");
-//    time!(t, name: "W1800+150", tags: "3 credit evening");
-//    time!(t, name: "R1800+150", tags: "3 credit evening");
+    //    time!(t, name: "MWF0800+50", tags: "3 credit bell schedule", "3×50", "mwf");
+    //    time!(t, name: "MWF0900+50", tags: "3 credit bell schedule", "3×50", "mwf");
+    //    time!(t, name: "MWF1000+50", tags: "3 credit bell schedule", "3×50", "mwf");
+    //    time!(t, name: "MWF1100+50", tags: "3 credit bell schedule", "3×50", "mwf");
+    //    time!(t, name: "MW1200+75", tags: "3 credit bell schedule", "2×75", "mw");
+    //    time!(t, name: "MW1330+75", tags: "3 credit bell schedule", "2×75", "mw");
+    //    time!(t, name: "MW1500+75", tags: "3 credit bell schedule", "2×75", "mw");
+    //    time!(t, name: "MW1630+75", tags: "3 credit bell schedule", "2×75", "mw");
+    //    time!(t, name: "TR0730+75", tags: "3 credit bell schedule", "2×75", "tr");
+    //    time!(t, name: "TR0900+75", tags: "3 credit bell schedule", "2×75", "tr");
+    //    time!(t, name: "TR1030+75", tags: "3 credit bell schedule", "2×75", "tr");
+    //    time!(t, name: "TR1200+75", tags: "3 credit bell schedule", "2×75", "tr");
+    //    time!(t, name: "TR1330+75", tags: "3 credit bell schedule", "2×75", "tr");
+    //    time!(t, name: "TR1500+75", tags: "3 credit bell schedule", "2×75", "tr");
+    //    time!(t, name: "TR1630+75", tags: "3 credit bell schedule", "2×75", "tr");
+    //    time!(t, name: "T1800+150", tags: "3 credit evening");
+    //    time!(t, name: "W1800+150", tags: "3 credit evening");
+    //    time!(t, name: "R1800+150", tags: "3 credit evening");
     time!(t, name: "R1900+50");
     time!(t, name: "F1300+50");
 
     input_times(&mut t)?;
     input_computing(&mut t)?;
     input_set(&mut t)?;
-
 
     crosslist!(t, "GEO 2700R-01" cross-list with "ENVS 2700R-01");
     crosslist!(t, "ENVS 3110-01" cross-list with "GEO 3110-01");
@@ -1664,7 +1663,6 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
             "MTWRF 0800-1700",
     );
     // MW1200+75, MW1330+75, T1200+170, TR1030+75, W0900+110
-
 
     // BIOL 1010-01: General Biology (LS)
     // assigned to BROWN 201 at TR0730+75
@@ -5456,60 +5454,61 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                     "F1400+170",
     );
 
+    // envs envs emphasis
+    conflict!(t, set penalty to 99,
+        clique: "ENVS 1210", "ENVS 1215",
+                "ENVS 2210",
+                "GEO 1110", "GEO 1115",
+                "GEOG 3600", "GEOG 3605",
+                "CHEM 1210", "CHEM 1215",
+                "CHEM 1220", "CHEM 1225",
+                "BIOL 1610", "BIOL 1615",
+                "MATH 1060",
+
+                "ENVS 2700R",
+                "ENVS 4910",
+                "ENVS 3920");
+
+    // envs geo emphasis
+    conflict!(t, set penalty to 99,
+        clique: "ENVS 1210", "ENVS 1215",
+                "ENVS 2210",
+                "GEO 1110", "GEO 1115",
+                "GEOG 3600", "GEOG 3605",
+                "CHEM 1210", "CHEM 1215",
+                "CHEM 1220", "CHEM 1225",
+                "BIOL 1610", "BIOL 1615",
+                "MATH 1060",
+
+                "GEO 1220", "GEO 1225",
+                "GEO 2700R");
+
+    // remove penalty between classes and their prereqs
+    add_prereqs!(t, course: "CHEM 1210", prereqs: "MATH 1050");
+    add_prereqs!(t, course: "CHEM 1210", prereqs: "MATH 1050");
+    add_prereqs!(t, course: "CHEM 1210", prereqs: "MATH 1050");
+    add_prereqs!(t, course: "ENVS 2700R", prereqs: "ENVS 1210", "ENVS 1215");
+    add_prereqs!(t, course: "GEO 1220", prereqs: "GEO 1110", "GEO 1115");
+    add_prereqs!(t, course: "GEO 12250", prereqs: "GEO 1110", "GEO 1115");
+    add_prereqs!(t, course: "MATH 1060", prereqs: "MATH 1050");
+
+    ////reduce scores by section count + lil more
+    //conflict!(t, two section reduction: "BIOL 1610");
+    //conflict!(t, two section reduction: "ENVS 1215");
+    //conflict!(t, two section reduction: "MATH 1060");
+    //conflict!(t, three section reduction: "CHEM 1210");
+    //conflict!(t, three section reduction: "CHEM 1215");
+    //
+    ////multiple section scheduling conflict with themselves
+    //conflict!(t, set hard, clique: "CHEM 1210-01", "CHEM 1210-02");
+    //conflict!(t, set hard, clique: "CHEM 1220-01", "CHEM 1220-02");
+    //conflict!(t, set hard, clique: "BIOL 1610-01", "BIOL 1610-02");
+    //
+    ////class and coreq lab conflict
+    //conflict!(t, set hard, clique: "ENVS 1210-01", "ENVS 1215-01", "ENVS 1215-02");
+    //conflict!(t, set hard, clique: "GEO 1110", "GEO 1115");
+    //conflict!(t, set hard, clique: "GEO 1220", "GEO 1225");
+    //conflict!(t, set hard, clique: "GEOG 3600", "GEOG 3605");
     Ok(())
 }
 
-//envs envs emphasis
-conflict!(t, set penalty to 90, clique:
-	"ENVS 1210", "ENVS 1215",
-    "ENVS 2210",
-    "GEO 1110", "GEO 1115",
-    "GEOG 3600", "GEOG 3605",
-    "CHEM 1210",
-    "CHEM 1220",
-    "BIOL 1610",
-    "MATH 1060",
-    "ENVS 2700R",
-    "ENVS 4910",
-    "ENVS 3920");
-
-//envs geo emphasis
- conflict!(set penalty to 90, clique:
-    "ENVS 1210", "ENVS 1215",
-    "ENVS 2210",
-    "GEO 1110", "GEO 1115",
-    "GEOG 3600", "GEOG 3605",
-    "CHEM 1210", "CHEM 1215",
-    "CHEM 1220", "CHEM 1225",
-    "BIOL 1610", "BIOL 1615",
-    "MATH 1060",
-
-    "GEO 1220", "GEO 1225",
-    "GEO 2700R"
-    );
-
-//remove penalty between classes and their prereqs
-conflict!(t, remove penalty, one: "CHEM 1210", many: "MATH 1050");
-conflict!(t, remove penalty, one: "CHEM 1210", many: "MATH 1050");
-conflict!(t, remove penalty, one: "ENVS 2700R", many: "ENVS 1210", "ENVS 1215");
-conflict!(t, remove penalty, one: "GEO 1220", many: "GEO 1110", "GEO 1115");
-conflict!(t, remove penalty, one: "GEO 12250", many: "GEO 1110", "GEO 1115");
-conflict!(t, remove penalty, one: "MATH 1060", many: "MATH 1050");
-
-//reduce scores by section count + lil more 
-conflict!(t, two section reduction: "BIOL 1610");
-conflict!(t, two section reduction: "ENVS 1215");
-conflict!(t, two section reduction: "MATH 1060");
-conflict!(t, three section reduction: "CHEM 1210");
-conflict!(t, three section reduction: "CHEM 1215");
-
-//multiple section scheduling conflict with themselves
-conflict!(t, set hard, clique: "CHEM 1210-01", "CHEM 1210-02");
-conflict!(t, set hard, clique: "CHEM 1220-01", "CHEM 1220-02");
-conflict!(t, set hard, clique: "BIOL 1610-01", "BIOL 1610-02");
-
-//class and coreq lab conflict
-conflict!(t, set hard, clique: "ENVS 1210-01", "ENVS 1215-01", "ENVS 1215-02");
-conflict!(t, set hard, clique: "GEO 1110", "GEO 1115");
-conflict!(t, set hard, clique: "GEO 1220", "GEO 1225");
-conflict!(t, set hard, clique: "GEOG 3600", "GEOG 3605");

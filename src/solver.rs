@@ -4,6 +4,7 @@ use itertools::Itertools;
 use rand::Rng;
 use std::fmt::Write;
 use std::fs;
+use std::rc::Rc;
 
 const PENALTY_FOR_UNPLACED_SECTION: isize = 1000;
 const MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION: isize = 1000;
@@ -34,7 +35,7 @@ pub struct SolverSection {
     pub tickets: isize,
 
     // scoring that will be applied specifically to this section
-    pub score_criteria: Vec<ScoreCriterion>,
+    pub score_criteria: Vec<Rc<dyn ScoreCriterion>>,
 
     // scoring info for the current placement
     pub score: SectionScore,
@@ -301,6 +302,18 @@ impl PlacementLog {
     }
 }
 
+pub trait ScoreCriterion {
+    fn check(
+        &self,
+        solver: &Solver,
+        input: &Input,
+        section: usize,
+        records: &mut Vec<SectionScoreRecord>,
+    );
+    fn get_neighbors(&self) -> Vec<usize>;
+    fn debug(&self, input: &Input) -> String;
+}
+
 impl Solver {
     pub fn new(input: &Input) -> Result<Self, String> {
         let mut room_placements = Vec::with_capacity(input.rooms.len());
@@ -334,7 +347,7 @@ impl Solver {
             // compute combined conflicts across cross-listings
             let mut hard_conflicts = Vec::new();
             let mut soft_conflicts = Vec::new();
-            let mut score_criteria = Vec::new();
+            let mut score_criteria: Vec<Rc<dyn ScoreCriterion>> = Vec::new();
             let mut cross_listings = input.sections[i].cross_listings.clone();
             if cross_listings.is_empty() {
                 cross_listings.push(i);
@@ -361,9 +374,9 @@ impl Solver {
             soft_conflicts.dedup_by_key(|elt| elt.section);
 
             if !soft_conflicts.is_empty() {
-                score_criteria.push(ScoreCriterion::SoftConflict {
+                score_criteria.push(Rc::new(SoftConflictCriterion {
                     sections_with_penalties: soft_conflicts,
-                });
+                }));
             }
 
             // get all instructors across all cross-listings
@@ -492,11 +505,11 @@ impl Solver {
                     input.sections[single_primary].get_name()
                 ));
             }
-            let criterion = ScoreCriterion::AntiConflict {
+            let criterion = Rc::new(AntiConflictCriterion {
                 penalty: *penalty,
                 single: single_primary,
                 group: group_primaries.clone(),
-            };
+            });
 
             sections[single_primary]
                 .score_criteria
@@ -547,11 +560,11 @@ impl Solver {
                 grouped_by_days.push(group);
             }
 
-            let ics = ScoreCriterion::InstructorClassSpread {
+            let ics = Rc::new(InstructorClassSpreadCriterion {
                 instructor,
                 sections: sec_primaries.clone(),
                 grouped_by_days,
-            };
+            });
 
             for &section in &sec_primaries {
                 sections[section].score_criteria.push(ics.clone());
@@ -611,12 +624,12 @@ impl Solver {
                 for &sec in &sec_primaries {
                     sections[sec]
                         .score_criteria
-                        .push(ScoreCriterion::InstructorRoomCount {
+                        .push(Rc::new(InstructorRoomCountCriterion {
                             instructor,
                             sections: sec_primaries.clone(),
                             desired: k,
                             penalty: 2,
-                        });
+                        }));
                 }
             }
         }
@@ -1147,7 +1160,7 @@ impl Solver {
             if section.is_secondary_cross_listing {
                 continue;
             }
-            
+
             writeln!(w, "{comma}\n    {{").unwrap();
             comma = ",";
 
@@ -1160,29 +1173,46 @@ impl Solver {
             writeln!(w, "        \"prefixes\": [{}],", join(&mut list)).unwrap();
 
             // instuctors
-            gather(&mut |i| {
-                for &elt in &input.sections[i].instructors {
-                    list.push(input.instructors[elt].name.clone());
-                }
-            }, i);
+            gather(
+                &mut |i| {
+                    for &elt in &input.sections[i].instructors {
+                        list.push(input.instructors[elt].name.clone());
+                    }
+                },
+                i,
+            );
             writeln!(w, "        \"instructors\": [{}],", join(&mut list)).unwrap();
-            if let Some(RoomTimeWithPenalty { room, time_slot, .. }) = section.placement {
+            if let Some(RoomTimeWithPenalty {
+                room, time_slot, ..
+            }) = section.placement
+            {
                 writeln!(w, "        \"is_placed\": true,").unwrap();
                 writeln!(w, "        \"room\": \"{}\",", input.rooms[room].name).unwrap();
-                writeln!(w, "        \"time_slot\": \"{}\",", input.time_slots[time_slot].name).unwrap();
+                writeln!(
+                    w,
+                    "        \"time_slot\": \"{}\",",
+                    input.time_slots[time_slot].name
+                )
+                .unwrap();
             } else {
                 writeln!(w, "        \"is_placed\": false,").unwrap();
             }
             let mut problems = Vec::new();
-            section.score.gather_score_messages(self, input, &mut problems, true);
+            section
+                .score
+                .gather_score_messages(self, input, &mut problems, true);
             if problems.is_empty() {
                 writeln!(w, "        \"problems\": []").unwrap();
             } else {
                 write!(w, "        \"problems\": [").unwrap();
                 let mut c = "";
                 for (score, msg) in &problems {
-                    write!(w, "{}\n            {{ \"score\": {}, \"message\": \"{}\" }}",
-                        c, score, msg).unwrap();
+                    write!(
+                        w,
+                        "{}\n            {{ \"score\": {}, \"message\": \"{}\" }}",
+                        c, score, msg
+                    )
+                    .unwrap();
                     c = ",";
                 }
                 writeln!(w, "\n        ]").unwrap();
@@ -1240,24 +1270,27 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
             }
         }
         let score = solver.score;
-        if score < best_score
-        {
+        if score < best_score {
             best_score = score;
             winner = solver.clone();
 
             if winner.unplaced_current < 5 {
                 let mut problems = Vec::new();
                 for i in 0..winner.sections.len() {
-                    winner.sections[i]
-                        .score
-                        .gather_score_messages(&winner, input, &mut problems, false);
+                    winner.sections[i].score.gather_score_messages(
+                        &winner,
+                        input,
+                        &mut problems,
+                        false,
+                    );
                 }
                 problems.sort_by_key(|(score, _)| -score);
 
                 println!();
                 println!();
                 //winner.print_schedule(input);
-                fs::write("placement.js", winner.dump_json(input)).expect("unable to write placements.js");
+                fs::write("placement.js", winner.dump_json(input))
+                    .expect("unable to write placements.js");
                 //print!("{}", winner.dump_json(input));
 
                 if !problems.is_empty() {
@@ -1289,8 +1322,10 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
 
             let elapsed = start.elapsed();
             let rate = (iteration as f64) / elapsed.as_seconds_f64();
-            println!("score = {} with {} unplaced sections, solving at a rate of {}/second",
-                score, winner.unplaced_current, rate as i64);
+            println!(
+                "score = {} with {} unplaced sections, solving at a rate of {}/second",
+                score, winner.unplaced_current, rate as i64
+            );
         }
     }
 }

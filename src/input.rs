@@ -5,6 +5,45 @@ pub fn setup() -> Result<Input, String> {
     input.missing.sort();
     input.missing.dedup();
 
+    // compute the transitive closure of all prereqs
+    // we will do it the easy/dumb way and just iterate until it converges
+    let mut changed = true;
+    while changed {
+        changed = false;
+
+        for sec_i in 0..input.sections.len() {
+            let mut new_list = Vec::new();
+            for &pre in &input.sections[sec_i].prereqs {
+                new_list.push(pre);
+                for &elt in &input.sections[pre].prereqs {
+                    new_list.push(elt);
+                }
+            }
+            new_list.sort();
+            new_list.dedup();
+            if new_list.len() != input.sections[sec_i].prereqs.len() {
+                changed = true;
+                input.sections[sec_i].prereqs = new_list;
+            } else {
+                for i in 0..new_list.len() {
+                    if new_list[i] != input.sections[sec_i].prereqs[i] {
+                        changed = true;
+                        input.sections[sec_i].prereqs = new_list;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // remove all conflicts between courses and their prereqs
+    for sec_i in 0..input.sections.len() {
+        for pre_i in 0..input.sections[sec_i].prereqs.len() {
+            let prereq = input.sections[sec_i].prereqs[pre_i];
+            input.sections[sec_i].set_conflict(prereq, 0);
+        }
+    }
+
     // add hard conflicts between all the sections an instructor teaches
     for instructor in &input.instructors {
         for &left in &instructor.sections {
@@ -27,6 +66,20 @@ pub fn setup() -> Result<Input, String> {
                 input.sections[left].set_conflict(right, 100);
             }
         }
+    }
+
+    // handle courses with multiple sections:
+    // 1. remove/relax all conflicts involving those sections (except hard conflicts)
+    // 2. make sections of the same course hard conflicts with each other
+    // 3. scoring criteria to spread sections across morning/afternoon, mw/tr?
+    let mut counts = std::collections::HashMap::<String, usize>::new();
+    for sec in &input.sections {
+        let key = format!("{} {}", sec.prefix, sec.course);
+        *counts.entry(key).or_default() += 1;
+    }
+    counts.retain(|_, v| *v > 1);
+    for course_raw in counts.keys() {
+        println!("{} has multiple sections", course_raw);
     }
 
     // compute time slot conflict lookup table
@@ -412,6 +465,7 @@ impl Input {
             hard_conflicts: Vec::new(),
             soft_conflicts: Vec::new(),
             cross_listings: Vec::new(),
+            prereqs: Vec::new(),
         });
 
         Ok(())
@@ -520,6 +574,43 @@ impl Input {
         group.dedup();
 
         self.anticonflicts.push((badness, single, group));
+
+        Ok(())
+    }
+
+    pub fn add_prereqs(&mut self, course_raw: &str, prereqs_raw: Vec<&str>) -> Result<(), String> {
+        // see if the course is present in the data
+        let course_list = self.find_sections_by_name(course_raw)?;
+        if course_list.is_empty() {
+            self.missing.push(course_raw.to_string());
+        }
+
+        // look up the prereq sections
+        let mut prereqs = Vec::new();
+        for raw in prereqs_raw {
+            let mut list = self.find_sections_by_name(raw)?;
+            if list.is_empty() {
+                self.missing.push(raw.to_string());
+            } else {
+                prereqs.append(&mut list);
+            }
+        }
+
+        // course and prereqs must both exist
+        if prereqs.is_empty() || course_list.is_empty() {
+            return Ok(());
+        }
+        prereqs.sort();
+        prereqs.dedup();
+
+        for course in course_list {
+            let lst = &mut self.sections[course].prereqs;
+            for &elt in &prereqs {
+                lst.push(elt);
+            }
+            lst.sort();
+            lst.dedup();
+        }
 
         Ok(())
     }
@@ -828,6 +919,11 @@ pub struct Section {
     // in numerical order, and the first one is the canonical section (others tag along)
     // empty implies no cross listing
     pub cross_listings: Vec<usize>,
+
+    // direct prereqs are recorded here
+    // the transitive closure of prereqs is used to remove conflicts between classes
+    // that cannot be taken together
+    pub prereqs: Vec<usize>,
 }
 
 impl Section {
@@ -1099,8 +1195,16 @@ macro_rules! default_clustering {
     };
 }
 
+macro_rules! add_prereqs {
+    ($input:expr,
+            course: $one:literal,
+            prereqs: $($many:literal),+ $(,)?) => {
+        $input.add_prereqs($one, vec![ $($many, )+ ])?;
+    };
+}
+
 pub(crate) use {
     anticonflict, clustering_preferences, conflict, crosslist, days_off_preference,
     default_clustering, duration_penalty, evenly_spread_out_preference, holiday, instructor,
-    name_with_optional_penalty, room, section, time,
+    name_with_optional_penalty, room, section, time, add_prereqs,
 };
