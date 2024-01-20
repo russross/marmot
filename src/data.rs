@@ -71,6 +71,18 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "TR  1500-1630" with penalty 10,
     );
     default_clustering!(t, instructor: "Bart Stander", days: "mt", days off: 1);
+    section!(t, course: "CS 2420-01",
+            instructor: "Bart Stander",
+            rooms and times: "stadium", "flex" with penalty 10, "3×50");
+    section!(t, course: "CS 3310-01",
+            instructor: "Bart Stander",
+            rooms and times: "stadium", "pcs", "3 credit bell schedule");
+    section!(t, course: "CS 3600-01",
+            instructor: "Bart Stander",
+            rooms and times: "pcs", "stadium" with penalty 10, "3 credit bell schedule");
+    section!(t, course: "CS 4550-01",
+            instructor: "Bart Stander",
+            rooms and times: "pcs", "3 credit bell schedule");
 
     instructor!(t,
         name:
@@ -82,6 +94,12 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "TR  1330-1500" with penalty 5,
     );
     default_clustering!(t, instructor: "Carol Stander", days: "mt");
+    section!(t, course: "CS 1030-01",
+            instructor: "Carol Stander",
+            rooms and times: "flex", "3 credit bell schedule");
+    section!(t, course: "CS 1410-02",
+            instructor: "Carol Stander",
+            rooms and times: "flex", "3 credit bell schedule");
 
     instructor!(t,
         name:
@@ -96,141 +114,6 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "TR  1330-1630",
     );
     default_clustering!(t, instructor: "Curtis Larsen", days: "mt", days off: 0);
-
-    instructor!(t,
-        name:
-            "DJ Holt",
-        available:
-            "MW 1200-1500",
-            "MW 1500-1630" with penalty 10,
-            "TR 0900-1500",
-            "TR 1500-1630" with penalty 10,
-    );
-    default_clustering!(t, instructor: "DJ Holt", days: "mt", days off: 0);
-
-    instructor!(t,
-        name:
-            "Eric Pedersen",
-        available:
-            "TR  1200-1330",
-    );
-
-    instructor!(t,
-        name:
-            "Jay Sneddon",
-        available:
-            "MWF 0800-0900" with penalty 15,
-            "MWF 0900-1200" with penalty 10,
-            "MW  1200-1630",
-            "TR  0900-1500",
-            "TR  1500-1630" with penalty 5,
-    );
-    default_clustering!(t, instructor: "Jay Sneddon", days: "mt", days off: 0);
-
-    instructor!(t,
-        name:
-            "Jeff Compas",
-        available:
-            "MWF 0800-0900",
-            "MW  1630-1800",
-            "TR  1630-1800",
-            "T   1800-2030",
-    );
-
-    instructor!(t,
-        name:
-            "Joe Francom",
-        available:
-            "MWF 0900-1200",
-            "MW  1330-1500",
-    );
-    default_clustering!(t, instructor: "Joe Francom", days: "mt", days off: 1);
-
-    instructor!(t,
-        name:
-            "Lora Klein",
-        available:
-            "TR 0900-1500",
-            "MW 1500-1630" with penalty 15,
-    );
-    default_clustering!(t, instructor: "Lora Klein", days: "mt");
-
-    instructor!(t,
-        name:
-            "Matt Kearl",
-        available:
-            "MW 1200-1330",
-            "TR 0900-1330",
-    );
-    default_clustering!(t, instructor: "Matt Kearl", days: "mt", days off: 1);
-
-    instructor!(t,
-        name:
-            "Phil Daley",
-        available:
-            "MWF 0900-1200",
-            "MW  1200-1500",
-            "MW  1500-1630" with penalty 10,
-            "TR  0900-1500",
-            "TR  1500-1630" with penalty 10,
-    );
-    default_clustering!(t, instructor: "Phil Daley", days: "mt", days off: 0);
-
-    instructor!(t,
-       name:
-           "Ren Quinn",
-       available:
-           "MWF 0900-1200",
-           "TR  1200-1330" with penalty 5,
-           "TR  1330-1630",
-           "R   1900-2000",
-           "F   1300-1400",
-    );
-    default_clustering!(t, instructor: "Ren Quinn", days: "mt", days off: 0);
-
-    instructor!(t,
-        name:
-            "Russ Ross",
-        available:
-            "MTWR 1200-1500",
-            //"MTWR 1500-1630" with penalty 10,
-    );
-    default_clustering!(t, instructor: "Russ Ross", days: "mt", days off: 0);
-
-    instructor!(t,
-        name:
-            "Rex Frisbey",
-        available:
-            "MWF 1100-1200",
-    );
-
-    instructor!(t,
-        name:
-            "Jamie Bennion",
-        available:
-            "W 1800-2030",
-    );
-
-    section!(t, course: "CS 2420-01",
-            instructor: "Bart Stander",
-            rooms and times: "stadium", "flex" with penalty 10, "3×50");
-    section!(t, course: "CS 3310-01",
-            instructor: "Bart Stander",
-            rooms and times: "stadium", "pcs", "3 credit bell schedule");
-    section!(t, course: "CS 3600-01",
-            instructor: "Bart Stander",
-            rooms and times: "pcs", "stadium" with penalty 10, "3 credit bell schedule");
-    section!(t, course: "CS 4550-01",
-            instructor: "Bart Stander",
-            rooms and times: "pcs", "3 credit bell schedule");
-
-    section!(t, course: "CS 1030-01",
-            instructor: "Carol Stander",
-            rooms and times: "flex", "3 credit bell schedule");
-    section!(t, course: "CS 1410-02",
-            instructor: "Carol Stander",
-            rooms and times: "flex", "3 credit bell schedule");
-
     section!(t, course: "CS 3005-01",
             instructor: "Curtis Larsen",
             rooms and times: "Smith 116", "3×50");
@@ -244,6 +127,16 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             instructor: "Curtis Larsen",
             rooms and times: "Smith 116", "flex" with penalty 1, "3 credit bell schedule", "tr" with penalty 10);
 
+    instructor!(t,
+        name:
+            "DJ Holt",
+        available:
+            "MW 1200-1500",
+            "MW 1500-1630" with penalty 10,
+            "TR 0900-1500",
+            "TR 1500-1630" with penalty 10,
+    );
+    default_clustering!(t, instructor: "DJ Holt", days: "mt", days off: 0);
     section!(t, course: "SE 3010-01",
             instructor: "DJ Holt",
             rooms and times: "flex", "macs", "MW1500+75"); // same day as SE4200
@@ -259,10 +152,27 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
     crosslist!(t, "SE 4600-01" cross-list with "CS 4600-02");
     anticonflict!(t, set penalty to 50, single: "CS 4600-01", group: "CS 4600-02");
 
+    instructor!(t,
+        name:
+            "Eric Pedersen",
+        available:
+            "TR  1200-1330",
+    );
     section!(t, course: "SE 3500-01",
             instructor: "Eric Pedersen",
             rooms and times: "flex", "TR1200+75");
 
+    instructor!(t,
+        name:
+            "Jay Sneddon",
+        available:
+            "MWF 0800-0900" with penalty 15,
+            "MWF 0900-1200" with penalty 10,
+            "MW  1200-1630",
+            "TR  0900-1500",
+            "TR  1500-1630" with penalty 5,
+    );
+    default_clustering!(t, instructor: "Jay Sneddon", days: "mt", days off: 0);
     section!(t, course: "IT 1200-01",
             instructor: "Jay Sneddon",
             rooms and times: "Smith 107", "tr");
@@ -279,6 +189,15 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             instructor: "Jay Sneddon",
             rooms and times: "Smith 107", "3 credit bell schedule");
 
+    instructor!(t,
+        name:
+            "Jeff Compas",
+        available:
+            "MWF 0800-0900",
+            "MW  1630-1800",
+            "TR  1630-1800",
+            "T   1800-2030",
+    );
     section!(t, course: "CS 1400-03",
             instructor: "Jeff Compas",
             rooms and times: "stadium", "3 credit bell schedule", "3 credit evening");
@@ -292,6 +211,14 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             instructor: "Jeff Compas",
             rooms and times: "flex", "3 credit bell schedule", "3 credit evening");
 
+    instructor!(t,
+        name:
+            "Joe Francom",
+        available:
+            "MWF 0900-1200",
+            "MW  1330-1500",
+    );
+    default_clustering!(t, instructor: "Joe Francom", days: "mt", days off: 1);
     section!(t, course: "IT 3110-01",
             instructor: "Joe Francom",
             rooms and times: "flex", "3 credit bell schedule");
@@ -299,12 +226,28 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             instructor: "Joe Francom" and "Phil Daley",
             rooms and times: "flex", "3 credit bell schedule");
 
+    instructor!(t,
+        name:
+            "Lora Klein",
+        available:
+            "TR 0900-1500",
+            "MW 1500-1630" with penalty 15,
+    );
+    default_clustering!(t, instructor: "Lora Klein", days: "mt");
     section!(t, course: "SE 3200-01",
             instructor: "Lora Klein",
             rooms and times: "Smith 107" with penalty 5, "flex", "3 credit bell schedule");
     //course: CS1410 ACE MW 9:30-10:45am, INV 112
     //course: CS1410 ACE MW 12:00-1:15pm, INV 112
 
+    instructor!(t,
+        name:
+            "Matt Kearl",
+        available:
+            "MW 1200-1330",
+            "TR 0900-1330",
+    );
+    default_clustering!(t, instructor: "Matt Kearl", days: "mt", days off: 1);
     section!(t, course: "SE 3450-01",
             instructor: "Matt Kearl",
             rooms and times: "flex", "macs", "3 credit bell schedule");
@@ -315,6 +258,17 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             instructor: "Matt Kearl",
             rooms and times: "macs", "3 credit bell schedule");
 
+    instructor!(t,
+        name:
+            "Phil Daley",
+        available:
+            "MWF 0900-1200",
+            "MW  1200-1500",
+            "MW  1500-1630" with penalty 10,
+            "TR  0900-1500",
+            "TR  1500-1630" with penalty 10,
+    );
+    default_clustering!(t, instructor: "Phil Daley", days: "mt", days off: 0);
     section!(t, course: "IT 1100-01",
             instructor: "Phil Daley",
             rooms and times: "pcs", "3 credit bell schedule");
@@ -329,6 +283,17 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             rooms and times: "Smith 107", "3 credit bell schedule");
     // avoid IT 4510 so Phil can shadow Joe
 
+    instructor!(t,
+       name:
+           "Ren Quinn",
+       available:
+           "MWF 0900-1200",
+           "TR  1200-1330" with penalty 5,
+           "TR  1330-1630",
+           "R   1900-2000",
+           "F   1300-1400",
+    );
+    default_clustering!(t, instructor: "Ren Quinn", days: "mt", days off: 0);
     section!(t, course: "CS 1400-01",
             instructor: "Ren Quinn",
             rooms and times: "flex", "3 credit bell schedule");
@@ -351,6 +316,14 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             instructor: "Ren Quinn",
             rooms and times: "Smith 109", "F1300+50");
 
+    instructor!(t,
+        name:
+            "Russ Ross",
+        available:
+            "MTWR 1200-1500",
+            //"MTWR 1500-1630" with penalty 10,
+    );
+    default_clustering!(t, instructor: "Russ Ross", days: "mt", days off: 0);
     section!(t, course: "CS 2810-01",
             instructor: "Russ Ross",
             rooms and times: "Smith 109", "3 credit bell schedule");
@@ -364,13 +337,26 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             instructor: "Russ Ross",
             rooms and times: "Smith 109", "3 credit bell schedule");
 
+    instructor!(t,
+        name:
+            "Rex Frisbey",
+        available:
+            "MWF 1100-1200",
+    );
     section!(t, course: "SE 1400-02",
             instructor: "Rex Frisbey",
             rooms and times: "macs", "3 credit bell schedule");
 
+    instructor!(t,
+        name:
+            "Jamie Bennion",
+        available:
+            "W 1800-2030",
+    );
     section!(t, course: "IT 4990-01",
             instructor: "Jamie Bennion",
             rooms and times: "flex", "3 credit evening");
+
 
     conflict!(t, set hard,
             clique: "CS 2420", "CS 2450", "CS 2810", "CS 3005"); // 3rd/4th semester classes
@@ -397,7 +383,8 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
     // CS electives
     conflict!(t, set penalty to 30,
             clique: //"CS 2450",
-                    "CS 3150", "CS 3310", "CS 3400", "CS 3410", "CS 3500", "CS 3510", "CS 3520", "CS 3530", "CS 3600",
+                    "CS 3150", "CS 3310", "CS 3400", "CS 3410",
+                    "CS 3500", "CS 3510", "CS 3520", "CS 3530", "CS 3600",
                     "CS 4300", "CS 4307", "CS 4320", "CS 4550", "CS 4600", "CS 4990",
                     "SE 3010", "SE 3020", "SE 3100", "SE 3200", "SE 3400", "SE 4200",
                     "IT 2700", "IT 3100", "IT 3110", "IT 4200");
@@ -1718,7 +1705,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                     "W1030+75",
     );
     conflict!(t, set hard,
-                clique: "BIOL 1010-05", "BIOL 1010-05-SI",
+            clique: "BIOL 1010-05", "BIOL 1010-05-SI",
     );
 
     // BIOL 1010-06: General Biology (LS)
@@ -1784,7 +1771,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                     "3 credit bell schedule",
     );
     conflict!(t, set hard,
-                clique: "BIOL 1010-11", "BIOL 1010-11-SI",
+            clique: "BIOL 1010-11", "BIOL 1010-11-SI",
     );
 
     // BIOL 1010-50: General Biology (LS)
@@ -2160,7 +2147,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                     "T1330+75",
     );
     conflict!(t, set hard,
-                clique: "BIOL 2320-04", "BIOL 2320-04-SI",
+            clique: "BIOL 2320-04", "BIOL 2320-04-SI",
     );
 
     // BIOL 2320-05: Human Anatomy
@@ -2207,7 +2194,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                     "R1330+75",
     );
     conflict!(t, set hard,
-                clique: "BIOL 2320-08", "BIOL 2320-08-SI",
+            clique: "BIOL 2320-08", "BIOL 2320-08-SI",
     );
 
     // BIOL 2325-01: Human Anatomy Lab
@@ -2634,7 +2621,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                     "1 credit extended bell schedule",
     );
     conflict!(t, set hard,
-                clique: "BIOL 3010-01", "BIOL 3010-01-SI",
+            clique: "BIOL 3010-01", "BIOL 3010-01-SI",
     );
 
     // BIOL 3010-02: Evolution
@@ -2653,7 +2640,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                     "1 credit extended bell schedule",
     );
     conflict!(t, set hard,
-                clique: "BIOL 3010-02", "BIOL 3010-02-SI",
+            clique: "BIOL 3010-02", "BIOL 3010-02-SI",
     );
 
     // BIOL 3030-01: Principles of Genetics: Supplemental Instruction
@@ -2674,7 +2661,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                     "1 credit bell schedule",
     );
     conflict!(t, set hard,
-                clique: "BIOL 3030-01", "BIOL 3030-01-SI",
+            clique: "BIOL 3030-01", "BIOL 3030-01-SI",
     );
 
     // BIOL 3030-02: Genetics
@@ -2695,7 +2682,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                     "1 credit bell schedule",
     );
     conflict!(t, set hard,
-                clique: "BIOL 3030-02", "BIOL 3030-02-SI",
+            clique: "BIOL 3030-02", "BIOL 3030-02-SI",
     );
 
     // BIOL 3040-01: General Ecology
@@ -4175,7 +4162,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                     "1 credit bell schedule",
     );
     conflict!(t, set hard,
-                clique: "GEOG 1000-01", "GEOG 1000-01-SI",
+            clique: "GEOG 1000-01", "GEOG 1000-01-SI",
     );
 
     // GEOG 1000-02: Physical Geography (PS)
@@ -5456,32 +5443,32 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
 
     // envs envs emphasis
     conflict!(t, set penalty to 99,
-    clique: "ENVS 1210", "ENVS 1215",
-            "ENVS 2210",
-            "GEO 1110", "GEO 1115",
-            "GEOG 3600", "GEOG 3605",
-            "CHEM 1210", "CHEM 1215",
-            "CHEM 1220", "CHEM 1225",
-            "BIOL 1610", "BIOL 1615",
-            "MATH 1060",
-
-            "ENVS 2700R",
-            "ENVS 4910",
-            "ENVS 3920");
+            clique: "ENVS 1210", "ENVS 1215",
+                    "ENVS 2210",
+                    "GEO 1110", "GEO 1115",
+                    "GEOG 3600", "GEOG 3605",
+                    "CHEM 1210", "CHEM 1215",
+                    "CHEM 1220", "CHEM 1225",
+                    "BIOL 1610", "BIOL 1615",
+                    "MATH 1060",
+        
+                    "ENVS 2700R",
+                    "ENVS 4910",
+                    "ENVS 3920");
 
     // envs geo emphasis
     conflict!(t, set penalty to 99,
-    clique: "ENVS 1210", "ENVS 1215",
-            "ENVS 2210",
-            "GEO 1110", "GEO 1115",
-            "GEOG 3600", "GEOG 3605",
-            "CHEM 1210", "CHEM 1215",
-            "CHEM 1220", "CHEM 1225",
-            "BIOL 1610", "BIOL 1615",
-            "MATH 1060",
+            clique: "ENVS 1210", "ENVS 1215",
+                    "ENVS 2210",
+                    "GEO 1110", "GEO 1115",
+                    "GEOG 3600", "GEOG 3605",
+                    "CHEM 1210", "CHEM 1215",
+                    "CHEM 1220", "CHEM 1225",
+                    "BIOL 1610", "BIOL 1615",
+                    "MATH 1060",
 
-            "GEO 1220", "GEO 1225",
-            "GEO 2700R");
+                    "GEO 1220", "GEO 1225",
+                    "GEO 2700R");
 
     // remove penalty between classes and their prereqs
     add_prereqs!(t, course: "CHEM 1210", prereqs: "MATH 1050");
@@ -5511,505 +5498,305 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     //conflict!(t, set hard, clique: "GEOG 3600", "GEOG 3605");
 
     // envs envs emphasis
-    conflict!(t, set penalty to 99, clique:
-        "ENVS 1210", "ENVS 1215",
-        "ENVS 2210",
-        "GEO 1110", "GEO 1115",
-        "GEOG 3600", "GEOG 3605",
-        "CHEM 1210",
-        "CHEM 1220",
-        "BIOL 1610",
-        "MATH 1060",
-        "ENVS 2700R",
-        "ENVS 4910",
-        "ENVS 3920");
+    conflict!(t, set penalty to 99,
+            clique: "ENVS 1210", "ENVS 1215", "ENVS 2210",
+                    "GEO 1110", "GEO 1115",
+                    "GEOG 3600", "GEOG 3605",
+                    "CHEM 1210", "CHEM 1220",
+                    "BIOL 1610",
+                    "MATH 1060",
+                    "ENVS 2700R", "ENVS 4910", "ENVS 3920");
 
     // envs geo emphasis
-    conflict!(t, set penalty to 99, clique:
-        "ENVS 1210", "ENVS 1215",
-        "ENVS 2210",
-        "GEO 1110", "GEO 1115",
-        "GEOG 3600", "GEOG 3605",
-        "CHEM 1210", "CHEM 1215",
-        "CHEM 1220", "CHEM 1225",
-        "BIOL 1610", "BIOL 1615",
-        "MATH 1060",
-
-        "GEO 1220", "GEO 1225",
-        "GEO 2700R",
-    );
+    conflict!(t, set penalty to 99,
+            clique: "ENVS 1210", "ENVS 1215", "ENVS 2210",
+                    "GEO 1110", "GEO 1115",
+                    "GEOG 3600", "GEOG 3605",
+                    "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
+                    "BIOL 1610", "BIOL 1615",
+                    "MATH 1060",
+                    "GEO 1220", "GEO 1225", "GEO 2700R");
 
     // geological sciences
-    conflict!(t, set penalty to 99, clique:
-        "BIOL 3110",
-        "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
-        "GEO 1110", "GEO 1115", "GEO 1220", "GEO 1225", "GEO 2700R", "GEO 2990R",
-        "GEO 3060", "GEO 3180", "GEO 3200", "GEO 3500", "GEO 3550",
-        "GEO 3600", "GEO 3700", "GEO 3710", "GEO 4600", "GEO 4800R",
-        "GEOG 3600", "GEOG 3605",
-        "MATH 1210",
-        "PHYS 2010", "PHYS 2015", "PHYS 2210", "PHYS 2215",
-        "PHYS 2020", "PHYS 2025", "PHYS 2220", "PHYS 2225",
-        "GEO 3000", "GEO 3910",
-        "ENVS 3910", "ENVS 3920", "ENVS 3930",
-        "GEOG 3930",
-    );
+    conflict!(t, set penalty to 99,
+            clique: "BIOL 3110",
+                    "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
+                    "GEO 1110", "GEO 1115", "GEO 1220", "GEO 1225", "GEO 2700R", "GEO 2990R",
+                    "GEO 3060", "GEO 3180", "GEO 3200", "GEO 3500", "GEO 3550",
+                    "GEO 3600", "GEO 3700", "GEO 3710", "GEO 4600", "GEO 4800R",
+                    "GEOG 3600", "GEOG 3605",
+                    "MATH 1210",
+                    "PHYS 2010", "PHYS 2015", "PHYS 2210", "PHYS 2215",
+                    "PHYS 2020", "PHYS 2025", "PHYS 2220", "PHYS 2225",
+                    "GEO 3000", "GEO 3910",
+                    "ENVS 3910", "ENVS 3920", "ENVS 3930",
+                    "GEOG 3930");
 
     // bioinformatics core
-    conflict!(t,
-        set penalty to 99,
-        clique: "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625",
-                "BIOL 3010", "BIOL 3300", "BIOL 3030", "BIOL 4010", "BIOL 4300",
-                "BIOL 4305", "BIOL 4310", "BIOL 4320", "BIOL 4810R", "BIOL 4910",
-                "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
-                "CS 1400", "CS 1410", "CS 2420", "CS 2450", "CS 3310",
-                "IT 1100", "IT 2300",
-                "MATH 1210", "MATH 3060",
-    );
+    conflict!(t, set penalty to 99,
+            clique: "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625",
+                    "BIOL 3010", "BIOL 3300", "BIOL 3030", "BIOL 4010", "BIOL 4300",
+                    "BIOL 4305", "BIOL 4310", "BIOL 4320", "BIOL 4810R", "BIOL 4910",
+                    "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
+                    "CS 1400", "CS 1410", "CS 2420", "CS 2450", "CS 3310",
+                    "IT 1100", "IT 2300",
+                    "MATH 1210", "MATH 3060");
     // bioinformatics pick one tech lab course
-    conflict!(t,
-        set penalty to 30,
-        clique: "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625",
-                "BIOL 3010", "BIOL 3300", "BIOL 3030", "BIOL 4010", "BIOL 4300",
-                "BIOL 4305", "BIOL 4310", "BIOL 4320", "BIOL 4810R", "BIOL 4910",
-                "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
-                "CS 1400", "CS 1410", "CS 2420", "CS 2450", "CS 3310",
-                "IT 1100", "IT 2300",
-                "MATH 1210", "MATH 3060",
+    conflict!(t, set penalty to 30,
+            clique: "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625",
+                    "BIOL 3010", "BIOL 3300", "BIOL 3030", "BIOL 4010", "BIOL 4300",
+                    "BIOL 4305", "BIOL 4310", "BIOL 4320", "BIOL 4810R", "BIOL 4910",
+                    "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
+                    "CS 1400", "CS 1410", "CS 2420", "CS 2450", "CS 3310",
+                    "IT 1100", "IT 2300",
+                    "MATH 1210", "MATH 3060",
 
-                "BTEC 2010", "BTEC 2020", "BTEC 2030", "BTEC 2050", "BIOL 2300",
-    );
+                    "BTEC 2010", "BTEC 2020", "BTEC 2030", "BTEC 2050", "BIOL 2300");
 
     //bio_education emphasis
-    conflict!(t, set penalty to 99, clique:
-        "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
-        "BIOL 3010", "BIOL 3030", "HIST 1700", "POLS 1100", "FSHD 1500", "PSY 1010", "PSY 1100",
-        "EDUC 1010", "EDUC 2010", "EDUC 2400", "EDUC 2500", "EDUC 3110", "EDUC 2700", "MATH 1050",
-        "BIOL 2320", "BIOL 2325", "BIOL 3140", "BIOL 3145", "BIOL 2420", "BIOL 2425", "BIOL 4500", "BIOL 4505",
-        "BIOL 3040", "BIOL 3045", "BIOL 2060", "BIOL 2065", "BIOL 3450", "BIOL 3455", "BIOL 3550", "BIOL 3555",
-        "BIOL 2400", "BIOL 2405", "BIOL 3200", "BIOL 3205", "BIOL 4260", "BIOL 4265", "BIOL 4270",
-        "BIOL 4275", "BIOL 4350", "BIOL 4355", "BIOL 4380", "BIOL 4385", "BIOL 4411", "BIOL 4415", "BIOL 4440",
-        "SCI 2600", "SCI 4700",
-        "SCED 3720", "SCED 4100", "SCED 4200", "SCED 4600", "SCED 4300", "SCED 4900", "SCED 4989",
-    );
+    conflict!(t, set penalty to 99,
+            clique: "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
+                    "BIOL 3010", "BIOL 3030", "HIST 1700", "POLS 1100", "FSHD 1500", "PSY 1010", "PSY 1100",
+                    "EDUC 1010", "EDUC 2010", "EDUC 2400", "EDUC 2500", "EDUC 3110", "EDUC 2700", "MATH 1050",
+                    "BIOL 2320", "BIOL 2325", "BIOL 3140", "BIOL 3145", "BIOL 2420", "BIOL 2425", "BIOL 4500", "BIOL 4505",
+                    "BIOL 3040", "BIOL 3045", "BIOL 2060", "BIOL 2065", "BIOL 3450", "BIOL 3455", "BIOL 3550", "BIOL 3555",
+                    "BIOL 2400", "BIOL 2405", "BIOL 3200", "BIOL 3205", "BIOL 4260", "BIOL 4265", "BIOL 4270",
+                    "BIOL 4275", "BIOL 4350", "BIOL 4355", "BIOL 4380", "BIOL 4385", "BIOL 4411", "BIOL 4415", "BIOL 4440",
+                    "SCI 2600", "SCI 4700",
+                    "SCED 3720", "SCED 4100", "SCED 4200", "SCED 4600", "SCED 4300", "SCED 4900", "SCED 4989");
 
     //bio bio-sciences
-    conflict!(t,
-        set penalty to 99,
-        clique:
-            "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "BIOL 3010", "BIOL 3030",
-            "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225", "CHEM 2310", "CHEM 2315", "CHEM 2320", "CHEM 2325",
-            "MATH 1210",
-            "BIOL 3040", "BIOL 3045", "BIOL 3155",
-            "MATH 3060",
-            "BIOL 4910",
-    );
-    conflict!(t,
-        set penalty to 45,
-        clique:
-            "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "BIOL 3010", "BIOL 3030",
-            "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225", "CHEM 2310", "CHEM 2315", "CHEM 2320", "CHEM 2325",
-            "MATH 1210",
-            "BIOL 3040", "BIOL 3045", "BIOL 3155",
-            "MATH 3060",
-            "BIOL 4910",
+    conflict!(t, set penalty to 99,
+            clique: "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "BIOL 3010", "BIOL 3030",
+                    "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225", "CHEM 2310", "CHEM 2315", "CHEM 2320", "CHEM 2325",
+                    "MATH 1210",
+                    "BIOL 3040", "BIOL 3045", "BIOL 3155",
+                    "MATH 3060",
+                    "BIOL 4910");
+    conflict!(t, set penalty to 45,
+            clique: "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "BIOL 3010", "BIOL 3030",
+                    "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225", "CHEM 2310", "CHEM 2315", "CHEM 2320", "CHEM 2325",
+                    "MATH 1210",
+                    "BIOL 3040", "BIOL 3045", "BIOL 3155",
+                    "MATH 3060",
+                    "BIOL 4910",
 
-            "PHYS 2010", "PHYS 2015", "PHYS 2020", "PHYS 2025", "PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225",
+                    "PHYS 2010", "PHYS 2015", "PHYS 2020", "PHYS 2025", "PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225",
 
-            "BTEC 2010", "BTEC 2020", "BTEC 2030", "BTEC 2050", "BIOL 2300",
+                    "BTEC 2010", "BTEC 2020", "BTEC 2030", "BTEC 2050", "BIOL 2300",
 
-            "BIOL 3450", "BIOL 3455", "BIOL 3550", "BIOL 3555",
+                    "BIOL 3450", "BIOL 3455", "BIOL 3550", "BIOL 3555",
 
-            "BIOL 3420", "BIOL 4500", "BIOL 4505", "BIOL 4600", "BIOL 4605",
+                    "BIOL 3420", "BIOL 4500", "BIOL 4505", "BIOL 4600", "BIOL 4605",
 
-            "BIOL 3200", "BIOL 3205", "BIOL 4260", "BIOL 4265", "BIOL 4270", "BIOL 4275",
-            "BIOL 4280", "BIOL 4350", "BIOL 4355", "BIOL 4380", "BIOL 4385", "BIOL 4411", "BIOL 4415", "BIOL 4440",
-    );
-  conflict!(t,
-        set penalty to 30,
-        clique:
-            "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "BIOL 3010", "BIOL 3030",
-            "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225", "CHEM 2310", "CHEM 2315", "CHEM 2320", "CHEM 2325",
-            "MATH 1210",
-            "BIOL 3040", "BIOL 3045", "BIOL 3155",
-            "MATH 3060",
-            "BIOL 4910",
+                    "BIOL 3200", "BIOL 3205", "BIOL 4260", "BIOL 4265", "BIOL 4270", "BIOL 4275",
+                    "BIOL 4280", "BIOL 4350", "BIOL 4355", "BIOL 4380", "BIOL 4385", "BIOL 4411", "BIOL 4415", "BIOL 4440");
+  conflict!(t, set penalty to 30,
+            clique: "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "BIOL 3010", "BIOL 3030",
+                    "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225", "CHEM 2310", "CHEM 2315", "CHEM 2320", "CHEM 2325",
+                    "MATH 1210",
+                    "BIOL 3040", "BIOL 3045", "BIOL 3155",
+                    "MATH 3060",
+                    "BIOL 4910",
 
-            "PHYS 2010", "PHYS 2015", "PHYS 2020", "PHYS 2025", "PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225",
+                    "PHYS 2010", "PHYS 2015", "PHYS 2020", "PHYS 2025", "PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225",
 
-            "BTEC 2010", "BTEC 2020", "BTEC 2030", "BTEC 2050", "BIOL 2300",
+                    "BTEC 2010", "BTEC 2020", "BTEC 2030", "BTEC 2050", "BIOL 2300",
 
-            "BIOL 3450", "BIOL 3455", "BIOL 3550", "BIOL 3555",
+                    "BIOL 3450", "BIOL 3455", "BIOL 3550", "BIOL 3555",
 
-            "BIOL 3420", "BIOL 4500", "BIOL 4505", "BIOL 4600", "BIOL 4605",
+                    "BIOL 3420", "BIOL 4500", "BIOL 4505", "BIOL 4600", "BIOL 4605",
 
-            "BIOL 3200", "BIOL 3205", "BIOL 4260", "BIOL 4265", "BIOL 4270", "BIOL 4275",
-            "BIOL 4280", "BIOL 4350", "BIOL 4355", "BIOL 4380", "BIOL 4385", "BIOL 4411", "BIOL 4415", "BIOL 4440",
+                    "BIOL 3200", "BIOL 3205", "BIOL 4260", "BIOL 4265", "BIOL 4270", "BIOL 4275",
+                    "BIOL 4280", "BIOL 4350", "BIOL 4355", "BIOL 4380", "BIOL 4385", "BIOL 4411", "BIOL 4415", "BIOL 4440",
 
-            "BTEC 3020", "CHEM 3510", "CHEM 3515", "CHEM 3520", "CHEM 3525",
-            "BTEC 3010", "BTEC 3040", "BTEC 3050", "BTEC 4020", "BTEC 4040", "BTEC 4050", "BTEC 4060",
-    );
+                    "BTEC 3020", "CHEM 3510", "CHEM 3515", "CHEM 3520", "CHEM 3525",
+                    "BTEC 3010", "BTEC 3040", "BTEC 3050", "BTEC 4020", "BTEC 4040", "BTEC 4050", "BTEC 4060");
 
     //bio biomed
-    conflict!(t,
-        set penalty to 99,
-        clique:
-            "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "BIOL 3010", "BIOL 3030", "BIOL 3040",
-            "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225", "CHEM 2310", "CHEM 2315",
-            "CHEM 2320", "CHEM 2325", "CHEM 3510", "CHEM 3515",
-            "PHYS 2010", "PHYS 2015", "PHYS 2020", "PHYS 2025",
-            "PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225",
-            "BIOL 2320", "BIOL 2325", "BIOL 3420",
-            "MATH 3060",
-            "BIOL 3155", "BIOL 3450", "BIOL 3455", "BIOL 3550", "BIOL 3555", "BIOL 4910",
-            "BTEC 2010", "BTEC 2020", "BTEC 2030", "BTEC 2050",
-            "BIOL 2300",
-            "PSY 2400", "PSY 3460", "PSY 3710",
-    );
-    conflict!(t,
-        set penalty to 30,
-        clique:
-            "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "BIOL 3010", "BIOL 3030", "BIOL 3040",
-            "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225", "CHEM 2310", "CHEM 2315",
-            "CHEM 2320", "CHEM 2325", "CHEM 3510", "CHEM 3515",
-            "PHYS 2010", "PHYS 2015", "PHYS 2020", "PHYS 2025",
-            "PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225",
-            "BIOL 2320", "BIOL 2325", "BIOL 3420",
-            "MATH 3060",
-            "BIOL 3155", "BIOL 3450", "BIOL 3455", "BIOL 3550", "BIOL 3555", "BIOL 4910",
-            "BTEC 2010", "BTEC 2020", "BTEC 2030", "BTEC 2050",
-            "BIOL 2300",
-            "PSY 2400", "PSY 3460", "PSY 3710",
+    conflict!(t, set penalty to 99,
+            clique: "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "BIOL 3010", "BIOL 3030", "BIOL 3040",
+                    "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225", "CHEM 2310", "CHEM 2315",
+                    "CHEM 2320", "CHEM 2325", "CHEM 3510", "CHEM 3515",
+                    "PHYS 2010", "PHYS 2015", "PHYS 2020", "PHYS 2025",
+                    "PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225",
+                    "BIOL 2320", "BIOL 2325", "BIOL 3420",
+                    "MATH 3060",
+                    "BIOL 3155", "BIOL 3450", "BIOL 3455", "BIOL 3550", "BIOL 3555", "BIOL 4910",
+                    "BTEC 2010", "BTEC 2020", "BTEC 2030", "BTEC 2050",
+                    "BIOL 2300",
+                    "PSY 2400", "PSY 3460", "PSY 3710");
+    conflict!(t, set penalty to 30,
+            clique: "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "BIOL 3010", "BIOL 3030", "BIOL 3040",
+                    "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225", "CHEM 2310", "CHEM 2315",
+                    "CHEM 2320", "CHEM 2325", "CHEM 3510", "CHEM 3515",
+                    "PHYS 2010", "PHYS 2015", "PHYS 2020", "PHYS 2025",
+                    "PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225",
+                    "BIOL 2320", "BIOL 2325", "BIOL 3420",
+                    "MATH 3060",
+                    "BIOL 3155", "BIOL 3450", "BIOL 3455", "BIOL 3550", "BIOL 3555", "BIOL 4910",
+                    "BTEC 2010", "BTEC 2020", "BTEC 2030", "BTEC 2050",
+                    "BIOL 2300",
+                    "PSY 2400", "PSY 3460", "PSY 3710",
 
-            "BIOL 3000R", "BIOL 3100", "BIOL 3110", "BIOL 3120", "BIOL 3140", "BIOL 3145",
-            "BIOL 3230R", "BIOL 3250", "BIOL 3360", "BIOL 3460", "BIOL 3470",
-            "BIOL 4300", "BIOL 4305", "BIOL 4440", "BIOL 4930R",
-            "CHEM 3520", "CHEM 3525",
-            "MATH 1210",
-    );
+                    "BIOL 3000R", "BIOL 3100", "BIOL 3110", "BIOL 3120", "BIOL 3140", "BIOL 3145",
+                    "BIOL 3230R", "BIOL 3250", "BIOL 3360", "BIOL 3460", "BIOL 3470",
+                    "BIOL 4300", "BIOL 4305", "BIOL 4440", "BIOL 4930R",
+                    "CHEM 3520", "CHEM 3525",
+                    "MATH 1210");
 
     //bio natural sciences
-    conflict!(t, set penalty to 99, clique:
-        "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "BIOL 2400", "BIOL 2405",
-        "BIOL 3010", "BIOL 3030", "BIOL 3040", "BIOL 3045", "BIOL 3110", "BIOL 3120", "BIOL 4910",
-        "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
-        "ENVS 1210", "ENVS 1215",
-        "GEO 1110", "GEO 1115",
-        "GEOG 3600", "GEOG 3605",
-        "MATH 1040", "MATH 1050",
-        "PHYS 1010", "PHYS 1015", "PHYS 2010", "PHYS 2015",
-    );
-    conflict!(t, set penalty to 45, clique:
-        "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "BIOL 2400", "BIOL 2405",
-        "BIOL 3010", "BIOL 3030", "BIOL 3040", "BIOL 3045", "BIOL 3110", "BIOL 3120", "BIOL 4910",
-        "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
-        "ENVS 1210", "ENVS 1215",
-        "GEO 1110", "GEO 1115",
-        "GEOG 3600", "GEOG 3605",
-        "MATH 1040", "MATH 1050",
-        "PHYS 1010", "PHYS 1015", "PHYS 2010", "PHYS 2015",
-        "BIOL 3200", "BIOL 3340", "BIOL 3345", "BIOL 4200", "BIOL 4205", "BIOL 4260",
-        "BIOL 4265", "BIOL 4270", "BIOL 4275", "BIOL 4280", "BIOL 4350", "BIOL 4355",
-        "BIOL 4380", "BIOL 4385", "BIOL 4411", "BIOL 4415", "BIOL 4440", "BIOL 4600", "BIOL 4605",
-    );
-    conflict!(t, set penalty to 30, clique:
-        "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "BIOL 2400", "BIOL 2405",
-        "BIOL 3010", "BIOL 3030", "BIOL 3040", "BIOL 3045", "BIOL 3110", "BIOL 3120", "BIOL 4910",
-        "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
-        "ENVS 1210", "ENVS 1215",
-        "GEO 1110", "GEO 1115",
-        "GEOG 3600", "GEOG 3605",
-        "MATH 1040", "MATH 1050",
-        "PHYS 1010", "PHYS 1015", "PHYS 2010", "PHYS 2015",
-        "BIOL 3200", "BIOL 3340", "BIOL 3345", "BIOL 4200", "BIOL 4205", "BIOL 4260",
-        "BIOL 4265", "BIOL 4270", "BIOL 4275", "BIOL 4280", "BIOL 4350", "BIOL 4355",
-        "BIOL 4380", "BIOL 4385", "BIOL 4411", "BIOL 4415", "BIOL 4440", "BIOL 4600", "BIOL 4605",
-        "BIOL 3100", "BIOL 3140", "BIOL 3145", "BIOL 3250", "BIOL 3360", "BIOL 3450", "BIOL 3455",
-        "BIOL 3550", "BIOL 3555", "BIOL 4300", "BIOL 4305", "BIOL 4500", "BIOL 4505",
-        "BIOL 4810R", "BIOL 4930R",
-        "GEOG 4140", "GEOG 4180",
-        "MATH 1210", "MATH 3060",
-        "BIOL 3155",
-    );
+    conflict!(t, set penalty to 99,
+            clique: "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "BIOL 2400", "BIOL 2405",
+                    "BIOL 3010", "BIOL 3030", "BIOL 3040", "BIOL 3045", "BIOL 3110", "BIOL 3120", "BIOL 4910",
+                    "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
+                    "ENVS 1210", "ENVS 1215",
+                    "GEO 1110", "GEO 1115",
+                    "GEOG 3600", "GEOG 3605",
+                    "MATH 1040", "MATH 1050",
+                    "PHYS 1010", "PHYS 1015", "PHYS 2010", "PHYS 2015");
+    conflict!(t, set penalty to 45,
+            clique: "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "BIOL 2400", "BIOL 2405",
+                    "BIOL 3010", "BIOL 3030", "BIOL 3040", "BIOL 3045", "BIOL 3110", "BIOL 3120", "BIOL 4910",
+                    "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
+                    "ENVS 1210", "ENVS 1215",
+                    "GEO 1110", "GEO 1115",
+                    "GEOG 3600", "GEOG 3605",
+                    "MATH 1040", "MATH 1050",
+                    "PHYS 1010", "PHYS 1015", "PHYS 2010", "PHYS 2015",
+                    "BIOL 3200", "BIOL 3340", "BIOL 3345", "BIOL 4200", "BIOL 4205", "BIOL 4260",
+                    "BIOL 4265", "BIOL 4270", "BIOL 4275", "BIOL 4280", "BIOL 4350", "BIOL 4355",
+                    "BIOL 4380", "BIOL 4385", "BIOL 4411", "BIOL 4415", "BIOL 4440", "BIOL 4600", "BIOL 4605");
+    conflict!(t, set penalty to 30,
+            clique: "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "BIOL 2400", "BIOL 2405",
+                    "BIOL 3010", "BIOL 3030", "BIOL 3040", "BIOL 3045", "BIOL 3110", "BIOL 3120", "BIOL 4910",
+                    "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
+                    "ENVS 1210", "ENVS 1215",
+                    "GEO 1110", "GEO 1115",
+                    "GEOG 3600", "GEOG 3605",
+                    "MATH 1040", "MATH 1050",
+                    "PHYS 1010", "PHYS 1015", "PHYS 2010", "PHYS 2015",
+                    "BIOL 3200", "BIOL 3340", "BIOL 3345", "BIOL 4200", "BIOL 4205", "BIOL 4260",
+                    "BIOL 4265", "BIOL 4270", "BIOL 4275", "BIOL 4280", "BIOL 4350", "BIOL 4355",
+                    "BIOL 4380", "BIOL 4385", "BIOL 4411", "BIOL 4415", "BIOL 4440", "BIOL 4600", "BIOL 4605",
+                    "BIOL 3100", "BIOL 3140", "BIOL 3145", "BIOL 3250", "BIOL 3360", "BIOL 3450", "BIOL 3455",
+                    "BIOL 3550", "BIOL 3555", "BIOL 4300", "BIOL 4305", "BIOL 4500", "BIOL 4505",
+                    "BIOL 4810R", "BIOL 4930R",
+                    "GEOG 4140", "GEOG 4180",
+                    "MATH 1210", "MATH 3060",
+                    "BIOL 3155");
 
     //bio integrated edu sciences
-    conflict!(t, set penalty to 99, clique:
-        "HIST 1700",
-        "POLS 1100",
-        "FSHD 1500",
-        "PSY 1010",
-        "PSY 1100",
-        "CHEM 1210",
-        "CHEM 1215",
-        "CHEM 1220",
-        "CHEM 1225",
-        "PHYS 2010",
-        "PHYS 2015",
-        "MATH 1050",
-        "MATH 1060",
-        "MATH 1080",
-        "BIOL 1610",
-        "BIOL 1615",
-        "BIOL 1620",
-        "BIOL 1625",
-        "BIOL 2320",
-        "BIOL 2325",
-        "BIOL 3140",
-        "BIOL 3145",
-        "BIOL 2420",
-        "BIOL 2425",
-        "BIOL 4500",
-        "BIOL 4505",
-        "BIOL 3010",
-        "BIOL 3030",
-        "BIOL 3040",
-        "BIOL 3045",
-        "BIOL 2060",
-        "BIOL 2065",
-        "BIOL 3450",
-        "BIOL 3455",
-        "BIOL 3550",
-        "BIOL 3555",
-        "BIOL 2400",
-        "BIOL 2405",
-        "BIOL 3200",
-        "BIOL 3205",
-        "BIOL 4260",
-        "BIOL 4265",
-        "BIOL 4270",
-        "BIOL 4275",
-        "BIOL 4350",
-        "BIOL 4355",
-        "BIOL 4380",
-        "BIOL 4385",
-        "BIOL 4411",
-        "BIOL 4415",
-        "BIOL 4440",
-        "GEO 1110",
-        "GEO 1115",
-        "PHYS 1040",
-        "PHYS 1045",
-        "SCI 2600",
-        "EDUC 1010",
-        "EDUC 2010",
-        "EDUC 2400",
-        "EDUC 2500",
-        "EDUC 3110",
-        "SCI 4700",
-        "SCED 3720",
-        "SCED 4100",
-        "SCED 4200",
-        "SCED 4600",
-        "SCED 4300",
-        "SCED 4900",
-        "SCED 4989",
-    );
+    conflict!(t, set penalty to 99,
+            clique: "HIST 1700", "POLS 1100", "FSHD 1500", "PSY 1010", "PSY 1100",
+                    "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
+                    "PHYS 2010", "PHYS 2015",
+                    "MATH 1050", "MATH 1060", "MATH 1080",
+                    "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "BIOL 2320", "BIOL 2325",
+                    "BIOL 3140", "BIOL 3145", "BIOL 2420", "BIOL 2425", "BIOL 4500", "BIOL 4505",
+                    "BIOL 3010", "BIOL 3030", "BIOL 3040", "BIOL 3045", "BIOL 2060", "BIOL 2065",
+                    "BIOL 3450", "BIOL 3455", "BIOL 3550", "BIOL 3555",
+                    "BIOL 2400", "BIOL 2405", "BIOL 3200", "BIOL 3205",
+                    "BIOL 4260", "BIOL 4265", "BIOL 4270", "BIOL 4275", "BIOL 4350", "BIOL 4355",
+                    "BIOL 4380", "BIOL 4385", "BIOL 4411", "BIOL 4415", "BIOL 4440",
+                    "GEO 1110", "GEO 1115",
+                    "PHYS 1040", "PHYS 1045",
+                    "SCI 2600",
+                    "EDUC 1010", "EDUC 2010", "EDUC 2400", "EDUC 2500", "EDUC 3110",
+                    "SCI 4700",
+                    "SCED 3720", "SCED 4100", "SCED 4200", "SCED 4600", "SCED 4300", "SCED 4900", "SCED 4989");
 
     //chemistry chemistry major
-    conflict!(t, set penalty to 99, clique:
-        "MATH 1210", "MATH 1220",
-        "BIOL 1610", "BIOL 1615",
-        "PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225",
-        "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
-        "CHEM 2310", "CHEM 2315", "CHEM 2320", "CHEM 2325", "CHEM 2600", "CHEM 2990R",
-        "CHEM 3000", "CHEM 3005", "CHEM 3060", "CHEM 3065", "CHEM 3070", "CHEM 3075",
-        "CHEM 3100", "CHEM 3300", "CHEM 3510", "CHEM 3515", "CHEM 3520", "CHEM 3525",
-        "CHEM 4100", "CHEM 4800R", "CHEM 4910", "CHEM 4200", "CHEM 4310", "CHEM 4510", "CHEM 4610",
-    );
-    conflict!(t, set penalty to 30, clique:
-        "MATH 1210", "MATH 1220",
-        "BIOL 1610", "BIOL 1615",
-        "PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225",
-        "MATH 2210", "MATH 2250", "MATH 2270", "MATH 2280", "MATH 3060",
-        "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
-        "CHEM 2310", "CHEM 2315", "CHEM 2320", "CHEM 2325", "CHEM 2600", "CHEM 2990R",
-        "CHEM 3000", "CHEM 3005", "CHEM 3060", "CHEM 3065", "CHEM 3070", "CHEM 3075",
-        "CHEM 3100", "CHEM 3300", "CHEM 3510", "CHEM 3515", "CHEM 3520", "CHEM 3525",
-        "CHEM 4100", "CHEM 4800R", "CHEM 4910", "CHEM 4200", "CHEM 4310", "CHEM 4510", "CHEM 4610",
-    );
+    conflict!(t, set penalty to 99,
+            clique: "MATH 1210", "MATH 1220",
+                    "BIOL 1610", "BIOL 1615",
+                    "PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225",
+                    "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
+                    "CHEM 2310", "CHEM 2315", "CHEM 2320", "CHEM 2325", "CHEM 2600", "CHEM 2990R",
+                    "CHEM 3000", "CHEM 3005", "CHEM 3060", "CHEM 3065", "CHEM 3070", "CHEM 3075",
+                    "CHEM 3100", "CHEM 3300", "CHEM 3510", "CHEM 3515", "CHEM 3520", "CHEM 3525",
+                    "CHEM 4100", "CHEM 4800R", "CHEM 4910", "CHEM 4200", "CHEM 4310", "CHEM 4510", "CHEM 4610");
+    conflict!(t, set penalty to 30,
+            clique: "MATH 1210", "MATH 1220",
+                    "BIOL 1610", "BIOL 1615",
+                    "PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225",
+                    "MATH 2210", "MATH 2250", "MATH 2270", "MATH 2280", "MATH 3060",
+                    "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225",
+                    "CHEM 2310", "CHEM 2315", "CHEM 2320", "CHEM 2325", "CHEM 2600", "CHEM 2990R",
+                    "CHEM 3000", "CHEM 3005", "CHEM 3060", "CHEM 3065", "CHEM 3070", "CHEM 3075",
+                    "CHEM 3100", "CHEM 3300", "CHEM 3510", "CHEM 3515", "CHEM 3520", "CHEM 3525",
+                    "CHEM 4100", "CHEM 4800R", "CHEM 4910", "CHEM 4200", "CHEM 4310", "CHEM 4510", "CHEM 4610");
 
     //chem molecular biology
-    conflict!(t, set penalty to 99, clique:
-        "CHEM 1210",
-        "CHEM 1215",
-        "CHEM 1220",
-        "CHEM 1225",
-        "CHEM 2310",
-        "CHEM 2315",
-        "CHEM 2320",
-        "CHEM 2325",
-        "CHEM 2600",
-        "CHEM 2990R",
-        "CHEM 3000",
-        "CHEM 3005",
-        "CHEM 3060",
-        "CHEM 3065",
-        "CHEM 3070",
-        "CHEM 3075",
-        "CHEM 3100",
-        "CHEM 3300",
-        "CHEM 3510",
-        "CHEM 3515",
-        "CHEM 3520",
-        "CHEM 3525",
-        "CHEM 4910",
-        "BIOL 1610",
-        "BIOL 1615",
-        "BIOL 3030",
-        "BIOL 3550",
-        "BIOL 3555",
-        "BIOL 4300",
-        "BIOL 4305",
-        "MATH 1210",
-        "MATH 1220",
-        "PHYS 2010",
-        "PHYS 2015",
-        "PHYS 2020",
-        "PHYS 2025",
-        "PHYS 2210",
-        "PHYS 2215",
-        "PHYS 2220",
-        "PHYS 2225",
-        "CHEM 4800R",
-        "BIOL 4810R",
-        "BIOL 4890R",
-    );
-    conflict!(t, set penalty to 30, clique:
-        "CHEM 1210",
-        "CHEM 1215",
-        "CHEM 1220",
-        "CHEM 1225",
-        "CHEM 2310",
-        "CHEM 2315",
-        "CHEM 2320",
-        "CHEM 2325",
-        "CHEM 2600",
-        "CHEM 2990R",
-        "CHEM 3000",
-        "CHEM 3005",
-        "CHEM 3060",
-        "CHEM 3065",
-        "CHEM 3070",
-        "CHEM 3075",
-        "CHEM 3100",
-        "CHEM 3300",
-        "CHEM 3510",
-        "CHEM 3515",
-        "CHEM 3520",
-        "CHEM 3525",
-        "CHEM 4910",
-        "BIOL 1610",
-        "BIOL 1615",
-        "BIOL 3030",
-        "BIOL 3550",
-        "BIOL 3555",
-        "BIOL 4300",
-        "BIOL 4305",
-        "MATH 1210",
-        "MATH 1220",
-        "PHYS 2010",
-        "PHYS 2015",
-        "PHYS 2020",
-        "PHYS 2025",
-        "PHYS 2210",
-        "PHYS 2215",
-        "PHYS 2220",
-        "PHYS 2225",
-        "CHEM 4800R",
-        "BIOL 4810R",
-        "BIOL 4890R",
-        "CHEM 4100",
-        "CHEM 4610",
-        "BIOL 3010",
-        "BIOL 3250",
-        "BIOL 3360",
-        "BIOL 3420",
-        "BIOL 3450", "BIOL 3455", "BIOL 3470", "BIOL 3460", "BIOL 4400",
-    );
+    conflict!(t, set penalty to 99,
+            clique: "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225", "CHEM 2310", "CHEM 2315",
+                    "CHEM 2320", "CHEM 2325", "CHEM 2600", "CHEM 2990R",
+                    "CHEM 3000", "CHEM 3005", "CHEM 3060", "CHEM 3065", "CHEM 3070", "CHEM 3075", "CHEM 3100",
+                    "CHEM 3300", "CHEM 3510", "CHEM 3515", "CHEM 3520", "CHEM 3525", "CHEM 4910",
+                    "BIOL 1610", "BIOL 1615", "BIOL 3030", "BIOL 3550", "BIOL 3555", "BIOL 4300", "BIOL 4305",
+                    "MATH 1210", "MATH 1220",
+                    "PHYS 2010", "PHYS 2015", "PHYS 2020", "PHYS 2025",
+                    "PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225",
+                    "CHEM 4800R",
+                    "BIOL 4810R", "BIOL 4890R");
+    conflict!(t, set penalty to 30,
+            clique: "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225", "CHEM 2310", "CHEM 2315",
+                    "CHEM 2320", "CHEM 2325", "CHEM 2600", "CHEM 2990R",
+                    "CHEM 3000", "CHEM 3005", "CHEM 3060", "CHEM 3065", "CHEM 3070", "CHEM 3075", "CHEM 3100",
+                    "CHEM 3300", "CHEM 3510", "CHEM 3515", "CHEM 3520", "CHEM 3525", "CHEM 4910",
+                    "BIOL 1610", "BIOL 1615", "BIOL 3030", "BIOL 3550", "BIOL 3555", "BIOL 4300", "BIOL 4305",
+                    "MATH 1210", "MATH 1220",
+                    "PHYS 2010", "PHYS 2015", "PHYS 2020", "PHYS 2025",
+                    "PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225",
+                    "CHEM 4800R",
+                    "BIOL 4810R", "BIOL 4890R",
+
+                    "CHEM 4100", "CHEM 4610",
+                    "BIOL 3010", "BIOL 3250", "BIOL 3360", "BIOL 3420",
+                    "BIOL 3450", "BIOL 3455", "BIOL 3470", "BIOL 3460", "BIOL 4400");
 
     //chem physical sciences
-    conflict!(t, set penalty to 99, clique:
-        "SCI 4700",
-        "SCED 3720",
-        "SCED 4100",
-        "SCED 4200",
-        "SCED 4600",
-        "SCED 4300",
-        "SCED 4900",
-        "SCED 4989",
-        "HIST 1700",
-        "POLS 1100",
-        "FSHD 1500",
-        "PSY 1010",
-        "PSY 1100",
-        "EDUC 1010",
-        "EDUC 2010",
-        "EDUC 2400",
-        "EDUC 2500",
-        "EDUC 3110",
-        "CHEM 1210",
-        "CHEM 1215",
-        "CHEM 1220",
-        "CHEM 1225",
-        "CHEM 2310",
-        "CHEM 2315",
-        "CHEM 3000",
-        "GEO 1110",
-        "GEO 1115",
-        "GEO 1220",
-        "GEO 1225",
-        "GEO 3060",
-        "PHYS 1040",
-        "PHYS 1045",
-        "PHYS 2210",
-        "PHYS 2215",
-        "PHYS 2220",
-        "PHYS 2225",
-        "PHYS 3710",
-        "BIOL 1610",
-        "BIOL 1615",
-        "MATH 1210",
-        "MATH 1220",
-        "SCI 2600",
-        "SCI 4800R",
-        "CHEM 3510",
-        "PHYS 3400",
-    );
+    conflict!(t, set penalty to 99,
+            clique: "SCI 4700",
+                    "SCED 3720", "SCED 4100", "SCED 4200", "SCED 4600", "SCED 4300", "SCED 4900", "SCED 4989",
+                    "HIST 1700", "POLS 1100", "FSHD 1500", "PSY 1010", "PSY 1100",
+                    "EDUC 1010", "EDUC 2010", "EDUC 2400", "EDUC 2500", "EDUC 3110",
+                    "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225", "CHEM 2310", "CHEM 2315", "CHEM 3000",
+                    "GEO 1110", "GEO 1115", "GEO 1220", "GEO 1225", "GEO 3060",
+                    "PHYS 1040", "PHYS 1045", "PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225", "PHYS 3710",
+                    "BIOL 1610", "BIOL 1615",
+                    "MATH 1210", "MATH 1220",
+                    "SCI 2600", "SCI 4800R",
+                    "CHEM 3510",
+                    "PHYS 3400");
 
 
 
     // complete one of the following sets, etc.
     // note: conflicts between coreqs will be reinstituted later
-    conflict!(t,
-        remove penalty,
-        clique:
-            "PHYS 2010", "PHYS 2015", "PHYS 2020", "PHYS 2025",
-            "PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225");
+    conflict!(t, remove penalty,
+            clique: "PHYS 2010", "PHYS 2015", "PHYS 2020", "PHYS 2025",
+                    "PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225");
 
     // complete one technical lab course
-    conflict!(t,
-        remove penalty,
-        clique: "BTEC 2010", "BTEC 2020", "BTEC 2030", "BTEC 2050", "BIOL 2300");
+    conflict!(t, remove penalty,
+            clique: "BTEC 2010", "BTEC 2020", "BTEC 2030", "BTEC 2050", "BIOL 2300");
 
     // complete one of the following sets, etc.
     // note: conflicts between coreqs will be reinstituted later
-    conflict!(t,
-        remove penalty,
-        clique: "BIOL 3450", "BIOL 3455", "BIOL 3550", "BIOL 3555");
+    conflict!(t, remove penalty,
+            clique: "BIOL 3450", "BIOL 3455", "BIOL 3550", "BIOL 3555");
 
     // complete one of the following sets, etc.
     // note: conflicts between coreqs will be reinstituted later
-    conflict!(t,
-        remove penalty,
-        clique: "BIOL 3420", "BIOL 4500", "BIOL 4505", "BIOL 4600", "BIOL 4605");
+    conflict!(t, remove penalty,
+            clique: "BIOL 3420", "BIOL 4500", "BIOL 4505", "BIOL 4600", "BIOL 4605");
 
     // complete one of the following sets, etc.
     // note: conflicts between coreqs will be reinstituted later
-    conflict!(t,
-        remove penalty,
-        clique: 
-            "BIOL 3200", "BIOL 3205", "BIOL 4260", "BIOL 4265", "BIOL 4270", "BIOL 4275",
-            "BIOL 4280", "BIOL 4350", "BIOL 4355", "BIOL 4380", "BIOL 4385", "BIOL 4411", "BIOL 4415", "BIOL 4440",
+    conflict!(t, remove penalty,
+            clique: "BIOL 3200", "BIOL 3205", "BIOL 4260", "BIOL 4265", "BIOL 4270", "BIOL 4275",
+                    "BIOL 4280", "BIOL 4350", "BIOL 4355", "BIOL 4380", "BIOL 4385", "BIOL 4411", "BIOL 4415", "BIOL 4440",
     );
     conflict!(t, remove penalty, clique: "MATH 1050", "MATH 1080");
     conflict!(t, remove penalty, clique: "MATH 1050", "MATH 1080");
