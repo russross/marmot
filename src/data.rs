@@ -222,9 +222,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
     section!(t, course: "IT 3110-01",
             instructor: "Joe Francom",
             rooms and times: "flex", "3 credit bell schedule");
-    section!(t, course: "IT 4510-01",
-            instructor: "Joe Francom" and "Phil Daley",
-            rooms and times: "flex", "3 credit bell schedule");
+    // See Phil Daley for IT 4510-01
 
     instructor!(t,
         name:
@@ -282,6 +280,9 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             instructor: "Phil Daley",
             rooms and times: "Smith 107", "3 credit bell schedule");
     // avoid IT 4510 so Phil can shadow Joe
+    section!(t, course: "IT 4510-01",
+            instructor: "Joe Francom" and "Phil Daley",
+            rooms and times: "flex", "3 credit bell schedule");
 
     instructor!(t,
        name:
@@ -451,11 +452,64 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
                     "IT 4100", "IT 4200", "IT 4310", "IT 4400", "IT 4510", "IT 4600",
                     "SE 3200", "SE 3400");
 
-    conflict!(t, remove penalty, clique: "CS 2450", "SE 3100"); // CS2450 is a prereq for SE3100 so no conflict
-    conflict!(t, remove penalty, clique: "CS 2450", "SE 3150"); // CS2450 is a prereq for SE3150 so no conflict
-    conflict!(t, remove penalty, clique: "SE 3200", "SE 4200"); // SE3200 is a prereq for SE4200 so no conflict
+    add_prereqs!(t, course: "CS 1400", prereqs: "CS 1030", "MATH 1010");
+    add_prereqs!(t, course: "CS 1410", prereqs: "CS 1400");
+    add_prereqs!(t, course: "CS 2420", prereqs: "CS 1410");
+    add_prereqs!(t, course: "CS 2450", prereqs: "CS 1410");
+    add_prereqs!(t, course: "CS 2500", prereqs: "CS 1410");
+    add_prereqs!(t, course: "CS 2810", prereqs: "CS 1410");
+    add_prereqs!(t, course: "CS 3005", prereqs: "CS 1410");
+    add_prereqs!(t, course: "CS 3150", prereqs: "CS 2420", "CS 2810");
+    add_prereqs!(t, course: "CS 3310", prereqs: "CS 1410", "MATH 1100", "MATH 1210");
+    add_prereqs!(t, course: "CS 3400", prereqs: "CS 2420", "CS 2810", "CS 3005");
+    add_prereqs!(t, course: "CS 3410", prereqs: "CS 2420", "CS 2810");
+    add_prereqs!(t, course: "CS 3500", prereqs: "CS 3005");
+    add_prereqs!(t, course: "CS 3510", prereqs: "CS 2420", "CS 2810", "CS 3310");
+    add_prereqs!(t, course: "CS 3520", prereqs: "CS 2420", "CS 2810");
+    add_prereqs!(t, course: "CS 3530", coreqs: "CS 3310", prereqs: "CS 2420", "CS 2810", "CS 3310");
+    add_prereqs!(t, course: "CS 3600", prereqs: "CS 2420", "CS 3005");
+    add_prereqs!(t, course: "CS 4300", prereqs: "CS 2420", "CS 2810", "CS 3005");
+    add_prereqs!(t, course: "CS 4307", prereqs: "CS 2420", "CS 2810");
+    add_prereqs!(t, course: "CS 4310", prereqs: "CS 4307", "IT 2300");
+    add_prereqs!(t, course: "CS 4320", prereqs: "CS 2420", "CS 2810", "CS 3005");
+    add_prereqs!(t, course: "CS 4400", prereqs: "CS 2420", "CS 2810");
+    add_prereqs!(t, course: "CS 4410", prereqs: "CS 2420", "CS 2810");
+    add_prereqs!(t, course: "CS 4550", prereqs: "CS 2420", "CS 2810", "CS 3005");
+    add_prereqs!(t, course: "CS 4991R", prereqs: "CS 1400");
+    add_prereqs!(t, course: "CS 4992R", prereqs: "CS 2420", "CS 2810");
+
+    add_prereqs!(t, course: "SE 3010", prereqs: "CS 2420", "CS 3005");
+    add_prereqs!(t, course: "SE 3020", prereqs: "CS 2420", "CS 3005");
+    add_prereqs!(t, course: "SE 3100", prereqs: "CS 2450");
+    add_prereqs!(t, course: "SE 3150", prereqs: "CS 2450");
+    add_prereqs!(t, course: "SE 3200", prereqs: "CS 1410", "SE 1400", "CS 2810");
+    add_prereqs!(t, course: "SE 3400", prereqs: "SE 1400");
+    add_prereqs!(t, course: "SE 3450", prereqs: "SE 1400");
+    add_prereqs!(t, course: "SE 4200", prereqs: "SE 3200");
+
+    add_prereqs!(t, course: "IT 2300", prereqs: "CS 1400", "IT 1100", "CS 1410");
+    add_prereqs!(t, course: "IT 2400", coreqs: "IT 1100", "IT 1500", prereqs: "IT 1100", "IT 1500");
+    add_prereqs!(t, course: "IT 2500", prereqs: "IT 2400");
+    add_prereqs!(t, course: "IT 2700", prereqs: "CS 1400", "IT 2400");
+    add_prereqs!(t, course: "IT 3100", prereqs: "CS 1400", "IT 1100", "IT 2400", "CS 3150");
+    add_prereqs!(t, course: "IT 3110", prereqs: "CS 1410", "IT 3100");
+    add_prereqs!(t, course: "IT 3150", prereqs: "IT 2400");
+    add_prereqs!(t, course: "IT 3300", prereqs: "IT 2400", "IT 1100", "CS 3150");
+    add_prereqs!(t, course: "IT 3400", prereqs: "IT 2400");
+    add_prereqs!(t, course: "IT 4100", prereqs: "IT 3100");
+    add_prereqs!(t, course: "IT 4200", prereqs: "CS 1400", "IT 2400", "CS 2810");
+    add_prereqs!(t, course: "IT 4310", prereqs: "IT 2300");
+    add_prereqs!(t, course: "IT 4400", prereqs: "IT 3400");
+    add_prereqs!(t, course: "IT 4510", prereqs: "CS 1410", "IT 3100");
+
     conflict!(t, remove penalty, clique: "CS 4307", "IT 2300"); // students take either CS4307 or IT2300 but not both so no conflict
 
+    // TODO:
+    //multiple_sections_spread_out!(t, days: "mt", times: "0800-1200", "1200-1630",
+    //        courses: "CS 1400", "CS 1410", "CS 2450", "CS 2810", "IT 1100", "SE 1400");
+    //multiple_sections_reduce_penalties!(t,
+    //        courses: "CS 1400", "CS 1410", "CS 2450", "CS 2810", "IT 1100", "SE 1400");
+    
     // multiple-section courses must be taught at different times
     conflict!(t, set hard, clique: "CS 1400-01", "CS 1400-02", "CS 1400-03", "CS 1400-04");
     conflict!(t, set hard, clique: "CS 1410-01", "CS 1410-02");
@@ -465,6 +519,8 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
     conflict!(t, set hard, clique: "SE 1400-01", "SE 1400-02");
 
     // courses that must be scheduled at the same time
+    // TODO:
+    // should anticonflict automatically zero out any penalty? maybe as a later pass?
     anticonflict!(t, set penalty to 50, single: "CS 1030-01", group: "CS 1400");
     //anticonflict!(t, set penalty to 50, clique: "SE 1400", "IT 1100"); // temporarily removed because of new hire planning
 

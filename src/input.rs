@@ -14,10 +14,27 @@ pub fn setup() -> Result<Input, String> {
         for sec_i in 0..input.sections.len() {
             let mut new_list = Vec::new();
             for &pre in &input.sections[sec_i].prereqs {
+                // keep the prereq
                 new_list.push(pre);
+
+                // add the prereq's prereqs
                 for &elt in &input.sections[pre].prereqs {
                     new_list.push(elt);
                 }
+
+                // and the prereq's coreqs
+                for &elt in &input.sections[pre].coreqs {
+                    new_list.push(elt);
+                }
+            }
+            for &co in &input.sections[sec_i].coreqs {
+                // and the coreq's prereqs
+                for &elt in &input.sections[co].prereqs {
+                    new_list.push(elt);
+                }
+
+                // but filter out the coreqs themselves
+                new_list.retain(|elt| !input.sections[sec_i].coreqs.contains(elt));
             }
             new_list.sort();
             new_list.dedup();
@@ -465,6 +482,7 @@ impl Input {
             hard_conflicts: Vec::new(),
             soft_conflicts: Vec::new(),
             cross_listings: Vec::new(),
+            coreqs: Vec::new(),
             prereqs: Vec::new(),
         });
 
@@ -578,11 +596,22 @@ impl Input {
         Ok(())
     }
 
-    pub fn add_prereqs(&mut self, course_raw: &str, prereqs_raw: Vec<&str>) -> Result<(), String> {
+    pub fn add_prereqs(&mut self, course_raw: &str, coreqs_raw: Vec<&str>, prereqs_raw: Vec<&str>) -> Result<(), String> {
         // see if the course is present in the data
         let course_list = self.find_sections_by_name(course_raw)?;
         if course_list.is_empty() {
             self.missing.push(course_raw.to_string());
+        }
+
+        // look up the coreq sections
+        let mut coreqs = Vec::new();
+        for raw in coreqs_raw {
+            let mut list = self.find_sections_by_name(raw)?;
+            if list.is_empty() {
+                self.missing.push(raw.to_string());
+            } else {
+                coreqs.append(&mut list);
+            }
         }
 
         // look up the prereq sections
@@ -596,20 +625,22 @@ impl Input {
             }
         }
 
-        // course and prereqs must both exist
-        if prereqs.is_empty() || course_list.is_empty() {
-            return Ok(());
-        }
-        prereqs.sort();
-        prereqs.dedup();
-
+        coreqs.sort();
+        coreqs.dedup();
         for course in course_list {
-            let lst = &mut self.sections[course].prereqs;
-            for &elt in &prereqs {
-                lst.push(elt);
+            let cr = &mut self.sections[course].coreqs;
+            for &elt in &coreqs {
+                cr.push(elt);
             }
-            lst.sort();
-            lst.dedup();
+            cr.sort();
+            cr.dedup();
+
+            let pr = &mut self.sections[course].prereqs;
+            for &elt in &prereqs {
+                pr.push(elt);
+            }
+            pr.sort();
+            pr.dedup();
         }
 
         Ok(())
@@ -923,6 +954,12 @@ pub struct Section {
     // direct prereqs are recorded here
     // the transitive closure of prereqs is used to remove conflicts between classes
     // that cannot be taken together
+    // note: the prereqs of a coreq are treated like direct prereqs
+    // and the coreqs of a prereq are treated like direct prereqs
+    //
+    // if a course is a coreq (and optionally also a prereq) then we do nothing
+    // directly but it will affect courses that require this one
+    pub coreqs: Vec<usize>,
     pub prereqs: Vec<usize>,
 }
 
@@ -1197,9 +1234,20 @@ macro_rules! default_clustering {
 
 macro_rules! add_prereqs {
     ($input:expr,
-            course: $one:literal,
-            prereqs: $($many:literal),+ $(,)?) => {
-        $input.add_prereqs($one, vec![ $($many, )+ ])?;
+            course: $course:literal,
+            coreqs: $($coreqs:literal),+,
+            prereqs: $($prereqs:literal),+ $(,)?) => {
+        $input.add_prereqs($course, vec![ $($coreqs, )+ ], vec![ $($prereqs, )+ ])?;
+    };
+    ($input:expr,
+            course: $course:literal,
+            coreqs: $($coreqs:literal),+ $(,)?) => {
+        $input.add_prereqs($course, vec![ $($coreqs, )+ ], vec![])?;
+    };
+    ($input:expr,
+            course: $course:literal,
+            prereqs: $($prereqs:literal),+ $(,)?) => {
+        $input.add_prereqs($course, vec![], vec![ $($prereqs, )+ ])?;
     };
 }
 
