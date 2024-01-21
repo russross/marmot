@@ -32,10 +32,11 @@ pub fn setup() -> Result<Input, String> {
                 for &elt in &input.sections[co].prereqs {
                     new_list.push(elt);
                 }
-
-                // but filter out the coreqs themselves
-                new_list.retain(|elt| !input.sections[sec_i].coreqs.contains(elt));
             }
+
+            // but filter out the coreqs themselves
+            new_list.retain(|elt| !input.sections[sec_i].coreqs.contains(elt));
+
             new_list.sort();
             new_list.dedup();
             if new_list.len() != input.sections[sec_i].prereqs.len() {
@@ -57,7 +58,12 @@ pub fn setup() -> Result<Input, String> {
     for sec_i in 0..input.sections.len() {
         for pre_i in 0..input.sections[sec_i].prereqs.len() {
             let prereq = input.sections[sec_i].prereqs[pre_i];
-            input.sections[sec_i].set_conflict(prereq, 0);
+
+            // delete the conflict unless it is marked as a hard conflict
+            if (1..=99).contains(&input.sections[sec_i].get_conflict(prereq)) {
+                input.sections[sec_i].set_conflict(prereq, 0);
+                input.sections[prereq].set_conflict(sec_i, 0);
+            }
         }
     }
 
