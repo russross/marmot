@@ -43,6 +43,8 @@ pub fn input() -> Result<Input, String> {
     input_times(&mut t)?;
     input_computing(&mut t)?;
     input_set(&mut t)?;
+    input_multiples(&mut t)?;
+    input_prereqs(&mut t)?;
 
     crosslist!(t, "GEO 2700R-01" cross-list with "ENVS 2700R-01");
     crosslist!(t, "ENVS 3110-01" cross-list with "GEO 3110-01");
@@ -358,7 +360,6 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             instructor: "Jamie Bennion",
             rooms and times: "flex", "3 credit evening");
 
-
     conflict!(t, set hard,
             clique: "CS 2420", "CS 2450", "CS 2810", "CS 3005"); // 3rd/4th semester classes
     conflict!(t, set hard,
@@ -374,29 +375,29 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
     conflict!(t, set hard,
             clique: "CS 3600", "CS 4600"); // grad plan: 4th year spring
 
-    // CS upper division core
+    // CS core
     conflict!(t, set penalty to 99,
-            clique: //"CS 2450",
+            clique: "CS 1030", "CS 1400", "CS 1410", "CS 2420", "CS 2450", "CS 2810", "CS 3005",
                     "CS 3150", "CS 3310", "CS 3400", "CS 3410", "CS 3510", "CS 3520", "CS 3530", "CS 3600",
                     "CS 4300", "CS 4307", "CS 4320", "CS 4550", "CS 4600",
                     "SE 3200");
 
     // CS electives
     conflict!(t, set penalty to 30,
-            clique: //"CS 2450",
-                    "CS 3150", "CS 3310", "CS 3400", "CS 3410",
-                    "CS 3500", "CS 3510", "CS 3520", "CS 3530", "CS 3600",
-                    "CS 4300", "CS 4307", "CS 4320", "CS 4550", "CS 4600", "CS 4990",
+            clique: "CS 1030", "CS 1400", "CS 1410", "CS 2420", "CS 2450", "CS 2810", "CS 3005",
+                    "CS 3150", "CS 3310", "CS 3400", "CS 3410", "CS 3510", "CS 3520", "CS 3530", "CS 3600",
+                    "CS 4300", "CS 4307", "CS 4320", "CS 4550", "CS 4600",
+                    "SE 3200",
                     "SE 3010", "SE 3020", "SE 3100", "SE 3200", "SE 3400", "SE 4200",
                     "IT 2700", "IT 3100", "IT 3110", "IT 4200");
 
-    // CS classes that do not require CS2810 so they can be taken concurrently
-    conflict!(t, set penalty to 45,
-            clique: "CS 2810", "SE 3020", "SE 3200", "CS 3500");
-
-    // CS classes that do not require CS3005 so they can be taken concurrently
-    conflict!(t, set penalty to 45,
-            clique: "CS 3005", "CS 3150", "CS 3310", "CS 3410", "CS 3510", "CS 3520", "CS 3530");
+    // CS math and science
+    conflict!(t, set penalty to 50,
+            clique: "CS 1030", "CS 1400", "CS 1410", "CS 2420", "CS 2450", "CS 2810", "CS 3005",
+                    "CS 3150", "CS 3310", "CS 3400", "CS 3410", "CS 3510", "CS 3520", "CS 3530", "CS 3600",
+                    "CS 4300", "CS 4307", "CS 4320", "CS 4550", "CS 4600",
+                    "SE 3200",
+                    "MATH 1210", "MATH 1220", "BIOL 1610", "BIOL 1615", "PHYS 2210", "PHYS 2215");
 
     // DS: TODO
     conflict!(t, set penalty to 45,
@@ -452,71 +453,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
                     "IT 4100", "IT 4200", "IT 4310", "IT 4400", "IT 4510", "IT 4600",
                     "SE 3200", "SE 3400");
 
-    add_prereqs!(t, course: "CS 1400", prereqs: "CS 1030", "MATH 1010");
-    add_prereqs!(t, course: "CS 1410", prereqs: "CS 1400");
-    add_prereqs!(t, course: "CS 2420", prereqs: "CS 1410");
-    add_prereqs!(t, course: "CS 2450", prereqs: "CS 1410");
-    add_prereqs!(t, course: "CS 2500", prereqs: "CS 1410");
-    add_prereqs!(t, course: "CS 2810", prereqs: "CS 1410");
-    add_prereqs!(t, course: "CS 3005", prereqs: "CS 1410");
-    add_prereqs!(t, course: "CS 3150", prereqs: "CS 2420", "CS 2810");
-    add_prereqs!(t, course: "CS 3310", prereqs: "CS 1410", "MATH 1100", "MATH 1210");
-    add_prereqs!(t, course: "CS 3400", prereqs: "CS 2420", "CS 2810", "CS 3005");
-    add_prereqs!(t, course: "CS 3410", prereqs: "CS 2420", "CS 2810");
-    add_prereqs!(t, course: "CS 3500", prereqs: "CS 3005");
-    add_prereqs!(t, course: "CS 3510", prereqs: "CS 2420", "CS 2810", "CS 3310");
-    add_prereqs!(t, course: "CS 3520", prereqs: "CS 2420", "CS 2810");
-    add_prereqs!(t, course: "CS 3530", coreqs: "CS 3310", prereqs: "CS 2420", "CS 2810", "CS 3310");
-    add_prereqs!(t, course: "CS 3600", prereqs: "CS 2420", "CS 3005");
-    add_prereqs!(t, course: "CS 4300", prereqs: "CS 2420", "CS 2810", "CS 3005");
-    add_prereqs!(t, course: "CS 4307", prereqs: "CS 2420", "CS 2810");
-    add_prereqs!(t, course: "CS 4310", prereqs: "CS 4307", "IT 2300");
-    add_prereqs!(t, course: "CS 4320", prereqs: "CS 2420", "CS 2810", "CS 3005");
-    add_prereqs!(t, course: "CS 4400", prereqs: "CS 2420", "CS 2810");
-    add_prereqs!(t, course: "CS 4410", prereqs: "CS 2420", "CS 2810");
-    add_prereqs!(t, course: "CS 4550", prereqs: "CS 2420", "CS 2810", "CS 3005");
-    add_prereqs!(t, course: "CS 4991R", prereqs: "CS 1400");
-    add_prereqs!(t, course: "CS 4992R", prereqs: "CS 2420", "CS 2810");
-
-    add_prereqs!(t, course: "SE 3010", prereqs: "CS 2420", "CS 3005");
-    add_prereqs!(t, course: "SE 3020", prereqs: "CS 2420", "CS 3005");
-    add_prereqs!(t, course: "SE 3100", prereqs: "CS 2450");
-    add_prereqs!(t, course: "SE 3150", prereqs: "CS 2450");
-    add_prereqs!(t, course: "SE 3200", prereqs: "CS 1410", "SE 1400", "CS 2810");
-    add_prereqs!(t, course: "SE 3400", prereqs: "SE 1400");
-    add_prereqs!(t, course: "SE 3450", prereqs: "SE 1400");
-    add_prereqs!(t, course: "SE 4200", prereqs: "SE 3200");
-
-    add_prereqs!(t, course: "IT 2300", prereqs: "CS 1400", "IT 1100", "CS 1410");
-    add_prereqs!(t, course: "IT 2400", coreqs: "IT 1100", "IT 1500", prereqs: "IT 1100", "IT 1500");
-    add_prereqs!(t, course: "IT 2500", prereqs: "IT 2400");
-    add_prereqs!(t, course: "IT 2700", prereqs: "CS 1400", "IT 2400");
-    add_prereqs!(t, course: "IT 3100", prereqs: "CS 1400", "IT 1100", "IT 2400", "CS 3150");
-    add_prereqs!(t, course: "IT 3110", prereqs: "CS 1410", "IT 3100");
-    add_prereqs!(t, course: "IT 3150", prereqs: "IT 2400");
-    add_prereqs!(t, course: "IT 3300", prereqs: "IT 2400", "IT 1100", "CS 3150");
-    add_prereqs!(t, course: "IT 3400", prereqs: "IT 2400");
-    add_prereqs!(t, course: "IT 4100", prereqs: "IT 3100");
-    add_prereqs!(t, course: "IT 4200", prereqs: "CS 1400", "IT 2400", "CS 2810");
-    add_prereqs!(t, course: "IT 4310", prereqs: "IT 2300");
-    add_prereqs!(t, course: "IT 4400", prereqs: "IT 3400");
-    add_prereqs!(t, course: "IT 4510", prereqs: "CS 1410", "IT 3100");
-
     conflict!(t, remove penalty, clique: "CS 4307", "IT 2300"); // students take either CS4307 or IT2300 but not both so no conflict
-
-    // TODO:
-    //multiple_sections_spread_out!(t, days: "mt", times: "0800-1200", "1200-1630",
-    //        courses: "CS 1400", "CS 1410", "CS 2450", "CS 2810", "IT 1100", "SE 1400");
-    //multiple_sections_reduce_penalties!(t,
-    //        courses: "CS 1400", "CS 1410", "CS 2450", "CS 2810", "IT 1100", "SE 1400");
-    
-    // multiple-section courses must be taught at different times
-    conflict!(t, set hard, clique: "CS 1400-01", "CS 1400-02", "CS 1400-03", "CS 1400-04");
-    conflict!(t, set hard, clique: "CS 1410-01", "CS 1410-02");
-    conflict!(t, set hard, clique: "CS 2450-01", "CS 2450-02");
-    conflict!(t, set hard, clique: "CS 2810-01", "CS 2810-02");
-    conflict!(t, set hard, clique: "IT 1100-01", "IT 1100-02");
-    conflict!(t, set hard, clique: "SE 1400-01", "SE 1400-02");
 
     // courses that must be scheduled at the same time
     // TODO:
@@ -5647,7 +5584,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
 
                     "BIOL 3200", "BIOL 3205", "BIOL 4260", "BIOL 4265", "BIOL 4270", "BIOL 4275",
                     "BIOL 4280", "BIOL 4350", "BIOL 4355", "BIOL 4380", "BIOL 4385", "BIOL 4411", "BIOL 4415", "BIOL 4440");
-  conflict!(t, set penalty to 30,
+    conflict!(t, set penalty to 30,
             clique: "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625", "BIOL 3010", "BIOL 3030",
                     "CHEM 1210", "CHEM 1215", "CHEM 1220", "CHEM 1225", "CHEM 2310", "CHEM 2315", "CHEM 2320", "CHEM 2325",
                     "MATH 1210",
@@ -5826,8 +5763,6 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                     "CHEM 3510",
                     "PHYS 3400");
 
-
-
     // complete one of the following sets, etc.
     // note: conflicts between coreqs will be reinstituted later
     conflict!(t, remove penalty,
@@ -5865,6 +5800,271 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     //complete one of the following
     conflict!(t,remove penalty, clique: "CHEM 2310", "CHEM 2315", "CHEM 3000");
     conflict!(t,remove penalty, clique: "CHEM 3510", "PHYS 3400");
-    
+
+    Ok(())
+}
+
+pub fn input_prereqs(t: &mut Input) -> Result<(), String> {
+    add_prereqs!(t, course: "CS 1400", prereqs: "CS 1030", "MATH 1010");
+    add_prereqs!(t, course: "CS 1410", prereqs: "CS 1400");
+    add_prereqs!(t, course: "CS 2420", prereqs: "CS 1410");
+    add_prereqs!(t, course: "CS 2450", prereqs: "CS 1410");
+    add_prereqs!(t, course: "CS 2500", prereqs: "CS 1410");
+    add_prereqs!(t, course: "CS 2810", prereqs: "CS 1410");
+    add_prereqs!(t, course: "CS 3005", prereqs: "CS 1410");
+    add_prereqs!(t, course: "CS 3150", prereqs: "CS 2420", "CS 2810");
+    add_prereqs!(t, course: "CS 3310", prereqs: "CS 1410", "MATH 1100", "MATH 1210");
+    add_prereqs!(t, course: "CS 3400", prereqs: "CS 2420", "CS 2810", "CS 3005");
+    add_prereqs!(t, course: "CS 3410", prereqs: "CS 2420", "CS 2810");
+    add_prereqs!(t, course: "CS 3500", prereqs: "CS 3005");
+    add_prereqs!(t, course: "CS 3510", prereqs: "CS 2420", "CS 2810", "CS 3310");
+    add_prereqs!(t, course: "CS 3520", prereqs: "CS 2420", "CS 2810");
+    add_prereqs!(t, course: "CS 3530", coreqs: "CS 3310", prereqs: "CS 2420", "CS 2810", "CS 3310");
+    add_prereqs!(t, course: "CS 3600", prereqs: "CS 2420", "CS 3005");
+    add_prereqs!(t, course: "CS 4300", prereqs: "CS 2420", "CS 2810", "CS 3005");
+    add_prereqs!(t, course: "CS 4307", prereqs: "CS 2420", "CS 2810");
+    add_prereqs!(t, course: "CS 4310", prereqs: "CS 4307", "IT 2300");
+    add_prereqs!(t, course: "CS 4320", prereqs: "CS 2420", "CS 2810", "CS 3005");
+    add_prereqs!(t, course: "CS 4400", prereqs: "CS 2420", "CS 2810");
+    add_prereqs!(t, course: "CS 4410", prereqs: "CS 2420", "CS 2810");
+    add_prereqs!(t, course: "CS 4550", prereqs: "CS 2420", "CS 2810", "CS 3005");
+    add_prereqs!(t, course: "CS 4600", prereqs: "CS 2420", "CS 2810", "CS 3005"); // sorta
+    add_prereqs!(t, course: "CS 4991R", prereqs: "CS 1400");
+    add_prereqs!(t, course: "CS 4992R", prereqs: "CS 2420", "CS 2810");
+
+    add_prereqs!(t, course: "SE 3010", prereqs: "CS 2420", "CS 3005");
+    add_prereqs!(t, course: "SE 3020", prereqs: "CS 2420", "CS 3005");
+    add_prereqs!(t, course: "SE 3100", prereqs: "CS 2450");
+    add_prereqs!(t, course: "SE 3150", prereqs: "CS 2450");
+    add_prereqs!(t, course: "SE 3200", prereqs: "CS 1410", "SE 1400", "CS 2810");
+    add_prereqs!(t, course: "SE 3400", prereqs: "SE 1400");
+    add_prereqs!(t, course: "SE 3450", prereqs: "SE 1400");
+    add_prereqs!(t, course: "SE 4600", prereqs: "CS 2420", "CS 2810", "CS 3005", "SE 1400", "SE 3200"); // sorta
+    add_prereqs!(t, course: "SE 4200", prereqs: "SE 3200");
+
+    add_prereqs!(t, course: "IT 2300", prereqs: "CS 1400", "IT 1100", "CS 1410");
+    add_prereqs!(t, course: "IT 2400", coreqs: "IT 1100", "IT 1500", prereqs: "IT 1100", "IT 1500");
+    add_prereqs!(t, course: "IT 2500", prereqs: "IT 2400");
+    add_prereqs!(t, course: "IT 2700", prereqs: "CS 1400", "IT 2400");
+    add_prereqs!(t, course: "IT 3100", prereqs: "CS 1400", "IT 1100", "IT 2400", "CS 3150");
+    add_prereqs!(t, course: "IT 3110", prereqs: "CS 1410", "IT 3100");
+    add_prereqs!(t, course: "IT 3150", prereqs: "IT 2400");
+    add_prereqs!(t, course: "IT 3300", prereqs: "IT 2400", "IT 1100", "CS 3150");
+    add_prereqs!(t, course: "IT 3400", prereqs: "IT 2400");
+    add_prereqs!(t, course: "IT 4100", prereqs: "IT 3100");
+    add_prereqs!(t, course: "IT 4200", prereqs: "CS 1400", "IT 2400", "CS 2810");
+    add_prereqs!(t, course: "IT 4310", prereqs: "IT 2300");
+    add_prereqs!(t, course: "IT 4400", prereqs: "IT 3400");
+    add_prereqs!(t, course: "IT 4600", prereqs: "CS 1410", "IT 2400"); // sorta
+    add_prereqs!(t, course: "IT 4510", prereqs: "CS 1410", "IT 3100");
+
+    // scraped data
+    add_prereqs!(t, course: "BIOL 1610", coreqs: "BIOL 1615");
+    add_prereqs!(t, course: "BIOL 1615", coreqs: "BIOL 1610");
+    add_prereqs!(t, course: "BIOL 1620", coreqs: "BIOL 1625", prereqs: "BIOL 1610");
+    add_prereqs!(t, course: "BIOL 1625", coreqs: "BIOL 1620", prereqs: "BIOL 1615", "BIOL 1615A");
+    add_prereqs!(t, course: "BIOL 2060", coreqs: "BIOL 2065", prereqs: "BIOL 1010", "BIOL 1200", "BIOL 1610");
+    add_prereqs!(t, course: "BIOL 2065", coreqs: "BIOL 2060");
+    add_prereqs!(t, course: "BIOL 2320", coreqs: "BIOL 2325");
+    add_prereqs!(t, course: "BIOL 2325", coreqs: "BIOL 2320");
+    add_prereqs!(t, course: "BIOL 2400", coreqs: "BIOL 2405");
+    add_prereqs!(t, course: "BIOL 2405", coreqs: "BIOL 2400");
+    add_prereqs!(t, course: "BIOL 2420", coreqs: "BIOL 2425");
+    add_prereqs!(t, course: "BIOL 2425", coreqs: "BIOL 2420");
+    add_prereqs!(t, course: "BIOL 3000R", prereqs: "HLOC 2000");
+    add_prereqs!(t, course: "BIOL 3010", prereqs: "BIOL 1620");
+    add_prereqs!(t, course: "BIOL 3030", prereqs: "BIOL 1610");
+    add_prereqs!(t, course: "BIOL 3040", prereqs: "BIOL 1620");
+    add_prereqs!(t, course: "BIOL 3045", coreqs: "BIOL 3040", prereqs: "BIOL 1620");
+    add_prereqs!(t, course: "BIOL 3100", prereqs: "BIOL 3010", "BIOL 3030", "BIOL 3040");
+    add_prereqs!(t, course: "BIOL 3110", prereqs: "ENGL 2010", "BIOL 3010", "BIOL 3030", "BIOL 3040");
+    add_prereqs!(t, course: "BIOL 3120", prereqs: "ENGL 2010", "BIOL 3010", "3030, 3040");
+    add_prereqs!(t, course: "BIOL 3140", coreqs: "BIOL 3145", prereqs: "BIOL 3010");
+    add_prereqs!(t, course: "BIOL 3145", coreqs: "BIOL 3140");
+    add_prereqs!(t, course: "BIOL 3155", prereqs: "BIOL 3010", "BIOL 3030", "MATH 3060");
+    add_prereqs!(t, course: "BIOL 3200", prereqs: "BIOL 3010", "BIOL 3030");
+    add_prereqs!(t, course: "BIOL 3205", coreqs: "BIOL 3200", prereqs: "BIOL 3010", "BIOL 3030");
+    add_prereqs!(t, course: "BIOL 3230R", prereqs: "BIOL 2320", "BIOL 2325");
+    add_prereqs!(t, course: "BIOL 3250", prereqs: "BIOL 3030");
+    add_prereqs!(t, course: "BIOL 3300", prereqs: "CS 1400", "IT 1100");
+    add_prereqs!(t, course: "BIOL 3340", coreqs: "BIOL 3345", prereqs: "MATH 1010");
+    add_prereqs!(t, course: "BIOL 3345", coreqs: "BIOL 3340", prereqs: "BIOL 1625", "BIOL 1625A", "BIOL 2405");
+    add_prereqs!(t, course: "BIOL 3360", prereqs: "BIOL 3010", "BIOL 3030");
+    add_prereqs!(t, course: "BIOL 3420", prereqs: "BIOL 1610");
+    add_prereqs!(t, course: "BIOL 3450", coreqs: "BIOL 3455", prereqs: "BIOL 3030", "CHEM 1220");
+    add_prereqs!(t, course: "BIOL 3455", coreqs: "BIOL 3450");
+    add_prereqs!(t, course: "BIOL 3460", prereqs: "BIOL 3010", "BIOL 3030");
+    add_prereqs!(t, course: "BIOL 3470", prereqs: "BIOL 3010", "CHEM 3510");
+    add_prereqs!(t, course: "BIOL 3550", coreqs: "BIOL 3555", prereqs: "BIOL 3030", "CHEM 2310");
+    add_prereqs!(t, course: "BIOL 3555", coreqs: "BIOL 3550", prereqs: "CHEM 2315");
+    add_prereqs!(t, course: "BIOL 4010", prereqs: "BIOL 3030");
+    add_prereqs!(t, course: "BIOL 4200", coreqs: "BIOL 4205", prereqs: "BIOL 1620");
+    add_prereqs!(t, course: "BIOL 4205", coreqs: "BIOL 4200");
+    add_prereqs!(t, course: "BIOL 4260", coreqs: "BIOL 4265", prereqs: "BIOL 3040", "BIOL 3045");
+    add_prereqs!(t, course: "BIOL 4265", coreqs: "BIOL 4260", prereqs: "BIOL 3040", "BIOL 3045");
+    add_prereqs!(t, course: "BIOL 4270", coreqs: "BIOL 4275", prereqs: "BIOL 3040", "BIOL 3045");
+    add_prereqs!(t, course: "BIOL 4275", coreqs: "BIOL 4270", prereqs: "BIOL 3040", "BIOL 3045");
+    add_prereqs!(t, course: "BIOL 4280", prereqs: "BIOL 3040");
+    add_prereqs!(t, course: "BIOL 4300", coreqs: "BIOL 4305", prereqs: "BIOL 3030", "CHEM 1220");
+    add_prereqs!(t, course: "BIOL 4305", coreqs: "BIOL 4300");
+    add_prereqs!(t, course: "BIOL 4310", prereqs: "BIOL 3300");
+    add_prereqs!(t, course: "BIOL 4320", prereqs: "BIOL 3300");
+    add_prereqs!(t, course: "BIOL 4350", coreqs: "BIOL 4355", prereqs: "BIOL 3010", "BIOL 3030");
+    add_prereqs!(t, course: "BIOL 4355", coreqs: "BIOL 4350", prereqs: "BIOL 3010", "BIOL 3030");
+    add_prereqs!(t, course: "BIOL 4380", coreqs: "BIOL 4385", prereqs: "BIOL 3040", "BIOL 3010");
+    add_prereqs!(t, course: "BIOL 4385", coreqs: "BIOL 4380");
+    add_prereqs!(t, course: "BIOL 4400", prereqs: "BIOL 2320", "BIOL 2325", "BIOL 2420", "BIOL 2425");
+    add_prereqs!(t, course: "BIOL 4411", coreqs: "BIOL 4415");
+    add_prereqs!(t, course: "BIOL 4415", coreqs: "BIOL 4411", prereqs: "BIOL 3045");
+    add_prereqs!(t, course: "BIOL 4440", prereqs: "BIOL 1620");
+    add_prereqs!(t, course: "BIOL 4500", coreqs: "BIOL 4505", prereqs: "BIOL 3010", "BIOL 3030", "CHEM 1220");
+    add_prereqs!(t, course: "BIOL 4505", coreqs: "BIOL 4500", prereqs: "CHEM 1225");
+    add_prereqs!(t, course: "BIOL 4600", coreqs: "BIOL 4605", prereqs: "BIOL 3010", "BIOL 3030", "CHEM 1220");
+    add_prereqs!(t, course: "BIOL 4605", coreqs: "BIOL 4600", prereqs: "CHEM 1225");
+    add_prereqs!(t, course: "BIOL 4910", prereqs: "ENGL 2010");
+    add_prereqs!(t, course: "BIOL 4930R", prereqs: "BIOL 3110");
+    add_prereqs!(t, course: "BTEC 2010", prereqs: "BTEC 1010", "BIOL 1610", "BIOL 1620", "BIOL 1620");
+    add_prereqs!(t, course: "BTEC 2020", prereqs: "BTEC 1010", "BIOL 1610", "BIOL 1620", "BIOL 1620");
+    add_prereqs!(t, course: "BTEC 2030", prereqs: "BTEC 1010", "BIOL 1610", "BIOL 1620", "BIOL 1620");
+    add_prereqs!(t, course: "BTEC 2050", prereqs: "BIOL 1610", "BIOL 1620");
+    add_prereqs!(t, course: "BTEC 3010", prereqs: "BIOL 3030");
+    add_prereqs!(t, course: "BTEC 3020", prereqs: "BTEC 2020");
+    add_prereqs!(t, course: "BTEC 3050", prereqs: "BTEC 2050");
+    add_prereqs!(t, course: "BTEC 4020", prereqs: "BTEC 3020");
+    add_prereqs!(t, course: "BTEC 4040", prereqs: "BTEC 3050");
+    add_prereqs!(t, course: "BTEC 4050", prereqs: "BTEC 3050");
+    add_prereqs!(t, course: "BTEC 4060", prereqs: "BTEC 4050");
+    add_prereqs!(t, course: "CHEM 1210", coreqs: "CHEM 1215", prereqs: "MATH 1050");
+    add_prereqs!(t, course: "CHEM 1215", coreqs: "CHEM 1210");
+    add_prereqs!(t, course: "CHEM 1220", coreqs: "CHEM 1225", prereqs: "CHEM 1210");
+    add_prereqs!(t, course: "CHEM 1225", coreqs: "CHEM 1220", prereqs: "CHEM 1215");
+    add_prereqs!(t, course: "CHEM 2310", coreqs: "CHEM 2315", prereqs: "CHEM 1220");
+    add_prereqs!(t, course: "CHEM 2315", coreqs: "CHEM 2310", prereqs: "CHEM 1225");
+    add_prereqs!(t, course: "CHEM 2320", coreqs: "CHEM 2325", prereqs: "CHEM 2310");
+    add_prereqs!(t, course: "CHEM 2325", coreqs: "CHEM 2320", prereqs: "CHEM 2315");
+    add_prereqs!(t, course: "CHEM 2600", prereqs: "CHEM 1220", "CHEM 1225");
+    add_prereqs!(t, course: "CHEM 3000", coreqs: "CHEM 3005", prereqs: "CHEM 1220");
+    add_prereqs!(t, course: "CHEM 3005", coreqs: "CHEM 3000", prereqs: "CHEM 1225");
+    add_prereqs!(t, course: "CHEM 3060", prereqs: "BIOL 3110");
+    add_prereqs!(t, course: "CHEM 3065", coreqs: "CHEM 3060", prereqs: "PHYS 2015", "PHYS 2215", "CHEM 2325");
+    add_prereqs!(t, course: "CHEM 3070", prereqs: "PHYS 2010", "PHYS 2210", "CHEM 2320", "MATH 1220");
+    add_prereqs!(t, course: "CHEM 3075", coreqs: "CHEM 3070", prereqs: "PHYS 2015", "PHYS 2215", "CHEM 2325");
+    add_prereqs!(t, course: "CHEM 3100", prereqs: "CHEM 2320");
+    add_prereqs!(t, course: "CHEM 3300", prereqs: "CHEM 3000", "CHEM 3005");
+    add_prereqs!(t, course: "CHEM 3510", coreqs: "CHEM 3515", prereqs: "BIOL 1610", "CHEM 2320");
+    add_prereqs!(t, course: "CHEM 3515", coreqs: "CHEM 3510", prereqs: "BIOL 1615", "CHEM 2325");
+    add_prereqs!(t, course: "CHEM 3520", coreqs: "CHEM 3525", prereqs: "CHEM 3510");
+    add_prereqs!(t, course: "CHEM 3525", coreqs: "CHEM 3520", prereqs: "CHEM 3515");
+    add_prereqs!(t, course: "CHEM 4100", prereqs: "CHEM 3100");
+    add_prereqs!(t, course: "CHEM 4200", prereqs: "CHEM 2320");
+    add_prereqs!(t, course: "CHEM 4310", prereqs: "CHEM 2320", "CHEM 2325");
+    add_prereqs!(t, course: "CHEM 4510", prereqs: "CHEM 2320", "CHEM 2325", "CHEM 3000", "CHEM 3005");
+    add_prereqs!(t, course: "CHEM 4610", prereqs: "CHEM 3520");
+    add_prereqs!(t, course: "CHEM 4800R", prereqs: "CHEM 2320", "CHEM 2325", "ENGL 2010", "ENGL 2010A");
+    add_prereqs!(t, course: "CHEM 4910", prereqs: "CHEM 2320", "CHEM 2325", "ENGL 2010");
+    add_prereqs!(t, course: "EDUC 3110", prereqs: "FSHD 1500", "PSY 1010", "PSY 1100");
+    add_prereqs!(t, course: "ENER 3310", prereqs: "MATH 1050", "CHEM 1210");
+    add_prereqs!(t, course: "ENER 4310", prereqs: "ENER 2310", "GEO 2050");
+    add_prereqs!(t, course: "ENVS 1210", coreqs: "ENVS 1215");
+    add_prereqs!(t, course: "ENVS 1215", coreqs: "ENVS 1210");
+    add_prereqs!(t, course: "ENVS 2210", prereqs: "ENVS 1210", "ENVS 1215", "MATH 1050", "CHEM 1210", "CHEM 1215");
+    add_prereqs!(t, course: "ENVS 2700R", prereqs: "ENVS 1210", "ENVS 1215");
+    add_prereqs!(t, course: "ENVS 3280", prereqs: "ENVS 2210");
+    add_prereqs!(t, course: "ENVS 3410", prereqs: "ENVS 2210", "CHEM 1210");
+    add_prereqs!(t, course: "ENVS 3510", prereqs: "ENVS 2210", "GEO 2050");
+    add_prereqs!(t, course: "ENVS 4080", prereqs: "ENVS 3410", "ENVS 2700R");
+    add_prereqs!(t, course: "GEO 1110", coreqs: "GEO 1115");
+    add_prereqs!(t, course: "GEO 1115", coreqs: "GEO 1110");
+    add_prereqs!(t, course: "GEO 1220", coreqs: "GEO 1225", prereqs: "GEO 1110");
+    add_prereqs!(t, course: "GEO 1225", coreqs: "GEO 1220", prereqs: "GEO 1115");
+    add_prereqs!(t, course: "GEO 2050", prereqs: "GEO 1110", "GEO 1115");
+    add_prereqs!(t, course: "GEO 2700R", prereqs: "GEO 1110", "GEO 1115");
+    add_prereqs!(t, course: "GEO 3000", prereqs: "GEO 1110", "GEO 1115");
+    add_prereqs!(t, course: "GEO 3060", prereqs: "GEO 1110", "GEO 1115");
+    add_prereqs!(t, course: "GEO 3180", prereqs: "GEO 1110", "GEO 1115");
+    add_prereqs!(t, course: "GEO 3200", prereqs: "GEO 1110", "GEO 1115", "MATH 1050", "CHEM 1210", "CHEM 1215");
+    add_prereqs!(t, course: "GEO 3400", prereqs: "GEO 1110", "GEO 1115", "CHEM 1210", "CHEM 1215");
+    add_prereqs!(t, course: "GEO 3500", coreqs: "GEOG 3600", "GEOG 3605", prereqs: "GEO 1110", "GEO 1115", "MATH 1060", "CHEM 1210", "CHEM 1215");
+    add_prereqs!(t, course: "GEO 3550", prereqs: "GEO 1220", "GEO 1225");
+    add_prereqs!(t, course: "GEO 3600", prereqs: "GEO 1110", "GEO 1115", "Math 1050", "CHEM 1210", "CHEM 1215", "GEO 3200");
+    add_prereqs!(t, course: "GEO 3700", prereqs: "GEO 1110", "GEO 1115", "MATH 1060", "MATH 1080");
+    add_prereqs!(t, course: "GEO 4600", prereqs: "GEO 2700R", "GEO 3550", "GEO 3700");
+    add_prereqs!(t, course: "GEO 4800R", prereqs: "GEO 2700R");
+    add_prereqs!(t, course: "GEOG 2410", prereqs: "ENVS 1210", "BIOL 1610");
+    add_prereqs!(t, course: "GEOG 3600", coreqs: "GEOG 3605");
+    add_prereqs!(t, course: "GEOG 3605", coreqs: "GEOG 3600");
+    add_prereqs!(t, course: "GEOG 4140", prereqs: "GEOG 3600", "GEOG 3605");
+    add_prereqs!(t, course: "GEOG 4180", prereqs: "GEOG 3600", "GEOG 3605");
+    add_prereqs!(t, course: "MATH 1040", prereqs: "MATH 0980");
+    add_prereqs!(t, course: "MATH 1050", prereqs: "MATH 1010", "MATH 1000");
+    add_prereqs!(t, course: "MATH 1060", prereqs: "MATH 1050");
+    add_prereqs!(t, course: "MATH 1080", prereqs: "MATH 1010", "MATH 1000");
+    add_prereqs!(t, course: "MATH 1210", prereqs: "MATH 1050", "MATH 1060", "MATH 1080");
+    add_prereqs!(t, course: "MATH 1220", prereqs: "MATH 1210");
+    add_prereqs!(t, course: "MATH 2210", prereqs: "MATH 1220");
+    add_prereqs!(t, course: "MATH 2250", prereqs: "Math 1220");
+    add_prereqs!(t, course: "MATH 2270", prereqs: "MATH 1210");
+    add_prereqs!(t, course: "MATH 2280", prereqs: "MATH 1220");
+    add_prereqs!(t, course: "MATH 3060", prereqs: "MATH 1210");
+    add_prereqs!(t, course: "MATH 3400", prereqs: "MATH 1220");
+    add_prereqs!(t, course: "MATH 3500", prereqs: "MATH 2270", "MATH 2280", "MATH 2250");
+    add_prereqs!(t, course: "PHYS 1010", prereqs: "MATH 1010");
+    add_prereqs!(t, course: "PHYS 1015", coreqs: "PHYS 1010");
+    add_prereqs!(t, course: "PHYS 1040", coreqs: "PHYS 1045");
+    add_prereqs!(t, course: "PHYS 1045", coreqs: "PHYS 1040");
+    add_prereqs!(t, course: "PHYS 2010", coreqs: "PHYS 2015", prereqs: "MATH 1060", "MATH 1080");
+    add_prereqs!(t, course: "PHYS 2015", coreqs: "PHYS 2010");
+    add_prereqs!(t, course: "PHYS 2020", coreqs: "PHYS 2025", prereqs: "PHYS 2010");
+    add_prereqs!(t, course: "PHYS 2025", coreqs: "PHYS 2020", prereqs: "PHYS 2015");
+    add_prereqs!(t, course: "PHYS 2210", coreqs: "PHYS 2215", prereqs: "MATH 1210", "MATH 1220");
+    add_prereqs!(t, course: "PHYS 2215", coreqs: "PHYS 2210");
+    add_prereqs!(t, course: "PHYS 2220", coreqs: "PHYS 2225", prereqs: "MATH 1220", "PHYS 2210");
+    add_prereqs!(t, course: "PHYS 2225", coreqs: "PHYS 2220", prereqs: "PHYS 2215");
+    add_prereqs!(t, course: "PHYS 3400", prereqs: "PHYS 2220");
+    add_prereqs!(t, course: "PHYS 3710", prereqs: "MATH 1220", "PHYS 2220");
+    add_prereqs!(t, course: "POLS 1100", prereqs: "ENGL 1010", "ENGL 1010D");
+    add_prereqs!(t, course: "PSY 2400", prereqs: "PSY 1010");
+    add_prereqs!(t, course: "PSY 3460", prereqs: "PSY 1010");
+    add_prereqs!(t, course: "PSY 3710", prereqs: "BIOL 1010", "BIOL 1610", "PSY 1010");
+    add_prereqs!(t, course: "SCED 4900", coreqs: "SCED 4989");
+    add_prereqs!(t, course: "SE 3100", prereqs: "SE 2450", "CS 2450", "WEB 3450");
+
+    Ok(())
+}
+
+pub fn input_multiples(t: &mut Input) -> Result<(), String> {
+    multiple_sections_reduce_penalties!(t,
+            courses:
+                "BIOL 1010", "BIOL 1015", "BIOL 1200", "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625",
+                "BIOL 2065", "BIOL 2320", "BIOL 2325", "BIOL 2420", "BIOL 2425", "BIOL 3010", "BIOL 3030",
+                "BIOL 3155", "BIOL 3230R", "BIOL 3455", "BIOL 4890R", "BIOL 4910", "BIOL 4990R",
+                "BTEC 2050",
+                "CHEM 1010", "CHEM 1015", "CHEM 1125", "CHEM 1150", "CHEM 1155", "CHEM 1210", "CHEM 1215",
+                "CHEM 1220", "CHEM 1225", "CHEM 2310", "CHEM 2315", "CHEM 2320", "CHEM 2325", "CHEM 3300",
+                "CHEM 3515", "CHEM 3525", "CHEM 4800R",
+                "CS 1400", "CS 1410", "CS 2450", "CS 2810", "CS 4600",
+                "ECE 4990",
+                "ENVS 1010", "ENVS 1215",
+                "GEO 1010", "GEO 1015", "GEO 3500", "GEO 3600",
+                "GEOG 1000", "GEOG 1005",
+                "IT 1100",
+                "MATH 900", "MATH 980", "MATH 1010", "MATH 1030", "MATH 1040", "MATH 1050", "MATH 1060",
+                "MATH 1210", "MATH 1220", "MATH 2020",
+                "MECH 1150", "MECH 1200", "MECH 1205", "MECH 2250", "MECH 2255", "MECH 3255", "MECH 3605", "MECH 3655",
+                "PHYS 1015", "PHYS 1045", "PHYS 2010", "PHYS 2015", "PHYS 2020", "PHYS 2025",
+                "PHYS 2210", "PHYS 2215", "PHYS 2225", "PHYS 3605",
+                "SE 1400");
+
+    // multiple-section courses must be taught at different times
+    // TODO:
+    //multiple_sections_spread_out!(t, days: "mt", times: "0800-1200", "1200-1630",
+    //        courses: "CS 1400", "CS 1410", "CS 2450", "CS 2810", "IT 1100", "SE 1400");
+    conflict!(t, set hard, clique: "CS 1400-01", "CS 1400-02", "CS 1400-03", "CS 1400-04");
+    conflict!(t, set hard, clique: "CS 1410-01", "CS 1410-02");
+    conflict!(t, set hard, clique: "CS 2450-01", "CS 2450-02");
+    conflict!(t, set hard, clique: "CS 2810-01", "CS 2810-02");
+    conflict!(t, set hard, clique: "IT 1100-01", "IT 1100-02");
+    conflict!(t, set hard, clique: "SE 1400-01", "SE 1400-02");
+
     Ok(())
 }

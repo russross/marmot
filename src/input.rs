@@ -602,7 +602,12 @@ impl Input {
         Ok(())
     }
 
-    pub fn add_prereqs(&mut self, course_raw: &str, coreqs_raw: Vec<&str>, prereqs_raw: Vec<&str>) -> Result<(), String> {
+    pub fn add_prereqs(
+        &mut self,
+        course_raw: &str,
+        coreqs_raw: Vec<&str>,
+        prereqs_raw: Vec<&str>,
+    ) -> Result<(), String> {
         // see if the course is present in the data
         let course_list = self.find_sections_by_name(course_raw)?;
         if course_list.is_empty() {
@@ -647,6 +652,50 @@ impl Input {
             }
             pr.sort();
             pr.dedup();
+        }
+
+        Ok(())
+    }
+
+    pub fn multiple_sections_reduce_penalties(
+        &mut self,
+        courses_raw: Vec<&str>,
+    ) -> Result<(), String> {
+        let threshold = 30;
+        for course_raw in courses_raw {
+            // get the sections of this course
+            let course_list = self.find_sections_by_name(course_raw)?;
+            if course_list.is_empty() {
+                self.missing.push(course_raw.to_string());
+            }
+            let number = course_list.len() as isize;
+            if number == 1 {
+                // nothing to do
+                continue;
+            }
+
+            // find all the soft conflicts involving these sections
+            for sec_i in course_list {
+                let others: Vec<usize> = self.sections[sec_i]
+                    .soft_conflicts
+                    .iter()
+                    .map(|elt| elt.section)
+                    .collect();
+                for other in others {
+                    let old_score = self.sections[sec_i].get_conflict(other);
+                    if old_score >= 100 || old_score <= 0 {
+                        continue;
+                    }
+                    let mut new_score = self.sections[sec_i].get_conflict(other) / number;
+                    if new_score < threshold {
+                        new_score = 0;
+                    }
+
+                    // set in both directions
+                    self.sections[sec_i].set_conflict(other, new_score);
+                    self.sections[other].set_conflict(sec_i, new_score);
+                }
+            }
         }
 
         Ok(())
@@ -1257,8 +1306,15 @@ macro_rules! add_prereqs {
     };
 }
 
+macro_rules! multiple_sections_reduce_penalties {
+    ($input:expr,
+            courses: $($course:literal),+ $(,)?) => {
+        $input.multiple_sections_reduce_penalties(vec![ $($course, )+ ])?;
+    };
+}
+
 pub(crate) use {
     add_prereqs, anticonflict, clustering_preferences, conflict, crosslist, days_off_preference,
     default_clustering, duration_penalty, evenly_spread_out_preference, holiday, instructor,
-    name_with_optional_penalty, room, section, time,
+    multiple_sections_reduce_penalties, name_with_optional_penalty, room, section, time,
 };
