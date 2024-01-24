@@ -67,6 +67,7 @@ fn main() {
             return;
         }
     };
+    /*
     for (sec_i, sec) in term.sections.iter().enumerate() {
         let solve = &solver.sections[sec_i];
         print!("{}", sec.get_name());
@@ -108,6 +109,7 @@ fn main() {
             println!("    {}", elt.debug(&term))
         }
     }
+    */
 
     if !term.missing.is_empty() {
         print!("unknown courses:");

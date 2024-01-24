@@ -43,6 +43,8 @@ pub fn input() -> Result<Input, String> {
     input_times(&mut t)?;
     input_computing(&mut t)?;
     input_set(&mut t)?;
+    input_computing_conflicts(&mut t)?;
+    input_set_conflicts(&mut t)?;
     input_multiples(&mut t)?;
     input_prereqs(&mut t)?;
 
@@ -55,6 +57,8 @@ pub fn input() -> Result<Input, String> {
 
     crosslist!(t, "BIOL 1010-05" cross-list with "BIOL 1010-11");
     crosslist!(t, "BIOL 2320-04" cross-list with "BIOL 2320-08");
+    crosslist!(t, "BIOL 3010-01" cross-list with "BIOL 3010-02");
+    crosslist!(t, "BIOL 3030-01" cross-list with "BIOL 3030-02");
     crosslist!(t, "BTEC 2050-01" cross-list with "BTEC 2050-02");
 
     Ok(t)
@@ -371,6 +375,10 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             instructor: "Jamie Bennion",
             rooms and times: "flex", "3 credit evening");
 
+    Ok(())
+}
+
+pub fn input_computing_conflicts(t: &mut Input) -> Result<(), String> {
     conflict!(t, set hard,
             clique: "CS 2420", "CS 2450", "CS 2810", "CS 3005"); // 3rd/4th semester classes
     conflict!(t, set hard,
@@ -414,37 +422,42 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
     conflict!(t, set penalty to 45,
             clique: "CS 2500", "CS 2810", "CS 3005");
 
-    // SE upper division core
+    // SE core
     conflict!(t, set penalty to 99,
-            clique: /*"CS 2450",*/ "CS 3150", "CS 3310", "CS 3510", "CS 4307",
+            clique: "CS 1030", "CS 1400", "CS 1410", "CS 2420", "CS 2450", "CS 2810",
+                    "CS 3150", "CS 3310", "CS 3510", "CS 4307",
                     "IT 2300",
                     "SE 3010", "SE 3020", "SE 3100", "SE 3150", "SE 3200", "SE 3400",
-                    "SE 4200", "SE 4600"); // IT 1100, SE 1400
+                    "SE 4200", "SE 4600"); // IT 1100 SE 1400
 
     // Entrepreneurial and marketing track
     conflict!(t, set penalty to 45,
-            clique: /*"CS 2450",*/ "CS 3150", "CS 3310", "CS 3510", "CS 4307",
-                    "IT 2300",
-                    "SE 3010", "SE 3020", "SE 3100", "SE 3150", "SE 3200", "SE 3400", "SE 3500", "SE 3550",
+            clique: "CS 1030", "CS 1400", "CS 1410", "CS 2420", "CS 2450", "CS 2810",
+                    "CS 3150", "CS 3310", "CS 3510", "CS 4307",
+                    "IT 1100", "IT 2300",
+                    "SE 1400", "SE 3010", "SE 3020", "SE 3100", "SE 3150", "SE 3200", "SE 3400", "SE 3500", "SE 3550",
                     "SE 4200", "SE 4600"); // IT 1100 SE 1400
 
     // DevOps track
     conflict!(t, set penalty to 45,
-            clique: /*"CS 2450",*/ "CS 3150", "CS 3310", "CS 3510", "CS 4307",
+            clique: "CS 1030", "CS 1400", "CS 1410", "CS 2420", "CS 2450", "CS 2810",
+                    "CS 3150", "CS 3310", "CS 3510", "CS 4307",
                     "IT 2300", "IT 3110", "IT 3300", "IT 4200",
                     "SE 3010", "SE 3020", "SE 3100", "SE 3150", "SE 3200", "SE 3400",
                     "SE 4200", "SE 4600"); // IT 1100 SE 1400
 
     // Application track
     conflict!(t, set penalty to 45,
-            clique: /*"CS 2450",*/ "CS 3150", "CS 3310", "CS 3500", "CS 3510", "CS 4307",
+            clique: "CS 1030", "CS 1400", "CS 1410", "CS 2420", "CS 2450", "CS 2810",
+                    "CS 3150", "CS 3310", "CS 3500", "CS 3510", "CS 4307",
                     "IT 2300",
                     "SE 3010", "SE 3020", "SE 3100", "SE 3150", "SE 3200", "SE 3400", "SE 3450",
                     "SE 4200", "SE 4600"); // IT 1100 SE 1400
 
     // Data science track
     conflict!(t, set penalty to 45,
-            clique: /*"CS 2450",*/ "CS 3150", "CS 3310", "CS 3510", "CS 4300", "CS 4307", "CS 4320",
+            clique: "CS 1030", "CS 1400", "CS 1410", "CS 2420", "CS 2450", "CS 2810",
+                    "CS 3150", "CS 3310", "CS 3510", "CS 4300", "CS 4307", "CS 4320",
                     "IT 2300",
                     "SE 3010", "SE 3020", "SE 3100", "SE 3150", "SE 3200", "SE 3400",
                     "SE 4200", "SE 4600"); // IT 1100 SE 1400
@@ -2620,6 +2633,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     // BIOL 3010-01-alt: Evolution
     // assigned to SET 301 at T1200+50
     section!(t, course: "BIOL 3010-01-SI",
+                //instructor: Curtis B Walker
                 rooms and times:
                     "Science medium lecture",
                     "1 credit extended bell schedule",
@@ -2639,6 +2653,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     // BIOL 3010-02-alt: Evolution
     // assigned to SET 301 at R1200+50
     section!(t, course: "BIOL 3010-02-SI",
+                //instructor: Curtis B Walker
                 rooms and times:
                     "Science medium lecture",
                     "1 credit extended bell schedule",
@@ -3544,8 +3559,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
 
     // CHEM 3300-01-alt: Instrumental Analysis
     // assigned to SNOW 103 at R1500+170
-    section!(t, course: "CHEM 3300-01-alt",
-                instructor: "Gabriela Chilom",
+    section!(t, course: "CHEM 3300-01-SI",
                 rooms and times:
                     "SNOW 103",
                     "R1500+170",
@@ -3660,7 +3674,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     // CHEM 4910-01: Chemistry Senior Seminar
     // assigned to SET 201 at F1200+50
     section!(t, course: "CHEM 4910-01",
-                instructor: "Wendy E Schatzberg",
+                //instructor: "Wendy E Schatzberg",
                 rooms and times:
                     "Science medium lecture",
                     "1 credit extended bell schedule",
@@ -5445,6 +5459,10 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                     "F1400+170",
     );
 
+    Ok(())
+}
+
+pub fn input_set_conflicts(t: &mut Input) -> Result<(), String> {
     // envs envs emphasis
     conflict!(t, set penalty to 99,
             clique: "ENVS 1210", "ENVS 1215",
@@ -5889,7 +5907,7 @@ pub fn input_prereqs(t: &mut Input) -> Result<(), String> {
     add_prereqs!(t, course: "BIOL 3045", coreqs: "BIOL 3040", prereqs: "BIOL 1620");
     add_prereqs!(t, course: "BIOL 3100", prereqs: "BIOL 3010", "BIOL 3030", "BIOL 3040");
     add_prereqs!(t, course: "BIOL 3110", prereqs: "ENGL 2010", "BIOL 3010", "BIOL 3030", "BIOL 3040");
-    add_prereqs!(t, course: "BIOL 3120", prereqs: "ENGL 2010", "BIOL 3010", "3030, 3040");
+    add_prereqs!(t, course: "BIOL 3120", prereqs: "ENGL 2010", "BIOL 3010", "BIOL 3030", "BIOL 3040");
     add_prereqs!(t, course: "BIOL 3140", coreqs: "BIOL 3145", prereqs: "BIOL 3010");
     add_prereqs!(t, course: "BIOL 3145", coreqs: "BIOL 3140");
     add_prereqs!(t, course: "BIOL 3155", prereqs: "BIOL 3010", "BIOL 3030", "MATH 3060");
