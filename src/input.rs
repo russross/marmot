@@ -666,16 +666,17 @@ impl Input {
 
     pub fn multiple_sections_reduce_penalties(
         &mut self,
-        courses_raw: Vec<&str>,
+        courses_raw: Vec<(&str, isize)>,
     ) -> Result<(), String> {
         let threshold = 30;
-        for course_raw in courses_raw {
+        for (course_raw, online) in courses_raw {
             // get the sections of this course
             let course_list = self.find_sections_by_name(course_raw)?;
             if course_list.is_empty() {
                 self.missing.push(course_raw.to_string());
+                continue;
             }
-            let number = course_list.len() as isize;
+            let number = (course_list.len() as isize) + online;
             if number == 1 {
                 // nothing to do
                 continue;
@@ -693,7 +694,7 @@ impl Input {
                     if old_score >= 100 || old_score <= 0 {
                         continue;
                     }
-                    let mut new_score = self.sections[sec_i].get_conflict(other) / number;
+                    let mut new_score = self.sections[sec_i].get_conflict(other) / (number + 1);
                     if new_score < threshold {
                         new_score = 0;
                     }
@@ -1313,15 +1314,24 @@ macro_rules! add_prereqs {
     };
 }
 
+macro_rules! course_with_online {
+    ($course:literal with $online:literal online) => {
+        ($course, $online)
+    };
+    ($course:literal) => {
+        ($course, 0)
+    };
+}
+
 macro_rules! multiple_sections_reduce_penalties {
     ($input:expr,
-            courses: $($course:literal),+ $(,)?) => {
-        $input.multiple_sections_reduce_penalties(vec![ $($course, )+ ])?;
+            courses: $($course:literal $(with $online:literal online)?),+ $(,)?) => {
+        $input.multiple_sections_reduce_penalties(vec![ $(course_with_online!($course $(with $online online)?),)+ ])?;
     };
 }
 
 pub(crate) use {
     add_prereqs, anticonflict, clustering_preferences, conflict, crosslist, days_off_preference,
     default_clustering, duration_penalty, evenly_spread_out_preference, holiday, instructor,
-    multiple_sections_reduce_penalties, name_with_optional_penalty, room, section, time,
+    multiple_sections_reduce_penalties, course_with_online, name_with_optional_penalty, room, section, time,
 };

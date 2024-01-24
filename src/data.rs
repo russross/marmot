@@ -6071,18 +6071,18 @@ pub fn input_multiples(t: &mut Input) -> Result<(), String> {
                 "CHEM 1010", "CHEM 1015", "CHEM 1125", "CHEM 1150", "CHEM 1155", "CHEM 1210", "CHEM 1215",
                 "CHEM 1220", "CHEM 1225", "CHEM 2310", "CHEM 2315", "CHEM 2320", "CHEM 2325", "CHEM 3300",
                 "CHEM 3515", "CHEM 3525", "CHEM 4800R",
-                "CS 1400", "CS 1410", "CS 2450", "CS 2810", "CS 4600",
+                "CS 1400", "CS 1410" with 1 online, "CS 2450", "CS 2810", "CS 4600",
                 "ECE 4990",
                 "ENVS 1010", "ENVS 1215",
                 "GEO 1010", "GEO 1015", "GEO 3500", "GEO 3600",
                 "GEOG 1000", "GEOG 1005",
-                "IT 1100",
+                "IT 1100" with 1 online, "IT 1500" with 3 online,
                 "MATH 900", "MATH 980", "MATH 1010", "MATH 1030", "MATH 1040", "MATH 1050", "MATH 1060",
                 "MATH 1210", "MATH 1220", "MATH 2020",
                 "MECH 1150", "MECH 1200", "MECH 1205", "MECH 2250", "MECH 2255", "MECH 3255", "MECH 3605", "MECH 3655",
                 "PHYS 1015", "PHYS 1045", "PHYS 2010", "PHYS 2015", "PHYS 2020", "PHYS 2025",
                 "PHYS 2210", "PHYS 2215", "PHYS 2225", "PHYS 3605",
-                "SE 1400");
+                "SE 1400" with 2 online);
 
     // multiple-section courses must be taught at different times
     // TODO:
