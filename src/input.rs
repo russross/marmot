@@ -101,9 +101,9 @@ pub fn setup() -> Result<Input, String> {
         *counts.entry(key).or_default() += 1;
     }
     counts.retain(|_, v| *v > 1);
-    for course_raw in counts.keys() {
-        println!("{} has multiple sections", course_raw);
-    }
+    //for course_raw in counts.keys() {
+        //println!("{} has multiple sections", course_raw);
+    //}
 
     // compute time slot conflict lookup table
     // used by time_slots_conflict
@@ -277,9 +277,16 @@ impl Input {
         Ok(())
     }
 
-    pub fn find_time_slot_by_name(&self, name: &String) -> Result<usize, String> {
+    pub fn find_time_slot_by_name(&self, name: &str) -> Result<usize, String> {
         let Some(i) = self.time_slots.iter().position(|elt| elt.name == *name) else {
             return Err(format!("timeslot named \"{}\" not found", name));
+        };
+        Ok(i)
+    }
+
+    pub fn find_room_by_name(&self, name: &str) -> Result<usize, String> {
+        let Some(i) = self.rooms.iter().position(|elt| elt.name == *name) else {
+            return Err(format!("room named \"{}\" not found", name));
         };
         Ok(i)
     }

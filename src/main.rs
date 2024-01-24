@@ -3,11 +3,13 @@ pub mod data;
 pub mod input;
 pub mod score;
 pub mod solver;
+pub mod static_placement;
 use self::input::*;
 use self::solver::*;
+use self::static_placement::*;
 
 fn main() {
-    let term = match setup() {
+    let mut term = match setup() {
         Ok(t) => t,
         Err(msg) => {
             println!("Error in the input: {}", msg);
@@ -58,7 +60,7 @@ fn main() {
         println!();
     }
     */
-    let solver = match Solver::new(&term) {
+    let mut solver = match Solver::new(&term) {
         Ok(s) => s,
         Err(msg) => {
             eprintln!("{}", msg);
@@ -123,6 +125,9 @@ fn main() {
         term.instructors.len(),
         term.sections.len(),
     );
+
+    // set up the static schedule
+    place_static(&mut term, &mut solver).unwrap();
 
     let iterations = 50_000_000;
     solve(solver, &term, iterations);

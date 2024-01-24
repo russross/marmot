@@ -1256,8 +1256,9 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
     let mut evicted_by = EvictionTracker::new();
     let mut winner;
     let start = time::Instant::now();
-    let mut best_score = solver.score;
+    let mut best_score = solver.score+1;
     println!("initial score = {}", solver.score);
+    let mut initial = true;
 
     for iteration in 0..iterations {
         let section = solver.select_section_to_place(input);
@@ -1274,7 +1275,7 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
             best_score = score;
             winner = solver.clone();
 
-            if winner.unplaced_current < 5 {
+            if winner.unplaced_current < 5 || initial {
                 let mut problems = Vec::new();
                 for i in 0..winner.sections.len() {
                     winner.sections[i].score.gather_score_messages(
@@ -1289,9 +1290,13 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
                 println!();
                 println!();
                 //winner.print_schedule(input);
-                fs::write("placement.js", winner.dump_json(input))
+                let filename = if initial {
+                    "static.js"
+                } else {
+                    "placement.js"
+                };
+                fs::write(filename, winner.dump_json(input))
                     .expect("unable to write placements.js");
-                //print!("{}", winner.dump_json(input));
 
                 if !problems.is_empty() {
                     let digits = problems[0].0.to_string().len();
@@ -1318,6 +1323,7 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
                         println!();
                     }
                 }
+                initial = false;
             }
 
             let elapsed = start.elapsed();

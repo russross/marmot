@@ -99,9 +99,12 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
     section!(t, course: "CS 1030-01",
             instructor: "Carol Stander",
             rooms and times: "flex", "3 credit bell schedule");
-    section!(t, course: "CS 1410-02",
+    section!(t, course: "CS 1410-01",
             instructor: "Carol Stander",
             rooms and times: "flex", "3 credit bell schedule");
+    section!(t, course: "IT 2300-02",
+            instructor: "Carol Stander",
+            rooms and times: "Smith 113", "3 credit bell schedule");
 
     instructor!(t,
         name:
@@ -180,7 +183,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             rooms and times: "Smith 107", "tr");
     section!(t, course: "IT 2300-01",
             instructor: "Jay Sneddon",
-            rooms and times: "Smith 107", "3 credit bell schedule");
+            rooms and times: "Smith 107", "Smith 113", "3 credit bell schedule");
     section!(t, course: "IT 2700-01",
             instructor: "Jay Sneddon",
             rooms and times: "Smith 107", "tr");
@@ -200,10 +203,10 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "TR  1630-1800",
             "T   1800-2030",
     );
-    section!(t, course: "CS 1400-03",
+    section!(t, course: "CS 1400-01",
             instructor: "Jeff Compas",
             rooms and times: "stadium", "3 credit bell schedule", "3 credit evening");
-    section!(t, course: "CS 1400-04",
+    section!(t, course: "CS 1400-50",
             instructor: "Jeff Compas",
             rooms and times: "stadium", "3 credit bell schedule", "3 credit evening");
     section!(t, course: "CS 2450-02",
@@ -217,14 +220,16 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
         name:
             "Joe Francom",
         available:
-            "MWF 0900-1200",
+            "MWF 0800-1200",
             "MW  1330-1500",
     );
     default_clustering!(t, instructor: "Joe Francom", days: "mt", days off: 1);
     section!(t, course: "IT 3110-01",
             instructor: "Joe Francom",
             rooms and times: "flex", "3 credit bell schedule");
-    // See Phil Daley for IT 4510-01
+    section!(t, course: "IT 4600-01",
+            instructor: "Joe Francom",
+            rooms and times: "flex", "3 credit bell schedule");
 
     instructor!(t,
         name:
@@ -254,7 +259,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
     section!(t, course: "SE 3550-01",
             instructor: "Matt Kearl",
             rooms and times: "flex", "macs", "3 credit bell schedule");
-    section!(t, course: "SE 1400-01",
+    section!(t, course: "SE 1400-02",
             instructor: "Matt Kearl",
             rooms and times: "macs", "3 credit bell schedule");
 
@@ -281,10 +286,16 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
     section!(t, course: "IT 3100-01",
             instructor: "Phil Daley",
             rooms and times: "Smith 107", "3 credit bell schedule");
-    // avoid IT 4510 so Phil can shadow Joe
+
+    instructor!(t,
+        name:
+            "Derek Sneddon",
+        available:
+            "R 1800-2230",
+    );
     section!(t, course: "IT 4510-01",
-            instructor: "Joe Francom" and "Phil Daley",
-            rooms and times: "flex", "3 credit bell schedule");
+            instructor: "Derek Sneddon",
+            rooms and times: "flex", "R1800+150");
 
     instructor!(t,
        name:
@@ -297,13 +308,13 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
            "F   1300-1400",
     );
     default_clustering!(t, instructor: "Ren Quinn", days: "mt", days off: 0);
-    section!(t, course: "CS 1400-01",
-            instructor: "Ren Quinn",
-            rooms and times: "flex", "3 credit bell schedule");
     section!(t, course: "CS 1400-02",
             instructor: "Ren Quinn",
             rooms and times: "flex", "3 credit bell schedule");
-    section!(t, course: "CS 1410-01",
+    section!(t, course: "CS 1400-03",
+            instructor: "Ren Quinn",
+            rooms and times: "flex", "3 credit bell schedule");
+    section!(t, course: "CS 1410-02",
             instructor: "Ren Quinn",
             rooms and times: "flex", "3 credit bell schedule");
     section!(t, course: "CS 2450-01",
@@ -312,7 +323,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
     section!(t, course: "CS 3150-01",
             instructor: "Ren Quinn",
             rooms and times: "flex", "3 credit bell schedule");
-    section!(t, course: "CS 4991-01",
+    section!(t, course: "CS 4991R-50",
             instructor: "Ren Quinn",
             rooms and times: "Smith 116", "R1900+50");
     section!(t, course: "CS 4992R-01",
@@ -346,7 +357,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
         available:
             "MWF 1100-1200",
     );
-    section!(t, course: "SE 1400-02",
+    section!(t, course: "SE 1400-01",
             instructor: "Rex Frisbey",
             rooms and times: "macs", "3 credit bell schedule");
 
@@ -834,7 +845,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
             "MTWRF 0800-1700",
     );
     // MWF0900+50, MWF1000+50, MWF1100+50, TR1030+75
-    default_clustering!(t, instructor: "Amber Rose Mortensen", days: "mt");
+    //default_clustering!(t, instructor: "Amber Rose Mortensen", days: "mt");
 
     instructor!(t,
         name:
@@ -844,7 +855,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
             "F 0800-1700",
     );
     // MW1200+75, MW1500+170, T1200+110, TR1500+170
-    default_clustering!(t, instructor: "Andrew C Schiller", days: "mt");
+    //default_clustering!(t, instructor: "Andrew C Schiller", days: "mt");
 
     instructor!(t,
         name:
@@ -861,7 +872,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
             "MTWRF 0800-1700",
     );
     // MTWF1000+50, MTWR1100+50, MW1200+75
-    default_clustering!(t, instructor: "Bhuvaneswari Sambandham", days: "mt");
+    //default_clustering!(t, instructor: "Bhuvaneswari Sambandham", days: "mt");
 
     instructor!(t,
         name:
@@ -938,7 +949,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
             "MTWRF 0800-1700",
     );
     // F1100+50, MTWR0800+50, MTWR0900+50, MTWR1100+50, TR1200+75
-    default_clustering!(t, instructor: "Costel Ionita", days: "mt");
+    //default_clustering!(t, instructor: "Costel Ionita", days: "mt");
 
     instructor!(t,
         name:
@@ -948,7 +959,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
             "TR 0700-1700",
     );
     // MTWR1200+50, TR0730+75, TR0900+75
-    default_clustering!(t, instructor: "Craig D Seegmiller", days: "mt");
+    //default_clustering!(t, instructor: "Craig D Seegmiller", days: "mt");
 
     instructor!(t,
         name:
@@ -957,7 +968,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
             "MTWRF 0800-1700",
     );
     // MW1330+75, MW1330+75, R1330+75, T1330+75, T1400+170, TR1200+75
-    default_clustering!(t, instructor: "Curtis B Walker", days: "mt");
+    //default_clustering!(t, instructor: "Curtis B Walker", days: "mt");
 
     instructor!(t,
         name:
@@ -1035,7 +1046,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
             "MTWRF 0800-1700",
     );
     // MTWR0900+50, MTWR1000+50, MTWRF1200+50, MTWRF1600+50
-    default_clustering!(t, instructor: "Diana L Reese", days: "mt");
+    //default_clustering!(t, instructor: "Diana L Reese", days: "mt");
 
     instructor!(t,
         name:
@@ -6059,7 +6070,7 @@ pub fn input_multiples(t: &mut Input) -> Result<(), String> {
     // TODO:
     //multiple_sections_spread_out!(t, days: "mt", times: "0800-1200", "1200-1630",
     //        courses: "CS 1400", "CS 1410", "CS 2450", "CS 2810", "IT 1100", "SE 1400");
-    conflict!(t, set hard, clique: "CS 1400-01", "CS 1400-02", "CS 1400-03", "CS 1400-04");
+    conflict!(t, set hard, clique: "CS 1400-01", "CS 1400-02", "CS 1400-03", "CS 1400-50");
     conflict!(t, set hard, clique: "CS 1410-01", "CS 1410-02");
     conflict!(t, set hard, clique: "CS 2450-01", "CS 2450-02");
     conflict!(t, set hard, clique: "CS 2810-01", "CS 2810-02");
