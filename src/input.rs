@@ -694,7 +694,7 @@ impl Input {
                     if old_score >= 100 || old_score <= 0 {
                         continue;
                     }
-                    let mut new_score = self.sections[sec_i].get_conflict(other) / (number + 1);
+                    let mut new_score = (self.sections[sec_i].get_conflict(other) - 1) / (number + 1);
                     if new_score < threshold {
                         new_score = 0;
                     }
@@ -1068,7 +1068,7 @@ impl Section {
     }
 
     pub fn get_name(&self) -> String {
-        format!("{}-{}-{}", self.prefix, self.course, self.section)
+        format!("{} {}-{}", self.prefix, self.course, self.section)
     }
 }
 

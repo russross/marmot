@@ -76,7 +76,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "TR  1330-1500",
             "TR  1500-1630" with penalty 10,
     );
-    default_clustering!(t, instructor: "Bart Stander", days: "mt", days off: 1);
+    //default_clustering!(t, instructor: "Bart Stander", days: "mt", days off: 1);
     section!(t, course: "CS 2420-01",
             instructor: "Bart Stander",
             rooms and times: "stadium", "flex" with penalty 10, "3×50");
@@ -99,7 +99,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "MW  1330-1500",
             "TR  1330-1500" with penalty 5,
     );
-    default_clustering!(t, instructor: "Carol Stander", days: "mt");
+    //default_clustering!(t, instructor: "Carol Stander", days: "mt");
     section!(t, course: "CS 1030-01",
             instructor: "Carol Stander",
             rooms and times: "flex", "3 credit bell schedule");
@@ -122,7 +122,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "TR  1030-1330" with penalty 10,
             "TR  1330-1630",
     );
-    default_clustering!(t, instructor: "Curtis Larsen", days: "mt", days off: 0);
+    //default_clustering!(t, instructor: "Curtis Larsen", days: "mt", days off: 0);
     section!(t, course: "CS 3005-01",
             instructor: "Curtis Larsen",
             rooms and times: "Smith 116", "3×50");
@@ -145,7 +145,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "TR 0900-1500",
             "TR 1500-1630" with penalty 10,
     );
-    default_clustering!(t, instructor: "DJ Holt", days: "mt", days off: 0);
+    //default_clustering!(t, instructor: "DJ Holt", days: "mt", days off: 0);
     section!(t, course: "SE 3010-01",
             instructor: "DJ Holt",
             rooms and times: "flex", "macs", "MW1500+75"); // same day as SE4200
@@ -181,7 +181,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "TR  0900-1500",
             "TR  1500-1630" with penalty 5,
     );
-    default_clustering!(t, instructor: "Jay Sneddon", days: "mt", days off: 0);
+    //default_clustering!(t, instructor: "Jay Sneddon", days: "mt", days off: 0);
     section!(t, course: "IT 1200-01",
             instructor: "Jay Sneddon",
             rooms and times: "Smith 107", "tr");
@@ -227,7 +227,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "MWF 0800-1200",
             "MW  1330-1500",
     );
-    default_clustering!(t, instructor: "Joe Francom", days: "mt", days off: 1);
+    //default_clustering!(t, instructor: "Joe Francom", days: "mt", days off: 1);
     section!(t, course: "IT 3110-01",
             instructor: "Joe Francom",
             rooms and times: "flex", "3 credit bell schedule");
@@ -242,7 +242,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "TR 0900-1500",
             "MW 1500-1630" with penalty 15,
     );
-    default_clustering!(t, instructor: "Lora Klein", days: "mt");
+    //default_clustering!(t, instructor: "Lora Klein", days: "mt");
     section!(t, course: "SE 3200-01",
             instructor: "Lora Klein",
             rooms and times: "Smith 107" with penalty 5, "flex", "3 credit bell schedule");
@@ -256,7 +256,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "MW 1200-1330",
             "TR 0900-1330",
     );
-    default_clustering!(t, instructor: "Matt Kearl", days: "mt", days off: 1);
+    //default_clustering!(t, instructor: "Matt Kearl", days: "mt", days off: 1);
     section!(t, course: "SE 3450-01",
             instructor: "Matt Kearl",
             rooms and times: "flex", "macs", "3 credit bell schedule");
@@ -277,7 +277,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "TR  0900-1500",
             "TR  1500-1630" with penalty 10,
     );
-    default_clustering!(t, instructor: "Phil Daley", days: "mt", days off: 0);
+    //default_clustering!(t, instructor: "Phil Daley", days: "mt", days off: 0);
     section!(t, course: "IT 1100-01",
             instructor: "Phil Daley",
             rooms and times: "pcs", "3 credit bell schedule");
@@ -311,7 +311,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
            "R   1900-2000",
            "F   1300-1400",
     );
-    default_clustering!(t, instructor: "Ren Quinn", days: "mt", days off: 0);
+    //default_clustering!(t, instructor: "Ren Quinn", days: "mt", days off: 0);
     section!(t, course: "CS 1400-02",
             instructor: "Ren Quinn",
             rooms and times: "flex", "3 credit bell schedule");
@@ -341,7 +341,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "MTWR 1200-1500",
             //"MTWR 1500-1630" with penalty 10,
     );
-    default_clustering!(t, instructor: "Russ Ross", days: "mt", days off: 0);
+    //default_clustering!(t, instructor: "Russ Ross", days: "mt", days off: 0);
     section!(t, course: "CS 2810-01",
             instructor: "Russ Ross",
             rooms and times: "Smith 109", "3 credit bell schedule");
@@ -386,9 +386,9 @@ pub fn input_computing_conflicts(t: &mut Input) -> Result<(), String> {
     conflict!(t, set hard,
             clique: "CS 3005", "CS 3520", "SE 3200"); // grad plan: 2nd year spring
     conflict!(t, set hard,
-            clique: "CS 3310", "CS 3400", "SE 3530"); // grad plan: 3nd year fall
+            clique: "CS 3310", "CS 3400", "CS 3530"); // grad plan: 3nd year fall
     conflict!(t, set hard,
-            clique: "CS 3510", "CS 4307", "SE 4550"); // grad plan: 3nd year spring
+            clique: "CS 3510", "CS 4307", "CS 4550"); // grad plan: 3nd year spring
     conflict!(t, set hard,
             clique: "CS 4300"); // grad plan: 4th year fall
     conflict!(t, set hard,
@@ -637,85 +637,85 @@ pub fn input_times(t: &mut Input) -> Result<(), String> {
     time!(t, name: "TR1500+100", tags: "4 credit bell schedule", "4 credit 2×100 bell schedule");
     time!(t, name: "TR1630+100");
     time!(t, name: "TR1800+100");
-    time!(t, name: "F0800+110", tags: "2 hour lab");
-    time!(t, name: "F0900+110", tags: "2 hour lab");
-    time!(t, name: "F1000+110", tags: "2 hour lab");
-    time!(t, name: "F1100+110", tags: "2 hour lab");
-    time!(t, name: "F1200+110", tags: "2 hour lab");
-    time!(t, name: "F1300+110", tags: "2 hour lab");
-    time!(t, name: "M0800+110", tags: "2 hour lab");
-    time!(t, name: "M0900+110", tags: "2 hour lab");
-    time!(t, name: "M1000+110", tags: "2 hour lab");
-    time!(t, name: "M1100+110", tags: "2 hour lab");
-    time!(t, name: "M1200+110", tags: "2 hour lab");
-    time!(t, name: "M1300+110", tags: "2 hour lab");
-    time!(t, name: "M1400+110", tags: "2 hour lab");
-    time!(t, name: "M1500+110", tags: "2 hour lab");
-    time!(t, name: "M1600+110", tags: "2 hour lab");
-    time!(t, name: "M1700+110", tags: "2 hour lab");
-    time!(t, name: "R0800+110", tags: "2 hour lab");
-    time!(t, name: "R0900+110", tags: "2 hour lab");
-    time!(t, name: "R1000+110", tags: "2 hour lab");
-    time!(t, name: "R1100+110", tags: "2 hour lab");
-    time!(t, name: "R1200+110", tags: "2 hour lab");
-    time!(t, name: "R1300+110", tags: "2 hour lab");
-    time!(t, name: "R1400+110", tags: "2 hour lab");
-    time!(t, name: "R1500+110", tags: "2 hour lab");
-    time!(t, name: "R1600+110", tags: "2 hour lab");
-    time!(t, name: "R1700+110", tags: "2 hour lab");
+    time!(t, name: "F0800+110");
+    time!(t, name: "F0900+110");
+    time!(t, name: "F1000+110");
+    time!(t, name: "F1100+110");
+    time!(t, name: "F1200+110");
+    time!(t, name: "F1300+110");
+    time!(t, name: "M0800+110", tags: "2 hour lab M0800");
+    time!(t, name: "M0900+110", tags: "2 hour lab M0900");
+    time!(t, name: "M1000+110", tags: "2 hour lab M0800");
+    time!(t, name: "M1100+110", tags: "2 hour lab M0900");
+    time!(t, name: "M1200+110", tags: "2 hour lab M0800");
+    time!(t, name: "M1300+110", tags: "2 hour lab M0900");
+    time!(t, name: "M1400+110", tags: "2 hour lab M0800");
+    time!(t, name: "M1500+110", tags: "2 hour lab M0900");
+    time!(t, name: "M1600+110", tags: "2 hour lab M0800");
+    time!(t, name: "M1700+110");
+    time!(t, name: "R0800+110", tags: "2 hour lab R0800");
+    time!(t, name: "R0900+110", tags: "2 hour lab R0900");
+    time!(t, name: "R1000+110", tags: "2 hour lab R0800");
+    time!(t, name: "R1100+110", tags: "2 hour lab R0900");
+    time!(t, name: "R1200+110", tags: "2 hour lab R0800");
+    time!(t, name: "R1300+110", tags: "2 hour lab R0900");
+    time!(t, name: "R1400+110", tags: "2 hour lab R0800");
+    time!(t, name: "R1500+110", tags: "2 hour lab R0900");
+    time!(t, name: "R1600+110", tags: "2 hour lab R0800");
+    time!(t, name: "R1700+110");
     time!(t, name: "R1715+110");
-    time!(t, name: "R1800+110", tags: "2 hour lab evening");
-    time!(t, name: "R1900+110", tags: "2 hour lab late evening");
-    time!(t, name: "T0800+110", tags: "2 hour lab");
-    time!(t, name: "T0900+110", tags: "2 hour lab");
-    time!(t, name: "T1000+110", tags: "2 hour lab");
-    time!(t, name: "T1100+110", tags: "2 hour lab");
-    time!(t, name: "T1200+110", tags: "2 hour lab");
-    time!(t, name: "T1300+110", tags: "2 hour lab");
-    time!(t, name: "T1400+110", tags: "2 hour lab");
-    time!(t, name: "T1500+110", tags: "2 hour lab");
-    time!(t, name: "T1600+110", tags: "2 hour lab");
-    time!(t, name: "T1700+110", tags: "2 hour lab");
-    time!(t, name: "T1800+110", tags: "2 hour lab evening");
-    time!(t, name: "T1900+110", tags: "2 hour lab late evening");
-    time!(t, name: "W0800+110", tags: "2 hour lab");
-    time!(t, name: "W0900+110", tags: "2 hour lab");
-    time!(t, name: "W1000+110", tags: "2 hour lab");
-    time!(t, name: "W1100+110", tags: "2 hour lab");
-    time!(t, name: "W1200+110", tags: "2 hour lab");
-    time!(t, name: "W1300+110", tags: "2 hour lab");
-    time!(t, name: "W1400+110", tags: "2 hour lab");
-    time!(t, name: "W1500+110", tags: "2 hour lab");
-    time!(t, name: "W1600+110", tags: "2 hour lab");
-    time!(t, name: "W1700+110", tags: "2 hour lab");
+    time!(t, name: "R1800+110");
+    time!(t, name: "R1900+110");
+    time!(t, name: "T0800+110", tags: "2 hour lab T0800");
+    time!(t, name: "T0900+110", tags: "2 hour lab T0900");
+    time!(t, name: "T1000+110", tags: "2 hour lab T0800");
+    time!(t, name: "T1100+110", tags: "2 hour lab T0900");
+    time!(t, name: "T1200+110", tags: "2 hour lab T0800");
+    time!(t, name: "T1300+110", tags: "2 hour lab T0900");
+    time!(t, name: "T1400+110", tags: "2 hour lab T0800");
+    time!(t, name: "T1500+110", tags: "2 hour lab T0900");
+    time!(t, name: "T1600+110", tags: "2 hour lab T0800");
+    time!(t, name: "T1700+110");
+    time!(t, name: "T1800+110");
+    time!(t, name: "T1900+110");
+    time!(t, name: "W0800+110", tags: "2 hour lab W0800");
+    time!(t, name: "W0900+110", tags: "2 hour lab W0900");
+    time!(t, name: "W1000+110", tags: "2 hour lab W0800");
+    time!(t, name: "W1100+110", tags: "2 hour lab W0900");
+    time!(t, name: "W1200+110", tags: "2 hour lab W0800");
+    time!(t, name: "W1300+110", tags: "2 hour lab W0900");
+    time!(t, name: "W1400+110", tags: "2 hour lab W0800");
+    time!(t, name: "W1500+110", tags: "2 hour lab W0900");
+    time!(t, name: "W1600+110", tags: "2 hour lab W0800");
+    time!(t, name: "W1700+110");
     time!(t, name: "W1715+110");
-    time!(t, name: "W1800+110", tags: "2 hour lab evening");
-    time!(t, name: "W1900+110", tags: "2 hour lab late evening");
+    time!(t, name: "W1800+110");
+    time!(t, name: "W1900+110");
     time!(t, name: "MR1100+110");
-    time!(t, name: "MW0600+110", tags: "4 hour lab");
-    time!(t, name: "MW0800+110", tags: "4 hour lab");
-    time!(t, name: "MW0900+110", tags: "4 hour lab");
-    time!(t, name: "MW1000+110", tags: "4 hour lab");
-    time!(t, name: "MW1100+110", tags: "4 hour lab");
-    time!(t, name: "MW1200+110", tags: "4 hour lab");
-    time!(t, name: "MW1300+110", tags: "4 hour lab");
-    time!(t, name: "MW1400+110", tags: "4 hour lab");
-    time!(t, name: "MW1500+110", tags: "4 hour lab");
-    time!(t, name: "MW1600+110", tags: "4 hour lab");
-    time!(t, name: "MW1700+110", tags: "4 hour lab");
-    time!(t, name: "MW1800+110", tags: "4 hour lab");
-    time!(t, name: "TR0600+110", tags: "4 hour lab");
-    time!(t, name: "TR0800+110", tags: "4 hour lab");
-    time!(t, name: "TR0900+110", tags: "4 hour lab");
-    time!(t, name: "TR1000+110", tags: "4 hour lab");
-    time!(t, name: "TR1100+110", tags: "4 hour lab");
-    time!(t, name: "TR1200+110", tags: "4 hour lab");
-    time!(t, name: "TR1300+110", tags: "4 hour lab");
-    time!(t, name: "TR1400+110", tags: "4 hour lab");
-    time!(t, name: "TR1500+110", tags: "4 hour lab");
-    time!(t, name: "TR1600+110", tags: "4 hour lab");
-    time!(t, name: "TR1700+110", tags: "4 hour lab");
-    time!(t, name: "TR1800+110", tags: "4 hour lab");
+    time!(t, name: "MW0600+110");
+    time!(t, name: "MW0800+110", tags: "4 hour lab MW0800");
+    time!(t, name: "MW0900+110", tags: "4 hour lab MW0900");
+    time!(t, name: "MW1000+110", tags: "4 hour lab MW0800");
+    time!(t, name: "MW1100+110", tags: "4 hour lab MW0900");
+    time!(t, name: "MW1200+110", tags: "4 hour lab MW0800");
+    time!(t, name: "MW1300+110", tags: "4 hour lab MW0900");
+    time!(t, name: "MW1400+110", tags: "4 hour lab MW0800");
+    time!(t, name: "MW1500+110", tags: "4 hour lab MW0900");
+    time!(t, name: "MW1600+110", tags: "4 hour lab MW0800");
+    time!(t, name: "MW1700+110");
+    time!(t, name: "MW1800+110");
+    time!(t, name: "TR0600+110");
+    time!(t, name: "TR0800+110", tags: "4 hour lab TR0800");
+    time!(t, name: "TR0900+110", tags: "4 hour lab TR0900");
+    time!(t, name: "TR1000+110", tags: "4 hour lab TR0800");
+    time!(t, name: "TR1100+110", tags: "4 hour lab TR0900");
+    time!(t, name: "TR1200+110", tags: "4 hour lab TR0800");
+    time!(t, name: "TR1300+110", tags: "4 hour lab TR0900");
+    time!(t, name: "TR1400+110", tags: "4 hour lab TR0800");
+    time!(t, name: "TR1500+110", tags: "4 hour lab TR0900");
+    time!(t, name: "TR1600+110", tags: "4 hour lab TR0800");
+    time!(t, name: "TR1700+110");
+    time!(t, name: "TR1800+110");
     time!(t, name: "F0800+115");
     time!(t, name: "R1200+135");
     time!(t, name: "R1530+150");
@@ -725,49 +725,57 @@ pub fn input_times(t: &mut Input) -> Result<(), String> {
     time!(t, name: "W1630+150");
     time!(t, name: "W1800+150", tags: "3 credit evening");
     time!(t, name: "R1330+165");
-    time!(t, name: "F0800+170");
-    time!(t, name: "F1100+170");
-    time!(t, name: "F1330+170");
-    time!(t, name: "F1400+170");
-    time!(t, name: "M1100+170");
-    time!(t, name: "M1300+170");
+    
+    time!(t, name: "M1100+170", tags: "3 hour lab M0800");
+    time!(t, name: "M1300+170", tags: "3 hour lab M1000");
     time!(t, name: "M1930+170");
-    time!(t, name: "R0800+170");
-    time!(t, name: "R1000+170");
-    time!(t, name: "R1100+170");
-    time!(t, name: "R1200+170");
-    time!(t, name: "R1300+170");
-    time!(t, name: "R1400+170");
-    time!(t, name: "R1500+170");
-    time!(t, name: "R1600+170");
-    time!(t, name: "R1630+170");
-    time!(t, name: "R1700+170");
-    time!(t, name: "R1900+170");
+    
     time!(t, name: "T0700+170");
-    time!(t, name: "T0800+170");
-    time!(t, name: "T0900+170");
-    time!(t, name: "T1000+170");
-    time!(t, name: "T1100+170");
-    time!(t, name: "T1200+170");
-    time!(t, name: "T1300+170");
-    time!(t, name: "T1400+170");
-    time!(t, name: "T1500+170");
+    time!(t, name: "T0800+170", tags: "3 hour lab T0800");
+    time!(t, name: "T0900+170", tags: "3 hour lab T0900");
+    time!(t, name: "T1000+170", tags: "3 hour lab T1000");
+    time!(t, name: "T1100+170", tags: "3 hour lab T0800");
+    time!(t, name: "T1200+170", tags: "3 hour lab T0900");
+    time!(t, name: "T1300+170", tags: "3 hour lab T1000");
+    time!(t, name: "T1400+170", tags: "3 hour lab T0800");
+    time!(t, name: "T1500+170", tags: "3 hour lab T0900");
     time!(t, name: "T1600+170");
     time!(t, name: "T1700+170");
     time!(t, name: "T1800+170");
     time!(t, name: "T1900+170");
     time!(t, name: "T1930+170");
-    time!(t, name: "W0800+170");
-    time!(t, name: "W0900+170");
-    time!(t, name: "W1000+170");
-    time!(t, name: "W1100+170");
-    time!(t, name: "W1200+170");
-    time!(t, name: "W1300+170");
+    
+    time!(t, name: "W0800+170", tags: "3 hour lab W0800");
+    time!(t, name: "W0900+170", tags: "3 hour lab W0900");
+    time!(t, name: "W1000+170", tags: "3 hour lab W1000");
+    time!(t, name: "W1100+170", tags: "3 hour lab W0800");
+    time!(t, name: "W1200+170", tags: "3 hour lab W0900");
+    time!(t, name: "W1300+170", tags: "3 hour lab W1000");
     time!(t, name: "W1330+170");
-    time!(t, name: "W1400+170");
-    time!(t, name: "W1500+170");
+    time!(t, name: "W1400+170", tags: "3 hour lab W0800");
+    time!(t, name: "W1500+170", tags: "3 hour lab W0900");
+    time!(t, name: "W1600+170");
     time!(t, name: "W1700+170");
     time!(t, name: "W1930+170");
+
+    time!(t, name: "R0800+170", tags: "3 hour lab R0800");
+    time!(t, name: "R0900+170", tags: "3 hour lab R0900");
+    time!(t, name: "R1000+170", tags: "3 hour lab R1000");
+    time!(t, name: "R1100+170", tags: "3 hour lab R0800");
+    time!(t, name: "R1200+170", tags: "3 hour lab R0900");
+    time!(t, name: "R1300+170", tags: "3 hour lab R1000");
+    time!(t, name: "R1400+170", tags: "3 hour lab R0800");
+    time!(t, name: "R1500+170", tags: "3 hour lab R0900");
+    time!(t, name: "R1600+170");
+    time!(t, name: "R1630+170");
+    time!(t, name: "R1700+170");
+    time!(t, name: "R1900+170");
+
+    time!(t, name: "F0800+170");
+    time!(t, name: "F1100+170");
+    time!(t, name: "F1330+170");
+    time!(t, name: "F1400+170");
+
     time!(t, name: "MW1500+170");
     time!(t, name: "TR1500+170");
     time!(t, name: "TR1600+170");
@@ -847,7 +855,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Amanda Fa'onelua",
         available:
-            "MTWRF 0800-1700",
+            "TR 1300-1500",
     );
     // TR1300+100
 
@@ -855,26 +863,24 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Amber Rose Mortensen",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // MWF0900+50, MWF1000+50, MWF1100+50, TR1030+75
-    //default_clustering!(t, instructor: "Amber Rose Mortensen", days: "mt");
 
     instructor!(t,
         name:
             "Andrew C Schiller",
         available:
-            "MTWR 0800-1800",
-            "F 0800-1700",
+            "MTWR 0900-1800",
+            "F 0900-1700",
     );
     // MW1200+75, MW1500+170, T1200+110, TR1500+170
-    //default_clustering!(t, instructor: "Andrew C Schiller", days: "mt");
 
     instructor!(t,
         name:
             "Andrew Gregory Toth",
         available:
-            "MTWRF 0800-1700",
+            "MW 1200-1400",
     );
     // MW1200+75
 
@@ -882,17 +888,16 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Bhuvaneswari Sambandham",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // MTWF1000+50, MTWR1100+50, MW1200+75
-    //default_clustering!(t, instructor: "Bhuvaneswari Sambandham", days: "mt");
 
     instructor!(t,
         name:
             "Bing Jiang",
         available:
-            "MTWF 0800-1700",
-            "R 0800-1800",
+            "MTWF 0900-1700",
+            "R 0900-1800",
     );
     // F1000+110, MW1200+75, MWF0900+50, R1400+110, R1600+110
 
@@ -900,7 +905,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Brant A Ross",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // MWF1330+180, MWF1330+180
 
@@ -908,7 +913,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Bruford P Reynolds",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // TR1000+50, TR1400+110
 
@@ -934,7 +939,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Christina Pondell",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // F1000+50, M1300+170, R1330+165, T1100+110, T1300+110, TR0900+75
 
@@ -942,8 +947,8 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Christopher Kirk DeMacedo",
         available:
-            "M 0800-2300",
-            "TWRF 0800-1700",
+            "M 1200-2300",
+            "TWRF 1200-1700",
     );
     // M1930+170, T1200+110, T1400+110
 
@@ -968,7 +973,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Craig D Seegmiller",
         available:
-            "MWF 0800-1700",
+            "MWF 0900-1700",
             "TR 0700-1700",
     );
     // MTWR1200+50, TR0730+75, TR0900+75
@@ -987,8 +992,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Cutler Cowdin",
         available:
-            "MWF 0800-1700",
-            "TR 0800-1900",
+            "TR 1600-1900",
     );
     // R1600+170, T1600+170
 
@@ -1004,8 +1008,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "David J Burr",
         available:
-            "MWF 0800-1700",
-            "TR 0800-2200",
+            "TR 1600-2200",
     );
     // R1900+170, T1600+170, T1900+170
 
@@ -1013,8 +1016,8 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "David M Syndergaard",
         available:
-            "MW 0800-2000",
-            "TRF 0800-1700",
+            "MW 1200-2000",
+            "TRF 1200-1700",
     );
     // M1300+110, MW1630+75, MW1800+75
 
@@ -1022,8 +1025,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "David R Black",
         available:
-            "MWRF 0800-1700",
-            "T 0800-1900",
+            "T 1700-1900",
     );
     // T1700+110
 
@@ -1031,8 +1033,8 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "David W Bean",
         available:
-            "MTRF 0800-1700",
-            "W 0800-1800",
+            "MTRF 0900-1700",
+            "W 0900-1800",
     );
     // F1100+170, R1400+170, W1500+170
 
@@ -1040,7 +1042,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Dawn Lashell Kidd-Thomas",
         available:
-            "MTWRF 0800-1700",
+            "TR 1200-1700",
     );
     // TR1300+100
 
@@ -1056,7 +1058,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Diana L Reese",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // MTWR0900+50, MTWR1000+50, MTWRF1200+50, MTWRF1600+50
     //default_clustering!(t, instructor: "Diana L Reese", days: "mt");
@@ -1065,8 +1067,8 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Divya Singh",
         available:
-            "MW 0800-1800",
-            "TRF 0800-1700",
+            "MW 0900-1800",
+            "TRF 0900-1700",
     );
     // MW1000+110, MW1500+75, MW1630+75, T1200+110
 
@@ -1074,7 +1076,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Donald H Warner",
         available:
-            "MTWRF 0800-1700",
+            "MW 1500-1700",
     );
     // MW1500+75
 
@@ -1090,7 +1092,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Elizabeth Karen Ludlow",
         available:
-            "MTWRF 0800-1700",
+            "MW 1300-1700",
     );
     // MW1300+100, MW1500+75
 
@@ -1098,8 +1100,8 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Erin E O'Brien",
         available:
-            "MRF 0800-1700",
-            "TW 0800-1800",
+            "MRF 1200-1700",
+            "TW 1200-1800",
     );
     // MW1200+75, T1500+170, W1500+170
 
@@ -1116,7 +1118,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Geoffrey Smith",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // MTWR1100+50, TR1500+75
 
@@ -1124,7 +1126,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Glorimar L Aponte-Kline",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // TR0900+75, TR1030+75, TR1330+75
 
@@ -1132,7 +1134,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Greg L Melton",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // MW1330+75, MW1500+75, T1200+170, TR0900+75, W0900+110
 
@@ -1140,8 +1142,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Hugo Elio Angeles",
         available:
-            "MWF 0800-1700",
-            "TR 0800-2000",
+            "TR 1800-2000",
     );
     // TR1800+75
 
@@ -1149,7 +1150,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Hung Yu Shih",
         available:
-            "MTWRF 0800-1700",
+            "TWR 1200-1700",
     );
     // T1300+110, T1300+110, T1500+50, T1600+50, W1330+170
 
@@ -1157,8 +1158,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Jacson Parker",
         available:
-            "MWF 0800-1700",
-            "TR 0800-1900",
+            "TR 1600-1900",
     );
     // R1600+170, T1600+170
 
@@ -1166,9 +1166,8 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "James David Meidell",
         available:
-            "MW 0800-1800",
-            "TF 0800-1700",
-            "R 0800-2000",
+            "MW 1630-1800",
+            "TR 1630-2000",
     );
     // MW1630+75, R1700+170
 
@@ -1176,7 +1175,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "James P Fitzgerald",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0800-1200",
     );
     // MWF0800+50, MWF0900+50, MWF1000+50
 
@@ -1184,7 +1183,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Jameson C Hardy",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // MTWR0900+50, MTWRF1000+50, MW1200+75, TR1200+75
 
@@ -1192,7 +1191,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Janice M Hayden",
         available:
-            "MTWRF 0800-1700",
+            "TWR 0900-1700",
     );
     // TR0900+75, W1100+170
 
@@ -1208,8 +1207,8 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Jeffrey Anderson",
         available:
-            "MW 0800-1800",
-            "TRF 0800-1700",
+            "MW 0900-1800",
+            "TRF 0900-1700",
     );
     // MW1630+75, T1400+110, TR0900+75
 
@@ -1226,7 +1225,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Jeffrey V Yule",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // M1030+75, MWF1100+50, TR1030+75, TR1030+75, W1030+75
 
@@ -1234,7 +1233,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Jennifer A Meyer",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // MW1200+75, MW1330+75, R1300+170, T1300+170
 
@@ -1242,7 +1241,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Jennifer L Ciaccio",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // MTRF1200+50, MWF0900+50, R0900+75, W1200+170
 
@@ -1250,8 +1249,8 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Jerald D Harris",
         available:
-            "MTWF 0800-1700",
-            "R 0800-2000",
+            "MTWF 0900-1700",
+            "R 0900-2000",
     );
     // MWF1000+50, MWF1100+50, MWF1100+50, R1000+50, R1630+170, TR1030+75
 
@@ -1259,8 +1258,8 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Jeremy W Bakelar",
         available:
-            "MWRF 0800-1700",
-            "T 0800-1800",
+            "MWRF 0900-1700",
+            "T 0900-1800",
     );
     // MW1500+75, MWF1100+50, T0900+170, T1500+170, TR1300+110
 
@@ -1268,7 +1267,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Jesse William Breinholt",
         available:
-            "MTWRF 0800-1700",
+            "TR 1500-1700",
     );
     // TR1500+75
 
@@ -1276,7 +1275,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Jie Liu",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // T1500+75, TR1030+75, TR1200+75, TR1330+75
 
@@ -1284,7 +1283,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "John E Wolfe",
         available:
-            "MTWRF 0800-1700",
+            "MWF 1100-1200",
     );
     // MWF1100+50
 
@@ -1292,10 +1291,10 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Jose C Saraiva",
         available:
-            "MF 0800-1700",
-            "T 0800-1800",
-            "W 0800-2300",
-            "R 0800-2000",
+            "MF 1600-1700",
+            "T 1600-1800",
+            "W 1600-2300",
+            "R 1600-2000",
     );
     // R1600+110, R1800+110, T1600+110, W1930+170
 
@@ -1303,7 +1302,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Joseph B Platt",
         available:
-            "MTWRF 0800-1700",
+            "R 1100-1400",
     );
     // R1100+170
 
@@ -1311,8 +1310,8 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Kameron J Eves",
         available:
-            "MTWF 0800-1700",
-            "R 0800-1800",
+            "MTWF 0900-1700",
+            "R 0900-1800",
     );
     // MW1500+75, MWF1100+50, R1600+110, TR1030+75
 
@@ -1328,7 +1327,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Kathryn E Ott",
         available:
-            "MTWRF 0800-1700",
+            "MW 1300-1700",
     );
     // MW1300+100
 
@@ -1336,7 +1335,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Kerby Robinson",
         available:
-            "MTWRF 0800-1700",
+            "F 1330-1700",
     );
     // F1330+170
 
@@ -1344,8 +1343,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Kim C Jolley",
         available:
-            "MW 0800-1900",
-            "TRF 0800-1700",
+            "MW 1300-1900",
     );
     // MW1300+110, MW1700+110
 
@@ -1353,8 +1351,8 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Marius Van der Merwe",
         available:
-            "MTRF 0800-1700",
-            "W 0800-1900",
+            "MTRF 0900-1700",
+            "W 0900-1900",
     );
     // MWF1000+50, T1200+170, W0900+50, W1800+50
 
@@ -1370,7 +1368,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Marshall Topham",
         available:
-            "MTWRF 0800-1700",
+            "MW 1330-1700",
     );
     // MW1330+75
 
@@ -1386,7 +1384,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Marzieh Ghasemi",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // MW1200+75, MWF1000+50, TR1200+75, TR1500+75
 
@@ -1394,7 +1392,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Md Sazib Hasan",
         available:
-            "MTWRF 0800-1700",
+            "TR 0900-1200",
     );
     // TR0900+75, TR1030+75
 
@@ -1402,9 +1400,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Megan R Liljenquist",
         available:
-            "MTF 0800-1700",
-            "W 0800-1800",
-            "R 0800-1900",
+            "TWR 1500-1900",
     );
     // R1600+170, W1500+170
 
@@ -1412,7 +1408,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Megen E Kepas",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // MW1330+75, MW1500+75, R1200+135
 
@@ -1420,8 +1416,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Michael N Paxman",
         available:
-            "MWF 0800-1700",
-            "TR 0800-1900",
+            "TR 1630-1900",
     );
     // TR1630+100
 
@@ -1429,7 +1424,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Nathan St Andre",
         available:
-            "MTWRF 0800-1700",
+            "TR 1200-1700",
     );
     // TR1200+75
 
@@ -1437,8 +1432,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Nikell Dodge",
         available:
-            "MWF 0800-1700",
-            "TR 0800-1800",
+            "TR 1630-1800",
     );
     // TR1630+75
 
@@ -1446,7 +1440,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Odean Bowler",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 1500-1700",
     );
     // MW1500+100, TR1500+100
 
@@ -1454,8 +1448,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Paul H Shirley",
         available:
-            "MWRF 0800-1700",
-            "T 0800-2200",
+            "T 1600-2200",
     );
     // T1600+170, T1900+170
 
@@ -1463,7 +1456,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Paula Manuele Temple",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // MTWR1200+50, MW1300+100, MW1500+75, TR1300+100
 
@@ -1471,7 +1464,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Randy Klabacka",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // MW1330+50, MWF0900+50, MWF0900+50, R0900+50, T0900+50, TR1330+75
 
@@ -1479,8 +1472,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Rick L Peirce",
         available:
-            "MWRF 0800-1700",
-            "T 0800-2300",
+            "T 1930-2300",
     );
     // T1930+170
 
@@ -1488,7 +1480,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Rico Del Sesto",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1200",
     );
     // MTWRF0900+50, MTWRF1000+50, MTWRF1100+50
 
@@ -1496,7 +1488,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Rita Rae Osborn",
         available:
-            "MTWRF 0800-1700",
+            "M 0800-0900",
     );
     // M0800+50
 
@@ -1504,8 +1496,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Robert T Reimer",
         available:
-            "MW 0800-1800",
-            "TRF 0800-1700",
+            "MW 1630-1800",
     );
     // MW1630+75
 
@@ -1513,7 +1504,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Ross C Decker",
         available:
-            "MTWRF 0800-1700",
+            "TR 0900-1200",
     );
     // TR0900+75, TR1030+75
 
@@ -1530,8 +1521,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Ryan C McConnell",
         available:
-            "MWF 0800-1700",
-            "TR 0800-1800",
+            "TR 1630-1800",
     );
     // TR1630+75
 
@@ -1548,7 +1538,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Samuel K Tobler",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // MTWF1300+50, MTWF1400+50
 
@@ -1556,7 +1546,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Sarah Morgan Black",
         available:
-            "MTWRF 0800-1700",
+            "TR 0900-1700",
     );
     // TR1030+75, TR1330+75
 
@@ -1572,7 +1562,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Scott B Griffin",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // F1330+170, MW1200+75
 
@@ -1580,8 +1570,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Scott E Bulloch",
         available:
-            "MTWF 0800-1700",
-            "R 0800-1900",
+            "R 1600-1900",
     );
     // R1600+170
 
@@ -1589,8 +1578,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Scott Patrick Hicks",
         available:
-            "MW 0800-2000",
-            "TRF 0800-1700",
+            "MW 1600-2000",
     );
     // MW1600+100, MW1800+100
 
@@ -1598,7 +1586,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Steven K Sullivan",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0800-1200",
     );
     // MWRF0800+50, MWRF1000+50, MWRF1100+50
 
@@ -1606,7 +1594,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Steven McKay Sullivan",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // MTWR0900+50, MWF1000+50, TR1030+75
 
@@ -1614,7 +1602,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Teisha Richan",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // R1000+170, R1300+170, T0900+170, T1200+170, W0900+170, W1200+170
 
@@ -1622,7 +1610,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Trevor K Johnson",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // MTWR1200+50, MW1330+75
 
@@ -1638,8 +1626,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Vinodh Kumar Chellamuthu",
         available:
-            "MW 0800-1800",
-            "TRF 0800-1700",
+            "MW 1500-1800",
     );
     // MW1500+100, MW1645+75
 
@@ -1655,8 +1642,8 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Wendy E Schatzberg",
         available:
-            "MWRF 0800-1700",
-            "T 0800-1900",
+            "MWRF 0900-1700",
+            "T 0900-1900",
     );
     // F1200+50, MTWR1000+50, MTWR1100+50, MTWRF1200+50, T1600+170
 
@@ -1664,7 +1651,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
         name:
             "Zhenyu Jin",
         available:
-            "MTWRF 0800-1700",
+            "MTWRF 0900-1700",
     );
     // MW1200+75, MW1330+75, T1200+170, TR1030+75, W0900+110
 
@@ -1673,7 +1660,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 1010-01",
                 instructor: "Bryan K Stevens",
                 rooms and times:
-                    "BROWN 201",
+                    "BROWN 201", "Science small lecture",
                     "3 credit bell schedule",
     );
 
@@ -1682,7 +1669,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 1010-02",
                 instructor: "Bryan K Stevens",
                 rooms and times:
-                    "BROWN 201",
+                    "BROWN 201", "Science small lecture",
                     "3 credit bell schedule",
     );
 
@@ -1700,7 +1687,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 1010-04",
                 instructor: "Martina Gaspari",
                 rooms and times:
-                    "COE 121",
+                    "COE 121", "Science small lecture",
                     "3 credit bell schedule",
     );
 
@@ -1718,7 +1705,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 1010-05-SI",
                 //instructor: "Jeffrey V Yule",
                 rooms and times:
-                    "SNOW 113",
+                    "SNOW 113", "Science small lecture",
                     "W1030+75",
     );
     conflict!(t, set hard,
@@ -1730,7 +1717,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 1010-06",
                 instructor: "Jeffrey V Yule",
                 rooms and times:
-                    "BROWN 201",
+                    "BROWN 201", "Science small lecture",
                     "3 credit bell schedule",
     );
 
@@ -1775,7 +1762,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 1010-11-SI",
                 //instructor: "Jeffrey V Yule",
                 rooms and times:
-                    "SNOW 113",
+                    "SNOW 113", "Science small lecture",
                     "M1030+75",
     );
 
@@ -1791,28 +1778,12 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
             clique: "BIOL 1010-11", "BIOL 1010-11-SI",
     );
 
-    // BIOL 1010-50: General Biology (LS)
-    // assigned to SNOW 112 at TR1800+75
-    section!(t, course: "BIOL 1010-50",
-                rooms and times:
-                    "Math lecture",
-                    "TR1800+75",
-    );
-
-    // BIOL 1015-03: General Biology Lab (LAB)
-    // assigned to SET 312 at M1100+170
-    section!(t, course: "BIOL 1015-03",
-                rooms and times:
-                    "SET 312",
-                    "M1100+170",
-    );
-
     // BIOL 1015-04: General Biology Lab (LAB)
     // assigned to SET 312 at T1100+170
     section!(t, course: "BIOL 1015-04",
                 rooms and times:
                     "SET 312",
-                    "T1100+170",
+                    "3 hour lab T0800"
     );
 
     // BIOL 1015-05: General Biology Lab (LAB)
@@ -1820,7 +1791,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 1015-05",
                 rooms and times:
                     "SET 312",
-                    "W1100+170",
+                    "3 hour lab W0800"
     );
 
     // BIOL 1015-07: General Biology Lab (LAB)
@@ -1828,7 +1799,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 1015-07",
                 rooms and times:
                     "SET 312",
-                    "T1400+170",
+                    "3 hour lab T0800"
     );
 
     // BIOL 1015-51: General Biology Lab (LAB)
@@ -1844,7 +1815,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 1200-01",
                 instructor: "Amber Rose Mortensen",
                 rooms and times:
-                    "BROWN 201",
+                    "BROWN 201", "Science small lecture",
                     "3 credit bell schedule",
     );
 
@@ -1880,7 +1851,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 1615-01",
                 rooms and times:
                     "SET 309",
-                    "T0800+170",
+                    "3 hour lab T0800"
     );
 
     // BIOL 1615-02: Principles of Biology I Lab (LAB)
@@ -1888,15 +1859,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 1615-02",
                 rooms and times:
                     "SET 309",
-                    "W0800+170",
-    );
-
-    // BIOL 1615-03: Principles of Biology I Lab (LAB)
-    // assigned to SET 309 at R0800+170
-    section!(t, course: "BIOL 1615-03",
-                rooms and times:
-                    "SET 309",
-                    "R0800+170",
+                    "3 hour lab W0800"
     );
 
     // BIOL 1615-04: Principles of Biology I Lab (LAB)
@@ -1912,7 +1875,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 1615-05",
                 rooms and times:
                     "SET 309",
-                    "T1100+170",
+                    "3 hour lab T0800"
     );
 
     // BIOL 1615-06: Principles of Biology I Lab (LAB)
@@ -1920,7 +1883,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 1615-06",
                 rooms and times:
                     "SET 309",
-                    "W1100+170",
+                    "3 hour lab W0800"
     );
 
     // BIOL 1615-07: Principles of Biology I Lab (LAB)
@@ -1928,7 +1891,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 1615-07",
                 rooms and times:
                     "SET 309",
-                    "R1100+170",
+                    "3 hour lab R0800"
     );
 
     // BIOL 1615-08: Principles of Biology I Lab (LAB)
@@ -1944,7 +1907,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 1615-09",
                 rooms and times:
                     "SET 309",
-                    "T1400+170",
+                    "3 hour lab T0800"
     );
 
     // BIOL 1615-10: Principles of Biology I Lab (LAB)
@@ -1952,7 +1915,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 1615-10",
                 rooms and times:
                     "SET 309",
-                    "W1400+170",
+                    "3 hour lab W0800"
     );
 
     // BIOL 1615-11: Principles of Biology I Lab (LAB)
@@ -1960,7 +1923,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 1615-11",
                 rooms and times:
                     "SET 309",
-                    "R1400+170",
+                    "3 hour lab R0800"
     );
 
     // BIOL 1615-12: Principles of Biology I Lab (LAB)
@@ -2027,7 +1990,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 1625-01",
                 rooms and times:
                     "SET 318",
-                    "R0800+170",
+                    "3 hour lab R0800"
     );
 
     // BIOL 1625-02: Principles of Biology II Lab
@@ -2036,7 +1999,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Joseph B Platt",
                 rooms and times:
                     "SET 318",
-                    "R1100+170",
+                    "3 hour lab R0800"
     );
 
     // BIOL 1625-03: Principles of Biology II Lab
@@ -2045,7 +2008,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Jennifer L Ciaccio",
                 rooms and times:
                     "SET 318",
-                    "W1200+170",
+                    "3 hour lab W0900"
     );
 
     // BIOL 1625-04: Principles of Biology II Lab
@@ -2054,7 +2017,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "David W Bean",
                 rooms and times:
                     "SET 318",
-                    "R1400+170",
+                    "3 hour lab R0800"
     );
 
     // BIOL 1625-05: Principles of Biology II Lab
@@ -2072,7 +2035,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "David W Bean",
                 rooms and times:
                     "SET 318",
-                    "W1500+170",
+                    "3 hour lab W0900"
     );
 
     // BIOL 1625-50: Principles of Biology II Lab
@@ -2099,7 +2062,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Kim C Jolley",
                 rooms and times:
                     "SET 304",
-                    "4 hour lab",
+                    "4 hour lab MW0900"
     );
 
     // BIOL 2065-02: Principles of Microbiology Lab
@@ -2108,7 +2071,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Kim C Jolley",
                 rooms and times:
                     "SET 304",
-                    "4 hour lab",
+                    "MW1700+110",
     );
 
     // BIOL 2065-03: Principles of Microbiology Lab
@@ -2133,7 +2096,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     // assigned to BROWN 201 at MWF1000+50
     section!(t, course: "BIOL 2320-01",
                 rooms and times:
-                    "BROWN 201",
+                    "BROWN 201", "Science small lecture",
                     "3 credit bell schedule",
     );
 
@@ -2176,14 +2139,6 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                     "3 credit bell schedule",
     );
 
-    // BIOL 2320-06: Human Anatomy
-    // assigned to SET 201 at TR1500+75
-    section!(t, course: "BIOL 2320-06",
-                rooms and times:
-                    "Science medium lecture",
-                    "3 credit bell schedule",
-    );
-
     // BIOL 2320-07: Human Anatomy
     // assigned to SET 301 at TR1330+75
     section!(t, course: "BIOL 2320-07",
@@ -2219,7 +2174,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-01",
                 rooms and times:
                     "SET 213",
-                    "4 hour lab",
+                    "MW0600+110",
     );
 
     // BIOL 2325-02: Human Anatomy Lab
@@ -2227,7 +2182,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-02",
                 rooms and times:
                     "SET 215",
-                    "4 hour lab",
+                    "TR0600+110",
     );
 
     // BIOL 2325-03: Human Anatomy Lab
@@ -2235,7 +2190,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-03",
                 rooms and times:
                     "SET 213",
-                    "4 hour lab",
+                    "4 hour lab MW0800"
     );
 
     // BIOL 2325-04: Human Anatomy Lab
@@ -2243,7 +2198,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-04",
                 rooms and times:
                     "SET 215",
-                    "4 hour lab",
+                    "4 hour lab MW0800"
     );
 
     // BIOL 2325-05: Human Anatomy Lab
@@ -2251,7 +2206,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-05",
                 rooms and times:
                     "SET 213",
-                    "4 hour lab",
+                    "4 hour lab TR0800"
     );
 
     // BIOL 2325-06: Human Anatomy Lab
@@ -2259,7 +2214,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-06",
                 rooms and times:
                     "SET 215",
-                    "4 hour lab",
+                    "4 hour lab TR0800"
     );
 
     // BIOL 2325-07: Human Anatomy Lab
@@ -2267,7 +2222,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-07",
                 rooms and times:
                     "SET 213",
-                    "4 hour lab",
+                    "4 hour lab MW0800"
     );
 
     // BIOL 2325-08: Human Anatomy Lab
@@ -2275,7 +2230,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-08",
                 rooms and times:
                     "SET 215",
-                    "4 hour lab",
+                    "4 hour lab MW0800"
     );
 
     // BIOL 2325-09: Human Anatomy Lab
@@ -2283,7 +2238,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-09",
                 rooms and times:
                     "SET 213",
-                    "4 hour lab",
+                    "4 hour lab TR0800"
     );
 
     // BIOL 2325-10: Human Anatomy Lab
@@ -2291,7 +2246,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-10",
                 rooms and times:
                     "SET 215",
-                    "4 hour lab",
+                    "4 hour lab TR0800"
     );
 
     // BIOL 2325-11: Human Anatomy Lab
@@ -2299,7 +2254,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-11",
                 rooms and times:
                     "SET 213",
-                    "4 hour lab",
+                    "4 hour lab MW0800"
     );
 
     // BIOL 2325-12: Human Anatomy Lab
@@ -2307,7 +2262,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-12",
                 rooms and times:
                     "SET 215",
-                    "4 hour lab",
+                    "4 hour lab MW0800"
     );
 
     // BIOL 2325-13: Human Anatomy Lab
@@ -2315,7 +2270,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-13",
                 rooms and times:
                     "SET 213",
-                    "4 hour lab",
+                    "4 hour lab TR0800"
     );
 
     // BIOL 2325-14: Human Anatomy Lab
@@ -2323,7 +2278,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-14",
                 rooms and times:
                     "SET 215",
-                    "4 hour lab",
+                    "4 hour lab TR0800"
     );
 
     // BIOL 2325-15: Human Anatomy Lab
@@ -2331,7 +2286,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-15",
                 rooms and times:
                     "SET 213",
-                    "4 hour lab",
+                    "4 hour lab MW0800"
     );
 
     // BIOL 2325-16: Human Anatomy Lab
@@ -2339,7 +2294,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-16",
                 rooms and times:
                     "SET 215",
-                    "4 hour lab",
+                    "4 hour lab MW0800"
     );
 
     // BIOL 2325-17: Human Anatomy Lab
@@ -2347,7 +2302,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-17",
                 rooms and times:
                     "SET 213",
-                    "4 hour lab",
+                    "4 hour lab TR0800"
     );
 
     // BIOL 2325-18: Human Anatomy Lab
@@ -2355,7 +2310,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-18",
                 rooms and times:
                     "SET 215",
-                    "4 hour lab",
+                    "4 hour lab TR0800"
     );
 
     // BIOL 2325-19: Human Anatomy Lab
@@ -2363,7 +2318,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-19",
                 rooms and times:
                     "SET 213",
-                    "4 hour lab",
+                    "4 hour lab MW0800"
     );
 
     // BIOL 2325-20: Human Anatomy Lab
@@ -2371,7 +2326,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-20",
                 rooms and times:
                     "SET 215",
-                    "4 hour lab",
+                    "4 hour lab MW0800"
     );
 
     // BIOL 2325-21: Human Anatomy Lab
@@ -2379,7 +2334,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-21",
                 rooms and times:
                     "SET 213",
-                    "4 hour lab",
+                    "4 hour lab TR0800"
     );
 
     // BIOL 2325-22: Human Anatomy Lab
@@ -2387,7 +2342,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-22",
                 rooms and times:
                     "SET 215",
-                    "4 hour lab",
+                    "4 hour lab TR0800"
     );
 
     // BIOL 2325-50: Human Anatomy Lab
@@ -2395,7 +2350,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-50",
                 rooms and times:
                     "SET 213",
-                    "4 hour lab",
+                    "MW1800+110",
     );
 
     // BIOL 2325-51: Human Anatomy Lab
@@ -2403,7 +2358,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-51",
                 rooms and times:
                     "SET 215",
-                    "4 hour lab",
+                    "MW1800+110",
     );
 
     // BIOL 2325-52: Human Anatomy Lab
@@ -2411,7 +2366,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-52",
                 rooms and times:
                     "SET 213",
-                    "4 hour lab",
+                    "TR1800+110",
     );
 
     // BIOL 2325-53: Human Anatomy Lab
@@ -2419,7 +2374,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2325-53",
                 rooms and times:
                     "SET 215",
-                    "4 hour lab",
+                    "TR1800+110",
     );
 
     // BIOL 2420-01: Human Physiology
@@ -2472,7 +2427,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2425-01",
                 rooms and times:
                     "SET 214",
-                    "2 hour lab",
+                    "2 hour lab T0900"
     );
 
     // BIOL 2425-02: Human Physiology Lab
@@ -2480,7 +2435,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2425-02",
                 rooms and times:
                     "SET 214",
-                    "2 hour lab",
+                    "2 hour lab W0900"
     );
 
     // BIOL 2425-03: Human Physiology Lab
@@ -2488,7 +2443,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2425-03",
                 rooms and times:
                     "SET 214",
-                    "2 hour lab",
+                    "2 hour lab R0900"
     );
 
     // BIOL 2425-04: Human Physiology Lab
@@ -2496,7 +2451,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2425-04",
                 rooms and times:
                     "SET 214",
-                    "2 hour lab",
+                    "F0900+110",
     );
 
     // BIOL 2425-05: Human Physiology Lab
@@ -2504,7 +2459,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2425-05",
                 rooms and times:
                     "SET 214",
-                    "2 hour lab",
+                    "2 hour lab T0900"
     );
 
     // BIOL 2425-06: Human Physiology Lab
@@ -2512,7 +2467,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2425-06",
                 rooms and times:
                     "SET 214",
-                    "2 hour lab",
+                    "2 hour lab W0900"
     );
 
     // BIOL 2425-07: Human Physiology Lab
@@ -2520,7 +2475,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2425-07",
                 rooms and times:
                     "SET 214",
-                    "2 hour lab",
+                    "2 hour lab R0900"
     );
 
     // BIOL 2425-08: Human Physiology Lab
@@ -2528,7 +2483,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2425-08",
                 rooms and times:
                     "SET 214",
-                    "2 hour lab",
+                    "F1100+110",
     );
 
     // BIOL 2425-09: Human Physiology Lab
@@ -2536,7 +2491,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2425-09",
                 rooms and times:
                     "SET 214",
-                    "2 hour lab",
+                    "2 hour lab T0900"
     );
 
     // BIOL 2425-10: Human Physiology Lab
@@ -2544,7 +2499,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2425-10",
                 rooms and times:
                     "SET 214",
-                    "2 hour lab",
+                    "2 hour lab W0900"
     );
 
     // BIOL 2425-11: Human Physiology Lab
@@ -2552,7 +2507,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2425-11",
                 rooms and times:
                     "SET 214",
-                    "2 hour lab",
+                    "2 hour lab R0900"
     );
 
     // BIOL 2425-12: Human Physiology Lab
@@ -2560,7 +2515,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2425-12",
                 rooms and times:
                     "SET 214",
-                    "2 hour lab",
+                    "F1300+110",
     );
 
     // BIOL 2425-13: Human Physiology Lab
@@ -2568,7 +2523,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2425-13",
                 rooms and times:
                     "SET 214",
-                    "2 hour lab",
+                    "2 hour lab T0900"
     );
 
     // BIOL 2425-14: Human Physiology Lab
@@ -2576,7 +2531,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2425-14",
                 rooms and times:
                     "SET 214",
-                    "2 hour lab",
+                    "2 hour lab W0900"
     );
 
     // BIOL 2425-15: Human Physiology Lab
@@ -2584,7 +2539,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2425-15",
                 rooms and times:
                     "SET 214",
-                    "2 hour lab",
+                    "2 hour lab R0900"
     );
 
     // BIOL 2425-50: Human Physiology Lab
@@ -2592,7 +2547,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2425-50",
                 rooms and times:
                     "SET 214",
-                    "2 hour lab",
+                    "T1700+110",
     );
 
     // BIOL 2425-51: Human Physiology Lab
@@ -2600,7 +2555,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "BIOL 2425-51",
                 rooms and times:
                     "SET 214",
-                    "2 hour lab",
+                    "W1700+110",
     );
 
     // BIOL 2991R-01A: Careers in Biology
@@ -2719,7 +2674,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Marius Van der Merwe",
                 rooms and times:
                     "SET 216",
-                    "T1200+170",
+                    "3 hour lab T0900"
     );
 
     // BIOL 3100-01: Bioethics
@@ -2765,7 +2720,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Erin E O'Brien",
                 rooms and times:
                     "SET 216",
-                    "T1500+170",
+                    "3 hour lab T0900"
     );
 
     // BIOL 3230R-01: Cadaver Practicum
@@ -2828,7 +2783,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Jeremy W Bakelar",
                 rooms and times:
                     "SET 304",
-                    "T0900+170",
+                    "3 hour lab T0900"
     );
 
     // BIOL 3455-02: General Microbiology Lab
@@ -2837,7 +2792,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Jeremy W Bakelar",
                 rooms and times:
                     "SET 304",
-                    "T1500+170",
+                    "3 hour lab T0900"
     );
 
     // BIOL 3460-01: Biology of Infectious Disease
@@ -2900,7 +2855,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Martina Gaspari",
                 rooms and times:
                     "SET 308",
-                    "R0800+170",
+                    "3 hour lab R0800"
     );
 
     // BIOL 4310-01: Advanced Bioinformatics
@@ -2927,7 +2882,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Curtis B Walker",
                 rooms and times:
                     "SET 319",
-                    "T1400+170",
+                    "3 hour lab T0800"
     );
 
     // BIOL 4440-01: General Entomology
@@ -2954,7 +2909,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Erin E O'Brien",
                 rooms and times:
                     "SET 216",
-                    "W1500+170",
+                    "3 hour lab W0900"
     );
 
     // BIOL 4810R-01B: Independent Research
@@ -3037,7 +2992,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Jeremy W Bakelar",
                 rooms and times:
                     "SET 304",
-                    "4 hour lab",
+                    "4 hour lab TR0900"
     );
 
     // BTEC 2030-01: Cell Culture Techniques
@@ -3055,7 +3010,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Hung Yu Shih",
                 rooms and times:
                     "SET 303",
-                    "2 hour lab",
+                    "2 hour lab T0900"
     );
 
     // BTEC 2050-01-alt: Zebrafish Maintenance & Method
@@ -3073,7 +3028,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Hung Yu Shih",
                 rooms and times:
                     "SET 303",
-                    "2 hour lab",
+                    "2 hour lab T0900"
     );
 
     // BTEC 2050-02-alt: Zebrafish Maintenance & Method
@@ -3107,7 +3062,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "CHEM 1010-01",
                 instructor: "Sarah Morgan Black",
                 rooms and times:
-                    "SNOW 113",
+                    "SNOW 113", "Science small lecture",
                     "3 credit bell schedule",
     );
 
@@ -3116,7 +3071,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "CHEM 1010-02",
                 instructor: "Sarah Morgan Black",
                 rooms and times:
-                    "SNOW 113",
+                    "SNOW 113", "Science small lecture",
                     "3 credit bell schedule",
     );
 
@@ -3125,7 +3080,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "CHEM 1015-01",
                 rooms and times:
                     "SET 405",
-                    "2 hour lab",
+                    "2 hour lab M0900"
     );
 
     // CHEM 1015-02: Introduction to Chemistry Lab (LAB)
@@ -3133,7 +3088,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "CHEM 1015-02",
                 rooms and times:
                     "SET 405",
-                    "2 hour lab",
+                    "2 hour lab M0900"
     );
 
     // CHEM 1015-03: Introduction to Chemistry Lab (LAB)
@@ -3141,7 +3096,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "CHEM 1015-03",
                 rooms and times:
                     "SET 405",
-                    "2 hour lab",
+                    "2 hour lab M0900"
     );
 
     // CHEM 1120-01: Elem Organic / Bio Chemistry
@@ -3159,7 +3114,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Jared M Hancock",
                 rooms and times:
                     "SET 404",
-                    "2 hour lab",
+                    "2 hour lab M0900"
     );
 
     // CHEM 1125-02: Elem Organic/Bio Chemistry Lab
@@ -3167,7 +3122,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "CHEM 1125-02",
                 rooms and times:
                     "SET 404",
-                    "2 hour lab",
+                    "2 hour lab M0900"
     );
 
     // CHEM 1150-01: Integrated Chemistry for Health Sciences (PS)
@@ -3202,7 +3157,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Christina M Quinn",
                 rooms and times:
                     "SET 405",
-                    "T1000+170",
+                    "3 hour lab T1000"
     );
 
     // CHEM 1155-02: Integrated Chemistry for Health Sciences Laboratory (LAB)
@@ -3211,7 +3166,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Jared M Hancock",
                 rooms and times:
                     "SET 407",
-                    "W1000+170",
+                    "3 hour lab W1000"
     );
 
     // CHEM 1155-03: Integrated Chemistry for Health Sciences Laboratory (LAB)
@@ -3220,7 +3175,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Christina M Quinn",
                 rooms and times:
                     "SET 407",
-                    "W1300+170",
+                    "3 hour lab W1000"
     );
 
     // CHEM 1155-05: Integrated Chemistry for Health Sciences Laboratory (LAB)
@@ -3238,7 +3193,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Teisha Richan",
                 rooms and times:
                     "SET 405",
-                    "W0900+170",
+                    "3 hour lab W0900"
     );
 
     // CHEM 1155-50: Integrated Chemistry for Health Sciences Laboratory (LAB)
@@ -3291,7 +3246,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Christina M Quinn",
                 rooms and times:
                     "SET 409",
-                    "R1000+170",
+                    "3 hour lab R1000"
     );
 
     // CHEM 1215-03: Principles of Chemistry I Lab (LAB)
@@ -3299,7 +3254,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "CHEM 1215-03",
                 rooms and times:
                     "SET 407",
-                    "R1000+170",
+                    "3 hour lab R1000"
     );
 
     // CHEM 1215-04: Principles of Chemistry I Lab (LAB)
@@ -3308,7 +3263,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Christina M Quinn",
                 rooms and times:
                     "SET 409",
-                    "R1300+170",
+                    "3 hour lab R1000"
     );
 
     // CHEM 1215-05: Principles of Chemistry I Lab (LAB)
@@ -3378,7 +3333,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "CHEM 1225-02",
                 rooms and times:
                     "SET 409",
-                    "T1000+170",
+                    "3 hour lab T1000"
     );
 
     // CHEM 1225-03: Principles of Chemistry II Lab
@@ -3387,7 +3342,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Christina M Quinn",
                 rooms and times:
                     "SET 409",
-                    "T1300+170",
+                    "3 hour lab T1000"
     );
 
     // CHEM 1225-04: Principles of Chemistry II Lab
@@ -3440,7 +3395,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Teisha Richan",
                 rooms and times:
                     "SET 404",
-                    "R1000+170",
+                    "3 hour lab R1000"
     );
 
     // CHEM 2315-02: Organic Chemistry I Lab
@@ -3449,7 +3404,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Teisha Richan",
                 rooms and times:
                     "SET 404",
-                    "R1300+170",
+                    "3 hour lab R1000"
     );
 
     // CHEM 2320-01: Organic Chemistry II
@@ -3476,7 +3431,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Teisha Richan",
                 rooms and times:
                     "SET 404",
-                    "T0900+170",
+                    "3 hour lab T0900"
     );
 
     // CHEM 2325-02: Organic Chemistry II Lab
@@ -3485,7 +3440,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Teisha Richan",
                 rooms and times:
                     "SET 404",
-                    "T1200+170",
+                    "3 hour lab T0900"
     );
 
     // CHEM 2325-03: Organic Chemistry II Lab
@@ -3493,7 +3448,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "CHEM 2325-03",
                 rooms and times:
                     "SET 404",
-                    "T1500+170",
+                    "3 hour lab T0900"
     );
 
     // CHEM 2325-04: Organic Chemistry II Lab
@@ -3501,7 +3456,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "CHEM 2325-04",
                 rooms and times:
                     "SET 404",
-                    "W0900+170",
+                    "3 hour lab W0900"
     );
 
     // CHEM 2325-05: Organic Chemistry II Lab
@@ -3510,7 +3465,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Teisha Richan",
                 rooms and times:
                     "SET 404",
-                    "W1200+170",
+                    "3 hour lab W0900"
     );
 
     // CHEM 2325-06: Organic Chemistry II Lab
@@ -3519,7 +3474,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Megan R Liljenquist",
                 rooms and times:
                     "SET 404",
-                    "W1500+170",
+                    "3 hour lab W0900"
     );
 
     // CHEM 2325-50: Organic Chemistry II Lab
@@ -3562,7 +3517,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "CHEM 3300-01-SI",
                 rooms and times:
                     "SNOW 103",
-                    "R1500+170",
+                    "3 hour lab R0900"
     );
 
     // CHEM 3510-01: Biochemistry I
@@ -3580,7 +3535,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Jennifer A Meyer",
                 rooms and times:
                     "SET 308",
-                    "R1300+170",
+                    "3 hour lab R1000"
     );
 
     // CHEM 3515-02: Biochemistry I Lab
@@ -3606,7 +3561,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "CHEM 3525-01",
                 rooms and times:
                     "SET 308",
-                    "T1000+170",
+                    "3 hour lab T1000"
     );
 
     // CHEM 3525-02: Biochemistry II Lab
@@ -3615,7 +3570,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Jennifer A Meyer",
                 rooms and times:
                     "SET 308",
-                    "T1300+170",
+                    "3 hour lab T1000"
     );
 
     // CHEM 3525-03: Biochemistry II Lab
@@ -3704,7 +3659,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Sai C Radavaram",
                 rooms and times:
                     "SET 101",
-                    "2 hour lab",
+                    "2 hour lab T0800"
     );
 
     // ECE 3500-01: Signals and Systems
@@ -3731,7 +3686,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "David Brent Christensen",
                 rooms and times:
                     "SET 101",
-                    "2 hour lab",
+                    "2 hour lab T0800"
     );
 
     // ECE 4010-01: EE Product Design II
@@ -3767,7 +3722,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Jeffrey Anderson",
                 rooms and times:
                     "SET 101",
-                    "2 hour lab",
+                    "2 hour lab T0800"
     );
 
     // ECE 4990-01: Special Topics: Human-Machine Interfacing
@@ -3776,7 +3731,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Bing Jiang",
                 rooms and times:
                     "SET 101",
-                    "2 hour lab",
+                    "F1000+110",
     );
 
     // ECE 4990-01-alt: Special Topics: Human-Machine Interfacing
@@ -3844,7 +3799,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     // assigned to SNOW 113 at TR1500+75
     section!(t, course: "ENVS 1010-05",
                 rooms and times:
-                    "SNOW 113",
+                    "SNOW 113", "Science small lecture",
                     "3 credit bell schedule",
     );
 
@@ -3853,7 +3808,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "ENVS 1010-06",
                 instructor: "Marshall Topham",
                 rooms and times:
-                    "SNOW 113",
+                    "SNOW 113", "Science small lecture",
                     "3 credit bell schedule",
     );
 
@@ -3879,7 +3834,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "ENVS 1210-01",
                 instructor: "Marzieh Ghasemi",
                 rooms and times:
-                    "SNOW 113",
+                    "SNOW 113", "Science small lecture",
                     "3 credit bell schedule",
     );
 
@@ -3889,7 +3844,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Christina Pondell",
                 rooms and times:
                     "SET 526",
-                    "M1300+170",
+                    "3 hour lab M1000"
     );
 
     // ENVS 1215-02: Introduction to Environmental Science Laboratory
@@ -3951,7 +3906,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "ENVS 3280-50",
                 rooms and times:
                     "Science small lecture",
-                    "4 hour lab",
+                    "TR1800+110",
     );
 
     // ENVS 3410-01: Air Quality and Control
@@ -3968,7 +3923,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "ENVS 3920-50",
                 instructor: "Marius Van der Merwe",
                 rooms and times:
-                    "SNOW 113",
+                    "SNOW 113", "Science small lecture",
                     "1 credit evening",
     );
 
@@ -4003,7 +3958,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Greg L Melton",
                 rooms and times:
                     "SET 527",
-                    "2 hour lab",
+                    "2 hour lab W0900"
     );
 
     // GEO 1015-03: Introduction to Geology Lab (LAB)
@@ -4011,7 +3966,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "GEO 1015-03",
                 rooms and times:
                     "SET 527",
-                    "2 hour lab",
+                    "2 hour lab T0900"
     );
 
     // GEO 1015-04: Introduction to Geology Lab (LAB)
@@ -4019,7 +3974,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "GEO 1015-04",
                 rooms and times:
                     "SET 527",
-                    "2 hour lab",
+                    "2 hour lab T0900"
     );
 
     // GEO 1015-50: Introduction to Geology Lab (LAB)
@@ -4028,7 +3983,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "David R Black",
                 rooms and times:
                     "SET 527",
-                    "2 hour lab",
+                    "T1700+110",
     );
 
     // GEO 1015-51: Introduction to Geology Lab (LAB)
@@ -4036,7 +3991,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "GEO 1015-51",
                 rooms and times:
                     "SET 527",
-                    "2 hour lab late evening",
+                    "T1900+110",
     );
 
     // GEO 1050-01: Geology of the National Parks (PS)
@@ -4044,7 +3999,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "GEO 1050-01",
                 rooms and times:
                     "SET 527",
-                    "2 hour lab",
+                    "2 hour lab W0900"
     );
 
     // GEO 1110-01: Physical Geology (PS)
@@ -4062,7 +4017,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Janice M Hayden",
                 rooms and times:
                     "SET 522",
-                    "W1100+170",
+                    "3 hour lab W0800"
     );
 
     // GEO 1220-01: Historical Geology
@@ -4107,7 +4062,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Alexander R Tye",
                 rooms and times:
                     "SET 408",
-                    "R1200+170",
+                    "3 hour lab R0900"
     );
 
     // GEO 3500-01-alt: Geomorphology
@@ -4134,7 +4089,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Greg L Melton",
                 rooms and times:
                     "SET 522",
-                    "T1200+170",
+                    "3 hour lab T0900"
     );
 
     // GEO 3710-01: Hydrology
@@ -4196,7 +4151,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     // assigned to SNOW 113 at TR0900+75
     section!(t, course: "GEOG 1000-03",
                 rooms and times:
-                    "SNOW 113",
+                    "SNOW 113", "Science small lecture",
                     "3 credit bell schedule",
     );
 
@@ -4206,7 +4161,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Christina Pondell",
                 rooms and times:
                     "SET 526",
-                    "2 hour lab",
+                    "2 hour lab T0900"
     );
 
     // GEOG 1005-02: Physical Geography Lab (LAB)
@@ -4215,7 +4170,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Christina Pondell",
                 rooms and times:
                     "SET 526",
-                    "2 hour lab",
+                    "2 hour lab T0900"
     );
 
     // GEOG 1005-03: Physical Geography Lab (LAB)
@@ -4224,7 +4179,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Zhenyu Jin",
                 rooms and times:
                     "SET 526",
-                    "2 hour lab",
+                    "2 hour lab W0900"
     );
 
     // GEOG 1005-04: Physical Geography Lab (LAB)
@@ -4232,7 +4187,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "GEOG 1005-04",
                 rooms and times:
                     "SET 526",
-                    "2 hour lab",
+                    "2 hour lab W0900"
     );
 
     // GEOG 1005-05: Physical Geography Lab (LAB)
@@ -4240,7 +4195,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "GEOG 1005-05",
                 rooms and times:
                     "SET 526",
-                    "2 hour lab",
+                    "2 hour lab R0900"
     );
 
     // GEOG 3600-01: Introduction to Geographic Information Systems
@@ -4258,7 +4213,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Zhenyu Jin",
                 rooms and times:
                     "SET 408",
-                    "T1200+170",
+                    "3 hour lab T0900"
     );
 
     // GEOG 4180-01: Geoprocessing with Python
@@ -4945,7 +4900,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "David Brent Christensen",
                 rooms and times:
                     "SET 226",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // MECH 1205-02: Coding Lab
@@ -4954,7 +4909,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "David Brent Christensen",
                 rooms and times:
                     "SET 226",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // MECH 1205-03: Coding Lab
@@ -4963,7 +4918,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Russell C Reid",
                 rooms and times:
                     "SET 226",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // MECH 1205-04: Coding Lab
@@ -4972,7 +4927,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Bing Jiang",
                 rooms and times:
                     "SET 226",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // MECH 1205-05: Coding Lab
@@ -4981,7 +4936,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Bing Jiang",
                 rooms and times:
                     "SET 226",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // MECH 2030-01: Dynamics
@@ -5026,7 +4981,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Scott A Skeen",
                 rooms and times:
                     "SET 101",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // MECH 2255-02: Sensors & Actuators Lab
@@ -5035,7 +4990,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Scott A Skeen",
                 rooms and times:
                     "SET 101",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // MECH 2255-03: Sensors & Actuators Lab
@@ -5044,7 +4999,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "David Brent Christensen",
                 rooms and times:
                     "SET 101",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // MECH 2255-04: Sensors & Actuators Lab
@@ -5053,7 +5008,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Kameron J Eves",
                 rooms and times:
                     "SET 101",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // MECH 3250-01: Machinery
@@ -5071,7 +5026,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Divya Singh",
                 rooms and times:
                     "SET 104",
-                    "2 hour lab",
+                    "2 hour lab T0800"
     );
 
     // MECH 3255-02: Machinery Lab
@@ -5080,7 +5035,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Andrew C Schiller",
                 rooms and times:
                     "SET 226",
-                    "2 hour lab",
+                    "2 hour lab T0800"
     );
 
     // MECH 3600-01: Thermodynamics
@@ -5109,7 +5064,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Russell C Reid",
                 rooms and times:
                     "SET 104",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // MECH 3605-02: Thermodynamics Lab
@@ -5118,7 +5073,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Russell C Reid",
                 rooms and times:
                     "SET 104",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // MECH 3650-01: Heat Transfer
@@ -5136,7 +5091,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Russell C Reid",
                 rooms and times:
                     "SET 104",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // MECH 3655-02: Heat Transfer Lab
@@ -5145,7 +5100,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Russell C Reid",
                 rooms and times:
                     "SET 104",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // MECH 4010-01: Product Design II
@@ -5181,7 +5136,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Divya Singh",
                 rooms and times:
                     "SET 523",
-                    "4 hour lab",
+                    "4 hour lab MW0800"
     );
 
     // MTRN 2350-01: Advanced PLC Programming
@@ -5199,7 +5154,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Bruford P Reynolds",
                 rooms and times:
                     "SET 102",
-                    "4 hour lab",
+                    "4 hour lab TR0800"
     );
 
     // PHYS 1010-01: Elementary Physics (PS)
@@ -5217,7 +5172,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "David M Syndergaard",
                 rooms and times:
                     "SET 410",
-                    "2 hour lab",
+                    "2 hour lab M0900"
     );
 
     // PHYS 1015-02: Elementary Physics Lab (LAB)
@@ -5225,7 +5180,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "PHYS 1015-02",
                 rooms and times:
                     "SET 410",
-                    "2 hour lab",
+                    "2 hour lab M0800"
     );
 
     // PHYS 1040-50: Elementary Astronomy (PS)
@@ -5287,7 +5242,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Christopher Kirk DeMacedo",
                 rooms and times:
                     "SET 410",
-                    "2 hour lab",
+                    "2 hour lab T0800"
     );
 
     // PHYS 2015-02: College Physics I Lab (LAB)
@@ -5296,7 +5251,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Christopher Kirk DeMacedo",
                 rooms and times:
                     "SET 410",
-                    "2 hour lab",
+                    "2 hour lab T0800"
     );
 
     // PHYS 2015-03: College Physics I Lab (LAB)
@@ -5304,7 +5259,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "PHYS 2015-03",
                 rooms and times:
                     "SET 410",
-                    "2 hour lab",
+                    "2 hour lab T0800"
     );
 
     // PHYS 2020-01: College Physics II
@@ -5339,7 +5294,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Jose C Saraiva",
                 rooms and times:
                     "SET 412",
-                    "2 hour lab",
+                    "2 hour lab T0800"
     );
 
     // PHYS 2025-04: College Physics II Lab
@@ -5347,7 +5302,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "PHYS 2025-04",
                 rooms and times:
                     "SET 412",
-                    "2 hour lab evening",
+                    "T1800+110",
     );
 
     // PHYS 2210-01: Physics/Scientists Engineers I (PS)
@@ -5372,7 +5327,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "PHYS 2215-01",
                 rooms and times:
                     "SET 410",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // PHYS 2215-02: Physics/Scientists Engineers I Lab (LAB)
@@ -5380,7 +5335,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "PHYS 2215-02",
                 rooms and times:
                     "SET 410",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // PHYS 2215-50: Physics/Scientists Engineers I Lab (LAB)
@@ -5389,7 +5344,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Jose C Saraiva",
                 rooms and times:
                     "SET 410",
-                    "2 hour lab evening",
+                    "R1800+110",
     );
 
     // PHYS 2220-01: Physics/Scientists Engineers II
@@ -5406,7 +5361,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "PHYS 2225-01",
                 rooms and times:
                     "SET 412",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // PHYS 2225-02: Physics/Scientists Engineers II Lab
@@ -5415,7 +5370,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
                 instructor: "Jose C Saraiva",
                 rooms and times:
                     "SET 412",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // PHYS 3600-01: Thermodynamics
@@ -5431,7 +5386,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "PHYS 3605-01",
                 rooms and times:
                     "SET 104",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // PHYS 3605-02: Thermodynamics Lab
@@ -5439,7 +5394,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     section!(t, course: "PHYS 3605-02",
                 rooms and times:
                     "SET 104",
-                    "2 hour lab",
+                    "2 hour lab R0800"
     );
 
     // SCI 4700-01: Secondary Sci Teaching Methods

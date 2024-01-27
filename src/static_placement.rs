@@ -4,7 +4,7 @@ use super::solver::*;
 pub fn place(input: &mut Input, solver: &mut Solver, course_raw: &str, room_raw: &str, time_slot_raw: &str) -> Result<(), String> {
     let mut section_list = input.find_sections_by_name(course_raw)?;
     if section_list.len() != 1 {
-        return Err(format!("place_static could not find a single entry for course \"{}\"", course_raw));
+        return Err(format!("place_static could not find a single entry for course {}", course_raw));
     }
 
     let section = section_list.pop().unwrap();
@@ -51,8 +51,6 @@ pub fn place_static(input: &mut Input, solver: &mut Solver) -> Result<(), String
     place(input, solver, "BIOL 1010-10", "SET 301", "TR1630+75")?;
     place(input, solver, "BIOL 1010-11-SI", "SNOW 113", "M1030+75")?;
     place(input, solver, "BIOL 1010-11", "SET 106", "TR1030+75")?;
-    place(input, solver, "BIOL 1010-50", "SNOW 112", "TR1800+75")?;
-    place(input, solver, "BIOL 1015-03", "SET 312", "M1100+170")?;
     place(input, solver, "BIOL 1015-04", "SET 312", "T1100+170")?;
     place(input, solver, "BIOL 1015-05", "SET 312", "W1100+170")?;
     place(input, solver, "BIOL 1015-07", "SET 312", "T1400+170")?;
@@ -63,7 +61,6 @@ pub fn place_static(input: &mut Input, solver: &mut Solver) -> Result<(), String
     place(input, solver, "BIOL 1610-02", "SET 105", "MTWF1100+50")?;
     place(input, solver, "BIOL 1615-01", "SET 309", "T0800+170")?;
     place(input, solver, "BIOL 1615-02", "SET 309", "W0800+170")?;
-    place(input, solver, "BIOL 1615-03", "SET 309", "R0800+170")?;
     place(input, solver, "BIOL 1615-04", "SET 309", "F0800+170")?;
     place(input, solver, "BIOL 1615-05", "SET 309", "T1100+170")?;
     place(input, solver, "BIOL 1615-06", "SET 309", "W1100+170")?;
@@ -95,7 +92,6 @@ pub fn place_static(input: &mut Input, solver: &mut Solver) -> Result<(), String
     place(input, solver, "BIOL 2320-04", "SET 301", "MW1330+75")?;
     place(input, solver, "BIOL 2320-04-SI", "SET 105", "T1330+75")?;
     place(input, solver, "BIOL 2320-05", "SET 301", "TR1030+75")?;
-    place(input, solver, "BIOL 2320-06", "SET 201", "TR1500+75")?;
     place(input, solver, "BIOL 2320-07", "SET 301", "TR1330+75")?;
     place(input, solver, "BIOL 2320-08", "SET 301", "MW1330+75")?;
     place(input, solver, "BIOL 2320-08-SI", "SET 105", "R1330+75")?;

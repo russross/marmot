@@ -1,6 +1,19 @@
+String.prototype.hashCode = function() {
+  var hash = 0,
+    i, chr;
+  if (this.length === 0) return hash;
+  for (j = 0; j < 5; j++)
+      for (i = 0; i < this.length; i++) {
+        chr = this.charCodeAt(i);
+        hash = ((hash << 5) - hash) + chr;
+        hash |= 0; // Convert to 32bit integer
+      }
+  return hash;
+};
+
 window.addEventListener('load', function () {
     let schedule = document.getElementById('schedule');
-    let days_to_show = ['M', 'T'];
+    let days_to_show = ['M', 'T', 'W', 'R', 'F'];
 
     let prefixes = [];
     (function (sched) {
@@ -8,7 +21,11 @@ window.addEventListener('load', function () {
             for (elt of section.prefixes)
                 if (!prefixes.includes(elt))
                     prefixes.push(elt);
-        prefixes.sort();
+        prefixes.sort(function (a, b) {
+            if (a.hashCode() < b.hashCode()) return -1;
+            if (a.hashCode() > b.hashCode()) return 1;
+            return 0;
+        });
     })(window.placement);
 
     let build_room_time_grid = function (rooms, days) {
@@ -130,7 +147,7 @@ window.addEventListener('load', function () {
     let make_section = function (elt) {
         let box = document.createElement('div');
         box.classList.add('section');
-        let h = 360 * (prefixes.indexOf(section.prefixes[0]) + 0.5) / prefixes.length;
+        let h = 360 * (prefixes.indexOf(section.prefixes[0]) + 0.50) / prefixes.length;
         let color = 'lch(var(--l) var(--c) ' + h + ')';
         box.style.backgroundColor = color;
 
