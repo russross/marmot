@@ -1256,7 +1256,7 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
     let mut evicted_by = EvictionTracker::new();
     let mut winner;
     let start = time::Instant::now();
-    let mut best_score = solver.score+1;
+    let mut best_score = solver.score + 1;
     println!("initial score = {}", solver.score);
     let mut initial = true;
 
@@ -1290,11 +1290,7 @@ pub fn solve(mut solver: Solver, input: &Input, iterations: usize) {
                 println!();
                 println!();
                 //winner.print_schedule(input);
-                let filename = if initial {
-                    "static.js"
-                } else {
-                    "placement.js"
-                };
+                let filename = if initial { "static.js" } else { "placement.js" };
                 fs::write(filename, winner.dump_json(input))
                     .expect("unable to write placements.js");
 

@@ -1,10 +1,19 @@
 use super::input::*;
 use super::solver::*;
 
-pub fn place(input: &mut Input, solver: &mut Solver, course_raw: &str, room_raw: &str, time_slot_raw: &str) -> Result<(), String> {
+pub fn place(
+    input: &mut Input,
+    solver: &mut Solver,
+    course_raw: &str,
+    room_raw: &str,
+    time_slot_raw: &str,
+) -> Result<(), String> {
     let mut section_list = input.find_sections_by_name(course_raw)?;
     if section_list.len() != 1 {
-        return Err(format!("place_static could not find a single entry for course {}", course_raw));
+        return Err(format!(
+            "place_static could not find a single entry for course {}",
+            course_raw
+        ));
     }
 
     let section = section_list.pop().unwrap();
@@ -15,22 +24,28 @@ pub fn place(input: &mut Input, solver: &mut Solver, course_raw: &str, room_raw:
 
     let room = input.find_room_by_name(room_raw)?;
     let time_slot = input.find_time_slot_by_name(time_slot_raw)?;
-    let room_time = solver.sections[section].room_times.iter().find_map(|rtp|
-        if rtp.room == room && rtp.time_slot == time_slot {
-            Some(rtp.clone())
-       } else {
-           None
-        }
-    ).expect(&format!("no rtp found for {course_raw}"));
+    let room_time = solver.sections[section]
+        .room_times
+        .iter()
+        .find_map(|rtp| {
+            if rtp.room == room && rtp.time_slot == time_slot {
+                Some(rtp.clone())
+            } else {
+                None
+            }
+        })
+        .expect(&format!("no rtp found for {course_raw}"));
 
     // place the section
     let undo = PlacementLog::move_section(solver, input, section, room_time);
     solver.unplaced_best = std::cmp::min(solver.unplaced_best, solver.unplaced_current);
     for elt in &undo.entries {
         if let &PlacementEntry::Remove(loser, _) = elt {
-            println!("section {} displaced by {} in initial load", 
+            println!(
+                "section {} displaced by {} in initial load",
                 input.sections[loser].get_name(),
-                input.sections[section].get_name());
+                input.sections[section].get_name()
+            );
         }
     }
 

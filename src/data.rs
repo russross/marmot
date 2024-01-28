@@ -725,11 +725,11 @@ pub fn input_times(t: &mut Input) -> Result<(), String> {
     time!(t, name: "W1630+150");
     time!(t, name: "W1800+150", tags: "3 credit evening");
     time!(t, name: "R1330+165");
-    
+
     time!(t, name: "M1100+170", tags: "3 hour lab M0800");
     time!(t, name: "M1300+170", tags: "3 hour lab M1000");
     time!(t, name: "M1930+170");
-    
+
     time!(t, name: "T0700+170");
     time!(t, name: "T0800+170", tags: "3 hour lab T0800");
     time!(t, name: "T0900+170", tags: "3 hour lab T0900");
@@ -744,7 +744,7 @@ pub fn input_times(t: &mut Input) -> Result<(), String> {
     time!(t, name: "T1800+170");
     time!(t, name: "T1900+170");
     time!(t, name: "T1930+170");
-    
+
     time!(t, name: "W0800+170", tags: "3 hour lab W0800");
     time!(t, name: "W0900+170", tags: "3 hour lab W0900");
     time!(t, name: "W1000+170", tags: "3 hour lab W1000");

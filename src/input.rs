@@ -102,7 +102,7 @@ pub fn setup() -> Result<Input, String> {
     }
     counts.retain(|_, v| *v > 1);
     //for course_raw in counts.keys() {
-        //println!("{} has multiple sections", course_raw);
+    //println!("{} has multiple sections", course_raw);
     //}
 
     // compute time slot conflict lookup table
@@ -694,7 +694,8 @@ impl Input {
                     if old_score >= 100 || old_score <= 0 {
                         continue;
                     }
-                    let mut new_score = (self.sections[sec_i].get_conflict(other) - 1) / (number + 1);
+                    let mut new_score =
+                        (self.sections[sec_i].get_conflict(other) - 1) / (number + 1);
                     if new_score < threshold {
                         new_score = 0;
                     }
@@ -1331,7 +1332,8 @@ macro_rules! multiple_sections_reduce_penalties {
 }
 
 pub(crate) use {
-    add_prereqs, anticonflict, clustering_preferences, conflict, crosslist, days_off_preference,
-    default_clustering, duration_penalty, evenly_spread_out_preference, holiday, instructor,
-    multiple_sections_reduce_penalties, course_with_online, name_with_optional_penalty, room, section, time,
+    add_prereqs, anticonflict, clustering_preferences, conflict, course_with_online, crosslist,
+    days_off_preference, default_clustering, duration_penalty, evenly_spread_out_preference,
+    holiday, instructor, multiple_sections_reduce_penalties, name_with_optional_penalty, room,
+    section, time,
 };
