@@ -5747,6 +5747,121 @@ pub fn input_set_conflicts(t: &mut Input) -> Result<(), String> {
                     "CHEM 3510",
                     "PHYS 3400");
 
+    // math bs
+    conflict!(t, set penalty to 99,
+            clique: "MATH 1210", "MATH 1220", "MATH 2200", "MATH 2210", "MATH 2270", "MATH 2280",
+					"MATH 3200", "MATH 3400", "MATH 3900", "MATH 4000", "MATH 4900",
+					"CS 1400",
+					"PHYS 2210", "PHYS 2215");
+    conflict!(t, set penalty to 30,
+            clique: "MATH 1210", "MATH 1220", "MATH 2200", "MATH 2210", "MATH 2270", "MATH 2280",
+					"MATH 3200", "MATH 3400", "MATH 3900", "MATH 4000", "MATH 4900",
+					"CS 1400",
+					"PHYS 2210", "PHYS 2215",
+					"MATH 3000", "MATH 3100", "MATH 3150", "MATH 3210", "MATH 3450",
+					"MATH 3500", "MATH 3605", "MATH 3700",
+					"MATH 4010", "MATH 4100", "MATH 4200", "MATH 4250", "MATH 4550",
+					"MATH 4800", "MATH 4890R",
+                    "PHYS 2220", "PHYS 2225");
+
+    // math acm data analytics
+    conflict!(t, set penalty to 99,
+            clique: "CS 1400", "CS 1410",
+					"MATH 1210", "MATH 1220", "MATH 2200", "CS 3310",
+					"MATH 2210", "MATH 2270", "MATH 2280", "MATH 3400", "MATH 3700",
+					"MATH 4250", "MATH 4800", "MATH 4890R", "MATH 4900",
+					"COMM 1020",
+					"MATH 2050", "MATH 3050", "MATH 3450",
+					"ISA 2010", "ISA 3020", "ISA 4060", "ISA 4070",
+					"IT 1100", "IT 2300", "IT 2400", "IT 4310");
+    conflict!(t, set penalty to 30,
+            clique: "CS 1400", "CS 1410",
+					"MATH 1210", "MATH 1220", "MATH 2200", "CS 3310",
+					"MATH 2210", "MATH 2270", "MATH 2280", "MATH 3400", "MATH 3700",
+					"MATH 4250", "MATH 4800", "MATH 4890R", "MATH 4900",
+					"COMM 1020",
+					"MATH 2050", "MATH 3050", "MATH 3450",
+					"ISA 2010", "ISA 3020", "ISA 4060", "ISA 4070",
+					"IT 1100", "IT 2300", "IT 2400", "IT 4310",
+					"CS 3005", "FIN 4380", "IT 4510",
+					"MATH 3100", "MATH 3150", "MATH 3120", "MATH 3200", "MATH 3500",
+					"MATH 3900", "MATH 3905", "MATH 4000", "MATH 4005", "MATH 4010",
+					"MATH 4100", "MATH 4200", "MATH 4330", "MATH 4550", "MATH 4890R",
+					"MGMT 4040",
+					"XSCI 3800");
+
+    // math education
+    conflict!(t, set penalty to 99,
+            clique: "MATH 1040", "MATH 1210", "MATH 1220", "MATH 2200", "MATH 2210",
+					"MATH 2270", "MATH 2280", "MATH 3000", "MATH 3010", "MATH 3020",
+					"MATH 3100", "MATH 3120", "MATH 3200", "MATH 3400", "MATH 4000",
+					"CS 1400",
+					"PHYS 2210", "PHYS 2215");
+
+    // math acm comp math
+    conflict!(t, set penalty to 99,
+            clique: "CS 1400", "CS 1410",
+					"MATH 1210", "MATH 1220", "MATH 2200", "CS 3310",
+					"MATH 2210", "MATH 2270", "MATH 2280", "MATH 3400", "MATH 3700",
+					"MATH 4250", "MATH 4800", "MATH 4890R", "MATH 4900",
+					"CS 2420", "CS 3005",
+					"COMM 1020",
+					"MATH 2050", "MATH 3150", "MATH 3500", "MATH 4550",
+					"MECH 2010", "MECH 2030",
+					"PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225");
+    conflict!(t, set penalty to 30,
+            clique: "CS 1400", "CS 1410",
+					"MATH 1210", "MATH 1220", "MATH 2200", "CS 3310",
+					"MATH 2210", "MATH 2270", "MATH 2280", "MATH 3400", "MATH 3700",
+					"MATH 4250", "MATH 4800", "MATH 4890R", "MATH 4900",
+					"CS 2420", "CS 3005",
+					"COMM 1020",
+					"MATH 2050", "MATH 3150", "MATH 3500", "MATH 4550",
+					"MECH 2010", "MECH 2030",
+					"PHYS 2210", "PHYS 2215", "PHYS 2220", "PHYS 2225",
+					"MATH 3050", "MATH 3450", "MATH 3120", "MATH 3100", "MATH 3900", "MATH 3905",
+					"MATH 4000", "MATH 4005", "MATH 4010", "MATH 4100", "MATH 4330",
+					"MATH 3200", "MATH 4200",
+					"MECH 3600", "MECH 3700", "MECH 3705",
+					"PHYS 3400", "PHYS 3710",
+					"XSCI 3800");
+
+    // math acm actuarial science
+    conflict!(t, set penalty to 99,
+            clique: "CS 1400", "CS 1410",
+					"MATH 1210", "MATH 1220", "MATH 2200", "CS 3310",
+					"MATH 2210", "MATH 2270", "MATH 2280", "MATH 3400", "MATH 3700",
+					"MATH 4250", "MATH 4800", "MATH 4890R", "MATH 4900",
+					"ACCT 2010", "ACCT 2020",
+					"ISA 2010",
+					"COMM 1020",
+					"CS 2420",
+					"ECON 2010", "ECON 2020",
+					"FIN 3150",
+					"ISA 3020",
+					"MATH 3410", "MATH 3450", "MATH 4400", "MATH 4410",
+					"STAT 2040");
+    conflict!(t, set penalty to 30,
+            clique: "CS 1400", "CS 1410",
+					"MATH 1210", "MATH 1220", "MATH 2200", "CS 3310",
+					"MATH 2210", "MATH 2270", "MATH 2280", "MATH 3400", "MATH 3700",
+					"MATH 4250", "MATH 4800", "MATH 4890R", "MATH 4900",
+					"ACCT 2010", "ACCT 2020",
+					"ISA 2010",
+					"COMM 1020",
+					"CS 2420",
+					"ECON 2010", "ECON 2020",
+					"FIN 3150",
+					"ISA 3020",
+					"MATH 3410", "MATH 3450", "MATH 4400", "MATH 4410",
+					"STAT 2040",
+					"ECON 3010", "ECON 3020", "ECON 3500",
+					"FIN 4380",
+					"MGMT 4040",
+					"MATH 3050", "MATH 3120", "MATH 3150", "MATH 3200", "MATH 3100",
+					"MATH 3500", "MATH 3900", "MATH 3905", "MATH 4000", "MATH 4005",
+					"MATH 4200", "MATH 4010", "MATH 4100", "MATH 4330", "MATH 4550");
+
     // complete one of the following sets, etc.
     // note: conflicts between coreqs will be reinstituted later
     conflict!(t, remove penalty,
@@ -5781,9 +5896,20 @@ pub fn input_set_conflicts(t: &mut Input) -> Result<(), String> {
     conflict!(t, remove penalty, clique: "BIOL 2320", "BIOL 2325", "BIOL 3140", "BIOL 3145");
     conflict!(t, remove penalty, clique: "BIOL 2420", "BIOL 2425", "BIOL 4500", "BIOL 4505");
     conflict!(t, remove penalty, clique: "BIOL 2060", "BIOL 2065", "BIOL 3450", "BIOL 3455", "BIOL 3550", "BIOL 3555");
+
     //complete one of the following
     conflict!(t,remove penalty, clique: "CHEM 2310", "CHEM 2315", "CHEM 3000");
     conflict!(t,remove penalty, clique: "CHEM 3510", "PHYS 3400");
+
+    // either math discrete math or cs discrete math
+    conflict!(t, remove penalty, clique: "MATH 2200", "CS 3310");
+
+    // take two classes or one that fill the same prereqs
+    conflict!(t, remove penalty, clique: "MATH 1050", "MATH 1080");
+    conflict!(t, remove penalty, clique: "MATH 1060", "MATH 1080");
+    conflict!(t, remove penalty, clique: "MATH 2050", "MATH 3060");
+    conflict!(t, remove penalty, clique: "MATH 2270", "MATH 2250");
+    conflict!(t, remove penalty, clique: "MATH 2280", "MATH 2250");
 
     Ok(())
 }
@@ -5979,19 +6105,49 @@ pub fn input_prereqs(t: &mut Input) -> Result<(), String> {
     add_prereqs!(t, course: "GEOG 3605", coreqs: "GEOG 3600");
     add_prereqs!(t, course: "GEOG 4140", prereqs: "GEOG 3600", "GEOG 3605");
     add_prereqs!(t, course: "GEOG 4180", prereqs: "GEOG 3600", "GEOG 3605");
+
     add_prereqs!(t, course: "MATH 1040", prereqs: "MATH 0980");
     add_prereqs!(t, course: "MATH 1050", prereqs: "MATH 1010", "MATH 1000");
     add_prereqs!(t, course: "MATH 1060", prereqs: "MATH 1050");
     add_prereqs!(t, course: "MATH 1080", prereqs: "MATH 1010", "MATH 1000");
     add_prereqs!(t, course: "MATH 1210", prereqs: "MATH 1050", "MATH 1060", "MATH 1080");
     add_prereqs!(t, course: "MATH 1220", prereqs: "MATH 1210");
+    add_prereqs!(t, course: "MATH 2050", prereqs: "MATH 1040");
+    add_prereqs!(t, course: "MATH 2200", prereqs: "MATH 1210");
     add_prereqs!(t, course: "MATH 2210", prereqs: "MATH 1220");
     add_prereqs!(t, course: "MATH 2250", prereqs: "Math 1220");
     add_prereqs!(t, course: "MATH 2270", prereqs: "MATH 1210");
     add_prereqs!(t, course: "MATH 2280", prereqs: "MATH 1220");
+    add_prereqs!(t, course: "MATH 3000", prereqs: "MATH 1220");
+    add_prereqs!(t, course: "MATH 3010", prereqs: "MATH 1210");
+    add_prereqs!(t, course: "MATH 3020", prereqs: "MATH 1210");
+    add_prereqs!(t, course: "MATH 3050", prereqs: "MATH 2050", "MATH 3060");
     add_prereqs!(t, course: "MATH 3060", prereqs: "MATH 1210");
+    add_prereqs!(t, course: "MATH 3100", prereqs: "MATH 2200");
+    add_prereqs!(t, course: "MATH 3120", prereqs: "MATH 2200", "CS 3310");
+    add_prereqs!(t, course: "MATH 3150", prereqs: "MATH 2210", "MATH 2270", "MATH 2280");
+    add_prereqs!(t, course: "MATH 3200", prereqs: "MATH 3120");
     add_prereqs!(t, course: "MATH 3400", prereqs: "MATH 1220");
+    add_prereqs!(t, course: "MATH 3410", prereqs: "MATH 3400");
+    add_prereqs!(t, course: "MATH 3450", prereqs: "MATH 3400");
     add_prereqs!(t, course: "MATH 3500", prereqs: "MATH 2270", "MATH 2280", "MATH 2250");
+    add_prereqs!(t, course: "MATH 3605", prereqs: "MATH 1210");
+    add_prereqs!(t, course: "MATH 3700", prereqs: "MATH 2280");
+    add_prereqs!(t, course: "MATH 3900", prereqs: "MATH 3120");
+    add_prereqs!(t, course: "MATH 3905", prereqs: "CS 1400");
+    add_prereqs!(t, course: "MATH 4000", prereqs: "MATH 2270");
+    add_prereqs!(t, course: "MATH 4005", prereqs: "CS 1400", "MATH 2250", "MATH 2270");
+    add_prereqs!(t, course: "MATH 4010", prereqs: "MATH 4000");
+    add_prereqs!(t, course: "MATH 4100", prereqs: "MATH 2210", "MATH 3120");
+    add_prereqs!(t, course: "MATH 4200", prereqs: "MATH 3200");
+    add_prereqs!(t, course: "MATH 4250", coreqs: "MATH 2280", prereqs: "CS 1400");
+    add_prereqs!(t, course: "MATH 4330", prereqs: "MATH 2270", "MATH 3120");
+    add_prereqs!(t, course: "MATH 4400", prereqs: "MATH 1100");
+    add_prereqs!(t, course: "MATH 4410", prereqs: "MATH 4400");
+    add_prereqs!(t, course: "MATH 4500", prereqs: "MATH 1210");
+    add_prereqs!(t, course: "MATH 4550", prereqs: "MATH 3500");
+    conflict!(t, set hard, clique: "MATH 4250", "MATH 2280");
+
     add_prereqs!(t, course: "PHYS 1010", prereqs: "MATH 1010");
     add_prereqs!(t, course: "PHYS 1015", coreqs: "PHYS 1010");
     add_prereqs!(t, course: "PHYS 1040", coreqs: "PHYS 1045");

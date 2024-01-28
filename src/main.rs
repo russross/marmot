@@ -129,7 +129,7 @@ fn main() {
     );
 
     // set up the static schedule
-    place_static(&mut term, &mut solver).unwrap();
+    //place_static(&mut term, &mut solver).unwrap();
 
     let iterations = 50_000_000;
     solve(solver, &term, iterations);
