@@ -15,14 +15,14 @@ window.addEventListener('load', function () {
     let schedule = document.getElementById('schedule');
     let days_to_show = ['M', 'T', 'W', 'R', 'F'];
 
-    let prefixes = [];
+    let allPrefixes = [];
     let penaltiesByPrefix = {};
     let totalScoreByPrefix = {};
     (function (sched) {
         for (section of sched) {
             for (elt of section.prefixes) {
-                if (!prefixes.includes(elt)) {
-                    prefixes.push(elt);
+                if (!allPrefixes.includes(elt)) {
+                    allPrefixes.push(elt);
                 }
 
                 // gather penalties by prefix
@@ -38,12 +38,12 @@ window.addEventListener('load', function () {
                 }
             }
         }
-        prefixes.sort(function (a, b) {
+        allPrefixes.sort(function (a, b) {
             if (a.hashCode() < b.hashCode()) return -1;
             if (a.hashCode() > b.hashCode()) return 1;
             return 0;
         });
-        for (prefix of prefixes) {
+        for (prefix of allPrefixes) {
             let list = penaltiesByPrefix[prefix];
             list.sort(function (a, b) {
                 if (a.score > b.score) return -1;
@@ -259,7 +259,7 @@ window.addEventListener('load', function () {
 
     // report all the penalties in a list at the bottom
     let penalty_div = document.getElementById('penalties');
-    for (prefix of prefixes.toSorted()) {
+    for (prefix of allPrefixes.toSorted()) {
         let h2 = document.createElement('h2');
         penalty_div.appendChild(h2);
         h2.innerText = 'Penalties for ' + prefix + ' (total ' + totalScoreByPrefix[prefix] + ')';
