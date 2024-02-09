@@ -16,16 +16,43 @@ window.addEventListener('load', function () {
     let days_to_show = ['M', 'T', 'W', 'R', 'F'];
 
     let prefixes = [];
+    let penaltiesByPrefix = {};
+    let totalScoreByPrefix = {};
     (function (sched) {
-        for (section of sched)
-            for (elt of section.prefixes)
-                if (!prefixes.includes(elt))
+        for (section of sched) {
+            for (elt of section.prefixes) {
+                if (!prefixes.includes(elt)) {
                     prefixes.push(elt);
+                }
+
+                // gather penalties by prefix
+                if (!(elt in penaltiesByPrefix)) {
+                    penaltiesByPrefix[elt] = [];
+                }
+                if (!(elt in totalScoreByPrefix)) {
+                    totalScoreByPrefix[elt] = 0;
+                }
+                for (problem of section.problems) {
+                    penaltiesByPrefix[elt].push(problem);
+                    totalScoreByPrefix[elt] += problem.score;
+                }
+            }
+        }
         prefixes.sort(function (a, b) {
             if (a.hashCode() < b.hashCode()) return -1;
             if (a.hashCode() > b.hashCode()) return 1;
             return 0;
         });
+        for (prefix of prefixes) {
+            let list = penaltiesByPrefix[prefix];
+            list.sort(function (a, b) {
+                if (a.score > b.score) return -1;
+                if (a.score < b.score) return 1;
+                if (a.message < b.message) return -1;
+                if (a.message > b.message) return 1;
+                return 0;
+            });
+        }
     })(window.placement);
 
     let build_room_time_grid = function (rooms, days) {
@@ -211,6 +238,24 @@ window.addEventListener('load', function () {
             box.style.gridColumn = rooms.indexOf(section.room) + 2;
             let key = day + time.start_minutes;
             box.style.gridRow = '' + row_key[day+time.start_minutes] + ' / span ' + (time.duration)/5;
+        }
+    }
+
+    // report all the penalties in a list at the bottom
+    let penalty_div = document.getElementById('penalties');
+    for (prefix of prefixes.toSorted()) {
+        let h2 = document.createElement('h2');
+        penalty_div.appendChild(h2);
+        h2.innerText = 'Penalties for ' + prefix + ' (total ' + totalScoreByPrefix[prefix] + ')';
+        let ul = document.createElement('ul');
+        penalty_div.appendChild(ul);
+        for (problem of penaltiesByPrefix[prefix]) {
+            let li = document.createElement('li');
+            ul.appendChild(li);
+            let padded = '' + problem.score;
+            if (padded.length < 2) padded = ' ' + padded;
+            let msg = '[' + padded + '] ' + problem.message;
+            li.innerText = msg;
         }
     }
 });;
