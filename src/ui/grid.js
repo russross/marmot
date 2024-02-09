@@ -2,7 +2,7 @@ String.prototype.hashCode = function() {
   var hash = 0,
     i, chr;
   if (this.length === 0) return hash;
-  for (j = 0; j < 5; j++)
+  for (j = 0; j < 4; j++)
       for (i = 0; i < this.length; i++) {
         chr = this.charCodeAt(i);
         hash = ((hash << 5) - hash) + chr;
@@ -161,21 +161,33 @@ window.addEventListener('load', function () {
 
     let sections = [];
     let rooms = [];
+    prefixes = [];
     for (elt of window.placement) {
-        if (elt.is_placed && (elt.room.startsWith('SNOW ') || elt.room.startsWith('SET ') || elt.room.startsWith('Smith '))) {
+        //if (elt.is_placed && (elt.room.startsWith('SNOW ') || elt.room.startsWith('SET ') || elt.room.startsWith('Smith '))) {
+        if (elt.is_placed && (['SET 105', 'SET 106', 'SET 201', 'SET 301', 'SET 418', 'SET 420', 'SET 524'].includes(elt.room))) {
             sections.push(elt);
+            for (prefix of elt.prefixes)
+                if (!prefixes.includes(prefix))
+                    prefixes.push(prefix);
             if (!rooms.includes(elt.room))
                 rooms.push(elt.room);
         }
     }
+    prefixes.sort(function (a, b) {
+        if (a.hashCode() < b.hashCode()) return -1;
+        if (a.hashCode() > b.hashCode()) return 1;
+        return 0;
+    });
     rooms.sort();
     let row_key = build_room_time_grid(rooms, find_time_range(days_to_show, sections));
 
     let make_section = function (elt) {
         let box = document.createElement('div');
         box.classList.add('section');
-        let h = 360 * (prefixes.indexOf(section.prefixes[0]) + 0.50) / prefixes.length;
+
+        let h = Math.round(320 * (prefixes.indexOf(section.prefixes[0]) + 0.0) / prefixes.length + 145) % 360;
         let color = 'lch(var(--l) var(--c) ' + h + ')';
+
         box.style.backgroundColor = color;
 
         let name = document.createElement('h3');
@@ -224,6 +236,10 @@ window.addEventListener('load', function () {
             problems.innerText = 'score: ' + score;
             box.title = title;
         }
+
+        //let hue = document.createElement('span');
+        //box.appendChild(hue);
+        //hue.innerText = color;
 
         return box;
     };
