@@ -1,0 +1,80 @@
+[99]  course conflict: CS 2420-01 at MWF0900+50 overlaps PHYS 2220-01 at MTWF0900+50
+[99]  course conflict: BIOL 3040-01 and BIOL 3450-01 both meet at MW1330+75
+[99]  course conflict: BIOL 3045-01 and GEO 1115-01 both meet at T1200+170
+[99]  course conflict: GEO 1225-01 at R1630+170 overlaps SCI 4700-01 at R1530+150
+[45]  course conflict: BIOL 3045-01 at T1200+170 overlaps BTEC 2020-01 at TR1300+110
+[45]  course conflict: BIOL 4280-01 at MWF0900+50 overlaps PHYS 2220-01 at MTWF0900+50
+[45]  course conflict: BIOL 4355-01 at R1200+170 overlaps BTEC 2020-01 at TR1300+110
+[45]  course conflict: BIOL 4355-01 at R1200+170 overlaps BTEC 2030-01 at MR1100+110
+[45]  course conflict: BIOL 4355-01 and GEOG 3605-01 both meet at R1200+170
+[45]  course conflict: BIOL 4600-01 at MW1200+75 overlaps BTEC 2030-01 at MR1100+110
+[45]  course conflict: BIOL 4605-01 at W1500+170 overlaps PHYS 1010-01 at MW1630+75
+[32]  course conflict: CS 3310-01 and CS 2450-01 both meet at MWF1000+50
+[32]  course conflict: CS 4600-01 and SE 3200-01 both meet at TR0900+75
+[32]  course conflict: SE 4600-01 and SE 3200-01 both meet at TR0900+75
+[32]  course conflict: IT 2300-01 at MW1200+75 overlaps MATH 2210-01 at MTRF1200+50
+[32]  course conflict: BIOL 2065-02 at MW1700+110 overlaps PHYS 1040-50 at MW1800+75
+[32]  course conflict: BIOL 3040-01 at MW1330+75 overlaps ENVS 1215-01 at M1300+170
+[32]  course conflict: BIOL 3040-01 at MW1330+75 overlaps PHYS 1015-01 at M1300+110
+[32]  course conflict: BIOL 3155-01 at R1200+135 overlaps BTEC 2020-01 at TR1300+110
+[32]  course conflict: BIOL 3155-01 at R1200+135 overlaps BTEC 2030-01 at MR1100+110
+[32]  course conflict: BIOL 3455-02 at W1000+170 overlaps CHEM 3510-01 at MWF1000+50
+[32]  course conflict: BIOL 4300-01 at MWF0800+50 overlaps PHYS 2020-01 at MTWF0800+50
+[32]  course conflict: BIOL 4300-01 at MWF0800+50 overlaps PHYS 2210-02 at MTWF0800+50
+[32]  course conflict: BTEC 2030-01 at MR1100+110 overlaps CHEM 2315-02 at R0900+170
+[32]  course conflict: BTEC 2030-01 at MR1100+110 overlaps PHYS 2210-01 at MWRF1200+50
+[32]  course conflict: CHEM 2310-01 at MTWRF0900+50 overlaps PHYS 2220-01 at MTWF0900+50
+[32]  course conflict: CHEM 2310-02 at MTWRF0900+50 overlaps PHYS 2220-01 at MTWF0900+50
+[32]  course conflict: CHEM 2315-02 at R0900+170 overlaps GEO 1110-01 at TR1030+75
+[32]  course conflict: CHEM 3075-01 at T1600+170 overlaps PHYS 2225-02 at T1600+110
+[32]  course conflict: CHEM 3300-01 at MWF0900+50 overlaps PHYS 2220-01 at MTWF0900+50
+[32]  course conflict: CHEM 3510-01 at MWF1000+50 overlaps PHYS 2020-02 at MTWF1000+50
+[32]  course conflict: CHEM 3515-01 at T0900+170 overlaps PHYS 2220-01 at MTWF0900+50
+[32]  course conflict: ENVS 1215-01 at M1300+170 overlaps GEO 1220-01 at MW1500+75
+[32]  course conflict: ENVS 1215-02 at R1330+165 overlaps GEOG 3605-01 at R1200+170
+[32]  course conflict: GEO 1110-01 and MATH 1060-02 both meet at TR1030+75
+[32]  course conflict: GEO 1110-01 at TR1030+75 overlaps PHYS 2020-02 at MTWF1000+50
+[32]  course conflict: GEO 3600-01-LAB at R1300+170 overlaps GEOG 3605-01 at R1200+170
+[32]  course conflict: GEOG 3605-01 at R1200+170 overlaps PHYS 2210-01 at MWRF1200+50
+[32]  course conflict: MATH 2210-01 at MTRF1200+50 overlaps PHYS 2210-01 at MWRF1200+50
+[32]  course conflict: MECH 2030-01 at TR1500+75 overlaps PHYS 2225-02 at T1600+110
+[30]  course conflict: CS 4550-01 and SE 3010-01 both meet at MW1500+75
+[30]  course conflict: BIOL 2300-01 at MF1100+50 overlaps BIOL 3100-01 at MWF1100+50
+[30]  course conflict: BIOL 2300-01 at MF1100+50 overlaps CHEM 3520-01 at MWF1100+50
+[30]  course conflict: BIOL 3000R-09A at M0800+50 overlaps BIOL 4300-01 at MWF0800+50
+[30]  course conflict: BIOL 3040-01 at MW1330+75 overlaps BIOL 4810R-01B at M1400+180
+[30]  course conflict: BIOL 3040-01 at MW1330+75 overlaps BTEC 4050-01A at W1330+170
+[30]  course conflict: BIOL 3045-01 and BIOL 4305-01 both meet at T1200+170
+[30]  course conflict: BIOL 3100-01 at MWF1100+50 overlaps BTEC 2030-01 at MR1100+110
+[30]  course conflict: BIOL 3100-01 and CHEM 3520-01 both meet at MWF1100+50
+[30]  course conflict: BIOL 3100-01 and GEOG 3600-01 both meet at MWF1100+50
+[30]  course conflict: BIOL 3110-01 at R0900+75 overlaps BIOL 3250-01 at TR0900+75
+[30]  course conflict: BIOL 3250-01 at TR0900+75 overlaps PHYS 2220-01 at MTWF0900+50
+[30]  course conflict: BIOL 3420-01 and BIOL 3460-01 both meet at MW1500+75
+[30]  course conflict: BIOL 3420-01 at MW1500+75 overlaps BIOL 4810R-01B at M1400+180
+[30]  course conflict: BIOL 3420-01 at MW1500+75 overlaps BTEC 3010-01 at MW1530+75
+[30]  course conflict: BIOL 3420-01 at MW1500+75 overlaps BTEC 4050-01A at W1330+170
+[30]  course conflict: BIOL 3450-01 at MW1330+75 overlaps BIOL 4810R-01B at M1400+180
+[30]  course conflict: BIOL 3450-01 at MW1330+75 overlaps BTEC 4050-01A at W1330+170
+[30]  course conflict: BIOL 3460-01 at MW1500+75 overlaps BIOL 4810R-01B at M1400+180
+[30]  course conflict: BIOL 4280-01 and GEOG 4180-01 both meet at MWF0900+50
+[30]  course conflict: BIOL 4300-01 and BIOL 4350-01 both meet at MWF0800+50
+[30]  course conflict: BIOL 4305-01 at T1200+170 overlaps BTEC 2020-01 at TR1300+110
+[30]  course conflict: BIOL 4305-01 and GEO 1115-01 both meet at T1200+170
+[30]  course conflict: BIOL 4605-01 at W1500+170 overlaps BTEC 3010-01 at MW1530+75
+[30]  course conflict: BIOL 4605-01 at W1500+170 overlaps BTEC 4050-01A at W1330+170
+[30]  course conflict: BIOL 4810R-01B at M1400+180 overlaps PHYS 1010-01 at MW1630+75
+[30]  course conflict: BTEC 2030-01 at MR1100+110 overlaps CHEM 3520-01 at MWF1100+50
+[30]  course conflict: BTEC 3010-01 at MW1530+75 overlaps BTEC 4050-01A at W1330+170
+[30]  course conflict: CHEM 3070-01 at MWRF1200+50 overlaps MATH 2210-01 at MTRF1200+50
+[30]  course conflict: MATH 3050-01 at TR0900+75 overlaps PHYS 2220-01 at MTWF0900+50
+[30]  course conflict: MATH 3200-01 at MW1500+75 overlaps MATH 4250-01 at MW1500+100
+[30]  course conflict: MATH 3450-01 and MATH 3900-01 both meet at TR1330+75
+[10]  room/time: CS 3600-01 meets in Smith 117 at MWF1100+50
+[10]  room/time: CS 3005-01 meets in Smith 116 at MWF1100+50
+[10]  room/time: CS 4320-01 meets in Smith 116 at TR1200+75
+[10]  room/time: CS 4600-01 meets in Smith 116 at TR0900+75
+[10]  room/time: SE 3010-01 meets in Smith 112 at MW1500+75
+[10]  room/time: IT 3100-01 meets in Smith 107 at TR1500+75
+[ 5]  room/time: CS 1030-01 meets in Smith 107 at TR1330+75
+score = 2664 with 0 unplaced sections, solving at a rate of 101/second

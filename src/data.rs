@@ -341,7 +341,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
             "MTWR 1200-1500",
             //"MTWR 1500-1630" with penalty 10,
     );
-    //default_clustering!(t, instructor: "Russ Ross", days: "mt", days off: 0);
+    default_clustering!(t, instructor: "Russ Ross", days: "mt", days off: 0);
     section!(t, course: "CS 2810-01",
             instructor: "Russ Ross",
             rooms and times: "Smith 109", "3 credit bell schedule");
@@ -6187,7 +6187,7 @@ pub fn input_multiples(t: &mut Input) -> Result<(), String> {
                 "ENVS 1010", "ENVS 1215",
                 "GEO 1010", "GEO 1015", "GEO 3500", "GEO 3600",
                 "GEOG 1000", "GEOG 1005",
-                "IT 1100" with 1 online, "IT 1500" with 3 online,
+                "IT 1100" with 1 online, "IT 1500" with 3 online, "IT 2300",
                 "MATH 900", "MATH 980", "MATH 1010", "MATH 1030", "MATH 1040", "MATH 1050", "MATH 1060",
                 "MATH 1210", "MATH 1220", "MATH 2020",
                 "MECH 1150", "MECH 1200", "MECH 1205", "MECH 2250", "MECH 2255", "MECH 3255", "MECH 3605", "MECH 3655",
@@ -6204,6 +6204,7 @@ pub fn input_multiples(t: &mut Input) -> Result<(), String> {
     conflict!(t, set hard, clique: "CS 2450-01", "CS 2450-02");
     conflict!(t, set hard, clique: "CS 2810-01", "CS 2810-02");
     conflict!(t, set hard, clique: "IT 1100-01", "IT 1100-02");
+    conflict!(t, set hard, clique: "IT 2300-01", "IT 2300-02");
     conflict!(t, set hard, clique: "SE 1400-01", "SE 1400-02");
 
     Ok(())
