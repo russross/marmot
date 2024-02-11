@@ -1,0 +1,33 @@
+IT has 38 hard conflicts across 14 sections
+MECH has 141 hard conflicts across 32 sections
+BIOL has 168 hard conflicts across 151 sections
+GEO has 36 hard conflicts across 21 sections
+PHYS has 50 hard conflicts across 28 sections
+CS has 142 hard conflicts across 25 sections
+ENVS has 41 hard conflicts across 19 sections
+MTRN has 2 hard conflicts across 2 sections
+SE has 19 hard conflicts across 10 sections
+BTEC has 25 hard conflicts across 9 sections
+CHEM has 150 hard conflicts across 66 sections
+MATH has 134 hard conflicts across 70 sections
+ECE has 43 hard conflicts across 15 sections
+GEOG has 35 hard conflicts across 12 sections
+SCI has 0 hard conflicts across 2 sections
+--> total of 1024 hard conflicts across 476 sections
+
+GEOG has 119 soft conflicts across 12 sections
+BIOL has 1043 soft conflicts across 151 sections
+ENVS has 155 soft conflicts across 19 sections
+MATH has 389 soft conflicts across 70 sections
+MECH has 51 soft conflicts across 32 sections
+IT has 173 soft conflicts across 14 sections
+BTEC has 122 soft conflicts across 9 sections
+ECE has 0 soft conflicts across 15 sections
+CHEM has 324 soft conflicts across 66 sections
+MTRN has 0 soft conflicts across 2 sections
+PHYS has 428 soft conflicts across 28 sections
+SCI has 35 soft conflicts across 2 sections
+SE has 148 soft conflicts across 10 sections
+GEO has 279 soft conflicts across 21 sections
+CS has 317 soft conflicts across 25 sections
+--> total of 3583 soft conflicts across 476 sections
