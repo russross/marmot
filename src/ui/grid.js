@@ -263,14 +263,38 @@ window.addEventListener('load', function () {
         let h2 = document.createElement('h2');
         penalty_div.appendChild(h2);
         h2.innerText = 'Penalties for ' + prefix + ' (total ' + totalScoreByPrefix[prefix] + ')';
+        let penalties = [];
         let ul = document.createElement('ul');
         penalty_div.appendChild(ul);
+        let prev_score = -1;
         for (problem of penaltiesByPrefix[prefix]) {
             let li = document.createElement('li');
             ul.appendChild(li);
             let padded = '' + problem.score;
             if (padded.length < 2) padded = ' ' + padded;
             let msg = '[' + padded + '] ' + problem.message;
+            li.innerText = msg;
+
+            if (problem.score != prev_score) {
+                prev_score = problem.score;
+                penalties.push([problem.score, 0]);
+            }
+            penalties[penalties.length-1][1]++;
+        }
+
+        let h3 = document.createElement('h3');
+        penalty_div.appendChild(h3);
+        h3.innerText = 'Penalty counts by score for ' + prefix;
+        ul = document.createElement('ul');
+        penalty_div.appendChild(ul);
+        for (score of penalties) {
+            li = document.createElement('li');
+            ul.appendChild(li);
+            let padded = '' + score[0];
+            if (padded.length < 2) padded = ' ' + padded;
+            let pen = 'penalties';
+            if (score[1] == 1) pen = 'penalty';
+            let msg = '[' + padded + '] ' + score[1] + ' ' + pen;
             li.innerText = msg;
         }
     }
