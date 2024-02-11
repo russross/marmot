@@ -1,1 +1,66 @@
-../../ui/grid.css
+:root {
+  --grid-columns: 1;
+  --grid-rows: 1;
+  --l: 35;
+  --c: 80;
+}
+
+#schedule {
+  display: grid;
+  grid-gap: 5px;
+  grid-template-rows: auto repeat(var(--grid-rows), 0.5em);
+  grid-template-columns: auto repeat(var(--grid-columns), 10em);
+  width: max-content;
+}
+
+.time-name {
+  grid-column: 1;
+  display: block;
+  position: sticky;
+  margin: 0;
+  left: 0;
+  z-index: 1000;
+  background-color: rgba(255,255,255,0.5);
+}
+
+.room-name {
+  grid-row: 1;
+  display: block;
+  padding: 10px 5px 5px;
+  margin: 0;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background-color: rgba(255,255,255,.5);
+}
+
+body {
+  margin: 0 0;
+  line-height: 1.5;
+}
+
+.section {
+  padding: .5em;
+  border-radius: 7px;
+  font-size: 14px;
+  color: white;
+}
+
+.section,
+.section-time,
+.section-instructor {
+  display: block;
+}
+
+.section-name,
+.time-name {
+  margin: 0;
+  font-size: 1em;
+}
+
+.room-name,
+.time-name {
+  font-weight: bold;
+  font-size: 1em;
+}
