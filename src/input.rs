@@ -11,42 +11,42 @@ pub fn setup() -> Result<Input, String> {
     while changed {
         changed = false;
 
-        for sec_i in 0..input.sections.len() {
+        for sec_i in 0..input.input_sections.len() {
             let mut new_list = Vec::new();
-            for &pre in &input.sections[sec_i].prereqs {
+            for &pre in &input.input_sections[sec_i].prereqs {
                 // keep the prereq
                 new_list.push(pre);
 
                 // add the prereq's prereqs
-                for &elt in &input.sections[pre].prereqs {
+                for &elt in &input.input_sections[pre].prereqs {
                     new_list.push(elt);
                 }
 
                 // and the prereq's coreqs
-                for &elt in &input.sections[pre].coreqs {
+                for &elt in &input.input_sections[pre].coreqs {
                     new_list.push(elt);
                 }
             }
-            for &co in &input.sections[sec_i].coreqs {
+            for &co in &input.input_sections[sec_i].coreqs {
                 // and the coreq's prereqs
-                for &elt in &input.sections[co].prereqs {
+                for &elt in &input.input_sections[co].prereqs {
                     new_list.push(elt);
                 }
             }
 
             // but filter out the coreqs themselves
-            new_list.retain(|elt| !input.sections[sec_i].coreqs.contains(elt));
+            new_list.retain(|elt| !input.input_sections[sec_i].coreqs.contains(elt));
 
             new_list.sort();
             new_list.dedup();
-            if new_list.len() != input.sections[sec_i].prereqs.len() {
+            if new_list.len() != input.input_sections[sec_i].prereqs.len() {
                 changed = true;
-                input.sections[sec_i].prereqs = new_list;
+                input.input_sections[sec_i].prereqs = new_list;
             } else {
                 for i in 0..new_list.len() {
-                    if new_list[i] != input.sections[sec_i].prereqs[i] {
+                    if new_list[i] != input.input_sections[sec_i].prereqs[i] {
                         changed = true;
-                        input.sections[sec_i].prereqs = new_list;
+                        input.input_sections[sec_i].prereqs = new_list;
                         break;
                     }
                 }
@@ -55,14 +55,14 @@ pub fn setup() -> Result<Input, String> {
     }
 
     // remove all conflicts between courses and their prereqs
-    for sec_i in 0..input.sections.len() {
-        for pre_i in 0..input.sections[sec_i].prereqs.len() {
-            let prereq = input.sections[sec_i].prereqs[pre_i];
+    for sec_i in 0..input.input_sections.len() {
+        for pre_i in 0..input.input_sections[sec_i].prereqs.len() {
+            let prereq = input.input_sections[sec_i].prereqs[pre_i];
 
             // delete the conflict unless it is marked as a hard conflict
-            if (1..=99).contains(&input.sections[sec_i].get_conflict(prereq)) {
-                input.sections[sec_i].set_conflict(prereq, 0);
-                input.sections[prereq].set_conflict(sec_i, 0);
+            if (1..=99).contains(&input.input_sections[sec_i].get_conflict(prereq)) {
+                input.input_sections[sec_i].set_conflict(prereq, 0);
+                input.input_sections[prereq].set_conflict(sec_i, 0);
             }
         }
     }
@@ -71,22 +71,22 @@ pub fn setup() -> Result<Input, String> {
     for instructor in &input.instructors {
         for &left in &instructor.sections {
             // we only care about primary cross listings, so ignore others
-            if !input.sections[left].cross_listings.is_empty()
-                && input.sections[left].cross_listings[0] != left
+            if !input.input_sections[left].cross_listings.is_empty()
+                && input.input_sections[left].cross_listings[0] != left
             {
                 continue;
             }
             for &right in &instructor.sections {
                 // we only care about primary cross listings, so ignore others
-                if !input.sections[right].cross_listings.is_empty()
-                    && input.sections[right].cross_listings[0] != right
+                if !input.input_sections[right].cross_listings.is_empty()
+                    && input.input_sections[right].cross_listings[0] != right
                 {
                     continue;
                 }
                 if left == right {
                     continue;
                 };
-                input.sections[left].set_conflict(right, 100);
+                input.input_sections[left].set_conflict(right, 100);
             }
         }
     }
@@ -96,7 +96,7 @@ pub fn setup() -> Result<Input, String> {
     // 2. make sections of the same course hard conflicts with each other
     // 3. scoring criteria to spread sections across morning/afternoon, mw/tr?
     let mut counts = std::collections::HashMap::<String, usize>::new();
-    for sec in &input.sections {
+    for sec in &input.input_sections {
         let key = format!("{} {}", sec.prefix, sec.course);
         *counts.entry(key).or_default() += 1;
     }
@@ -133,7 +133,7 @@ pub struct Input {
     pub rooms: Vec<Room>,
     pub time_slots: Vec<TimeSlot>,
     pub instructors: Vec<Instructor>,
-    pub sections: Vec<Section>,
+    pub input_sections: Vec<InputSection>,
 
     // list of sections mentioned in conflict/scoring but not actually defined
     // note that a section must be created before any references to it are valid
@@ -169,7 +169,7 @@ impl Input {
             rooms: Vec::new(),
             time_slots: Vec::new(),
             instructors: Vec::new(),
-            sections: Vec::new(),
+            input_sections: Vec::new(),
             missing: Vec::new(),
             time_slot_conflicts: Vec::new(),
             anticonflicts: Vec::new(),
@@ -474,7 +474,7 @@ impl Input {
         rwp.sort_by_key(|elt| elt.room);
         twp.sort_by_key(|elt| elt.time_slot);
         if self
-            .sections
+            .input_sections
             .iter()
             .any(|s| s.prefix == prefix && s.course == course && s.section == section)
         {
@@ -483,9 +483,9 @@ impl Input {
         for &instructor in &instructors {
             self.instructors[instructor]
                 .sections
-                .push(self.sections.len());
+                .push(self.input_sections.len());
         }
-        self.sections.push(Section {
+        self.input_sections.push(InputSection {
             prefix,
             course,
             section,
@@ -543,7 +543,7 @@ impl Input {
 
                 for &left_section_i in left_course {
                     for &right_section_i in right_course {
-                        let left = &mut self.sections[left_section_i];
+                        let left = &mut self.input_sections[left_section_i];
                         let old = left.get_conflict(right_section_i);
                         left.set_conflict(
                             right_section_i,
@@ -646,14 +646,14 @@ impl Input {
         coreqs.sort();
         coreqs.dedup();
         for course in course_list {
-            let cr = &mut self.sections[course].coreqs;
+            let cr = &mut self.input_sections[course].coreqs;
             for &elt in &coreqs {
                 cr.push(elt);
             }
             cr.sort();
             cr.dedup();
 
-            let pr = &mut self.sections[course].prereqs;
+            let pr = &mut self.input_sections[course].prereqs;
             for &elt in &prereqs {
                 pr.push(elt);
             }
@@ -684,25 +684,25 @@ impl Input {
 
             // find all the soft conflicts involving these sections
             for sec_i in course_list {
-                let others: Vec<usize> = self.sections[sec_i]
+                let others: Vec<usize> = self.input_sections[sec_i]
                     .soft_conflicts
                     .iter()
                     .map(|elt| elt.section)
                     .collect();
                 for other in others {
-                    let old_score = self.sections[sec_i].get_conflict(other);
+                    let old_score = self.input_sections[sec_i].get_conflict(other);
                     if old_score >= 100 || old_score <= 0 {
                         continue;
                     }
                     let mut new_score =
-                        (self.sections[sec_i].get_conflict(other) - 1) / (number + 1);
+                        (self.input_sections[sec_i].get_conflict(other) - 1) / (number + 1);
                     if new_score < threshold {
                         new_score = 0;
                     }
 
                     // set in both directions
-                    self.sections[sec_i].set_conflict(other, new_score);
-                    self.sections[other].set_conflict(sec_i, new_score);
+                    self.input_sections[sec_i].set_conflict(other, new_score);
+                    self.input_sections[other].set_conflict(sec_i, new_score);
                 }
             }
         }
@@ -713,7 +713,7 @@ impl Input {
     pub fn find_sections_by_name(&self, course_raw: &str) -> Result<Vec<usize>, String> {
         let (prefix, course, section) = parse_section_name(course_raw)?;
         let mut list = Vec::new();
-        self.sections.iter().enumerate().for_each(|(i, s)| {
+        self.input_sections.iter().enumerate().for_each(|(i, s)| {
             if s.prefix == *prefix && s.course == *course {
                 match &section {
                     None => list.push(i),
@@ -740,17 +740,17 @@ impl Input {
         if sections.len() < 2 {
             return Err(format!(
                 "cross-listing that includes {} must include at least two unique sections",
-                self.sections[sections[0]].get_name()
+                self.input_sections[sections[0]].get_name()
             ));
         }
         for &i in &sections {
-            if !self.sections[i].cross_listings.is_empty() {
+            if !self.input_sections[i].cross_listings.is_empty() {
                 return Err(format!(
                     "cannot cross list {} because it is already cross-listed",
-                    self.sections[i].get_name()
+                    self.input_sections[i].get_name()
                 ));
             }
-            self.sections[i].cross_listings = sections.clone();
+            self.input_sections[i].cross_listings = sections.clone();
         }
 
         Ok(())
@@ -762,15 +762,15 @@ impl Input {
     }
 
     pub fn is_primary_cross_listing(&self, index: usize) -> bool {
-        self.sections[index].cross_listings.is_empty()
-            || index == self.sections[index].cross_listings[0]
+        self.input_sections[index].cross_listings.is_empty()
+            || index == self.input_sections[index].cross_listings[0]
     }
 
     pub fn get_primary_cross_listing(&self, index: usize) -> usize {
-        if self.sections[index].cross_listings.is_empty() {
+        if self.input_sections[index].cross_listings.is_empty() {
             return index;
         }
-        self.sections[index].cross_listings[0]
+        self.input_sections[index].cross_listings[0]
     }
 }
 
@@ -989,7 +989,7 @@ pub enum DurationWithPenalty {
     },
 }
 
-pub struct Section {
+pub struct InputSection {
     // prefix, e.g.: "CS"
     pub prefix: String,
     // course name, e.g.: "2810"
@@ -1027,7 +1027,7 @@ pub struct Section {
     pub prereqs: Vec<usize>,
 }
 
-impl Section {
+impl InputSection {
     pub fn get_conflict(&self, other: usize) -> isize {
         for elt in &self.hard_conflicts {
             if *elt == other {

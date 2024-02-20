@@ -9,7 +9,7 @@ use self::solver::*;
 use self::static_placement::*;
 
 fn main() {
-    let mut term = match setup() {
+    let mut input = match setup() {
         Ok(t) => t,
         Err(msg) => {
             println!("Error in the input: {}", msg);
@@ -17,10 +17,10 @@ fn main() {
         }
     };
 
-    println!("term: {} from {} to {}", term.name, term.start, term.end);
+    //println!("term: {} from {} to {}", input.name, input.start, input.end);
 
     /*
-    for (i, time_slot) in term.time_slots.iter().enumerate() {
+    for (i, time_slot) in input.time_slots.iter().enumerate() {
         print!("time slot {}: ", time_slot.name);
         let mut sep = "";
         for elt in &time_slot.days {
@@ -35,32 +35,32 @@ fn main() {
                 if *elt == i {
                     continue;
                 }
-                print!("{}{}", sep, term.time_slots[*elt].name);
+                print!("{}{}", sep, input.time_slots[*elt].name);
                 sep = ", ";
             }
         }
         println!();
     }
-    for room in &term.rooms {
+    for room in &input.rooms {
         print!("{} {} tags:", room.name, room.capacity);
         for tag in &room.tags {
             print!(" {}", tag);
         }
         println!();
     }
-    for inst in &term.instructors {
+    for inst in &input.instructors {
         print!("{}", inst.name);
         for twp in &inst.available_times {
             if twp.penalty == 0 {
-                print!(" {}", term.time_slots[twp.time_slot].name);
+                print!(" {}", input.time_slots[twp.time_slot].name);
             } else {
-                print!(" {}:{}", term.time_slots[twp.time_slot].name, twp.penalty);
+                print!(" {}:{}", input.time_slots[twp.time_slot].name, twp.penalty);
             }
         }
         println!();
     }
     */
-    let mut solver = match Solver::new(&term) {
+    let mut solver = match Solver::new(&input) {
         Ok(s) => s,
         Err(msg) => {
             eprintln!("{}", msg);
@@ -68,7 +68,7 @@ fn main() {
         }
     };
     /*
-    for (sec_i, sec) in term.sections.iter().enumerate() {
+    for (sec_i, sec) in input.input_sections.iter().enumerate() {
         let solve = &solver.sections[sec_i];
         print!("{}", sec.get_name());
         if !sec.cross_listings.is_empty() {
@@ -76,23 +76,23 @@ fn main() {
                 if sec_i == other {
                     continue;
                 }
-                print!(" x {}", term.sections[other].get_name());
+                print!(" x {}", input.input_sections[other].get_name());
             }
         }
         print!(" [");
         let mut sep = "";
         for &inst_i in &solve.instructors {
-            print!("{sep}{}", &term.instructors[inst_i].name);
+            print!("{sep}{}", &input.instructors[inst_i].name);
             sep = ", ";
         }
         print!("]");
-        let mut prev_room = term.rooms.len();
+        let mut prev_room = input.rooms.len();
         for rtp in solve.room_times.iter() {
             if rtp.room != prev_room {
                 prev_room = rtp.room;
-                print!("\n    {}:", &term.rooms[rtp.room].name);
+                print!("\n    {}:", &input.rooms[rtp.room].name);
             }
-            print!(" {}", &term.time_slots[rtp.time_slot].name);
+            print!(" {}", &input.time_slots[rtp.time_slot].name);
             if rtp.penalty > 0 {
                 print!(":{}", rtp.penalty);
             }
@@ -101,36 +101,83 @@ fn main() {
         if !solve.hard_conflicts.is_empty() {
             print!("    hard conflicts:");
             for &i in solve.hard_conflicts.iter() {
-                print!(" {}", term.sections[i].get_name());
+                print!(" {}", input.input_sections[i].get_name());
             }
             println!();
         }
         for elt in &solve.score_criteria {
-            println!("    {}", elt.debug(&term))
+            println!("    {}", elt.debug(&input))
         }
     }
     */
 
-    if !term.missing.is_empty() {
+    /*
+    if !input.missing.is_empty() {
         print!("unknown courses:");
         let mut sep = " ";
-        for elt in &term.missing {
+        for elt in &input.missing {
             print!("{}{}", sep, elt);
             sep = ", ";
         }
         println!();
     }
+    */
     println!(
         "{} rooms, {} time slots, {} instructors, {} sections",
-        term.rooms.len(),
-        term.time_slots.len(),
-        term.instructors.len(),
-        term.sections.len(),
+        input.rooms.len(),
+        input.time_slots.len(),
+        input.instructors.len(),
+        input.input_sections.len(),
     );
 
     // set up the static schedule
-    //place_static(&mut term, &mut solver).unwrap();
+    //place_static(&mut input, &mut solver).unwrap();
 
-    let iterations = 50_000_000;
-    solve(solver, &term, iterations);
+    //let iterations = 50_000_000;
+    //solve(solver, &input, iterations);
+
+    dump_cs(&input, &solver);
+}
+
+fn dump_cs(input: &Input, solver: &Solver) {
+    println!("course_data = {{");
+    for i in 0..input.input_sections.len() {
+        let section = &input.input_sections[i];
+        //if section.prefix != "CS" && section.prefix != "SE" && section.prefix != "IT" {
+            //continue;
+        //}
+        let solsec = &solver.sections[i];
+        if solsec.is_secondary_cross_listing {
+            continue;
+        }
+        println!("    \"{}\": {{", section.get_name());
+        println!("        \"room_times\": [");
+        for &RoomTimeWithPenalty{ room, time_slot, penalty } in &solsec.room_times {
+            println!("            (\"{}\", \"{}\", {}),",
+                input.rooms[room].name,
+                input.time_slots[time_slot].name,
+                penalty);
+        }
+        println!("        ],");
+        println!("        \"hard\": [");
+        for &hard in &solsec.hard_conflicts {
+            let other = &input.input_sections[hard];
+            if other.prefix != "CS" && other.prefix != "SE" && other.prefix != "IT" {
+                continue;
+            }
+            println!("            \"{}\",", other.get_name());
+        }
+        println!("        ],");
+        println!("        \"soft\": [");
+        for &SectionWithPenalty{ section: sec, penalty } in &solsec.soft_conflicts_list {
+            let other = &input.input_sections[sec];
+            if other.prefix != "CS" && other.prefix != "SE" && other.prefix != "IT" {
+                continue;
+            }
+            println!("            (\"{}\", {}),", other.get_name(), penalty);
+        }
+        println!("        ],");
+        println!("    }},");
+    }
+    println!("}}");
 }

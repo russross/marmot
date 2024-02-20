@@ -43,8 +43,8 @@ pub fn place(
         if let &PlacementEntry::Remove(loser, _) = elt {
             println!(
                 "section {} displaced by {} in initial load",
-                input.sections[loser].get_name(),
-                input.sections[section].get_name()
+                input.input_sections[loser].get_name(),
+                input.input_sections[section].get_name()
             );
         }
     }

@@ -69,7 +69,7 @@ impl ScoreCriterion for SoftConflictCriterion {
             write!(
                 &mut s,
                 " {}:{}",
-                input.sections[elt.section].get_name(),
+                input.input_sections[elt.section].get_name(),
                 elt.penalty
             )
             .unwrap();
@@ -148,12 +148,12 @@ impl ScoreCriterion for AntiConflictCriterion {
             &mut s,
             "anticonflict: penalty {}, {} should be in time slot with ",
             self.penalty,
-            input.sections[self.single].get_name()
+            input.input_sections[self.single].get_name()
         )
         .unwrap();
         let mut sep = "";
         for &other in &self.group {
-            write!(&mut s, "{}{}", sep, input.sections[other].get_name()).unwrap();
+            write!(&mut s, "{}{}", sep, input.input_sections[other].get_name()).unwrap();
             sep = ", ";
         }
         s
@@ -446,7 +446,7 @@ impl ScoreCriterion for InstructorClassSpreadCriterion {
             .unwrap();
             let mut sep = "";
             for &sec in &self.sections {
-                write!(&mut s, "{sep}{}", input.sections[sec].get_name()).unwrap();
+                write!(&mut s, "{sep}{}", input.input_sections[sec].get_name()).unwrap();
                 sep = ", ";
             }
             writeln!(&mut s).unwrap();
@@ -565,7 +565,7 @@ impl ScoreCriterion for InstructorRoomCountCriterion {
         .unwrap();
         let mut sep = "";
         for &elt in &self.sections {
-            write!(&mut s, "{}{}", sep, input.sections[elt].get_name()).unwrap();
+            write!(&mut s, "{}{}", sep, input.input_sections[elt].get_name()).unwrap();
             sep = ", ";
         }
         s
@@ -614,16 +614,16 @@ impl SectionScoreRecord {
                 let message = if ts_a == ts_b {
                     format!(
                         "course conflict: {} and {} both meet at {}",
-                        input.sections[a].get_name(),
-                        input.sections[b].get_name(),
+                        input.input_sections[a].get_name(),
+                        input.input_sections[b].get_name(),
                         input.time_slots[ts_a].name
                     )
                 } else {
                     format!(
                         "course conflict: {} at {} overlaps {} at {}",
-                        input.sections[a].get_name(),
+                        input.input_sections[a].get_name(),
                         input.time_slots[ts_a].name,
-                        input.sections[b].get_name(),
+                        input.input_sections[b].get_name(),
                         input.time_slots[ts_b].name
                     )
                 };
@@ -641,7 +641,7 @@ impl SectionScoreRecord {
                 else {
                     panic!("RoomTimePenalty on unplaced section");
                 };
-                let elt = &input.sections[*section];
+                let elt = &input.input_sections[*section];
 
                 let message = format!(
                     "room/time: {} meets in {} at {}",
@@ -657,7 +657,7 @@ impl SectionScoreRecord {
                 local,
                 ..
             } => {
-                let message = format!("unplaced section: {}", input.sections[*section].get_name());
+                let message = format!("unplaced section: {}", input.input_sections[*section].get_name());
                 list.push((*local, message));
             }
 
@@ -670,19 +670,19 @@ impl SectionScoreRecord {
                     let other = group[0];
                     format!(
                         "anticonflict: section {} is not at the same time as {}",
-                        input.sections[*single].get_name(),
-                        input.sections[other].get_name()
+                        input.input_sections[*single].get_name(),
+                        input.input_sections[other].get_name()
                     )
                 } else {
                     let mut s = format!(
                         "anticonflict: section {} is not at the same time as ",
-                        input.sections[*single].get_name()
+                        input.input_sections[*single].get_name()
                     );
                     let mut or = "";
                     for elt in group {
                         s.push_str(or);
                         or = " or ";
-                        s.push_str(&input.sections[*elt].get_name());
+                        s.push_str(&input.input_sections[*elt].get_name());
                     }
                     s
                 };
