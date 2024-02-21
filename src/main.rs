@@ -9,7 +9,7 @@ use self::solver::*;
 use self::static_placement::*;
 
 fn main() {
-    let mut input = match setup() {
+    let mut solver = match setup() {
         Ok(t) => t,
         Err(msg) => {
             println!("Error in the input: {}", msg);
@@ -17,10 +17,10 @@ fn main() {
         }
     };
 
-    //println!("term: {} from {} to {}", input.name, input.start, input.end);
+    //println!("term: {} from {} to {}", solver.name, solver.start, solver.end);
 
     /*
-    for (i, time_slot) in input.time_slots.iter().enumerate() {
+    for (i, time_slot) in solver.time_slots.iter().enumerate() {
         print!("time slot {}: ", time_slot.name);
         let mut sep = "";
         for elt in &time_slot.days {
@@ -35,38 +35,38 @@ fn main() {
                 if *elt == i {
                     continue;
                 }
-                print!("{}{}", sep, input.time_slots[*elt].name);
+                print!("{}{}", sep, solver.time_slots[*elt].name);
                 sep = ", ";
             }
         }
         println!();
     }
-    for room in &input.rooms {
+    for room in &solver.rooms {
         print!("{} {} tags:", room.name, room.capacity);
         for tag in &room.tags {
             print!(" {}", tag);
         }
         println!();
     }
-    for inst in &input.instructors {
+    for inst in &solver.instructors {
         print!("{}", inst.name);
         for twp in &inst.available_times {
             if twp.penalty == 0 {
-                print!(" {}", input.time_slots[twp.time_slot].name);
+                print!(" {}", solver.time_slots[twp.time_slot].name);
             } else {
-                print!(" {}:{}", input.time_slots[twp.time_slot].name, twp.penalty);
+                print!(" {}:{}", solver.time_slots[twp.time_slot].name, twp.penalty);
             }
         }
         println!();
     }
     */
-    let mut solver = match Solver::new(&input) {
-        Ok(s) => s,
+    match solver.lock_input() {
         Err(msg) => {
             eprintln!("{}", msg);
             return;
-        }
-    };
+        },
+        _ => (),
+    }
     /*
     for (sec_i, sec) in input.input_sections.iter().enumerate() {
         let solve = &solver.sections[sec_i];
@@ -124,25 +124,25 @@ fn main() {
     */
     println!(
         "{} rooms, {} time slots, {} instructors, {} sections",
-        input.rooms.len(),
-        input.time_slots.len(),
-        input.instructors.len(),
-        input.input_sections.len(),
+        solver.rooms.len(),
+        solver.time_slots.len(),
+        solver.instructors.len(),
+        solver.input_sections.len(),
     );
 
     // set up the static schedule
-    //place_static(&mut input, &mut solver).unwrap();
+    place_static(&mut solver).unwrap();
 
-    //let iterations = 50_000_000;
-    //solve(solver, &input, iterations);
+    let iterations = 50_000_000;
+    solve(&mut solver, iterations);
 
-    dump_cs(&input, &solver);
+    dump_cs(&solver);
 }
 
-fn dump_cs(input: &Input, solver: &Solver) {
+fn dump_cs(solver: &Solver) {
     println!("course_data = {{");
-    for i in 0..input.input_sections.len() {
-        let section = &input.input_sections[i];
+    for i in 0..solver.input_sections.len() {
+        let section = &solver.input_sections[i];
         //if section.prefix != "CS" && section.prefix != "SE" && section.prefix != "IT" {
             //continue;
         //}
@@ -154,14 +154,14 @@ fn dump_cs(input: &Input, solver: &Solver) {
         println!("        \"room_times\": [");
         for &RoomTimeWithPenalty{ room, time_slot, penalty } in &solsec.room_times {
             println!("            (\"{}\", \"{}\", {}),",
-                input.rooms[room].name,
-                input.time_slots[time_slot].name,
+                solver.rooms[room].name,
+                solver.time_slots[time_slot].name,
                 penalty);
         }
         println!("        ],");
         println!("        \"hard\": [");
         for &hard in &solsec.hard_conflicts {
-            let other = &input.input_sections[hard];
+            let other = &solver.input_sections[hard];
             if other.prefix != "CS" && other.prefix != "SE" && other.prefix != "IT" {
                 continue;
             }
@@ -170,7 +170,7 @@ fn dump_cs(input: &Input, solver: &Solver) {
         println!("        ],");
         println!("        \"soft\": [");
         for &SectionWithPenalty{ section: sec, penalty } in &solsec.soft_conflicts_list {
-            let other = &input.input_sections[sec];
+            let other = &solver.input_sections[sec];
             if other.prefix != "CS" && other.prefix != "SE" && other.prefix != "IT" {
                 continue;
             }

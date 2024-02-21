@@ -12,7 +12,6 @@ impl ScoreCriterion for SoftConflictCriterion {
     fn check(
         &self,
         solver: &Solver,
-        input: &Input,
         section: usize,
         records: &mut Vec<SectionScoreRecord>,
     ) {
@@ -40,7 +39,7 @@ impl ScoreCriterion for SoftConflictCriterion {
             };
 
             // we only care if there is an overlap
-            if !input.time_slots_conflict(my_time_slot, other_time_slot) {
+            if !time_slots_conflict(solver, my_time_slot, other_time_slot) {
                 continue;
             }
 
@@ -62,14 +61,14 @@ impl ScoreCriterion for SoftConflictCriterion {
             .collect()
     }
 
-    fn debug(&self, input: &Input) -> String {
+    fn debug(&self, solver: &Solver) -> String {
         let mut s = String::new();
         write!(&mut s, "soft conflicts:").unwrap();
         for elt in &self.sections_with_penalties {
             write!(
                 &mut s,
                 " {}:{}",
-                input.input_sections[elt.section].get_name(),
+                solver.input_sections[elt.section].get_name(),
                 elt.penalty
             )
             .unwrap();
@@ -91,7 +90,6 @@ impl ScoreCriterion for AntiConflictCriterion {
     fn check(
         &self,
         solver: &Solver,
-        _input: &Input,
         section: usize,
         records: &mut Vec<SectionScoreRecord>,
     ) {
@@ -142,18 +140,18 @@ impl ScoreCriterion for AntiConflictCriterion {
         list
     }
 
-    fn debug(&self, input: &Input) -> String {
+    fn debug(&self, solver: &Solver) -> String {
         let mut s = String::new();
         write!(
             &mut s,
             "anticonflict: penalty {}, {} should be in time slot with ",
             self.penalty,
-            input.input_sections[self.single].get_name()
+            solver.input_sections[self.single].get_name()
         )
         .unwrap();
         let mut sep = "";
         for &other in &self.group {
-            write!(&mut s, "{}{}", sep, input.input_sections[other].get_name()).unwrap();
+            write!(&mut s, "{}{}", sep, solver.input_sections[other].get_name()).unwrap();
             sep = ", ";
         }
         s
@@ -170,7 +168,6 @@ impl ScoreCriterion for InstructorClassSpreadCriterion {
     fn check(
         &self,
         solver: &Solver,
-        input: &Input,
         section: usize,
         records: &mut Vec<SectionScoreRecord>,
     ) {
@@ -200,7 +197,7 @@ impl ScoreCriterion for InstructorClassSpreadCriterion {
 
                 // check each day we are interested in
                 for (i, &day) in days.iter().enumerate() {
-                    let ts = &input.time_slots[time_slot];
+                    let ts = &solver.time_slots[time_slot];
 
                     // if this section is not scheduled on a day of interest, ignore it
                     if !ts.days.contains(&day) {
@@ -416,7 +413,7 @@ impl ScoreCriterion for InstructorClassSpreadCriterion {
         self.sections.clone()
     }
 
-    fn debug(&self, input: &Input) -> String {
+    fn debug(&self, solver: &Solver) -> String {
         let mut s = String::new();
         for group in &self.grouped_by_days {
             let days = match &group[0] {
@@ -441,12 +438,12 @@ impl ScoreCriterion for InstructorClassSpreadCriterion {
             write!(
                 &mut s,
                 "; instructor {}; sections ",
-                input.instructors[self.instructor].name
+                solver.instructors[self.instructor].name
             )
             .unwrap();
             let mut sep = "";
             for &sec in &self.sections {
-                write!(&mut s, "{sep}{}", input.input_sections[sec].get_name()).unwrap();
+                write!(&mut s, "{sep}{}", solver.input_sections[sec].get_name()).unwrap();
                 sep = ", ";
             }
             writeln!(&mut s).unwrap();
@@ -517,7 +514,6 @@ impl ScoreCriterion for InstructorRoomCountCriterion {
     fn check(
         &self,
         solver: &Solver,
-        _input: &Input,
         section: usize,
         records: &mut Vec<SectionScoreRecord>,
     ) {
@@ -555,17 +551,17 @@ impl ScoreCriterion for InstructorRoomCountCriterion {
         self.sections.clone()
     }
 
-    fn debug(&self, input: &Input) -> String {
+    fn debug(&self, solver: &Solver) -> String {
         let mut s = String::new();
         write!(
             &mut s,
             "    room count: penalty {}, {} should fit in {} rooms, sections: ",
-            self.penalty, input.instructors[self.instructor].name, self.desired,
+            self.penalty, solver.instructors[self.instructor].name, self.desired,
         )
         .unwrap();
         let mut sep = "";
         for &elt in &self.sections {
-            write!(&mut s, "{}{}", sep, input.input_sections[elt].get_name()).unwrap();
+            write!(&mut s, "{}{}", sep, solver.input_sections[elt].get_name()).unwrap();
             sep = ", ";
         }
         s
@@ -583,7 +579,6 @@ impl SectionScoreRecord {
     pub fn gather_score_messages(
         &self,
         solver: &Solver,
-        input: &Input,
         list: &mut Vec<(isize, String)>,
         include_dups: bool,
     ) {
@@ -614,17 +609,17 @@ impl SectionScoreRecord {
                 let message = if ts_a == ts_b {
                     format!(
                         "course conflict: {} and {} both meet at {}",
-                        input.input_sections[a].get_name(),
-                        input.input_sections[b].get_name(),
-                        input.time_slots[ts_a].name
+                        solver.input_sections[a].get_name(),
+                        solver.input_sections[b].get_name(),
+                        solver.time_slots[ts_a].name
                     )
                 } else {
                     format!(
                         "course conflict: {} at {} overlaps {} at {}",
-                        input.input_sections[a].get_name(),
-                        input.time_slots[ts_a].name,
-                        input.input_sections[b].get_name(),
-                        input.time_slots[ts_b].name
+                        solver.input_sections[a].get_name(),
+                        solver.time_slots[ts_a].name,
+                        solver.input_sections[b].get_name(),
+                        solver.time_slots[ts_b].name
                     )
                 };
                 list.push((*local, message));
@@ -641,13 +636,13 @@ impl SectionScoreRecord {
                 else {
                     panic!("RoomTimePenalty on unplaced section");
                 };
-                let elt = &input.input_sections[*section];
+                let elt = &solver.input_sections[*section];
 
                 let message = format!(
                     "room/time: {} meets in {} at {}",
                     elt.get_name(),
-                    input.rooms[room].name,
-                    input.time_slots[time_slot].name
+                    solver.rooms[room].name,
+                    solver.time_slots[time_slot].name
                 );
                 list.push((*local, message));
             }
@@ -657,7 +652,7 @@ impl SectionScoreRecord {
                 local,
                 ..
             } => {
-                let message = format!("unplaced section: {}", input.input_sections[*section].get_name());
+                let message = format!("unplaced section: {}", solver.input_sections[*section].get_name());
                 list.push((*local, message));
             }
 
@@ -670,19 +665,19 @@ impl SectionScoreRecord {
                     let other = group[0];
                     format!(
                         "anticonflict: section {} is not at the same time as {}",
-                        input.input_sections[*single].get_name(),
-                        input.input_sections[other].get_name()
+                        solver.input_sections[*single].get_name(),
+                        solver.input_sections[other].get_name()
                     )
                 } else {
                     let mut s = format!(
                         "anticonflict: section {} is not at the same time as ",
-                        input.input_sections[*single].get_name()
+                        solver.input_sections[*single].get_name()
                     );
                     let mut or = "";
                     for elt in group {
                         s.push_str(or);
                         or = " or ";
-                        s.push_str(&input.input_sections[*elt].get_name());
+                        s.push_str(&solver.input_sections[*elt].get_name());
                     }
                     s
                 };
@@ -701,7 +696,7 @@ impl SectionScoreRecord {
             } => {
                 let message = format!(
                     "class cluster: {} has a cluster of classes that is too {}",
-                    input.instructors[*instructor].name,
+                    solver.instructors[*instructor].name,
                     if *is_too_short { "short" } else { "long" }
                 );
                 list.push((*local, message));
@@ -719,7 +714,7 @@ impl SectionScoreRecord {
             } => {
                 let message = format!(
                     "class cluster: {} has a gap between clusters that is too {}",
-                    input.instructors[*instructor].name,
+                    solver.instructors[*instructor].name,
                     if *is_too_short { "short" } else { "long" }
                 );
                 list.push((*local, message));
@@ -738,7 +733,7 @@ impl SectionScoreRecord {
             } => {
                 let message = format!(
                     "days off: {} wanted {} day{} off but got {}",
-                    input.instructors[*instructor].name,
+                    solver.instructors[*instructor].name,
                     desired,
                     if *desired == 1 { "" } else { "s" },
                     actual
@@ -753,7 +748,7 @@ impl SectionScoreRecord {
             } => {
                 let message = format!(
                     "class spread: {} has more classes some days than others",
-                    input.instructors[*instructor].name
+                    solver.instructors[*instructor].name
                 );
                 list.push((*local, message));
             }
@@ -771,7 +766,7 @@ impl SectionScoreRecord {
             } => {
                 let message = format!(
                     "room placement: {} wanted all classes in {} room{} but got {} room{}",
-                    input.instructors[*instructor].name,
+                    solver.instructors[*instructor].name,
                     desired,
                     if *desired == 1 { "" } else { "s" },
                     actual,

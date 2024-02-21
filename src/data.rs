@@ -1,7 +1,9 @@
 use super::input::*;
+use super::solver::Solver;
 
-pub fn input() -> Result<Input, String> {
-    let mut t = Input::new("Spring 2024", date(2024, 1, 8)?, date(2024, 4, 25)?);
+pub fn input() -> Result<Solver, String> {
+    let mut solver = Solver::new("Spring 2024", date(2024, 1, 8)?, date(2024, 4, 25)?);
+    let mut t = &mut solver;
 
     holiday!(t, 2024, 1, 15);
     holiday!(t, 2024, 2, 19);
@@ -61,10 +63,10 @@ pub fn input() -> Result<Input, String> {
     crosslist!(t, "BIOL 3030-01" cross-list with "BIOL 3030-02");
     crosslist!(t, "BTEC 2050-01" cross-list with "BTEC 2050-02");
 
-    Ok(t)
+    Ok(solver)
 }
 
-pub fn input_computing(t: &mut Input) -> Result<(), String> {
+pub fn input_computing(t: &mut Solver) -> Result<(), String> {
     instructor!(t,
         name:
             "Bart Stander",
@@ -378,7 +380,7 @@ pub fn input_computing(t: &mut Input) -> Result<(), String> {
     Ok(())
 }
 
-pub fn input_computing_conflicts(t: &mut Input) -> Result<(), String> {
+pub fn input_computing_conflicts(t: &mut Solver) -> Result<(), String> {
     conflict!(t, set hard,
             clique: "CS 2420", "CS 2450", "CS 2810", "CS 3005"); // 3rd/4th semester classes
     conflict!(t, set hard,
@@ -488,7 +490,7 @@ pub fn input_computing_conflicts(t: &mut Input) -> Result<(), String> {
     Ok(())
 }
 
-pub fn input_times(t: &mut Input) -> Result<(), String> {
+pub fn input_times(t: &mut Solver) -> Result<(), String> {
     time!(t, name: "F0800+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
     time!(t, name: "F0900+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
     time!(t, name: "F1000+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
@@ -786,7 +788,7 @@ pub fn input_times(t: &mut Input) -> Result<(), String> {
     Ok(())
 }
 
-pub fn input_set(t: &mut Input) -> Result<(), String> {
+pub fn input_set(t: &mut Solver) -> Result<(), String> {
     room!(t, name: "BROWN 201", capacity: 65);
     room!(t, name: "COE 121", capacity: 50);
     room!(t, name: "HCC 476", capacity: 20);
@@ -5417,7 +5419,7 @@ pub fn input_set(t: &mut Input) -> Result<(), String> {
     Ok(())
 }
 
-pub fn input_set_conflicts(t: &mut Input) -> Result<(), String> {
+pub fn input_set_conflicts(t: &mut Solver) -> Result<(), String> {
     // envs envs emphasis
     conflict!(t, set penalty to 99,
             clique: "ENVS 1210", "ENVS 1215",
@@ -5914,7 +5916,7 @@ pub fn input_set_conflicts(t: &mut Input) -> Result<(), String> {
     Ok(())
 }
 
-pub fn input_prereqs(t: &mut Input) -> Result<(), String> {
+pub fn input_prereqs(t: &mut Solver) -> Result<(), String> {
     add_prereqs!(t, course: "CS 1400", prereqs: "CS 1030", "MATH 1010");
     add_prereqs!(t, course: "CS 1410", prereqs: "CS 1400");
     add_prereqs!(t, course: "CS 2420", prereqs: "CS 1410");
@@ -6172,7 +6174,7 @@ pub fn input_prereqs(t: &mut Input) -> Result<(), String> {
     Ok(())
 }
 
-pub fn input_multiples(t: &mut Input) -> Result<(), String> {
+pub fn input_multiples(t: &mut Solver) -> Result<(), String> {
     multiple_sections_reduce_penalties!(t,
             courses:
                 "BIOL 1010", "BIOL 1015", "BIOL 1200", "BIOL 1610", "BIOL 1615", "BIOL 1620", "BIOL 1625",
