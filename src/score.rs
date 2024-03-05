@@ -129,7 +129,7 @@ impl ScoreCriterion for AntiConflictCriterion {
             },
             details: SectionScoreDetails::AntiConflict {
                 single: self.single,
-                group: placed,
+                group: self.group.clone(),
             },
         });
     }

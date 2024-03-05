@@ -21,47 +21,47 @@ pub fn input() -> Result<Solver, String> {
     room!(t, name: "Smith 116", capacity: 38, tags: "stadium");
     room!(t, name: "Smith 117", capacity: 38, tags: "stadium");
 
-    //    time!(t, name: "MWF0800+50", tags: "3 credit bell schedule", "3×50", "mwf");
-    //    time!(t, name: "MWF0900+50", tags: "3 credit bell schedule", "3×50", "mwf");
-    //    time!(t, name: "MWF1000+50", tags: "3 credit bell schedule", "3×50", "mwf");
-    //    time!(t, name: "MWF1100+50", tags: "3 credit bell schedule", "3×50", "mwf");
-    //    time!(t, name: "MW1200+75", tags: "3 credit bell schedule", "2×75", "mw");
-    //    time!(t, name: "MW1330+75", tags: "3 credit bell schedule", "2×75", "mw");
-    //    time!(t, name: "MW1500+75", tags: "3 credit bell schedule", "2×75", "mw");
-    //    time!(t, name: "MW1630+75", tags: "3 credit bell schedule", "2×75", "mw");
-    //    time!(t, name: "TR0730+75", tags: "3 credit bell schedule", "2×75", "tr");
-    //    time!(t, name: "TR0900+75", tags: "3 credit bell schedule", "2×75", "tr");
-    //    time!(t, name: "TR1030+75", tags: "3 credit bell schedule", "2×75", "tr");
-    //    time!(t, name: "TR1200+75", tags: "3 credit bell schedule", "2×75", "tr");
-    //    time!(t, name: "TR1330+75", tags: "3 credit bell schedule", "2×75", "tr");
-    //    time!(t, name: "TR1500+75", tags: "3 credit bell schedule", "2×75", "tr");
-    //    time!(t, name: "TR1630+75", tags: "3 credit bell schedule", "2×75", "tr");
-    //    time!(t, name: "T1800+150", tags: "3 credit evening");
-    //    time!(t, name: "W1800+150", tags: "3 credit evening");
-    //    time!(t, name: "R1800+150", tags: "3 credit evening");
+    time!(t, name: "MWF0800+50", tags: "3 credit bell schedule", "3×50", "mwf");
+    time!(t, name: "MWF0900+50", tags: "3 credit bell schedule", "3×50", "mwf");
+    time!(t, name: "MWF1000+50", tags: "3 credit bell schedule", "3×50", "mwf");
+    time!(t, name: "MWF1100+50", tags: "3 credit bell schedule", "3×50", "mwf");
+    time!(t, name: "MW1200+75", tags: "3 credit bell schedule", "2×75", "mw");
+    time!(t, name: "MW1330+75", tags: "3 credit bell schedule", "2×75", "mw");
+    time!(t, name: "MW1500+75", tags: "3 credit bell schedule", "2×75", "mw");
+    time!(t, name: "MW1630+75", tags: "3 credit bell schedule", "2×75", "mw");
+    time!(t, name: "TR0730+75", tags: "3 credit bell schedule", "2×75", "tr");
+    time!(t, name: "TR0900+75", tags: "3 credit bell schedule", "2×75", "tr");
+    time!(t, name: "TR1030+75", tags: "3 credit bell schedule", "2×75", "tr");
+    time!(t, name: "TR1200+75", tags: "3 credit bell schedule", "2×75", "tr");
+    time!(t, name: "TR1330+75", tags: "3 credit bell schedule", "2×75", "tr");
+    time!(t, name: "TR1500+75", tags: "3 credit bell schedule", "2×75", "tr");
+    time!(t, name: "TR1630+75", tags: "3 credit bell schedule", "2×75", "tr");
+    time!(t, name: "T1800+150", tags: "3 credit evening");
+    time!(t, name: "W1800+150", tags: "3 credit evening");
+    time!(t, name: "R1800+150", tags: "3 credit evening");
     time!(t, name: "R1900+50");
     time!(t, name: "F1300+50");
 
-    input_times(&mut t)?;
+    //input_times(&mut t)?;
     input_computing(&mut t)?;
-    input_set(&mut t)?;
+    //input_set(&mut t)?;
     input_computing_conflicts(&mut t)?;
-    input_set_conflicts(&mut t)?;
+    //input_set_conflicts(&mut t)?;
     input_multiples(&mut t)?;
     input_prereqs(&mut t)?;
 
-    crosslist!(t, "GEO 2700R-01" cross-list with "ENVS 2700R-01");
-    crosslist!(t, "ENVS 3110-01" cross-list with "GEO 3110-01");
-    crosslist!(t, "ECE 4010-01" cross-list with "MECH 4010-01");
-    crosslist!(t, "MECH 3600-01" cross-list with "MECH 3602-01" cross-list with "PHYS 3600-01");
-    crosslist!(t, "MECH 3605-01" cross-list with "PHYS 3605-01");
-    crosslist!(t, "MECH 3605-02" cross-list with "PHYS 3605-02");
+    //crosslist!(t, "GEO 2700R-01" cross-list with "ENVS 2700R-01");
+    //crosslist!(t, "ENVS 3110-01" cross-list with "GEO 3110-01");
+    //crosslist!(t, "ECE 4010-01" cross-list with "MECH 4010-01");
+    //crosslist!(t, "MECH 3600-01" cross-list with "MECH 3602-01" cross-list with "PHYS 3600-01");
+    //crosslist!(t, "MECH 3605-01" cross-list with "PHYS 3605-01");
+    //crosslist!(t, "MECH 3605-02" cross-list with "PHYS 3605-02");
 
-    crosslist!(t, "BIOL 1010-05" cross-list with "BIOL 1010-11");
-    crosslist!(t, "BIOL 2320-04" cross-list with "BIOL 2320-08");
-    crosslist!(t, "BIOL 3010-01" cross-list with "BIOL 3010-02");
-    crosslist!(t, "BIOL 3030-01" cross-list with "BIOL 3030-02");
-    crosslist!(t, "BTEC 2050-01" cross-list with "BTEC 2050-02");
+    //crosslist!(t, "BIOL 1010-05" cross-list with "BIOL 1010-11");
+    //crosslist!(t, "BIOL 2320-04" cross-list with "BIOL 2320-08");
+    //crosslist!(t, "BIOL 3010-01" cross-list with "BIOL 3010-02");
+    //crosslist!(t, "BIOL 3030-01" cross-list with "BIOL 3030-02");
+    //crosslist!(t, "BTEC 2050-01" cross-list with "BTEC 2050-02");
 
     Ok(solver)
 }
@@ -78,7 +78,7 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             "TR  1330-1500",
             "TR  1500-1630" with penalty 10,
     );
-    //default_clustering!(t, instructor: "Bart Stander", days: "mt", days off: 1);
+    default_clustering!(t, instructor: "Bart Stander", days: "mt", days off: 1);
     section!(t, course: "CS 2420-01",
             instructor: "Bart Stander",
             rooms and times: "stadium", "flex" with penalty 10, "3×50");
@@ -101,7 +101,7 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             "MW  1330-1500",
             "TR  1330-1500" with penalty 5,
     );
-    //default_clustering!(t, instructor: "Carol Stander", days: "mt");
+    default_clustering!(t, instructor: "Carol Stander", days: "mt");
     section!(t, course: "CS 1030-01",
             instructor: "Carol Stander",
             rooms and times: "flex", "3 credit bell schedule");
@@ -124,7 +124,7 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             "TR  1030-1330" with penalty 10,
             "TR  1330-1630",
     );
-    //default_clustering!(t, instructor: "Curtis Larsen", days: "mt", days off: 0);
+    default_clustering!(t, instructor: "Curtis Larsen", days: "mt", days off: 0);
     section!(t, course: "CS 3005-01",
             instructor: "Curtis Larsen",
             rooms and times: "Smith 116", "3×50");
@@ -147,7 +147,7 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             "TR 0900-1500",
             "TR 1500-1630" with penalty 10,
     );
-    //default_clustering!(t, instructor: "DJ Holt", days: "mt", days off: 0);
+    default_clustering!(t, instructor: "DJ Holt", days: "mt", days off: 0);
     section!(t, course: "SE 3010-01",
             instructor: "DJ Holt",
             rooms and times: "flex", "macs", "MW1500+75"); // same day as SE4200
@@ -183,7 +183,7 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             "TR  0900-1500",
             "TR  1500-1630" with penalty 5,
     );
-    //default_clustering!(t, instructor: "Jay Sneddon", days: "mt", days off: 0);
+    default_clustering!(t, instructor: "Jay Sneddon", days: "mt", days off: 0);
     section!(t, course: "IT 1200-01",
             instructor: "Jay Sneddon",
             rooms and times: "Smith 107", "tr");
@@ -229,7 +229,7 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             "MWF 0800-1200",
             "MW  1330-1500",
     );
-    //default_clustering!(t, instructor: "Joe Francom", days: "mt", days off: 1);
+    default_clustering!(t, instructor: "Joe Francom", days: "mt", days off: 1);
     section!(t, course: "IT 3110-01",
             instructor: "Joe Francom",
             rooms and times: "flex", "3 credit bell schedule");
@@ -244,7 +244,7 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             "TR 0900-1500",
             "MW 1500-1630" with penalty 15,
     );
-    //default_clustering!(t, instructor: "Lora Klein", days: "mt");
+    default_clustering!(t, instructor: "Lora Klein", days: "mt");
     section!(t, course: "SE 3200-01",
             instructor: "Lora Klein",
             rooms and times: "Smith 107" with penalty 5, "flex", "3 credit bell schedule");
@@ -258,7 +258,7 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             "MW 1200-1330",
             "TR 0900-1330",
     );
-    //default_clustering!(t, instructor: "Matt Kearl", days: "mt", days off: 1);
+    default_clustering!(t, instructor: "Matt Kearl", days: "mt", days off: 1);
     section!(t, course: "SE 3450-01",
             instructor: "Matt Kearl",
             rooms and times: "flex", "macs", "3 credit bell schedule");
@@ -279,7 +279,7 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             "TR  0900-1500",
             "TR  1500-1630" with penalty 10,
     );
-    //default_clustering!(t, instructor: "Phil Daley", days: "mt", days off: 0);
+    default_clustering!(t, instructor: "Phil Daley", days: "mt", days off: 0);
     section!(t, course: "IT 1100-01",
             instructor: "Phil Daley",
             rooms and times: "pcs", "3 credit bell schedule");
@@ -304,16 +304,16 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             rooms and times: "flex", "R1800+150");
 
     instructor!(t,
-       name:
-           "Ren Quinn",
-       available:
-           "MWF 0900-1200",
-           "TR  1200-1330" with penalty 5,
-           "TR  1330-1630",
-           "R   1900-2000",
-           "F   1300-1400",
+        name:
+            "Ren Quinn",
+        available:
+            "MWF 0900-1200",
+            "TR  1200-1330" with penalty 5,
+            "TR  1330-1630",
+            "R   1900-2000",
+            "F   1300-1400",
     );
-    //default_clustering!(t, instructor: "Ren Quinn", days: "mt", days off: 0);
+    default_clustering!(t, instructor: "Ren Quinn", days: "mt", days off: 0);
     section!(t, course: "CS 1400-02",
             instructor: "Ren Quinn",
             rooms and times: "flex", "3 credit bell schedule");
@@ -5951,7 +5951,7 @@ pub fn input_prereqs(t: &mut Solver) -> Result<(), String> {
     add_prereqs!(t, course: "SE 3200", prereqs: "CS 1410", "SE 1400", "CS 2810");
     add_prereqs!(t, course: "SE 3400", prereqs: "SE 1400");
     add_prereqs!(t, course: "SE 3450", prereqs: "SE 1400");
-    add_prereqs!(t, course: "SE 4600", prereqs: "CS 2420", "CS 2810", "CS 3005", "SE 1400", "SE 3200"); // sorta
+    add_prereqs!(t, course: "SE 4600", prereqs: "CS 2420", "CS 2450", "CS 2810", "CS 3005", "SE 1400", "SE 3200"); // sorta
     add_prereqs!(t, course: "SE 4200", prereqs: "SE 3200");
 
     add_prereqs!(t, course: "IT 2300", prereqs: "CS 1400", "IT 1100", "CS 1410");

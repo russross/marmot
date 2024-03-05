@@ -259,9 +259,16 @@ impl PlacementLog {
 
         for &section in &sections_being_moved {
             // gather adjacent sections based on the old scoring
+            for neighbor in &solver.sections[section].neighbors {
+                if !sections_being_moved.contains(neighbor) {
+                    adjacent.push(*neighbor);
+                }
+            }
+            /*
             solver.sections[section]
                 .score
                 .gather_adjacent_sections(&mut adjacent, &sections_being_moved);
+            */
 
             // undo the old score on section being moved
             solver.score -= solver.sections[section].score.global;
@@ -277,9 +284,16 @@ impl PlacementLog {
             solver.score += solver.sections[section].score.global;
 
             // gather adjacent sections based on the new scoring
+            for neighbor in &solver.sections[section].neighbors {
+                if !sections_being_moved.contains(neighbor) {
+                    adjacent.push(*neighbor);
+                }
+            }
+            /*
             solver.sections[section]
                 .score
                 .gather_adjacent_sections(&mut adjacent, &sections_being_moved);
+            */
         }
 
         // dedup adjacent section list
@@ -1318,7 +1332,7 @@ pub fn solve(solver: &mut Solver, iterations: usize) {
     let mut best_score = solver.score + 1;
     println!("initial score = {}", solver.score);
     let mut initial = true;
-    let mut pause = true;
+    let mut pause = false;
 
     for iteration in 0..iterations {
         if pause {
@@ -1359,7 +1373,7 @@ pub fn solve(solver: &mut Solver, iterations: usize) {
         }
         let score = solver.score;
         if score < best_score {
-            pause = true;
+            pause = false;
             best_score = score;
             winner = solver.clone();
 

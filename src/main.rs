@@ -143,23 +143,23 @@ fn dump_cs(solver: &Solver) {
     println!("course_data = {{");
     for i in 0..solver.input_sections.len() {
         let section = &solver.input_sections[i];
-        //if section.prefix != "CS" && section.prefix != "SE" && section.prefix != "IT" {
-            //continue;
-        //}
+        if section.prefix != "CS" && section.prefix != "SE" && section.prefix != "IT" {
+            continue;
+        }
         let solsec = &solver.sections[i];
         if solsec.is_secondary_cross_listing {
             continue;
         }
         println!("    \"{}\": {{", section.get_name());
-        println!("        \"room_times\": [");
+        println!("        \"room_times\": {{");
         for &RoomTimeWithPenalty{ room, time_slot, penalty } in &solsec.room_times {
             println!("            (\"{}\", \"{}\", {}),",
                 solver.rooms[room].name,
                 solver.time_slots[time_slot].name,
                 penalty);
         }
-        println!("        ],");
-        println!("        \"hard\": [");
+        println!("        }},");
+        println!("        \"hard\": {{");
         for &hard in &solsec.hard_conflicts {
             let other = &solver.input_sections[hard];
             if other.prefix != "CS" && other.prefix != "SE" && other.prefix != "IT" {
@@ -167,16 +167,16 @@ fn dump_cs(solver: &Solver) {
             }
             println!("            \"{}\",", other.get_name());
         }
-        println!("        ],");
-        println!("        \"soft\": [");
+        println!("        }},");
+        println!("        \"soft\": {{");
         for &SectionWithPenalty{ section: sec, penalty } in &solsec.soft_conflicts_list {
             let other = &solver.input_sections[sec];
             if other.prefix != "CS" && other.prefix != "SE" && other.prefix != "IT" {
                 continue;
             }
-            println!("            (\"{}\", {}),", other.get_name(), penalty);
+            println!("            \"{}\": {},", other.get_name(), penalty);
         }
-        println!("        ],");
+        println!("        }},");
         println!("    }},");
     }
     println!("}}");
