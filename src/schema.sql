@@ -127,7 +127,7 @@ CREATE TABLE faculty (
     department          TEXT NOT NULL,
 
     PRIMARY KEY (term, faculty),
-    FOREIGN KEY (term, department) REFERENCES departments (term, department)
+    FOREIGN KEY (term, department) REFERENCES departments (term, department) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
 
 CREATE TABLE availability (
@@ -157,7 +157,7 @@ CREATE TABLE courses (
     course_number       TEXT GENERATED ALWAYS AS (substr(course, instr(course, ' ') + 1)) VIRTUAL NOT NULL,
 
     CHECK (length(prefix) >= 1),
-    CHECK (length(course_number) >= 4),
+    CHECK (length(course_number) >= 3),
 
     PRIMARY KEY (term, course),
     FOREIGN KEY (term, department) REFERENCES departments (term, department) ON DELETE CASCADE ON UPDATE CASCADE
@@ -226,7 +226,7 @@ CREATE TABLE conflict_courses (
     term                TEXT NOT NULL,
     program             TEXT NOT NULL,
     conflict_name       TEXT NOT NULL,
-    course              TEXT,
+    course              TEXT NOT NULL,
 
     PRIMARY KEY (term, program, conflict_name, course),
     FOREIGN KEY (term, program, conflict_name) REFERENCES conflicts (term, program, conflict_name) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -237,7 +237,7 @@ CREATE TABLE conflict_sections (
     term                TEXT NOT NULL,
     program             TEXT NOT NULL,
     conflict_name       TEXT NOT NULL,
-    section             TEXT,
+    section             TEXT NOT NULL,
 
     PRIMARY KEY (term, program, conflict_name, section),
     FOREIGN KEY (term, program, conflict_name) REFERENCES conflicts (term, program, conflict_name) ON DELETE CASCADE ON UPDATE CASCADE,
