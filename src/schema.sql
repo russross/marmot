@@ -157,10 +157,30 @@ CREATE TABLE courses (
     course_number       TEXT GENERATED ALWAYS AS (substr(course, instr(course, ' ') + 1)) VIRTUAL NOT NULL,
 
     CHECK (length(prefix) >= 1),
-    CHECK (length(course_number) >= 3),
+    CHECK (length(course_number) >= 4),
 
     PRIMARY KEY (term, course),
     FOREIGN KEY (term, department) REFERENCES departments (term, department) ON DELETE CASCADE ON UPDATE CASCADE
+) WITHOUT ROWID;
+
+CREATE TABLE prereqs (
+    term                TEXT NOT NULL,
+    course              TEXT NOT NULL,
+    prereq              TEXT NOT NULL,
+
+    PRIMARY KEY (term, course, prereq),
+    FOREIGN KEY (term, course) REFERENCES courses (term, course) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (term, prereq) REFERENCES courses (term, course) ON DELETE CASCADE ON UPDATE CASCADE
+) WITHOUT ROWID;
+
+CREATE TABLE coreqs (
+    term                TEXT NOT NULL,
+    course              TEXT NOT NULL,
+    coreq               TEXT NOT NULL,
+
+    PRIMARY KEY (term, course, coreq),
+    FOREIGN KEY (term, course) REFERENCES courses (term, course) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (term, coreq) REFERENCES courses (term, course) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
 
 CREATE TABLE sections (

@@ -161,6 +161,22 @@ def make_course(db, department, course, course_name):
     db.execute('INSERT INTO courses VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?)', (department, course, course_name))
 
 @cli.command()
+@click.argument('course')
+@click.argument('prereqs', nargs=-1)
+@click.pass_obj
+def add_prereqs(db, course, prereqs):
+    for elt in prereqs:
+        db.execute('INSERT INTO prereqs VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (course, elt))
+
+@cli.command()
+@click.argument('course')
+@click.argument('coreqs', nargs=-1)
+@click.pass_obj
+def add_coreqs(db, course, coreqs):
+    for elt in coreqs:
+        db.execute('INSERT INTO coreqs VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (course, elt))
+
+@cli.command()
 @click.argument('section')
 @click.argument('tags', nargs=-1)
 @click.pass_obj

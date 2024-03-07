@@ -8,24 +8,9 @@ rm -f timetable.db
 echo building schema
 sqlite3 timetable.db < schema.sql
 
-echo building computing data set
-echo building term and holidays
-./edit make-term 'Computing' 2024-01-08 2024-04-25
-./edit make-holiday 2024-01-15
-./edit make-holiday 2024-02-19
-./edit make-holiday 2024-03-11
-./edit make-holiday 2024-03-12
-./edit make-holiday 2024-03-13
-./edit make-holiday 2024-03-14
-./edit make-holiday 2024-03-15
-
-source computing.sh
-
-sqlite3 timetable.db 'UPDATE terms SET current = false'
-
 echo building combined cset data set
 echo building term and holidays
-./edit make-term 'CSET' 2024-01-08 2024-04-25
+./edit make-term 'Spring 2024' 2024-01-08 2024-04-25
 ./edit make-holiday 2024-01-15
 ./edit make-holiday 2024-02-19
 ./edit make-holiday 2024-03-11
@@ -34,6 +19,7 @@ echo building term and holidays
 ./edit make-holiday 2024-03-14
 ./edit make-holiday 2024-03-15
 
+source courses.sh
 source computing.sh
 
 echo building cset buildings and rooms
@@ -382,508 +368,311 @@ echo building cset time slots
 ./edit make-time-slot 'S1000+300'
 
 
-echo building cset departments and courses
-#./edit make-department Biology
-./edit make-course Biology 'BIOL 1010' 'General Biology (LS)'
-./edit make-course Biology 'BIOL 1015' 'General Biology Lab (LAB)'
-./edit make-course Biology 'BIOL 1200' 'Human Biology (LS)'
-#./edit make-course Biology 'BIOL 1610' 'Principles of Biology I (LS)'
-#./edit make-course Biology 'BIOL 1615' 'Principles of Biology I Lab (LAB)'
-./edit make-course Biology 'BIOL 1620' 'Principles of Biology II'
-./edit make-course Biology 'BIOL 1625' 'Principles of Biology II Lab'
-./edit make-course Biology 'BIOL 2060' 'Principles of Microbiology'
-./edit make-course Biology 'BIOL 2065' 'Principles of Microbiology Lab'
-./edit make-course Biology 'BIOL 2300' 'Fundamentals of Bioinformatics'
-./edit make-course Biology 'BIOL 2320' 'Human Anatomy'
-./edit make-course Biology 'BIOL 2325' 'Human Anatomy Lab'
-./edit make-course Biology 'BIOL 2420' 'Human Physiology'
-./edit make-course Biology 'BIOL 2425' 'Human Physiology Lab'
-./edit make-course Biology 'BIOL 2991R' 'Careers in Biology'
-./edit make-course Biology 'BIOL 3000R' 'Advanced Utah Health Scholars Students'
-./edit make-course Biology 'BIOL 3010' 'Evolution'
-./edit make-course Biology 'BIOL 3030' 'Genetics'
-./edit make-course Biology 'BIOL 3040' 'General Ecology'
-./edit make-course Biology 'BIOL 3045' 'General Ecology Lab'
-./edit make-course Biology 'BIOL 3100' 'Bioethics'
-./edit make-course Biology 'BIOL 3110' 'Scientific Writing'
-./edit make-course Biology 'BIOL 3150' 'Biostatistics & the Sci Method'
-./edit make-course Biology 'BIOL 3155' 'Scientific Method and Experimental Design'
-./edit make-course Biology 'BIOL 3230R' 'Cadaver Practicum'
-./edit make-course Biology 'BIOL 3250' 'Cancer Biology'
-./edit make-course Biology 'BIOL 3300' 'Introduction to Bioinformatics'
-./edit make-course Biology 'BIOL 3420' 'Advanced Human Physiology'
-./edit make-course Biology 'BIOL 3450' 'General Microbiology'
-./edit make-course Biology 'BIOL 3455' 'General Microbiology Lab'
-./edit make-course Biology 'BIOL 3460' 'Biology of Infectious Disease'
-./edit make-course Biology 'BIOL 4040' 'Medical Ecology'
-./edit make-course Biology 'BIOL 4200' 'Plant Taxonomy (ALPP)'
-./edit make-course Biology 'BIOL 4205' 'Plant Taxonomy Lab (ALPP)'
-./edit make-course Biology 'BIOL 4280' 'Marine Biology'
-./edit make-course Biology 'BIOL 4300' 'Molecular Biology'
-./edit make-course Biology 'BIOL 4305' 'Molecular Biology Laboratory'
-./edit make-course Biology 'BIOL 4310' 'Advanced Bioinformatics'
-./edit make-course Biology 'BIOL 4350' 'Animal Behavior'
-./edit make-course Biology 'BIOL 4355' 'Animal Behavior Lab'
-./edit make-course Biology 'BIOL 4440' 'General Entomology'
-./edit make-course Biology 'BIOL 4600' 'Plant Physiology'
-./edit make-course Biology 'BIOL 4605' 'Plant Physiology Lab'
-./edit make-course Biology 'BIOL 4810R' 'Independent Research'
-./edit make-course Biology 'BIOL 4890R' 'Life Science Internship'
-./edit make-course Biology 'BIOL 4910' 'Senior Seminar'
-./edit make-course Biology 'BIOL 4990R' 'Seminar in Biology'
-./edit make-course Biology 'BTEC 1010' 'Fundamentals of Biotechnology'
-./edit make-course Biology 'BTEC 2020' 'Protein Purification and Analysis'
-./edit make-course Biology 'BTEC 2030' 'Cell Culture Techniques'
-./edit make-course Biology 'BTEC 2050' 'Zebrafish Maintenance & Method'
-./edit make-course Biology 'BTEC 3010' 'Sequencing Methods & Technique'
-./edit make-course Biology 'BTEC 4050' 'In Situ Hybridization'
-
-./edit make-department Chemistry
-./edit make-course Chemistry 'CHEM 1010' 'Introduction to Chemistry (PS)'
-./edit make-course Chemistry 'CHEM 1015' 'Introduction to Chemistry Lab (LAB)'
-./edit make-course Chemistry 'CHEM 1120' 'Elem Organic / Bio Chemistry'
-./edit make-course Chemistry 'CHEM 1125' 'Elem Organic/Bio Chemistry Lab'
-./edit make-course Chemistry 'CHEM 1150' 'Integrated Chemistry for Health Sciences (PS)'
-./edit make-course Chemistry 'CHEM 1155' 'Integrated Chemistry for Health Sciences Laboratory (LAB)'
-./edit make-course Chemistry 'CHEM 1210' 'Principles of Chemistry I (PS)'
-./edit make-course Chemistry 'CHEM 1215' 'Principles of Chemistry I Lab (LAB)'
-./edit make-course Chemistry 'CHEM 1220' 'Principles of Chemistry II'
-./edit make-course Chemistry 'CHEM 1225' 'Principles of Chemistry II Lab'
-./edit make-course Chemistry 'CHEM 2310' 'Organic Chemistry I'
-./edit make-course Chemistry 'CHEM 2315' 'Organic Chemistry I Lab'
-./edit make-course Chemistry 'CHEM 2320' 'Organic Chemistry II'
-./edit make-course Chemistry 'CHEM 2325' 'Organic Chemistry II Lab'
-./edit make-course Chemistry 'CHEM 3070' 'Physical Chemistry II'
-./edit make-course Chemistry 'CHEM 3075' 'Physical Chemistry II Lab'
-./edit make-course Chemistry 'CHEM 3300' 'Instrumental Analysis'
-./edit make-course Chemistry 'CHEM 3510' 'Biochemistry I'
-./edit make-course Chemistry 'CHEM 3515' 'Biochemistry I Lab'
-./edit make-course Chemistry 'CHEM 3520' 'Biochemistry II'
-./edit make-course Chemistry 'CHEM 3525' 'Biochemistry II Lab'
-./edit make-course Chemistry 'CHEM 4800R' 'Independent Research'
-./edit make-course Chemistry 'CHEM 4910' 'Chemistry Senior Seminar'
-
-#./edit make-department Engineering
-./edit make-course Engineering 'ECE 2100' 'Semiconductor Devices'
-./edit make-course Engineering 'ECE 2280' 'Microelectronics'
-./edit make-course Engineering 'ECE 2285' 'Microelectronics Lab'
-./edit make-course Engineering 'ECE 3500' 'Signals and Systems'
-./edit make-course Engineering 'ECE 3600' 'Power Electronics'
-./edit make-course Engineering 'ECE 3605' 'Power Electronics Lab'
-./edit make-course Engineering 'ECE 4010' 'EE Product Design II'
-./edit make-course Engineering 'ECE 4510' 'Image Processing'
-./edit make-course Engineering 'ECE 4730' 'Embedded Systems II'
-./edit make-course Engineering 'ECE 4735' 'Embedded Systems II Lab'
-./edit make-course Engineering 'ECE 4990' 'Special Topics'
-./edit make-course Engineering 'MECH 1100' 'Manufacturing Processes'
-./edit make-course Engineering 'MECH 1150' 'Prototyping Techniques'
-./edit make-course Engineering 'MECH 1200' 'Coding'
-./edit make-course Engineering 'MECH 1205' 'Coding Lab'
-./edit make-course Engineering 'MECH 2030' 'Dynamics'
-./edit make-course Engineering 'MECH 2160' 'Materials Science'
-./edit make-course Engineering 'MECH 2250' 'Sensors & Actuators'
-./edit make-course Engineering 'MECH 2255' 'Sensors & Actuators Lab'
-./edit make-course Engineering 'MECH 3250' 'Machinery'
-./edit make-course Engineering 'MECH 3255' 'Machinery Lab'
-./edit make-course Engineering 'MECH 3600' 'Thermodynamics'
-./edit make-course Engineering 'MECH 3602' 'Thermo II'
-./edit make-course Engineering 'MECH 3605' 'Thermodynamics Lab'
-./edit make-course Engineering 'MECH 3650' 'Heat Transfer'
-./edit make-course Engineering 'MECH 3655' 'Heat Transfer Lab'
-./edit make-course Engineering 'MECH 4010' 'Product Design II'
-./edit make-course Engineering 'MECH 4500' 'Advanced Engineering Math'
-./edit make-course Engineering 'MECH 4860R' 'Design Practicum'
-./edit make-course Engineering 'MECH 4990' 'Special Topics: Finite Element Analysis'
-./edit make-course Engineering 'MTRN 2350' 'Advanced PLC Programming'
-./edit make-course Engineering 'MTRN 2355' 'Advanced PLC Programming Lab'
-./edit make-course Engineering 'PHYS 1010' 'Elementary Physics (PS)'
-./edit make-course Engineering 'PHYS 1015' 'Elementary Physics Lab (LAB)'
-./edit make-course Engineering 'PHYS 1040' 'Elementary Astronomy (PS)'
-./edit make-course Engineering 'PHYS 1045' 'Elementary Astronomy Lab (LAB)'
-./edit make-course Engineering 'PHYS 2010' 'College Physics I (PS)'
-./edit make-course Engineering 'PHYS 2015' 'College Physics I Lab (LAB)'
-./edit make-course Engineering 'PHYS 2020' 'College Physics II'
-./edit make-course Engineering 'PHYS 2025' 'College Physics II Lab'
-#./edit make-course Engineering 'PHYS 2210' 'Physics/Scientists Engineers I (PS)'
-#./edit make-course Engineering 'PHYS 2215' 'Physics/Scientists Engineers I Lab (LAB)'
-./edit make-course Engineering 'PHYS 2220' 'Physics/Scientists Engineers II'
-./edit make-course Engineering 'PHYS 2225' 'Physics/Scientists Engineers II Lab'
-./edit make-course Engineering 'PHYS 3600' 'Thermodynamics'
-./edit make-course Engineering 'PHYS 3605' 'Thermodynamics Lab'
-
-./edit make-department Earth
-./edit make-course Earth 'ENVS 1010' 'Intro to Environmental Science (PS)'
-./edit make-course Earth 'ENVS 1099' 'Recitation for Majors'
-./edit make-course Earth 'ENVS 1210' 'Introduction to Environmental Science'
-./edit make-course Earth 'ENVS 1215' 'Introduction to Environmental Science Laboratory'
-./edit make-course Earth 'ENVS 2099R' 'Special Topics in Environmental Science: The Geology of Foundation Engineering in Southern Utah'
-./edit make-course Earth 'ENVS 2210' 'Environmental Pollution and Remediation Techniques'
-./edit make-course Earth 'ENVS 2700R' 'Field Methods EnvSci'
-./edit make-course Earth 'ENVS 3110' 'Scientific Writing'
-./edit make-course Earth 'ENVS 3210' 'Soil Science'
-./edit make-course Earth 'ENVS 3280' 'Environmental Law'
-./edit make-course Earth 'ENVS 3410' 'Air Quality and Control'
-./edit make-course Earth 'ENVS 3920' 'Peruvian Amazon Natural Histor'
-./edit make-course Earth 'ENVS 4910' 'Senior Seminar'
-./edit make-course Earth 'GEO 1010' 'Introduction to Geology (PS)'
-./edit make-course Earth 'GEO 1015' 'Introduction to Geology Lab (LAB)'
-./edit make-course Earth 'GEO 1050' 'Geology of the National Parks (PS)'
-./edit make-course Earth 'GEO 1110' 'Physical Geology (PS)'
-./edit make-course Earth 'GEO 1115' 'Physical Geology Lab'
-./edit make-course Earth 'GEO 1220' 'Historical Geology'
-./edit make-course Earth 'GEO 1225' 'Historical Geology Lab'
-./edit make-course Earth 'GEO 2700R' 'Field Methods in Geoscience Research'
-./edit make-course Earth 'GEO 3110' 'Scientific Writing'
-./edit make-course Earth 'GEO 3500' 'Geomorphology'
-./edit make-course Earth 'GEO 3600' 'Ig/Met Petrology'
-./edit make-course Earth 'GEO 3710' 'Hydrology'
-./edit make-course Earth 'GEO 4000R' 'Selected Geology Field Excursions'
-./edit make-course Earth 'GEO 4910' 'Senior Seminar'
-./edit make-course Earth 'GEOG 1000' 'Physical Geography (PS)'
-./edit make-course Earth 'GEOG 1005' 'Physical Geography Lab (LAB)'
-./edit make-course Earth 'GEOG 3600' 'Introduction to Geographic Information Systems'
-./edit make-course Earth 'GEOG 3605' 'Introduction to Geographic Information Systems Laboratory'
-./edit make-course Earth 'GEOG 4180' 'Geoprocessing with Python'
-
-#./edit make-department Math
-./edit make-course Math 'MATH 900' 'Transitional Math I'
-./edit make-course Math 'MATH 980' 'Transitional Math IIB'
-./edit make-course Math 'MATH 1010' 'Intermediate Algebra'
-./edit make-course Math 'MATH 1030' 'Quantitative Reasoning (MA)'
-./edit make-course Math 'MATH 1040' 'Introduction to Statistics (MA)'
-./edit make-course Math 'MATH 1050' 'College Algebra / Pre-Calculus (MA)'
-./edit make-course Math 'MATH 1060' 'Trigonometry (MA)'
-./edit make-course Math 'MATH 1080' 'Pre-Calculus with Trigonometry (MA)'
-./edit make-course Math 'MATH 1100' 'Business Calculus (MA)'
-#./edit make-course Math 'MATH 1210' 'Calculus I (MA)'
-#./edit make-course Math 'MATH 1220' 'Calculus II (MA)'
-./edit make-course Math 'MATH 2010' 'Math for Elementary Teachers I'
-./edit make-course Math 'MATH 2020' 'Math for Elemen Teachers II'
-./edit make-course Math 'MATH 2200' 'Discrete Mathematics'
-./edit make-course Math 'MATH 2210' 'Multivariable Calculus (MA)'
-./edit make-course Math 'MATH 2250' 'Differential Equations and Linear Algebra'
-./edit make-course Math 'MATH 2270' 'Linear Algebra'
-./edit make-course Math 'MATH 2280' 'Ordinary Differential Equations'
-./edit make-course Math 'MATH 3050' 'Stochastic Modeling and Applications'
-./edit make-course Math 'MATH 3200' 'Introduction to Analysis I'
-./edit make-course Math 'MATH 3450' 'Statistical Inference'
-./edit make-course Math 'MATH 3900' 'Number Theory'
-./edit make-course Math 'MATH 4250' 'Programming for Scientific Computation'
-./edit make-course Math 'MATH 4400' 'Financial Mathematics'
-./edit make-course Math 'MATH 4410' 'Actuarial Exam FM/ 2 Preparation'
-./edit make-course Math 'MATH 4800' 'Industrial Careers in Mathematics'
-
-./edit make-department Science
-./edit make-course Science 'SCI 4700' 'Secondary Sci Teaching Methods'
-./edit make-course Science 'SCI 4720' 'Innovative Solutions - Product Development'
-
-
-echo building cset programs and conflicts
-
-echo building cset faculty and sections
-
 #
 # SET faculty
 #
 
-./edit make-department DEPARTMENT
-./edit make-faculty 'Alexander R Tye' DEPARTMENT 'MTWRF 0800-1700'
+echo building cset faculty
+
+./edit make-faculty 'Alexander R Tye' Earth 'MTWRF 0800-1700'
 # F1400+170, F1400+170, R1200+170, TR1500+75
 
-./edit make-faculty "Amanda Fa'onelua" DEPARTMENT 'TR 1300-1500'
+./edit make-faculty "Amanda Fa'onelua" Math 'TR 1300-1500'
 # TR1300+100
 
-./edit make-faculty 'Amber Rose Mortensen' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Amber Rose Mortensen' Biology 'MTWRF 0900-1700'
 # MWF0900+50, MWF1000+50, MWF1100+50, TR1030+75
 
-./edit make-faculty 'Andrew C Schiller' DEPARTMENT 'MTWR 0900-1800, F 0900-1700'
+./edit make-faculty 'Andrew C Schiller' Engineering 'MTWR 0900-1800, F 0900-1700'
 # MW1200+75, MW1500+170, T1200+110, TR1500+170
 
-./edit make-faculty 'Andrew Gregory Toth' DEPARTMENT 'MW 1200-1400'
+./edit make-faculty 'Andrew Gregory Toth' Engineering 'MW 1200-1400'
 # MW1200+75
 
-./edit make-faculty 'Bhuvaneswari Sambandham' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Bhuvaneswari Sambandham' Math 'MTWRF 0900-1700'
 # MTWF1000+50, MTWR1100+50, MW1200+75
 
-./edit make-faculty 'Bing Jiang' DEPARTMENT 'MTWF 0900-1700, R 0900-1800'
+./edit make-faculty 'Bing Jiang' Engineering 'MTWF 0900-1700, R 0900-1800'
 # F1000+110, MW1200+75, MWF0900+50, R1400+110, R1600+110
 
-./edit make-faculty 'Brant A Ross' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Brant A Ross' Engineering 'MTWRF 0900-1700'
 # MWF1330+180, MWF1330+180
 
-./edit make-faculty 'Bruford P Reynolds' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Bruford P Reynolds' Engineering 'MTWRF 0900-1700'
 # TR1000+50, TR1400+110
 
-./edit make-faculty 'Bryan K Stevens' DEPARTMENT 'MWF 0800-1700, TR 0700-1700'
+./edit make-faculty 'Bryan K Stevens' Biology 'MWF 0800-1700, TR 0700-1700'
 # TR0730+75, TR0900+75, TR1030+75
 
-./edit make-faculty 'Christina M Quinn' DEPARTMENT 'MWRF 0800-1700, T 0700-1700'
+./edit make-faculty 'Christina M Quinn' Chemistry 'MWRF 0800-1700, T 0700-1700'
 # R1000+170, R1300+170, T0700+170, T1000+170, T1300+170, W1300+170
 
-./edit make-faculty 'Christina Pondell' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Christina Pondell' Earth 'MTWRF 0900-1700'
 # F1000+50, M1300+170, R1330+165, T1100+110, T1300+110, TR0900+75
 
-./edit make-faculty 'Christopher Kirk DeMacedo' DEPARTMENT 'M 1200-2300, TWRF 1200-1700'
+./edit make-faculty 'Christopher Kirk DeMacedo' Engineering 'M 1200-2300, TWRF 1200-1700'
 # M1930+170, T1200+110, T1400+110
 
-./edit make-faculty 'Clare C Banks' DEPARTMENT 'MTWRF 0800-1700'
+./edit make-faculty 'Clare C Banks' Math 'MTWRF 0800-1700'
 # MTWR0800+50, MTWR1200+50
 
-./edit make-faculty 'Costel Ionita' DEPARTMENT 'MTWRF 0800-1700'
+./edit make-faculty 'Costel Ionita' Math 'MTWRF 0800-1700'
 # F1100+50, MTWR0800+50, MTWR0900+50, MTWR1100+50, TR1200+75
 
-./edit make-faculty 'Craig D Seegmiller' DEPARTMENT 'MWF 0900-1700, TR 0700-1700'
+./edit make-faculty 'Craig D Seegmiller' Math 'MWF 0900-1700, TR 0700-1700'
 # MTWR1200+50, TR0730+75, TR0900+75
 
-./edit make-faculty 'Curtis B Walker' DEPARTMENT 'MTWRF 0800-1700'
+./edit make-faculty 'Curtis B Walker' Biology 'MTWRF 0800-1700'
 # MW1330+75, MW1330+75, R1330+75, T1330+75, T1400+170, TR1200+75
 
-./edit make-faculty 'Cutler Cowdin' DEPARTMENT 'TR 1600-1900'
+./edit make-faculty 'Cutler Cowdin' Chemistry 'TR 1600-1900'
 # R1600+170, T1600+170
 
-./edit make-faculty 'David Brent Christensen' DEPARTMENT 'MTWRF 0800-1700'
+./edit make-faculty 'David Brent Christensen' Engineering 'MTWRF 0800-1700'
 # R0800+110, R1000+110, R1400+110, T1200+110
 
-./edit make-faculty 'David J Burr' DEPARTMENT 'TR 1600-2200'
+./edit make-faculty 'David J Burr' Chemistry 'TR 1600-2200'
 # R1900+170, T1600+170, T1900+170
 
-./edit make-faculty 'David M Syndergaard' DEPARTMENT 'MW 1200-2000, TRF 1200-1700'
+./edit make-faculty 'David M Syndergaard' Engineering 'MW 1200-2000, TRF 1200-1700'
 # M1300+110, MW1630+75, MW1800+75
 
-./edit make-faculty 'David R Black' DEPARTMENT 'T 1700-1900'
+./edit make-faculty 'David R Black' Earth 'T 1700-1900'
 # T1700+110
 
-./edit make-faculty 'David W Bean' DEPARTMENT 'MTRF 0900-1700, W 0900-1800'
+./edit make-faculty 'David W Bean' Biology 'MTRF 0900-1700, W 0900-1800'
 # F1100+170, R1400+170, W1500+170
 
-./edit make-faculty 'Dawn Lashell Kidd-Thomas' DEPARTMENT 'TR 1200-1700'
+./edit make-faculty 'Dawn Lashell Kidd-Thomas' Math 'TR 1200-1700'
 # TR1300+100
 
-./edit make-faculty 'Del William Smith' DEPARTMENT 'TR 1330-1900'
+./edit make-faculty 'Del William Smith' Biology 'TR 1330-1900'
 # TR1330+75, TR1500+50, TR1600+170
 
-./edit make-faculty 'Diana L Reese' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Diana L Reese' Chemistry 'MTWRF 0900-1700'
 # MTWR0900+50, MTWR1000+50, MTWRF1200+50, MTWRF1600+50
 
-./edit make-faculty 'Divya Singh' DEPARTMENT 'MW 0900-1800, TRF 0900-1700'
+./edit make-faculty 'Divya Singh' Engineering 'MW 0900-1800, TRF 0900-1700'
 # MW1000+110, MW1500+75, MW1630+75, T1200+110
 
-./edit make-faculty 'Donald H Warner' DEPARTMENT 'MW 1500-1700'
+./edit make-faculty 'Donald H Warner' Biology 'MW 1500-1700'
 # MW1500+75
 
-./edit make-faculty 'Douglas J Sainsbury' DEPARTMENT 'MTWRF 0800-1700'
+./edit make-faculty 'Douglas J Sainsbury' Biology 'MTWRF 0800-1700'
 # MTWRF0800+50, TR1200+75, W1200+50
 
-./edit make-faculty 'Elizabeth Karen Ludlow' DEPARTMENT 'MW 1300-1700'
+./edit make-faculty 'Elizabeth Karen Ludlow' Math 'MW 1300-1700'
 # MW1300+100, MW1500+75
 
-./edit make-faculty "Erin E O'Brien" DEPARTMENT 'MRF 1200-1700, TW 1200-1800'
+./edit make-faculty "Erin E O'Brien" Biology 'MRF 1200-1700, TW 1200-1800'
 # MW1200+75, T1500+170, W1500+170
 
-./edit make-faculty 'Gabriela Chilom' DEPARTMENT 'MTWF 0800-1700, R 0800-1800'
+./edit make-faculty 'Gabriela Chilom' Chemistry 'MTWF 0800-1700, R 0800-1800'
 # MTWR0800+50, MTWR1400+50, MTWRF1500+50, MWF1000+50, R1500+170
 
-./edit make-faculty 'Geoffrey Smith' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Geoffrey Smith' Biology 'MTWRF 0900-1700'
 # MTWR1100+50, TR1500+75
 
-./edit make-faculty 'Glorimar L Aponte-Kline' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Glorimar L Aponte-Kline' Biology 'MTWRF 0900-1700'
 # TR0900+75, TR1030+75, TR1330+75
 
-./edit make-faculty 'Greg L Melton' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Greg L Melton' Earth 'MTWRF 0900-1700'
 # MW1330+75, MW1500+75, T1200+170, TR0900+75, W0900+110
 
-./edit make-faculty 'Hugo Elio Angeles' DEPARTMENT 'TR 1800-2000'
+./edit make-faculty 'Hugo Elio Angeles' Earth 'TR 1800-2000'
 # TR1800+75
 
-./edit make-faculty 'Hung Yu Shih' DEPARTMENT 'TWR 1200-1700'
+./edit make-faculty 'Hung Yu Shih' Biology 'TWR 1200-1700'
 # T1300+110, T1300+110, T1500+50, T1600+50, W1330+170
 
-./edit make-faculty 'Jacson Parker' DEPARTMENT 'TR 1600-1900'
+./edit make-faculty 'Jacson Parker' Chemistry 'TR 1600-1900'
 # R1600+170, T1600+170
 
-./edit make-faculty 'James David Meidell' DEPARTMENT 'MW 1630-1800, TR 1630-2000'
+./edit make-faculty 'James David Meidell' Biology 'MW 1630-1800, TR 1630-2000'
 # MW1630+75, R1700+170
 
-./edit make-faculty 'James P Fitzgerald' DEPARTMENT 'MTWRF 0800-1200'
+./edit make-faculty 'James P Fitzgerald' Math 'MTWRF 0800-1200'
 # MWF0800+50, MWF0900+50, MWF1000+50
 
-./edit make-faculty 'Jameson C Hardy' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Jameson C Hardy' Math 'MTWRF 0900-1700'
 # MTWR0900+50, MTWRF1000+50, MW1200+75, TR1200+75
 
-./edit make-faculty 'Janice M Hayden' DEPARTMENT 'TWR 0900-1700'
+./edit make-faculty 'Janice M Hayden' Earth 'TWR 0900-1700'
 # TR0900+75, W1100+170
 
-./edit make-faculty 'Jared M Hancock' DEPARTMENT 'MTWRF 0800-1700'
+./edit make-faculty 'Jared M Hancock' Chemistry 'MTWRF 0800-1700'
 # M1100+110, MTWR0800+50, MTWR0900+50, MTWR1400+50, W1000+170
 
-./edit make-faculty 'Jeffrey Anderson' DEPARTMENT 'MW 0900-1800, TRF 0900-1700'
+./edit make-faculty 'Jeffrey Anderson' Engineering 'MW 0900-1800, TRF 0900-1700'
 # MW1630+75, T1400+110, TR0900+75
 
-./edit make-faculty 'Jeffrey P Harrah' DEPARTMENT 'MRF 0800-1700, TW 0800-1900'
+./edit make-faculty 'Jeffrey P Harrah' Math 'MRF 0800-1700, TW 0800-1900'
 # T1630+150, TR1030+75, TR1200+75, TR1330+75, W1630+150
 
-./edit make-faculty 'Jeffrey V Yule' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Jeffrey V Yule' Biology 'MTWRF 0900-1700'
 # M1030+75, MWF1100+50, TR1030+75, TR1030+75, W1030+75
 
-./edit make-faculty 'Jennifer A Meyer' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Jennifer A Meyer' Chemistry 'MTWRF 0900-1700'
 # MW1200+75, MW1330+75, R1300+170, T1300+170
 
-./edit make-faculty 'Jennifer L Ciaccio' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Jennifer L Ciaccio' Biology 'MTWRF 0900-1700'
 # MTRF1200+50, MWF0900+50, R0900+75, W1200+170
 
-./edit make-faculty 'Jerald D Harris' DEPARTMENT 'MTWF 0900-1700, R 0900-2000'
+./edit make-faculty 'Jerald D Harris' Earth 'MTWF 0900-1700, R 0900-2000'
 # MWF1000+50, MWF1100+50, MWF1100+50, R1000+50, R1630+170, TR1030+75
 
-./edit make-faculty 'Jeremy W Bakelar' DEPARTMENT 'MWRF 0900-1700, T 0900-1800'
+./edit make-faculty 'Jeremy W Bakelar' Biology 'MWRF 0900-1700, T 0900-1800'
 # MW1500+75, MWF1100+50, T0900+170, T1500+170, TR1300+110
 
-./edit make-faculty 'Jesse William Breinholt' DEPARTMENT 'TR 1500-1700'
+./edit make-faculty 'Jesse William Breinholt' Biology 'TR 1500-1700'
 # TR1500+75
 
-./edit make-faculty 'Jie Liu' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Jie Liu' Math 'MTWRF 0900-1700'
 # T1500+75, TR1030+75, TR1200+75, TR1330+75
 
-./edit make-faculty 'John E Wolfe' DEPARTMENT 'MWF 1100-1200'
+./edit make-faculty 'John E Wolfe' Biology 'MWF 1100-1200'
 # MWF1100+50
 
-./edit make-faculty 'Jose C Saraiva' DEPARTMENT 'MF 1600-1700, T 1600-1800, W 1600-2300, R 1600-2000'
+./edit make-faculty 'Jose C Saraiva' Engineering 'MF 1600-1700, T 1600-1800, W 1600-2300, R 1600-2000'
 # R1600+110, R1800+110, T1600+110, W1930+170
 
-./edit make-faculty 'Joseph B Platt' DEPARTMENT 'R 1100-1400'
+./edit make-faculty 'Joseph B Platt' Biology 'R 1100-1400'
 # R1100+170
 
-./edit make-faculty 'Kameron J Eves' DEPARTMENT 'MTWF 0900-1700, R 0900-1800'
+./edit make-faculty 'Kameron J Eves' Engineering 'MTWF 0900-1700, R 0900-1800'
 # MW1500+75, MWF1100+50, R1600+110, TR1030+75
 
-./edit make-faculty 'Karen L Bauer' DEPARTMENT 'MTWRF 0800-1700'
+./edit make-faculty 'Karen L Bauer' Biology 'MTWRF 0800-1700'
 # MTWF1000+50, MTWF1100+50, MWF0800+50, TR1500+75
 
-./edit make-faculty 'Kathryn E Ott' DEPARTMENT 'MW 1300-1700'
+./edit make-faculty 'Kathryn E Ott' Math 'MW 1300-1700'
 # MW1300+100
 
-./edit make-faculty 'Kerby Robinson' DEPARTMENT 'F 1330-1700'
+./edit make-faculty 'Kerby Robinson' Biology 'F 1330-1700'
 # F1330+170
 
-./edit make-faculty 'Kim C Jolley' DEPARTMENT 'MW 1300-1900'
+./edit make-faculty 'Kim C Jolley' Biology 'MW 1300-1900'
 # MW1300+110, MW1700+110
 
-./edit make-faculty 'Marius Van der Merwe' DEPARTMENT 'MTRF 0900-1700, W 0900-1900'
+./edit make-faculty 'Marius Van der Merwe' Earth 'MTRF 0900-1700, W 0900-1900'
 # MWF1000+50, T1200+170, W0900+50, W1800+50
 
-./edit make-faculty 'Mark L Dickson' DEPARTMENT 'MTWRF 1530-1800'
+./edit make-faculty 'Mark L Dickson' Biology 'MTWRF 1530-1800'
 # R1530+150
 
-./edit make-faculty 'Marshall Topham' DEPARTMENT 'MW 1330-1700'
+./edit make-faculty 'Marshall Topham' Earth 'MW 1330-1700'
 # MW1330+75
 
-./edit make-faculty 'Martina Gaspari' DEPARTMENT 'MTWRF 0800-1700'
+./edit make-faculty 'Martina Gaspari' Biology 'MTWRF 0800-1700'
 # MR1100+110, MW1330+75, MWF0900+50, MWF1000+50, R0800+170
 
-./edit make-faculty 'Marzieh Ghasemi' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Marzieh Ghasemi' Earth 'MTWRF 0900-1700'
 # MW1200+75, MWF1000+50, TR1200+75, TR1500+75
 
-./edit make-faculty 'Md Sazib Hasan' DEPARTMENT 'TR 0900-1200'
+./edit make-faculty 'Md Sazib Hasan' Math 'TR 0900-1200'
 # TR0900+75, TR1030+75
 
-./edit make-faculty 'Megan R Liljenquist' DEPARTMENT 'TWR 1500-1900'
+./edit make-faculty 'Megan R Liljenquist' Chemistry 'TWR 1500-1900'
 # R1600+170, W1500+170
 
-./edit make-faculty 'Megen E Kepas' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Megen E Kepas' Biology 'MTWRF 0900-1700'
 # MW1330+75, MW1500+75, R1200+135
 
-./edit make-faculty 'Michael N Paxman' DEPARTMENT 'TR 1630-1900'
+./edit make-faculty 'Michael N Paxman' Math 'TR 1630-1900'
 # TR1630+100
 
-./edit make-faculty 'Nathan St Andre' DEPARTMENT 'TR 1200-1700'
+./edit make-faculty 'Nathan St Andre' Biology 'TR 1200-1700'
 # TR1200+75
 
-./edit make-faculty 'Nikell Dodge' DEPARTMENT 'TR 1630-1800'
+./edit make-faculty 'Nikell Dodge' Biology 'TR 1630-1800'
 # TR1630+75
 
-./edit make-faculty 'Odean Bowler' DEPARTMENT 'MTWRF 1500-1700'
+./edit make-faculty 'Odean Bowler' Math 'MTWRF 1500-1700'
 # MW1500+100, TR1500+100
 
-./edit make-faculty 'Paul H Shirley' DEPARTMENT 'T 1600-2200'
+./edit make-faculty 'Paul H Shirley' Chemistry 'T 1600-2200'
 # T1600+170, T1900+170
 
-./edit make-faculty 'Paula Manuele Temple' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Paula Manuele Temple' Math 'MTWRF 0900-1700'
 # MTWR1200+50, MW1300+100, MW1500+75, TR1300+100
 
-./edit make-faculty 'Randy Klabacka' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Randy Klabacka' Biology 'MTWRF 0900-1700'
 # MW1330+50, MWF0900+50, MWF0900+50, R0900+50, T0900+50, TR1330+75
 
-./edit make-faculty 'Rick L Peirce' DEPARTMENT 'T 1930-2300'
+./edit make-faculty 'Rick L Peirce' Engineering 'T 1930-2300'
 # T1930+170
 
-./edit make-faculty 'Rico Del Sesto' DEPARTMENT 'MTWRF 0900-1200'
+./edit make-faculty 'Rico Del Sesto' Chemistry 'MTWRF 0900-1200'
 # MTWRF0900+50, MTWRF1000+50, MTWRF1100+50
 
-./edit make-faculty 'Rita Rae Osborn' DEPARTMENT 'M 0800-0900'
+./edit make-faculty 'Rita Rae Osborn' Biology 'M 0800-0900'
 # M0800+50
 
-./edit make-faculty 'Robert T Reimer' DEPARTMENT 'MW 1630-1800'
+./edit make-faculty 'Robert T Reimer' Math 'MW 1630-1800'
 # MW1630+75
 
-./edit make-faculty 'Ross C Decker' DEPARTMENT 'TR 0900-1200'
+./edit make-faculty 'Ross C Decker' Math 'TR 0900-1200'
 # TR0900+75, TR1030+75
 
-./edit make-faculty 'Russell C Reid' DEPARTMENT 'MTWF 0800-1700, R 0800-1800'
+./edit make-faculty 'Russell C Reid' Engineering 'MTWF 0800-1700, R 0800-1800'
 # MTWF0900+50, MTWF0900+50, MW1500+75, R0800+110, R1000+110, R1200+110, R1400+110, R1600+110
 
-./edit make-faculty 'Ryan C McConnell' DEPARTMENT 'TR 1630-1800'
+./edit make-faculty 'Ryan C McConnell' Math 'TR 1630-1800'
 # TR1630+75
 
-./edit make-faculty 'Sai C Radavaram' DEPARTMENT 'MWF 0800-1700, TR 0800-1800'
+./edit make-faculty 'Sai C Radavaram' Engineering 'MWF 0800-1700, TR 0800-1800'
 # F0800+115, MW1330+75, MWF1100+50, T0800+110, TR1630+75
 
-./edit make-faculty 'Samuel K Tobler' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Samuel K Tobler' Engineering 'MTWRF 0900-1700'
 # MTWF1300+50, MTWF1400+50
 
-./edit make-faculty 'Sarah Morgan Black' DEPARTMENT 'TR 0900-1700'
+./edit make-faculty 'Sarah Morgan Black' Chemistry 'TR 0900-1700'
 # TR1030+75, TR1330+75
 
-./edit make-faculty 'Scott A Skeen' DEPARTMENT 'MTWRF 0800-1700'
+./edit make-faculty 'Scott A Skeen' Engineering 'MTWRF 0800-1700'
 # M0800+50, MW1200+75, MW1330+75, MWF1000+50, R0800+110, R1200+110, TR1500+75
 
-./edit make-faculty 'Scott B Griffin' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Scott B Griffin' Biology 'MTWRF 0900-1700'
 # F1330+170, MW1200+75
 
-./edit make-faculty 'Scott E Bulloch' DEPARTMENT 'R 1600-1900'
+./edit make-faculty 'Scott E Bulloch' Biology 'R 1600-1900'
 # R1600+170
 
-./edit make-faculty 'Scott Patrick Hicks' DEPARTMENT 'MW 1600-2000'
+./edit make-faculty 'Scott Patrick Hicks' Math 'MW 1600-2000'
 # MW1600+100, MW1800+100
 
-./edit make-faculty 'Steven K Sullivan' DEPARTMENT 'MTWRF 0800-1200'
+./edit make-faculty 'Steven K Sullivan' Engineering 'MTWRF 0800-1200'
 # MWRF0800+50, MWRF1000+50, MWRF1100+50
 
-./edit make-faculty 'Steven McKay Sullivan' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Steven McKay Sullivan' Math 'MTWRF 0900-1700'
 # MTWR0900+50, MWF1000+50, TR1030+75
 
-./edit make-faculty 'Teisha Richan' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Teisha Richan' Chemistry 'MTWRF 0900-1700'
 # R1000+170, R1300+170, T0900+170, T1200+170, W0900+170, W1200+170
 
-./edit make-faculty 'Trevor K Johnson' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Trevor K Johnson' Math 'MTWRF 0900-1700'
 # MTWR1200+50, MW1330+75
 
-./edit make-faculty 'Tye K Rogers' DEPARTMENT 'MTWRF 0800-1700'
+./edit make-faculty 'Tye K Rogers' Math 'MTWRF 0800-1700'
 # MTWR0800+50, MTWR1000+50, MWF1100+50, TR1330+75
 
-./edit make-faculty 'Vinodh Kumar Chellamuthu' DEPARTMENT 'MW 1500-1800'
+./edit make-faculty 'Vinodh Kumar Chellamuthu' Math 'MW 1500-1800'
 # MW1500+100, MW1645+75
 
-./edit make-faculty 'Violeta Adina Ionita' DEPARTMENT 'MTWRF 0800-1700'
+./edit make-faculty 'Violeta Adina Ionita' Math 'MTWRF 0800-1700'
 # MTWR0800+50, MTWR0900+50, MTWR1100+50, MTWR1200+50
 
-./edit make-faculty 'Wendy E Schatzberg' DEPARTMENT 'MWRF 0900-1700, T 0900-1900'
+./edit make-faculty 'Wendy E Schatzberg' Chemistry 'MWRF 0900-1700, T 0900-1900'
 # F1200+50, MTWR1000+50, MTWR1100+50, MTWRF1200+50, T1600+170
 
-./edit make-faculty 'Zhenyu Jin' DEPARTMENT 'MTWRF 0900-1700'
+./edit make-faculty 'Zhenyu Jin' Earth 'MTWRF 0900-1700'
 # MW1200+75, MW1330+75, T1200+170, TR1030+75, W0900+110
 
 #
 # SET sections
 #
+
+echo building cset sections
 
 # BIOL 1010-01: General Biology (LS)
 # assigned to BROWN 201 at TR0730+75
@@ -2517,68 +2306,68 @@ echo building cset faculty and sections
 ./edit make-section 'MATH 4800-01' 'Math lecture' 'MW1645+75'
 ./edit assign-faculty-sections 'Vinodh Kumar Chellamuthu' 'MATH 4800-01'
 
-# MATH 900-01: Transitional Math I
+# MATH 0900-01: Transitional Math I
 # assigned to SNOW 144 at MTWR1200+50
-./edit make-section 'MATH 900-01' 'Math lecture' '4 credit bell schedule'
-./edit assign-faculty-sections 'Paula Manuele Temple' 'MATH 900-01'
+./edit make-section 'MATH 0900-01' 'Math lecture' '4 credit bell schedule'
+./edit assign-faculty-sections 'Paula Manuele Temple' 'MATH 0900-01'
 
-# MATH 900-02: Transitional Math I
+# MATH 0900-02: Transitional Math I
 # assigned to SNOW 144 at MTWR0900+50
-./edit make-section 'MATH 900-02' 'Math lecture' '4 credit bell schedule'
-./edit assign-faculty-sections 'Jameson C Hardy' 'MATH 900-02'
+./edit make-section 'MATH 0900-02' 'Math lecture' '4 credit bell schedule'
+./edit assign-faculty-sections 'Jameson C Hardy' 'MATH 0900-02'
 
-# MATH 900-03: Transitional Math I
+# MATH 0900-03: Transitional Math I
 # assigned to SNOW 144 at MW1300+100
-./edit make-section 'MATH 900-03' 'Math lecture' '4 credit bell schedule'
-./edit assign-faculty-sections 'Paula Manuele Temple' 'MATH 900-03'
+./edit make-section 'MATH 0900-03' 'Math lecture' '4 credit bell schedule'
+./edit assign-faculty-sections 'Paula Manuele Temple' 'MATH 0900-03'
 
-# MATH 900-04: Transitional Math I
+# MATH 0900-04: Transitional Math I
 # assigned to SNOW 144 at MW1600+100
-./edit make-section 'MATH 900-04' 'Math lecture' 'MW1600+100'
-./edit assign-faculty-sections 'Scott Patrick Hicks' 'MATH 900-04'
+./edit make-section 'MATH 0900-04' 'Math lecture' 'MW1600+100'
+./edit assign-faculty-sections 'Scott Patrick Hicks' 'MATH 0900-04'
 
-# MATH 900-06: Transitional Math I
+# MATH 0900-06: Transitional Math I
 # assigned to SNOW 3 at TR1630+100
-./edit make-section 'MATH 900-06' 'Math lecture' 'TR1630+100'
+./edit make-section 'MATH 0900-06' 'Math lecture' 'TR1630+100'
 
-# MATH 900-07: Transitional Math I
+# MATH 0900-07: Transitional Math I
 # assigned to SNOW 144 at TR1300+100
-./edit make-section 'MATH 900-07' 'Math lecture' '4 credit bell schedule'
-./edit assign-faculty-sections 'Paula Manuele Temple' 'MATH 900-07'
+./edit make-section 'MATH 0900-07' 'Math lecture' '4 credit bell schedule'
+./edit assign-faculty-sections 'Paula Manuele Temple' 'MATH 0900-07'
 
-# MATH 900-51: Transitional Math I
+# MATH 0900-51: Transitional Math I
 # assigned to SNOW 144 at MW1800+100
-./edit make-section 'MATH 900-51' 'Math lecture' 'MW1800+100'
-./edit assign-faculty-sections 'Scott Patrick Hicks' 'MATH 900-51'
+./edit make-section 'MATH 0900-51' 'Math lecture' 'MW1800+100'
+./edit assign-faculty-sections 'Scott Patrick Hicks' 'MATH 0900-51'
 
-# MATH 980-03: Transitional Math IIB
+# MATH 0980-03: Transitional Math IIB
 # assigned to SNOW 144 at MTWR1000+50
-./edit make-section 'MATH 980-03' 'Math lecture' '4 credit bell schedule'
-./edit assign-faculty-sections 'Tye K Rogers' 'MATH 980-03'
+./edit make-section 'MATH 0980-03' 'Math lecture' '4 credit bell schedule'
+./edit assign-faculty-sections 'Tye K Rogers' 'MATH 0980-03'
 
-# MATH 980-05: Transitional Math IIB
+# MATH 0980-05: Transitional Math IIB
 # assigned to SNOW 144 at TR1630+100
-./edit make-section 'MATH 980-05' 'Math lecture' 'TR1630+100'
-./edit assign-faculty-sections 'Michael N Paxman' 'MATH 980-05'
+./edit make-section 'MATH 0980-05' 'Math lecture' 'TR1630+100'
+./edit assign-faculty-sections 'Michael N Paxman' 'MATH 0980-05'
 
-# MATH 980-06: Transitional Math IIB
+# MATH 0980-06: Transitional Math IIB
 # assigned to SNOW 144 at MTWR0800+50
-./edit make-section 'MATH 980-06' 'Math lecture' '4 credit bell schedule'
-./edit assign-faculty-sections 'Tye K Rogers' 'MATH 980-06'
+./edit make-section 'MATH 0980-06' 'Math lecture' '4 credit bell schedule'
+./edit assign-faculty-sections 'Tye K Rogers' 'MATH 0980-06'
 
-# MATH 980-07: Transitional Math IIB
+# MATH 0980-07: Transitional Math IIB
 # assigned to SNOW 3 at MW1300+100
-./edit make-section 'MATH 980-07' 'Math lecture' '4 credit bell schedule'
-./edit assign-faculty-sections 'Kathryn E Ott' 'MATH 980-07'
+./edit make-section 'MATH 0980-07' 'Math lecture' '4 credit bell schedule'
+./edit assign-faculty-sections 'Kathryn E Ott' 'MATH 0980-07'
 
-# MATH 980-08: Transitional Math IIB
+# MATH 0980-08: Transitional Math IIB
 # assigned to SNOW 3 at TR1300+100
-./edit make-section 'MATH 980-08' 'Math lecture' '4 credit bell schedule'
-./edit assign-faculty-sections "Amanda Fa'onelua" 'MATH 980-08'
+./edit make-section 'MATH 0980-08' 'Math lecture' '4 credit bell schedule'
+./edit assign-faculty-sections "Amanda Fa'onelua" 'MATH 0980-08'
 
-# MATH 980-10: Transitional Math IIB
+# MATH 0980-10: Transitional Math IIB
 # assigned to SNOW 3 at MW1630+100
-./edit make-section 'MATH 980-10' 'Math lecture' 'MW1630+100'
+./edit make-section 'MATH 0980-10' 'Math lecture' 'MW1630+100'
 
 # MECH 1100-01: Manufacturing Processes
 # assigned to SET 226 at MW1200+75

@@ -1,5 +1,3 @@
-#!/bin/bash
-
 set -e
 
 echo building smith building and classrooms
@@ -13,7 +11,7 @@ echo building smith building and classrooms
 ./edit make-room 'Smith 117' 38 stadium
 
 
-echo build computing time slots
+echo building computing time slots
 ./edit make-time-slot 'MWF0800+50' '3 credit bell schedule' 'MWF 3×50 bell schedule'
 ./edit make-time-slot 'MWF0900+50' '3 credit bell schedule' 'MWF 3×50 bell schedule'
 ./edit make-time-slot 'MWF1000+50' '3 credit bell schedule' 'MWF 3×50 bell schedule'
@@ -33,95 +31,6 @@ echo build computing time slots
 ./edit make-time-slot 'W1800+150' '1×150 evening'
 ./edit make-time-slot 'R1900+50'
 ./edit make-time-slot 'F1300+50'
-
-
-echo building computing department and courses
-./edit make-department Computing
-./edit make-course Computing 'CS 1030' 'Problem Solving with Computers'
-./edit make-course Computing 'CS 1400' 'Fundamentals of Programming'
-./edit make-course Computing 'CS 1410' 'Object Oriented Programming'
-./edit make-course Computing 'CS 2420' 'Introduction to Algorithms and Data Structures'
-./edit make-course Computing 'CS 2450' 'Software Engineering'
-./edit make-course Computing 'CS 2500' 'Data Wrangling'
-./edit make-course Computing 'CS 2810' 'Computer Organization and Architecture'
-./edit make-course Computing 'CS 3005' 'Programming in C++'
-./edit make-course Computing 'CS 3150' 'Computer Networks'
-./edit make-course Computing 'CS 3310' 'Discrete Mathematics'
-./edit make-course Computing 'CS 3400' 'Operating Systems'
-./edit make-course Computing 'CS 3410' 'Distributed Systems'
-./edit make-course Computing 'CS 3500' 'Application Development'
-./edit make-course Computing 'CS 3510' 'Algorithms'
-./edit make-course Computing 'CS 3520' 'Programming Languages'
-./edit make-course Computing 'CS 3530' 'Computational Theory'
-./edit make-course Computing 'CS 3600' 'Graphics Programming'
-./edit make-course Computing 'CS 4300' 'Artificial Intelligence'
-./edit make-course Computing 'CS 4307' 'Database Systems'
-./edit make-course Computing 'CS 4310' 'Database Administration'
-./edit make-course Computing 'CS 4320' 'Machine Learning'
-./edit make-course Computing 'CS 4400' 'Data Mining'
-./edit make-course Computing 'CS 4410' 'Data Visualization'
-./edit make-course Computing 'CS 4550' 'Compilers'
-./edit make-course Computing 'CS 4600' 'Senior Project'
-./edit make-course Computing 'CS 4800R' 'Undergraduate Research'
-./edit make-course Computing 'CS 4920R' 'Internship'
-./edit make-course Computing 'CS 4990' 'Special Topics in Computer Science'
-./edit make-course Computing 'CS 4991R' 'Competitive Programming'
-./edit make-course Computing 'CS 4992R' 'Computer Science Seminar'
-
-./edit make-course Computing 'IT 1100' 'Introduction to Unix/Linux'
-./edit make-course Computing 'IT 1200' 'A+ Computer Hardware/Windows OS'
-./edit make-course Computing 'IT 1500' 'Cloud Fundamentals'
-./edit make-course Computing 'IT 2300' 'Database Design & Management'
-./edit make-course Computing 'IT 2400' 'Intro to Networking'
-./edit make-course Computing 'IT 2500' 'Cloud Computing'
-./edit make-course Computing 'IT 2700' 'Information Security'
-./edit make-course Computing 'IT 3001' 'Info Sys and Analytics Intermediate Career Strategies'
-./edit make-course Computing 'IT 3100' 'Systems Design and Administration'
-./edit make-course Computing 'IT 3110' 'System Automation'
-./edit make-course Computing 'IT 3150' 'Windows Servers'
-./edit make-course Computing 'IT 3300' 'DevOps Virtualization'
-./edit make-course Computing 'IT 3400' 'Intermediate Computer Networking'
-./edit make-course Computing 'IT 4060' 'Big Data Analytics'
-./edit make-course Computing 'IT 4070' 'Data Visualization and Storytelling'
-./edit make-course Computing 'IT 4100' 'Files Systems and Storage Technologies'
-./edit make-course Computing 'IT 4200' 'DevOps Lifecycle Management'
-./edit make-course Computing 'IT 4310' 'Database Administration'
-./edit make-course Computing 'IT 4400' 'Network Design & Management'
-./edit make-course Computing 'IT 4510' 'Ethical Hacking & Network Defense'
-./edit make-course Computing 'IT 4600' 'Senior Capstone'
-./edit make-course Computing 'IT 4910R' 'Special Topics in Applied Technology'
-./edit make-course Computing 'IT 4920R' 'Internship'
-./edit make-course Computing 'IT 4990' 'Special Topics in Information Technology'
-./edit make-course Computing 'IT 4991' 'Seminar in Information Technology'
-
-./edit make-course Computing 'SE 1400' 'Web Design Fundamentals (ALCS)'
-./edit make-course Computing 'SE 3010' 'Mobile Application Development for Android'
-./edit make-course Computing 'SE 3020' 'Mobile Application Development for iOS'
-./edit make-course Computing 'SE 3100' 'Software Practices'
-./edit make-course Computing 'SE 3150' 'Software Quality'
-./edit make-course Computing 'SE 3200' 'Web Application Development I'
-./edit make-course Computing 'SE 3400' 'Human-Computer Interaction'
-./edit make-course Computing 'SE 3450' 'User Experience Design'
-./edit make-course Computing 'SE 3500' 'Tech Entrepreneurship'
-./edit make-course Computing 'SE 3550' 'Online Marketing and SEO (ALCS)'
-./edit make-course Computing 'SE 4200' 'Web Application Development II'
-./edit make-course Computing 'SE 4600' 'Senior Project'
-./edit make-course Computing 'SE 4900R' 'Independent Research'
-./edit make-course Computing 'SE 4910R' 'Special Topics in Applied Technology'
-./edit make-course Computing 'SE 4920' 'Internship (ALPP)'
-./edit make-course Computing 'SE 4990' 'Special Topics in Software Engineering'
-
-./edit make-department Math
-./edit make-course Math 'MATH 1210' 'Calculus I (MA)'
-./edit make-course Math 'MATH 1220' 'Calculus II (MA)'
-
-./edit make-department Biology
-./edit make-course Biology 'BIOL 1610' 'Principles of Biology I (LS)'
-./edit make-course Biology 'BIOL 1615' 'Principles of Biology I Lab (LAB)'
-
-./edit make-department Engineering
-./edit make-course Engineering 'PHYS 2210' 'Physics/Scientists Engineers I (PS)'
-./edit make-course Engineering 'PHYS 2215' 'Physics/Scientists Engineers I Lab (LAB)'
 
 echo building computing conflicts
 ./edit make-program 'Computer Science' Computing
