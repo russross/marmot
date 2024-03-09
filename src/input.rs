@@ -785,6 +785,20 @@ pub fn date(year: i32, month: u8, day: u8) -> Result<time::Date, String> {
     Ok(d)
 }
 
+pub fn parse_date(s: String) -> Result<time::Date, String> {
+    let b = s.as_bytes();
+    if b.len() != 10 || b[4] != b'-' || b[7] != b'-' {
+        return Err(format!("parse_date: date string [{s}] is wrong format"));
+    }
+    let year = i32::from_str_radix(&s[0..4], 10);
+    let month = u8::from_str_radix(&s[5..7], 10);
+    let day = u8::from_str_radix(&s[8..10], 10);
+    let (Ok(y), Ok(m), Ok(d)) = (year, month, day) else {
+        return Err(format!("parse_date: unable to parse parts of [{s}]"));
+    };
+    date(y, m, d)
+}
+
 #[derive(Clone)]
 pub struct Room {
     pub name: String,

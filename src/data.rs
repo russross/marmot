@@ -1,8 +1,32 @@
 use super::input::*;
 use super::solver::Solver;
+use itertools::Itertools;
+use rusqlite::{Connection, OpenFlags, Result};
+
+const db_path: &str = "timetable.db";
 
 pub fn input() -> Result<Solver, String> {
-    let mut solver = Solver::new("Spring 2024", date(2024, 1, 8)?, date(2024, 4, 25)?);
+    let db = Connection::open_with_flags(db_path, OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX).map_err(|e| format!("{e}"))?;
+
+    // get the semester and holidays
+    struct TermRow {
+        term: String,
+        start_date: String,
+        end_date: String,
+    }
+    let term = db.query_row("
+        SELECT term, start_date, end_date
+        FROM terms
+        WHERE current",
+        [],
+        |row| Ok(TermRow{
+            term: row.get(0)?,
+            start_date: row.get(1)?,
+            end_date: row.get(2)?,
+        })).map_err(|e| format!("{e}"))?;
+
+    //let mut solver = Solver::new("Spring 2024", date(2024, 1, 8)?, date(2024, 4, 25)?);
+    let mut solver = Solver::new(&term.term, parse_date(term.start_date)?, parse_date(term.end_date)?);
     let mut t = &mut solver;
 
     holiday!(t, 2024, 1, 15);
