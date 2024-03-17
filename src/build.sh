@@ -8,7 +8,6 @@ rm -f timetable.db
 echo building schema
 sqlite3 timetable.db < schema.sql
 
-echo building combined cset data set
 echo building term and holidays
 ./edit make-term 'Spring 2024' 2024-01-08 2024-04-25
 ./edit make-holiday 2024-01-15
@@ -21,6 +20,435 @@ echo building term and holidays
 
 source courses.sh
 source computing.sh
+
+echo building cset conflicts
+
+./edit make-program 'Envs Envs emphasis' Earth
+./edit make-conflict 'Envs Envs emphasis' 'core requirements' 99 maximize \
+    'ENVS 1210' 'ENVS 1215' \
+    'ENVS 2210' \
+    'GEO 1110' 'GEO 1115' \
+    'GEOG 3600' 'GEOG 3605' \
+    'CHEM 1210' 'CHEM 1215' \
+    'CHEM 1220' 'CHEM 1225' \
+    'BIOL 1610' 'BIOL 1615' \
+    'MATH 1060' \
+    'ENVS 2700R' \
+    'ENVS 4910' \
+    'ENVS 3920'
+
+./edit make-program 'Envs Geo emphasis' Earth
+./edit make-conflict 'Envs Geo emphasis' 'core requirements' 99 maximize \
+    'ENVS 1210' 'ENVS 1215' \
+    'ENVS 2210' \
+    'GEO 1110' 'GEO 1115' \
+    'GEOG 3600' 'GEOG 3605' \
+    'CHEM 1210' 'CHEM 1215' \
+    'CHEM 1220' 'CHEM 1225' \
+    'BIOL 1610' 'BIOL 1615' \
+    'MATH 1060' \
+    'GEO 1220' 'GEO 1225' \
+    'GEO 2700R'
+
+./edit make-program 'Geological Sciences' Earth
+./edit make-conflict 'Geological Sciences' 'core requirements' 99 maximize \
+    'BIOL 3110' \
+    'CHEM 1210' 'CHEM 1215' 'CHEM 1220' 'CHEM 1225' \
+    'GEO 1110' 'GEO 1115' 'GEO 1220' 'GEO 1225' 'GEO 2700R' 'GEO 2990R' \
+    'GEO 3060' 'GEO 3180' 'GEO 3200' 'GEO 3500' 'GEO 3550' \
+    'GEO 3600' 'GEO 3700' 'GEO 3710' 'GEO 4600' 'GEO 4800R' \
+    'GEOG 3600' 'GEOG 3605' \
+    'MATH 1210' \
+    'PHYS 2010' 'PHYS 2015' 'PHYS 2210' 'PHYS 2215' \
+    'PHYS 2020' 'PHYS 2025' 'PHYS 2220' 'PHYS 2225' \
+    'GEO 3000' 'GEO 3910' \
+    'ENVS 3910' 'ENVS 3920' 'ENVS 3930' \
+    'GEOG 3930'
+./edit make-conflict 'Geological Sciences' 'take one set' 0 minimize \
+    'PHYS 2010' 'PHYS 2015' 'PHYS 2020' 'PHYS 2025' \
+    'PHYS 2210' 'PHYS 2215' 'PHYS 2220' 'PHYS 2225'
+
+./edit make-program 'Bioinformatics' Biology
+./edit make-conflict 'Bioinformatics' 'core requirements' 99 maximize \
+    'BIOL 1610' 'BIOL 1615' 'BIOL 1620' 'BIOL 1625' \
+    'BIOL 3010' 'BIOL 3300' 'BIOL 3030' 'BIOL 4010' 'BIOL 4300' \
+    'BIOL 4305' 'BIOL 4310' 'BIOL 4320' 'BIOL 4810R' 'BIOL 4910' \
+    'CHEM 1210' 'CHEM 1215' 'CHEM 1220' 'CHEM 1225' \
+    'CS 1400' 'CS 1410' 'CS 2420' 'CS 2450' 'CS 3310' \
+    'IT 1100' 'IT 2300' \
+    'MATH 1210' 'MATH 3060'
+./edit make-conflict 'Bioinformatics' 'pick one tech lab course' 30 maximize \
+    'BIOL 1610' 'BIOL 1615' 'BIOL 1620' 'BIOL 1625' \
+    'BIOL 3010' 'BIOL 3300' 'BIOL 3030' 'BIOL 4010' 'BIOL 4300' \
+    'BIOL 4305' 'BIOL 4310' 'BIOL 4320' 'BIOL 4810R' 'BIOL 4910' \
+    'CHEM 1210' 'CHEM 1215' 'CHEM 1220' 'CHEM 1225' \
+    'CS 1400' 'CS 1410' 'CS 2420' 'CS 2450' 'CS 3310' \
+    'IT 1100' 'IT 2300' \
+    'MATH 1210' 'MATH 3060' \
+    'BTEC 2010' 'BTEC 2020' 'BTEC 2030' 'BTEC 2050' 'BIOL 2300'
+./edit make-conflict 'Bioinformatics' 'take one technical lab' 0 minimize \
+    'BTEC 2010' 'BTEC 2020' 'BTEC 2030' 'BTEC 2050' 'BIOL 2300'
+
+./edit make-program 'Biology Education emphasis' Biology
+./edit make-conflict 'Biology Education emphasis' 'core requirements' 99 maximize \
+    'BIOL 1610' 'BIOL 1615' 'BIOL 1620' 'BIOL 1625' 'CHEM 1210' 'CHEM 1215' 'CHEM 1220' 'CHEM 1225' \
+    'BIOL 3010' 'BIOL 3030' \
+    'MATH 1050' \
+    'BIOL 2320' 'BIOL 2325' 'BIOL 3140' 'BIOL 3145' 'BIOL 2420' 'BIOL 2425' 'BIOL 4500' 'BIOL 4505' \
+    'BIOL 3040' 'BIOL 3045' 'BIOL 2060' 'BIOL 2065' 'BIOL 3450' 'BIOL 3455' 'BIOL 3550' 'BIOL 3555' \
+    'BIOL 2400' 'BIOL 2405' 'BIOL 3200' 'BIOL 3205' 'BIOL 4260' 'BIOL 4265' 'BIOL 4270' \
+    'BIOL 4275' 'BIOL 4350' 'BIOL 4355' 'BIOL 4380' 'BIOL 4385' 'BIOL 4411' 'BIOL 4415' 'BIOL 4440' \
+    'SCI 2600' 'SCI 4700'
+./edit make-conflict 'Biology Education emphasis' 'take one pair' 0 minimize \
+    'BIOL 3450' 'BIOL 3455' 'BIOL 3550' 'BIOL 3555'
+./edit make-conflict 'Biology Education emphasis' 'yet another take a pair' 0 minimize \
+    'BIOL 3200' 'BIOL 3205' 'BIOL 4260' 'BIOL 4265' 'BIOL 4270' 'BIOL 4275' \
+    'BIOL 4280' 'BIOL 4350' 'BIOL 4355' 'BIOL 4380' 'BIOL 4385' 'BIOL 4411' 'BIOL 4415' 'BIOL 4440'
+./edit make-conflict 'Biology Education emphasis' 'only need one set' 0 minimize \
+    'BIOL 3200' 'BIOL 3205' 'BIOL 4260' 'BIOL 4265' 'BIOL 4270' 'BIOL 4275' \
+    'BIOL 4280' 'BIOL 4350' 'BIOL 4355' 'BIOL 4380' 'BIOL 4385' 'BIOL 4411' 'BIOL 4415' 'BIOL 4440'
+./edit make-conflict 'Biology Education emphasis' 'choose one set' 0 minimize \
+    'BIOL 2320' 'BIOL 2325' 'BIOL 3140' 'BIOL 3145'
+./edit make-conflict 'Biology Education emphasis' 'another choice' 0 minimize \
+    'BIOL 2420' 'BIOL 2425' 'BIOL 4500' 'BIOL 4505'
+./edit make-conflict 'Biology Education emphasis' 'final choice' 0 minimize \
+    'BIOL 2060' 'BIOL 2065' 'BIOL 3450' 'BIOL 3455' 'BIOL 3550' 'BIOL 3555'
+
+./edit make-program 'Biology Biology emphasis' Biology
+./edit make-conflict 'Biology Biology emphasis' 'core requirements' 99 maximize \
+    'BIOL 1610' 'BIOL 1615' 'BIOL 1620' 'BIOL 1625' 'BIOL 3010' 'BIOL 3030' \
+    'CHEM 1210' 'CHEM 1215' 'CHEM 1220' 'CHEM 1225' 'CHEM 2310' 'CHEM 2315' 'CHEM 2320' 'CHEM 2325' \
+    'MATH 1210' \
+    'BIOL 3040' 'BIOL 3045' 'BIOL 3155' \
+    'MATH 3060' \
+    'BIOL 4910'
+./edit make-conflict 'Biology Biology emphasis' 'choices' 45 maximize \
+    'BIOL 1610' 'BIOL 1615' 'BIOL 1620' 'BIOL 1625' 'BIOL 3010' 'BIOL 3030' \
+    'CHEM 1210' 'CHEM 1215' 'CHEM 1220' 'CHEM 1225' 'CHEM 2310' 'CHEM 2315' 'CHEM 2320' 'CHEM 2325' \
+    'MATH 1210' \
+    'BIOL 3040' 'BIOL 3045' 'BIOL 3155' \
+    'MATH 3060' \
+    'BIOL 4910' \
+    'PHYS 2010' 'PHYS 2015' 'PHYS 2020' 'PHYS 2025' 'PHYS 2210' 'PHYS 2215' 'PHYS 2220' 'PHYS 2225' \
+    'BTEC 2010' 'BTEC 2020' 'BTEC 2030' 'BTEC 2050' 'BIOL 2300' \
+    'BIOL 3450' 'BIOL 3455' 'BIOL 3550' 'BIOL 3555' \
+    'BIOL 3420' 'BIOL 4500' 'BIOL 4505' 'BIOL 4600' 'BIOL 4605' \
+    'BIOL 3200' 'BIOL 3205' 'BIOL 4260' 'BIOL 4265' 'BIOL 4270' 'BIOL 4275' \
+    'BIOL 4280' 'BIOL 4350' 'BIOL 4355' 'BIOL 4380' 'BIOL 4385' 'BIOL 4411' 'BIOL 4415' 'BIOL 4440'
+./edit make-conflict 'Biology Biology emphasis' electives 30 maximize \
+    'BIOL 1610' 'BIOL 1615' 'BIOL 1620' 'BIOL 1625' 'BIOL 3010' 'BIOL 3030' \
+    'CHEM 1210' 'CHEM 1215' 'CHEM 1220' 'CHEM 1225' 'CHEM 2310' 'CHEM 2315' 'CHEM 2320' 'CHEM 2325' \
+    'MATH 1210' \
+    'BIOL 3040' 'BIOL 3045' 'BIOL 3155' \
+    'MATH 3060' \
+    'BIOL 4910' \
+    'PHYS 2010' 'PHYS 2015' 'PHYS 2020' 'PHYS 2025' 'PHYS 2210' 'PHYS 2215' 'PHYS 2220' 'PHYS 2225' \
+    'BTEC 2010' 'BTEC 2020' 'BTEC 2030' 'BTEC 2050' 'BIOL 2300' \
+    'BIOL 3450' 'BIOL 3455' 'BIOL 3550' 'BIOL 3555' \
+    'BIOL 3420' 'BIOL 4500' 'BIOL 4505' 'BIOL 4600' 'BIOL 4605' \
+    'BIOL 3200' 'BIOL 3205' 'BIOL 4260' 'BIOL 4265' 'BIOL 4270' 'BIOL 4275' \
+    'BIOL 4280' 'BIOL 4350' 'BIOL 4355' 'BIOL 4380' 'BIOL 4385' 'BIOL 4411' 'BIOL 4415' 'BIOL 4440' \
+    'BTEC 3020' 'CHEM 3510' 'CHEM 3515' 'CHEM 3520' 'CHEM 3525' \
+    'BTEC 3010' 'BTEC 3040' 'BTEC 3050' 'BTEC 4020' 'BTEC 4040' 'BTEC 4050' 'BTEC 4060'
+./edit make-conflict 'Biology Biology emphasis' 'take one set' 0 minimize \
+    'PHYS 2010' 'PHYS 2015' 'PHYS 2020' 'PHYS 2025' \
+    'PHYS 2210' 'PHYS 2215' 'PHYS 2220' 'PHYS 2225'
+./edit make-conflict 'Biology Biology emphasis' 'take one technical lab' 0 minimize \
+    'BTEC 2010' 'BTEC 2020' 'BTEC 2030' 'BTEC 2050' 'BIOL 2300'
+./edit make-conflict 'Biology Biology emphasis' 'take one pair' 0 minimize \
+    'BIOL 3450' 'BIOL 3455' 'BIOL 3550' 'BIOL 3555'
+./edit make-conflict 'Biology Biology emphasis' 'another take one pair' 0 minimize \
+    'BIOL 3420' 'BIOL 4500' 'BIOL 4505' 'BIOL 4600' 'BIOL 4605'
+./edit make-conflict 'Biology Biology emphasis' 'yet another take a pair' 0 minimize \
+    'BIOL 3200' 'BIOL 3205' 'BIOL 4260' 'BIOL 4265' 'BIOL 4270' 'BIOL 4275' \
+    'BIOL 4280' 'BIOL 4350' 'BIOL 4355' 'BIOL 4380' 'BIOL 4385' 'BIOL 4411' 'BIOL 4415' 'BIOL 4440'
+./edit make-conflict 'Biology Biology emphasis' 'only need one set' 0 minimize \
+    'BIOL 3200' 'BIOL 3205' 'BIOL 4260' 'BIOL 4265' 'BIOL 4270' 'BIOL 4275' \
+    'BIOL 4280' 'BIOL 4350' 'BIOL 4355' 'BIOL 4380' 'BIOL 4385' 'BIOL 4411' 'BIOL 4415' 'BIOL 4440'
+
+./edit make-program 'Biology Biomed emphasis' Biology
+./edit make-conflict 'Biology Biomed emphasis' 'core requirements' 99 maximize \
+    'BIOL 1610' 'BIOL 1615' 'BIOL 1620' 'BIOL 1625' 'BIOL 3010' 'BIOL 3030' 'BIOL 3040' \
+    'CHEM 1210' 'CHEM 1215' 'CHEM 1220' 'CHEM 1225' 'CHEM 2310' 'CHEM 2315' \
+    'CHEM 2320' 'CHEM 2325' 'CHEM 3510' 'CHEM 3515' \
+    'PHYS 2010' 'PHYS 2015' 'PHYS 2020' 'PHYS 2025' \
+    'PHYS 2210' 'PHYS 2215' 'PHYS 2220' 'PHYS 2225' \
+    'BIOL 2320' 'BIOL 2325' 'BIOL 3420' \
+    'MATH 3060' \
+    'BIOL 3155' 'BIOL 3450' 'BIOL 3455' 'BIOL 3550' 'BIOL 3555' 'BIOL 4910' \
+    'BTEC 2010' 'BTEC 2020' 'BTEC 2030' 'BTEC 2050' \
+    'BIOL 2300'
+./edit make-conflict 'Biology Biomed emphasis' electives 30 maximize \
+    'BIOL 1610' 'BIOL 1615' 'BIOL 1620' 'BIOL 1625' 'BIOL 3010' 'BIOL 3030' 'BIOL 3040' \
+    'CHEM 1210' 'CHEM 1215' 'CHEM 1220' 'CHEM 1225' 'CHEM 2310' 'CHEM 2315' \
+    'CHEM 2320' 'CHEM 2325' 'CHEM 3510' 'CHEM 3515' \
+    'PHYS 2010' 'PHYS 2015' 'PHYS 2020' 'PHYS 2025' \
+    'PHYS 2210' 'PHYS 2215' 'PHYS 2220' 'PHYS 2225' \
+    'BIOL 2320' 'BIOL 2325' 'BIOL 3420' \
+    'MATH 3060' \
+    'BIOL 3155' 'BIOL 3450' 'BIOL 3455' 'BIOL 3550' 'BIOL 3555' 'BIOL 4910' \
+    'BTEC 2010' 'BTEC 2020' 'BTEC 2030' 'BTEC 2050' \
+    'BIOL 2300' \
+    'BIOL 3000R' 'BIOL 3100' 'BIOL 3110' 'BIOL 3120' 'BIOL 3140' 'BIOL 3145' \
+    'BIOL 3230R' 'BIOL 3250' 'BIOL 3360' 'BIOL 3460' 'BIOL 3470' \
+    'BIOL 4300' 'BIOL 4305' 'BIOL 4440' 'BIOL 4930R' \
+    'CHEM 3520' 'CHEM 3525' \
+    'MATH 1210'
+./edit make-conflict 'Biology Biomed emphasis' 'take one set' 0 minimize \
+    'PHYS 2010' 'PHYS 2015' 'PHYS 2020' 'PHYS 2025' \
+    'PHYS 2210' 'PHYS 2215' 'PHYS 2220' 'PHYS 2225'
+./edit make-conflict 'Biology Biomed emphasis' 'take one technical lab' 0 minimize \
+    'BTEC 2010' 'BTEC 2020' 'BTEC 2030' 'BTEC 2050' 'BIOL 2300'
+./edit make-conflict 'Biology Biomed emphasis' 'take one pair' 0 minimize \
+    'BIOL 3450' 'BIOL 3455' 'BIOL 3550' 'BIOL 3555'
+
+./edit make-program 'Biology Natural Sciences emphasis' Biology
+./edit make-conflict 'Biology Natural Sciences emphasis' 'core requirements' 99 maximize \
+    'BIOL 1610' 'BIOL 1615' 'BIOL 1620' 'BIOL 1625' 'BIOL 2400' 'BIOL 2405' \
+    'BIOL 3010' 'BIOL 3030' 'BIOL 3040' 'BIOL 3045' 'BIOL 3110' 'BIOL 3120' 'BIOL 4910' \
+    'CHEM 1210' 'CHEM 1215' 'CHEM 1220' 'CHEM 1225' \
+    'ENVS 1210' 'ENVS 1215' \
+    'GEO 1110' 'GEO 1115' \
+    'GEOG 3600' 'GEOG 3605' \
+    'MATH 1040' 'MATH 1050' \
+    'PHYS 1010' 'PHYS 1015' 'PHYS 2010' 'PHYS 2015'
+./edit make-conflict 'Biology Natural Sciences emphasis' 'choices' 45 maximize \
+    'BIOL 1610' 'BIOL 1615' 'BIOL 1620' 'BIOL 1625' 'BIOL 2400' 'BIOL 2405' \
+    'BIOL 3010' 'BIOL 3030' 'BIOL 3040' 'BIOL 3045' 'BIOL 3110' 'BIOL 3120' 'BIOL 4910' \
+    'CHEM 1210' 'CHEM 1215' 'CHEM 1220' 'CHEM 1225' \
+    'ENVS 1210' 'ENVS 1215' \
+    'GEO 1110' 'GEO 1115' \
+    'GEOG 3600' 'GEOG 3605' \
+    'MATH 1040' 'MATH 1050' \
+    'PHYS 1010' 'PHYS 1015' 'PHYS 2010' 'PHYS 2015' \
+    'BIOL 3200' 'BIOL 3340' 'BIOL 3345' 'BIOL 4200' 'BIOL 4205' 'BIOL 4260' \
+    'BIOL 4265' 'BIOL 4270' 'BIOL 4275' 'BIOL 4280' 'BIOL 4350' 'BIOL 4355' \
+    'BIOL 4380' 'BIOL 4385' 'BIOL 4411' 'BIOL 4415' 'BIOL 4440' 'BIOL 4600' 'BIOL 4605'
+./edit make-conflict 'Biology Natural Sciences emphasis' electives 30 maximize \
+    'BIOL 1610' 'BIOL 1615' 'BIOL 1620' 'BIOL 1625' 'BIOL 2400' 'BIOL 2405' \
+    'BIOL 3010' 'BIOL 3030' 'BIOL 3040' 'BIOL 3045' 'BIOL 3110' 'BIOL 3120' 'BIOL 4910' \
+    'CHEM 1210' 'CHEM 1215' 'CHEM 1220' 'CHEM 1225' \
+    'ENVS 1210' 'ENVS 1215' \
+    'GEO 1110' 'GEO 1115' \
+    'GEOG 3600' 'GEOG 3605' \
+    'MATH 1040' 'MATH 1050' \
+    'PHYS 1010' 'PHYS 1015' 'PHYS 2010' 'PHYS 2015' \
+    'BIOL 3200' 'BIOL 3340' 'BIOL 3345' 'BIOL 4200' 'BIOL 4205' 'BIOL 4260' \
+    'BIOL 4265' 'BIOL 4270' 'BIOL 4275' 'BIOL 4280' 'BIOL 4350' 'BIOL 4355' \
+    'BIOL 4380' 'BIOL 4385' 'BIOL 4411' 'BIOL 4415' 'BIOL 4440' 'BIOL 4600' 'BIOL 4605' \
+    'BIOL 3100' 'BIOL 3140' 'BIOL 3145' 'BIOL 3250' 'BIOL 3360' 'BIOL 3450' 'BIOL 3455' \
+    'BIOL 3550' 'BIOL 3555' 'BIOL 4300' 'BIOL 4305' 'BIOL 4500' 'BIOL 4505' \
+    'BIOL 4810R' 'BIOL 4930R' \
+    'GEOG 4140' 'GEOG 4180' \
+    'MATH 1210' 'MATH 3060' \
+    'BIOL 3155'
+./edit make-conflict 'Biology Natural Sciences emphasis' 'take one pair' 0 minimize \
+    'BIOL 3450' 'BIOL 3455' 'BIOL 3550' 'BIOL 3555'
+./edit make-conflict 'Biology Natural Sciences emphasis' 'only need one set' 0 minimize \
+    'BIOL 3200' 'BIOL 3205' 'BIOL 4260' 'BIOL 4265' 'BIOL 4270' 'BIOL 4275' \
+    'BIOL 4280' 'BIOL 4350' 'BIOL 4355' 'BIOL 4380' 'BIOL 4385' 'BIOL 4411' 'BIOL 4415' 'BIOL 4440'
+
+./edit make-program 'Biology Integrated Education Sciences' Biology
+./edit make-conflict 'Biology Integrated Education Sciences' 'core requirements' 99 maximize \
+    'CHEM 1210' 'CHEM 1215' 'CHEM 1220' 'CHEM 1225' \
+    'PHYS 2010' 'PHYS 2015' \
+    'MATH 1050' 'MATH 1060' 'MATH 1080' \
+    'BIOL 1610' 'BIOL 1615' 'BIOL 1620' 'BIOL 1625' 'BIOL 2320' 'BIOL 2325' \
+    'BIOL 3140' 'BIOL 3145' 'BIOL 2420' 'BIOL 2425' 'BIOL 4500' 'BIOL 4505' \
+    'BIOL 3010' 'BIOL 3030' 'BIOL 3040' 'BIOL 3045' 'BIOL 2060' 'BIOL 2065' \
+    'BIOL 3450' 'BIOL 3455' 'BIOL 3550' 'BIOL 3555' \
+    'BIOL 2400' 'BIOL 2405' 'BIOL 3200' 'BIOL 3205' \
+    'BIOL 4260' 'BIOL 4265' 'BIOL 4270' 'BIOL 4275' 'BIOL 4350' 'BIOL 4355' \
+    'BIOL 4380' 'BIOL 4385' 'BIOL 4411' 'BIOL 4415' 'BIOL 4440' \
+    'GEO 1110' 'GEO 1115' \
+    'PHYS 1040' 'PHYS 1045' \
+    'SCI 2600' \
+    'SCI 4700'
+./edit make-conflict 'Biology Integrated Education Sciences' 'take one pair' 0 minimize \
+    'BIOL 3450' 'BIOL 3455' 'BIOL 3550' 'BIOL 3555'
+./edit make-conflict 'Biology Integrated Education Sciences' 'only need one set' 0 minimize \
+    'BIOL 3200' 'BIOL 3205' 'BIOL 4260' 'BIOL 4265' 'BIOL 4270' 'BIOL 4275' \
+    'BIOL 4280' 'BIOL 4350' 'BIOL 4355' 'BIOL 4380' 'BIOL 4385' 'BIOL 4411' 'BIOL 4415' 'BIOL 4440'
+./edit make-conflict 'Biology Integrated Education Sciences' 'math 1050 or 1080' 0 minimize \
+    'MATH 1050' 'MATH 1080'
+./edit make-conflict 'Biology Integrated Education Sciences' 'math 1060 or 1080' 0 minimize \
+    'MATH 1060' 'MATH 1080'
+./edit make-conflict 'Biology Integrated Education Sciences' 'choose one set' 0 minimize \
+    'BIOL 2320' 'BIOL 2325' 'BIOL 3140' 'BIOL 3145'
+./edit make-conflict 'Biology Integrated Education Sciences' 'another choice' 0 minimize \
+    'BIOL 2420' 'BIOL 2425' 'BIOL 4500' 'BIOL 4505'
+./edit make-conflict 'Biology Integrated Education Sciences' 'final choice' 0 minimize \
+    'BIOL 2060' 'BIOL 2065' 'BIOL 3450' 'BIOL 3455' 'BIOL 3550' 'BIOL 3555'
+
+./edit make-program 'Chemistry Chemistry emphasis' Chemistry
+./edit make-conflict 'Chemistry Chemistry emphasis' 'core requirements' 99 maximize \
+    'MATH 1210' 'MATH 1220' \
+    'BIOL 1610' 'BIOL 1615' \
+    'PHYS 2210' 'PHYS 2215' 'PHYS 2220' 'PHYS 2225' \
+    'CHEM 1210' 'CHEM 1215' 'CHEM 1220' 'CHEM 1225' \
+    'CHEM 2310' 'CHEM 2315' 'CHEM 2320' 'CHEM 2325' 'CHEM 2600' 'CHEM 2990R' \
+    'CHEM 3000' 'CHEM 3005' 'CHEM 3060' 'CHEM 3065' 'CHEM 3070' 'CHEM 3075' \
+    'CHEM 3100' 'CHEM 3300' 'CHEM 3510' 'CHEM 3515' 'CHEM 3520' 'CHEM 3525' \
+    'CHEM 4100' 'CHEM 4800R' 'CHEM 4910' 'CHEM 4200' 'CHEM 4310' 'CHEM 4510' 'CHEM 4610'
+./edit make-conflict 'Chemistry Chemistry emphasis' electives 30 maximize \
+    'MATH 1210' 'MATH 1220' \
+    'BIOL 1610' 'BIOL 1615' \
+    'PHYS 2210' 'PHYS 2215' 'PHYS 2220' 'PHYS 2225' \
+    'MATH 2210' 'MATH 2250' 'MATH 2270' 'MATH 2280' 'MATH 3060' \
+    'CHEM 1210' 'CHEM 1215' 'CHEM 1220' 'CHEM 1225' \
+    'CHEM 2310' 'CHEM 2315' 'CHEM 2320' 'CHEM 2325' 'CHEM 2600' 'CHEM 2990R' \
+    'CHEM 3000' 'CHEM 3005' 'CHEM 3060' 'CHEM 3065' 'CHEM 3070' 'CHEM 3075' \
+    'CHEM 3100' 'CHEM 3300' 'CHEM 3510' 'CHEM 3515' 'CHEM 3520' 'CHEM 3525' \
+    'CHEM 4100' 'CHEM 4800R' 'CHEM 4910' 'CHEM 4200' 'CHEM 4310' 'CHEM 4510' 'CHEM 4610'
+./edit make-conflict 'Chemistry Chemistry emphasis' 'pair or single' 0 minimize \
+    'CHEM 2310' 'CHEM 2315' 'CHEM 3000'
+./edit make-conflict 'Chemistry Chemistry emphasis' 'math 2250 or 2270' 0 minimize \
+    'MATH 2270' 'MATH 2250'
+./edit make-conflict 'Chemistry Chemistry emphasis' 'math 2250 or 2280' 0 minimize \
+    'MATH 2280' 'MATH 2250'
+
+./edit make-program 'Chemistry Molecular Biology emphasis' Chemistry
+./edit make-conflict 'Chemistry Molecular Biology emphasis' 'core requirements' 99 maximize \
+    'CHEM 1210' 'CHEM 1215' 'CHEM 1220' 'CHEM 1225' 'CHEM 2310' 'CHEM 2315' \
+    'CHEM 2320' 'CHEM 2325' 'CHEM 2600' 'CHEM 2990R' \
+    'CHEM 3000' 'CHEM 3005' 'CHEM 3060' 'CHEM 3065' 'CHEM 3070' 'CHEM 3075' 'CHEM 3100' \
+    'CHEM 3300' 'CHEM 3510' 'CHEM 3515' 'CHEM 3520' 'CHEM 3525' 'CHEM 4910' \
+    'BIOL 1610' 'BIOL 1615' 'BIOL 3030' 'BIOL 3550' 'BIOL 3555' 'BIOL 4300' 'BIOL 4305' \
+    'MATH 1210' 'MATH 1220' \
+    'PHYS 2010' 'PHYS 2015' 'PHYS 2020' 'PHYS 2025' \
+    'PHYS 2210' 'PHYS 2215' 'PHYS 2220' 'PHYS 2225' \
+    'CHEM 4800R' \
+    'BIOL 4810R' 'BIOL 4890R'
+./edit make-conflict 'Chemistry Molecular Biology emphasis' electives 30 maximize \
+    'CHEM 1210' 'CHEM 1215' 'CHEM 1220' 'CHEM 1225' 'CHEM 2310' 'CHEM 2315' \
+    'CHEM 2320' 'CHEM 2325' 'CHEM 2600' 'CHEM 2990R' \
+    'CHEM 3000' 'CHEM 3005' 'CHEM 3060' 'CHEM 3065' 'CHEM 3070' 'CHEM 3075' 'CHEM 3100' \
+    'CHEM 3300' 'CHEM 3510' 'CHEM 3515' 'CHEM 3520' 'CHEM 3525' 'CHEM 4910' \
+    'BIOL 1610' 'BIOL 1615' 'BIOL 3030' 'BIOL 3550' 'BIOL 3555' 'BIOL 4300' 'BIOL 4305' \
+    'MATH 1210' 'MATH 1220' \
+    'PHYS 2010' 'PHYS 2015' 'PHYS 2020' 'PHYS 2025' \
+    'PHYS 2210' 'PHYS 2215' 'PHYS 2220' 'PHYS 2225' \
+    'CHEM 4800R' \
+    'BIOL 4810R' 'BIOL 4890R' \
+    'CHEM 4100' 'CHEM 4610' \
+    'BIOL 3010' 'BIOL 3250' 'BIOL 3360' 'BIOL 3420' \
+    'BIOL 3450' 'BIOL 3455' 'BIOL 3470' 'BIOL 3460' 'BIOL 4400'
+./edit make-conflict 'Chemistry Molecular Biology emphasis' 'take one set' 0 minimize \
+    'PHYS 2010' 'PHYS 2015' 'PHYS 2020' 'PHYS 2025' \
+    'PHYS 2210' 'PHYS 2215' 'PHYS 2220' 'PHYS 2225'
+./edit make-conflict 'Chemistry Molecular Biology emphasis' 'pair or single' 0 minimize \
+    'CHEM 2310' 'CHEM 2315' 'CHEM 3000'
+
+./edit make-program 'Chemistry Physical Sciences emphasis' Chemistry
+./edit make-conflict 'Chemistry Physical Sciences emphasis' 'core requirements' 99 maximize \
+    'SCI 4700' \
+    'CHEM 1210' 'CHEM 1215' 'CHEM 1220' 'CHEM 1225' 'CHEM 2310' 'CHEM 2315' 'CHEM 3000' \
+    'GEO 1110' 'GEO 1115' 'GEO 1220' 'GEO 1225' 'GEO 3060' \
+    'PHYS 1040' 'PHYS 1045' 'PHYS 2210' 'PHYS 2215' 'PHYS 2220' 'PHYS 2225' 'PHYS 3710' \
+    'BIOL 1610' 'BIOL 1615' \
+    'MATH 1210' 'MATH 1220' \
+    'SCI 2600' 'SCI 4800R' \
+    'CHEM 3510' \
+    'PHYS 3400'
+./edit make-conflict 'Chemistry Physical Sciences emphasis' 'pair or single' 0 minimize \
+    'CHEM 2310' 'CHEM 2315' 'CHEM 3000'
+./edit make-conflict 'Chemistry Physical Sciences emphasis' 'chem or phys' 0 minimize \
+    'CHEM 3510' 'PHYS 3400'
+
+./edit make-program Math Math
+./edit make-conflict Math 'core requirements' 99 maximize \
+    'MATH 1210' 'MATH 1220' 'MATH 2200' 'MATH 2210' 'MATH 2270' 'MATH 2280' \
+    'MATH 3200' 'MATH 3400' 'MATH 3900' 'MATH 4000' 'MATH 4900' \
+    'CS 1400' \
+    'PHYS 2210' 'PHYS 2215'
+./edit make-conflict Math electives 30 maximize \
+    'MATH 1210' 'MATH 1220' 'MATH 2200' 'MATH 2210' 'MATH 2270' 'MATH 2280' \
+    'MATH 3200' 'MATH 3400' 'MATH 3900' 'MATH 4000' 'MATH 4900' \
+    'CS 1400' \
+    'PHYS 2210' 'PHYS 2215' \
+    'MATH 3000' 'MATH 3100' 'MATH 3150' 'MATH 3210' 'MATH 3450' \
+    'MATH 3500' 'MATH 3605' 'MATH 3700' \
+    'MATH 4010' 'MATH 4100' 'MATH 4200' 'MATH 4250' 'MATH 4550' \
+    'MATH 4800' 'MATH 4890R' \
+    'PHYS 2220' 'PHYS 2225'
+
+./edit make-program 'Math ACM Data Analytics' Math
+./edit make-conflict 'Math ACM Data Analytics' 'core requirements' 99 maximize \
+    'CS 1400' 'CS 1410' \
+    'MATH 1210' 'MATH 1220' 'MATH 2200' 'CS 3310' \
+    'MATH 2210' 'MATH 2270' 'MATH 2280' 'MATH 3400' 'MATH 3700' \
+    'MATH 4250' 'MATH 4800' 'MATH 4890R' 'MATH 4900' \
+    'MATH 2050' 'MATH 3050' 'MATH 3450' \
+    'IT 1100' 'IT 2300' 'IT 2400' 'IT 4310'
+./edit make-conflict 'Math ACM Data Analytics' electives 30 maximize \
+    'CS 1400' 'CS 1410' \
+    'MATH 1210' 'MATH 1220' 'MATH 2200' 'CS 3310' \
+    'MATH 2210' 'MATH 2270' 'MATH 2280' 'MATH 3400' 'MATH 3700' \
+    'MATH 4250' 'MATH 4800' 'MATH 4890R' 'MATH 4900' \
+    'MATH 2050' 'MATH 3050' 'MATH 3450' \
+    'IT 1100' 'IT 2300' 'IT 2400' 'IT 4310' \
+    'CS 3005' 'IT 4510' \
+    'MATH 3100' 'MATH 3150' 'MATH 3120' 'MATH 3200' 'MATH 3500' \
+    'MATH 3900' 'MATH 3905' 'MATH 4000' 'MATH 4005' 'MATH 4010' \
+    'MATH 4100' 'MATH 4200' 'MATH 4330' 'MATH 4550'
+./edit make-conflict 'Math ACM Data Analytics' 'discrete math' 0 minimize \
+    'MATH 2200' 'CS 3310'
+
+./edit make-program 'Math Education' Math
+./edit make-conflict 'Math Education' 'core requirements' 99 maximize \
+    'MATH 1040' 'MATH 1210' 'MATH 1220' 'MATH 2200' 'MATH 2210' \
+    'MATH 2270' 'MATH 2280' 'MATH 3000' 'MATH 3010' 'MATH 3020' \
+    'MATH 3100' 'MATH 3120' 'MATH 3200' 'MATH 3400' 'MATH 4000' \
+    'CS 1400' \
+    'PHYS 2210' 'PHYS 2215'
+
+./edit make-program 'Math ACM Computational Mathematics' Math
+./edit make-conflict 'Math ACM Computational Mathematics' 'core requirements' 99 maximize \
+    'CS 1400' 'CS 1410' \
+    'MATH 1210' 'MATH 1220' 'MATH 2200' 'CS 3310' \
+    'MATH 2210' 'MATH 2270' 'MATH 2280' 'MATH 3400' 'MATH 3700' \
+    'MATH 4250' 'MATH 4800' 'MATH 4890R' 'MATH 4900' \
+    'CS 2420' 'CS 3005' \
+    'MATH 2050' 'MATH 3150' 'MATH 3500' 'MATH 4550' \
+    'MECH 2010' 'MECH 2030' \
+    'PHYS 2210' 'PHYS 2215' 'PHYS 2220' 'PHYS 2225'
+./edit make-conflict 'Math ACM Computational Mathematics' electives 30 maximize \
+    'CS 1400' 'CS 1410' \
+    'MATH 1210' 'MATH 1220' 'MATH 2200' 'CS 3310' \
+    'MATH 2210' 'MATH 2270' 'MATH 2280' 'MATH 3400' 'MATH 3700' \
+    'MATH 4250' 'MATH 4800' 'MATH 4890R' 'MATH 4900' \
+    'CS 2420' 'CS 3005' \
+    'MATH 2050' 'MATH 3150' 'MATH 3500' 'MATH 4550' \
+    'MECH 2010' 'MECH 2030' \
+    'PHYS 2210' 'PHYS 2215' 'PHYS 2220' 'PHYS 2225' \
+    'MATH 3050' 'MATH 3450' 'MATH 3120' 'MATH 3100' 'MATH 3900' 'MATH 3905' \
+    'MATH 4000' 'MATH 4005' 'MATH 4010' 'MATH 4100' 'MATH 4330' \
+    'MATH 3200' 'MATH 4200' \
+    'MECH 3600' 'MECH 3700' 'MECH 3705' \
+    'PHYS 3400' 'PHYS 3710'
+./edit make-conflict 'Math ACM Computational Mathematics' 'discrete math' 0 minimize \
+    'MATH 2200' 'CS 3310'
+
+./edit make-program 'Math ACM Actuarial Sciences' Math
+./edit make-conflict 'Math ACM Actuarial Sciences' 'core requirements' 99 maximize \
+    'CS 1400' 'CS 1410' \
+    'MATH 1210' 'MATH 1220' 'MATH 2200' 'CS 3310' \
+    'MATH 2210' 'MATH 2270' 'MATH 2280' 'MATH 3400' 'MATH 3700' \
+    'MATH 4250' 'MATH 4800' 'MATH 4890R' 'MATH 4900' \
+    'CS 2420' \
+    'MATH 3410' 'MATH 3450' 'MATH 4400' 'MATH 4410'
+./edit make-conflict 'Math ACM Actuarial Sciences' electives 30 maximize \
+    'CS 1400' 'CS 1410' \
+    'MATH 1210' 'MATH 1220' 'MATH 2200' 'CS 3310' \
+    'MATH 2210' 'MATH 2270' 'MATH 2280' 'MATH 3400' 'MATH 3700' \
+    'MATH 4250' 'MATH 4800' 'MATH 4890R' 'MATH 4900' \
+    'CS 2420' \
+    'MATH 3410' 'MATH 3450' 'MATH 4400' 'MATH 4410' \
+    'MATH 3050' 'MATH 3120' 'MATH 3150' 'MATH 3200' 'MATH 3100' \
+    'MATH 3500' 'MATH 3900' 'MATH 3905' 'MATH 4000' 'MATH 4005' \
+    'MATH 4200' 'MATH 4010' 'MATH 4100' 'MATH 4330' 'MATH 4550'
+./edit make-conflict 'Math ACM Actuarial Sciences' 'discrete math' 0 minimize \
+    'MATH 2200' 'CS 3310'
 
 echo building cset buildings and rooms
 ./edit make-building Brown
@@ -2677,3 +3105,15 @@ echo building cset sections
 # SCI 4720-01: Innovative Solutions - Product Development
 # assigned to SET 501 at F1400+170
 ./edit make-section 'SCI 4720-01' 'SET 501' 'F1400+170'
+
+./edit add-cross-listing geo-envs-field-methods 'GEO 2700R-01' 'ENVS 2700R-01'
+./edit add-cross-listing scientific-writing 'ENVS 3110-01' 'GEO 3110-01'
+./edit add-cross-listing product-design 'ECE 4010-01' 'MECH 4010-01'
+./edit add-cross-listing thermodynamics 'MECH 3600-01' 'MECH 3602-01' 'PHYS 3600-01'
+./edit add-cross-listing thermodynamics-lab-1 'MECH 3605-01' 'PHYS 3605-01'
+./edit add-cross-listing thermodynamics-lab-2 'MECH 3605-02' 'PHYS 3605-02'
+./edit add-cross-listing si-yule 'BIOL 1010-05' 'BIOL 1010-11'
+./edit add-cross-listing si-walker-anatomy 'BIOL 2320-04' 'BIOL 2320-08'
+./edit add-cross-listing si-walker-evolution 'BIOL 3010-01' 'BIOL 3010-02'
+./edit add-cross-listing si-klabacka 'BIOL 3030-01' 'BIOL 3030-02'
+./edit add-cross-listing zebrafish 'BTEC 2050-01' 'BTEC 2050-02'

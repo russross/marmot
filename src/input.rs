@@ -117,132 +117,6 @@ pub fn setup() -> Result<Solver, String> {
     Ok(solver)
 }
 
-// cross a holiday off the 5-minute interval list for the semester
-pub fn make_holiday(solver: &mut Solver, holiday: time::Date) -> Result<(), String> {
-    assert!(!solver.input_locked);
-
-    if holiday < solver.start || holiday > solver.end {
-        return Err(format!(
-            "block_out_holiday: {} is outside the term",
-            holiday
-        ));
-    }
-    let mut index = ((holiday - solver.start).whole_days() * 24 * 60 / 5) as usize;
-    for _hour in 0..24 {
-        for _min in (0..60).step_by(5) {
-            solver.slots.set(index, false).unwrap();
-            index += 1;
-        }
-    }
-    Ok(())
-}
-
-// create a time slot from user input
-pub fn make_time(solver: &mut Solver, name: &str, tags: Vec<&str>) -> Result<(), String> {
-    assert!(!solver.input_locked);
-
-    // example: MWF0900+50
-    let re = regex::Regex::new(
-        r"^([mtwrfsuMTWRFSU]+)([0-1][0-9]|2[0-3])([0-5][05])\+([1-9][0-9]?[05])$",
-    )
-    .unwrap();
-
-    if solver.time_slots.iter().any(|elt| elt.name == *name) {
-        return Err(format!("cannot have two time slots with name \"{}\"", name));
-    }
-
-    let Some(caps) = re.captures(name) else {
-        return Err(format!(
-            "unrecognized time format: '{}' should be like 'MWF0900+50'",
-            name
-        ));
-    };
-    let weekday_part = &caps[1];
-    let hour_part = &caps[2];
-    let minute_part = &caps[3];
-    let length_part = &caps[4];
-
-    // extract days of week
-    let days = parse_days(weekday_part)?;
-
-    // get start time
-    let start_hour = hour_part.parse::<u8>().unwrap();
-    let start_minute = minute_part.parse::<u8>().unwrap();
-    let start_time = time::Time::from_hms(start_hour, start_minute, 0).unwrap();
-    let length = length_part.parse::<i64>().unwrap();
-    let duration = time::Duration::minutes(length);
-
-    // set up the vector of 5-minute intervals used over the term
-    let mut slots = Bits::new(date_range_slots(solver.start, solver.end));
-    let mut i = 0;
-    let mut day = solver.start;
-    while day <= solver.end {
-        let weekday = day.weekday();
-        let active_day = days.contains(&weekday);
-        let mut minutes_left = 0;
-        for hour in 0..24 {
-            for min in (0..60).step_by(5) {
-                if active_day && start_hour == hour && start_minute == min {
-                    minutes_left = length;
-                }
-                slots.set(i, minutes_left > 0).unwrap();
-                i += 1;
-                if minutes_left > 0 {
-                    minutes_left -= 5;
-                }
-            }
-        }
-        day = day.next_day().unwrap();
-    }
-    slots.intersect_in_place(&solver.slots)?;
-
-    // check for conflicts
-    let mut conflicts = Vec::new();
-    let my_index = solver.time_slots.len();
-    for (other_index, other) in solver.time_slots.iter_mut().enumerate() {
-        if !slots.is_disjoint(&other.slots)? {
-            conflicts.push(other_index);
-            other.conflicts.push(my_index);
-        }
-    }
-
-    // a time slot always conflicts with itself
-    conflicts.push(solver.time_slots.len());
-
-    solver.time_slots.push(TimeSlot {
-        name: name.into(),
-        slots,
-        days,
-        start_time,
-        duration,
-        conflicts,
-        tags: tags.iter().map(|s| s.to_string()).collect(),
-    });
-
-    Ok(())
-}
-
-pub fn make_room(solver: &mut Solver, name: &str, cap: u16, tags: Vec<&str>) -> Result<(), String> {
-    assert!(!solver.input_locked);
-
-    if cap == 0 {
-        return Err(format!("room {name} must have capacity > 0"));
-    }
-    if cap > 10000 {
-        return Err(format!("room {name} cannot have capacity > 10000"));
-    }
-    let name_s = name.to_string();
-    if solver.rooms.iter().any(|elt| elt.name == *name) {
-        return Err(format!("cannot have two rooms with name \"{}\"", name_s));
-    }
-    solver.rooms.push(Room {
-        name: name_s,
-        capacity: cap,
-        tags: tags.iter().map(|s| s.to_string()).collect(),
-    });
-    Ok(())
-}
-
 pub fn make_instructor(solver: &mut Solver, name: &str, available_times_raw: Vec<(&str, isize)>,) -> Result<(), String> {
     assert!(!solver.input_locked);
 
@@ -1009,34 +883,6 @@ impl InputSection {
     }
 }
 
-macro_rules! holiday {
-    ($input:expr, $year:expr, $month:expr, $day:expr) => {
-        make_holiday($input, date($year, $month, $day)?)?
-    };
-}
-
-macro_rules! room {
-    ($input:expr,
-            name: $name:expr,
-            capacity: $capacity:expr
-            $(, tags: $($tag:expr),+)?) => (
-        make_room($input,
-            $name,
-            $capacity,
-            vec![$($($tag,)+)?])?
-    );
-}
-
-macro_rules! time {
-    ($input:expr,
-            name: $name:literal
-            $(, tags: $($tag:literal),+)?) => (
-        make_time($input,
-            $name,
-            vec![$($($tag,)+)?])?
-    );
-}
-
 macro_rules! name_with_optional_penalty {
     ($name:literal with penalty $pen:literal) => {
         ($name, $pen)
@@ -1270,6 +1116,6 @@ macro_rules! multiple_sections_reduce_penalties {
 pub(crate) use {
     add_prereqs, anticonflict, clustering_preferences, conflict, course_with_online, crosslist,
     days_off_preference, default_clustering, duration_penalty, evenly_spread_out_preference,
-    holiday, instructor, multiple_sections_reduce_penalties, name_with_optional_penalty, room,
-    section, time,
+    instructor, multiple_sections_reduce_penalties, name_with_optional_penalty,
+    section,
 };

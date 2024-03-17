@@ -1,14 +1,18 @@
+use super::bits::*;
 use super::input::*;
 use super::solver::Solver;
 use itertools::Itertools;
 use rusqlite::{Connection, OpenFlags, Result};
 
-const db_path: &str = "timetable.db";
+const DB_PATH: &str = "timetable.db";
 
-pub fn input() -> Result<Solver, String> {
-    let db = Connection::open_with_flags(db_path, OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX).map_err(|e| format!("{e}"))?;
+pub fn sql_err(err: rusqlite::Error) -> String {
+    format!("{err}")
+}
 
-    // get the semester and holidays
+// build the solver object with term dates and holidays
+pub fn make_solver(db: &mut Connection) -> Result<Solver, String> {
+    // get the semester
     struct TermRow {
         term: String,
         start_date: String,
@@ -23,50 +27,269 @@ pub fn input() -> Result<Solver, String> {
             term: row.get(0)?,
             start_date: row.get(1)?,
             end_date: row.get(2)?,
-        })).map_err(|e| format!("{e}"))?;
+        })).map_err(sql_err)?;
 
-    //let mut solver = Solver::new("Spring 2024", date(2024, 1, 8)?, date(2024, 4, 25)?);
-    let mut solver = Solver::new(&term.term, parse_date(term.start_date)?, parse_date(term.end_date)?);
+    // get the holidays
+    struct HolidayRow {
+        holiday: String,
+    }
+    let mut holiday_stmt = db.prepare("
+        SELECT holiday
+        FROM holidays NATURAL JOIN terms
+        WHERE current").map_err(sql_err)?;
+    let holidays = holiday_stmt.query_map([], |row| Ok(HolidayRow{
+            holiday: row.get(0)?,
+        })).map_err(sql_err)?;
+
+    let start_date = parse_date(term.start_date)?;
+    let end_date = parse_date(term.end_date)?;
+
+    // set up the term with 5-minute intervals
+    let mut slots = Bits::new(date_range_slots(start_date, end_date));
+    let mut day = start_date;
+    let mut i = 0;
+    while day <= end_date {
+        for _hour in 0..24 {
+            for _min in (0..60).step_by(5) {
+                slots.set(i, true).unwrap();
+                i += 1;
+            }
+        }
+        day = day.next_day().unwrap();
+    }
+
+    // add the holidays
+    for holiday_row in holidays {
+        // cross a holiday off the 5-minute interval list for the semester
+        let day = parse_date(holiday_row.map_err(sql_err)?.holiday)?;
+        if day < start_date || day > end_date {
+            return Err(format!( "block_out_holiday: {day} is outside the term"));
+        }
+        let mut index = ((day - start_date).whole_days() * 24 * 60 / 5) as usize;
+        for _hour in 0..24 {
+            for _min in (0..60).step_by(5) {
+                slots.set(index, false).unwrap();
+                index += 1;
+            }
+        }
+    }
+
+    // build the solver object
+    Ok(Solver {
+        name: term.term,
+          start: start_date,
+          end: end_date,
+          slots,
+          rooms: Vec::new(),
+          time_slots: Vec::new(),
+          instructors: Vec::new(),
+          input_sections: Vec::new(),
+          missing: Vec::new(),
+          time_slot_conflicts: Vec::new(),
+          anticonflicts: Vec::new(),
+
+          input_locked: false,
+          sections: Vec::new(),
+          room_placements: Vec::new(),
+          score: 0,
+          unplaced_current: 0,
+          unplaced_best: 0,
+    })
+}
+
+fn dept_clause(departments: &Vec<String>) -> String {
+    if departments.is_empty() {
+        "".to_string()
+    } else {
+        let mut s = " AND department IN (".to_string();
+        let mut sep = "";
+        for _ in departments {
+            s = format!("{s}{sep}?");
+            sep = ", ";
+        }
+        format!("{s})")
+    }
+}
+
+// load all rooms
+pub fn load_rooms(db: &mut Connection, solver: &mut Solver, departments: &Vec<String>) -> Result<(), String> {
+    let mut room_stmt = db.prepare(&format!("
+        SELECT DISTINCT room, capacity
+        FROM terms
+        NATURAL JOIN courses
+        NATURAL JOIN sections
+        NATURAL JOIN section_room_tags
+        NATURAL JOIN rooms_room_tags
+        NATURAL JOIN rooms
+        WHERE current{}
+        ORDER BY building, room_number", dept_clause(departments))).map_err(sql_err)?;
+    let rooms = room_stmt.query_map(rusqlite::params_from_iter(departments), |row| Ok(Room {
+        name: row.get(0)?,
+        capacity: row.get(1)?,
+        tags: Vec::new(),
+    })).map_err(sql_err)?;
+
+    for room_row in rooms {
+        solver.rooms.push(room_row.map_err(sql_err)?);
+    }
+
+    Ok(())
+}
+
+// load all time slots
+pub fn load_time_slots(db: &mut Connection, solver: &mut Solver, departments: &Vec<String>) -> Result<(), String> {
+    struct TimeSlotRow {
+        time_slot: String,
+    }
+    let mut time_slot_stmt = db.prepare(&format!("
+        SELECT DISTINCT time_slot
+        FROM terms
+        NATURAL JOIN courses
+        NATURAL JOIN sections
+        NATURAL JOIN section_time_slot_tags
+        NATURAL JOIN time_slots_time_slot_tags
+        NATURAL JOIN time_slots
+        WHERE current{}
+        ORDER BY duration * LENGTH(days), first_day, start_time, duration", dept_clause(departments))).map_err(sql_err)?;
+    let time_slots = time_slot_stmt.query_map(rusqlite::params_from_iter(departments), |row| Ok(TimeSlotRow{
+        time_slot: row.get(0)?,
+    })).map_err(sql_err)?;
+
+    // example: MWF0900+5
+    let re = regex::Regex::new(
+        r"^([mtwrfsuMTWRFSU]+)([0-1][0-9]|2[0-3])([0-5][05])\+([1-9][0-9]?[05])$",
+    )
+    .unwrap();
+
+    for time_slot_row in time_slots {
+        let time_slot = time_slot_row.map_err(sql_err)?.time_slot;
+
+        let Some(caps) = re.captures(&time_slot) else {
+            return Err(format!(
+                "unrecognized time format: '{}' should be like 'MWF0900+50'",
+                time_slot
+            ));
+        };
+        let weekday_part = &caps[1];
+        let hour_part = &caps[2];
+        let minute_part = &caps[3];
+        let length_part = &caps[4];
+
+        // extract days of week
+        let days = parse_days(weekday_part)?;
+
+        // get start time
+        let start_hour = hour_part.parse::<u8>().unwrap();
+        let start_minute = minute_part.parse::<u8>().unwrap();
+        let start_time = time::Time::from_hms(start_hour, start_minute, 0).unwrap();
+        let length = length_part.parse::<i64>().unwrap();
+        let duration = time::Duration::minutes(length);
+
+        // set up the vector of 5-minute intervals used over the term
+        let mut slots = Bits::new(date_range_slots(solver.start, solver.end));
+        let mut i = 0;
+        let mut day = solver.start;
+        while day <= solver.end {
+            let weekday = day.weekday();
+            let active_day = days.contains(&weekday);
+            let mut minutes_left = 0;
+            for hour in 0..24 {
+                for min in (0..60).step_by(5) {
+                    if active_day && start_hour == hour && start_minute == min {
+                        minutes_left = length;
+                    }
+                    slots.set(i, minutes_left > 0).unwrap();
+                    i += 1;
+                    if minutes_left > 0 {
+                        minutes_left -= 5;
+                    }
+                }
+            }
+            day = day.next_day().unwrap();
+        }
+        slots.intersect_in_place(&solver.slots)?;
+
+        // check for conflicts
+        let mut conflicts = Vec::new();
+        let my_index = solver.time_slots.len();
+        for (other_index, other) in solver.time_slots.iter_mut().enumerate() {
+            if !slots.is_disjoint(&other.slots)? {
+                conflicts.push(other_index);
+                other.conflicts.push(my_index);
+            }
+        }
+
+        // a time slot always conflicts with itself
+        conflicts.push(solver.time_slots.len());
+
+        solver.time_slots.push(TimeSlot {
+            name: time_slot,
+            slots,
+            days,
+            start_time,
+            duration,
+            conflicts,
+            tags: Vec::new(),
+        });
+    }
+
+    Ok(())
+}
+
+// load sections and the room/time combinations (plus penalties) associated with them
+pub fn load_sections(db: &mut Connection, solver: &mut Solver, departments: &Vec<String>) -> Result<(), String> {
+    struct SectionRow {
+        section: String,
+        room: String,
+        time_slot: String,
+        room_penalty: isize,
+        time_slot_penalty: isize,
+    }
+    let mut section_stmt = db.prepare(&format!("
+        SELECT section, room, time_slot, MAX(room_penalty), MAX(time_slot_penalty)
+        FROM terms
+        NATURAL JOIN courses
+        NATURAL JOIN sections
+        NATURAL JOIN section_room_tags
+        NATURAL JOIN rooms_room_tags
+        NATURAL JOIN section_time_slot_tags
+        NATURAL JOIN time_slots_time_slot_tags
+        WHERE current{}
+        GROUP BY section, room, time_slot
+        ORDER BY section, room, time_slot", dept_clause(departments))).map_err(sql_err)?;
+    let sections = section_stmt.query_map(rusqlite::params_from_iter(departments), |row| Ok(SectionRow{
+        section: row.get(0)?,
+        room: row.get(1)?,
+        time_slot: row.get(2)?,
+        room_penalty: row.get(3)?,
+        time_slot_penalty: row.get(4)?,
+    })).map_err(sql_err)?;
+
+    let mut ungrouped = Vec::new();
+    for section_row in sections {
+        let section = section_row.map_err(sql_err)?;
+        ungrouped.push(section);
+    }
+
+    for (section_name, group) in &ungrouped.iter().group_by(|row| &row.section) {
+        println!("section {section_name}");
+    }
+
+    Ok(())
+}
+
+pub fn input() -> Result<Solver, String> {
+    let departments = vec!["Computing".to_string()];
+
+    let mut db = Connection::open_with_flags(DB_PATH,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX).map_err(sql_err)?;
+
+    let mut solver = make_solver(&mut db)?;
     let mut t = &mut solver;
+    load_rooms(&mut db, t, &departments)?;
+    load_time_slots(&mut db, t, &departments)?;
+    load_sections(&mut db, t, &departments)?;
 
-    holiday!(t, 2024, 1, 15);
-    holiday!(t, 2024, 2, 19);
-    holiday!(t, 2024, 3, 11);
-    holiday!(t, 2024, 3, 12);
-    holiday!(t, 2024, 3, 13);
-    holiday!(t, 2024, 3, 14);
-    holiday!(t, 2024, 3, 15);
-
-    room!(t, name: "Smith 107", capacity: 32, tags: "flex");
-    room!(t, name: "Smith 108", capacity: 32, tags: "flex");
-    room!(t, name: "Smith 109", capacity: 32, tags: "flex");
-    room!(t, name: "Smith 112", capacity: 24, tags: "macs");
-    room!(t, name: "Smith 113", capacity: 24, tags: "pcs");
-    room!(t, name: "Smith 116", capacity: 38, tags: "stadium");
-    room!(t, name: "Smith 117", capacity: 38, tags: "stadium");
-
-    time!(t, name: "MWF0800+50", tags: "3 credit bell schedule", "3×50", "mwf");
-    time!(t, name: "MWF0900+50", tags: "3 credit bell schedule", "3×50", "mwf");
-    time!(t, name: "MWF1000+50", tags: "3 credit bell schedule", "3×50", "mwf");
-    time!(t, name: "MWF1100+50", tags: "3 credit bell schedule", "3×50", "mwf");
-    time!(t, name: "MW1200+75", tags: "3 credit bell schedule", "2×75", "mw");
-    time!(t, name: "MW1330+75", tags: "3 credit bell schedule", "2×75", "mw");
-    time!(t, name: "MW1500+75", tags: "3 credit bell schedule", "2×75", "mw");
-    time!(t, name: "MW1630+75", tags: "3 credit bell schedule", "2×75", "mw");
-    time!(t, name: "TR0730+75", tags: "3 credit bell schedule", "2×75", "tr");
-    time!(t, name: "TR0900+75", tags: "3 credit bell schedule", "2×75", "tr");
-    time!(t, name: "TR1030+75", tags: "3 credit bell schedule", "2×75", "tr");
-    time!(t, name: "TR1200+75", tags: "3 credit bell schedule", "2×75", "tr");
-    time!(t, name: "TR1330+75", tags: "3 credit bell schedule", "2×75", "tr");
-    time!(t, name: "TR1500+75", tags: "3 credit bell schedule", "2×75", "tr");
-    time!(t, name: "TR1630+75", tags: "3 credit bell schedule", "2×75", "tr");
-    time!(t, name: "T1800+150", tags: "3 credit evening");
-    time!(t, name: "W1800+150", tags: "3 credit evening");
-    time!(t, name: "R1800+150", tags: "3 credit evening");
-    time!(t, name: "R1900+50");
-    time!(t, name: "F1300+50");
-
-    //input_times(&mut t)?;
     input_computing(&mut t)?;
     //input_set(&mut t)?;
     input_computing_conflicts(&mut t)?;
@@ -514,361 +737,7 @@ pub fn input_computing_conflicts(t: &mut Solver) -> Result<(), String> {
     Ok(())
 }
 
-pub fn input_times(t: &mut Solver) -> Result<(), String> {
-    time!(t, name: "F0800+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "F0900+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "F1000+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "F1100+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "F1200+50", tags: "1 credit extended bell schedule");
-    time!(t, name: "M0800+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "M0900+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "M1000+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "M1100+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "M1200+50", tags: "1 credit extended bell schedule");
-    time!(t, name: "R0800+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "R0900+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "R1000+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "R1030+50", tags: "1 credit extended bell schedule");
-    time!(t, name: "R1100+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "R1200+50", tags: "1 credit extended bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "R1300+50", tags: "1 credit extended bell schedule");
-    time!(t, name: "R1400+50", tags: "1 credit extended bell schedule");
-    time!(t, name: "R1500+50", tags: "1 credit extended bell schedule");
-    time!(t, name: "R1600+50", tags: "1 credit extended bell schedule");
-    time!(t, name: "R1800+50", tags: "1 credit evening");
-    time!(t, name: "T0800+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "T0900+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "T1000+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "T1030+50", tags: "1 credit extended bell schedule");
-    time!(t, name: "T1100+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "T1200+50", tags: "1 credit extended bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "T1300+50", tags: "1 credit extended bell schedule");
-    time!(t, name: "T1400+50", tags: "1 credit extended bell schedule");
-    time!(t, name: "T1500+50", tags: "1 credit extended bell schedule");
-    time!(t, name: "T1600+50", tags: "1 credit extended bell schedule");
-    time!(t, name: "T1800+50", tags: "1 credit evening");
-    time!(t, name: "W0800+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "W0900+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "W1000+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "W1100+50", tags: "1 credit bell schedule", "1 credit extended bell schedule");
-    time!(t, name: "W1200+50", tags: "1 credit extended bell schedule");
-    time!(t, name: "W1800+50", tags: "1 credit evening");
-    time!(t, name: "MF0800+50", tags: "2 credit lecture");
-    time!(t, name: "MF0900+50", tags: "2 credit lecture");
-    time!(t, name: "MF1000+50", tags: "2 credit lecture");
-    time!(t, name: "MF1100+50", tags: "2 credit lecture");
-    time!(t, name: "MW0730+50", tags: "2 credit lecture");
-    time!(t, name: "MW0800+50", tags: "2 credit lecture");
-    time!(t, name: "MW0900+50", tags: "2 credit lecture");
-    time!(t, name: "MW1000+50", tags: "2 credit lecture");
-    time!(t, name: "MW1100+50", tags: "2 credit lecture");
-    time!(t, name: "MW1200+50", tags: "2 credit lecture");
-    time!(t, name: "MW1330+50", tags: "2 credit lecture");
-    time!(t, name: "MW1500+50", tags: "2 credit lecture");
-    time!(t, name: "MW1630+50", tags: "2 credit lecture");
-    time!(t, name: "TR0730+50", tags: "2 credit lecture");
-    time!(t, name: "TR0900+50", tags: "2 credit lecture");
-    time!(t, name: "TR1000+50");
-    time!(t, name: "TR1030+50", tags: "2 credit lecture");
-    time!(t, name: "TR1200+50", tags: "2 credit lecture");
-    time!(t, name: "TR1330+50", tags: "2 credit lecture");
-    time!(t, name: "TR1500+50", tags: "2 credit lecture");
-    time!(t, name: "TR1630+50", tags: "2 credit lecture");
-    time!(t, name: "WF0800+50", tags: "2 credit lecture");
-    time!(t, name: "WF0900+50", tags: "2 credit lecture");
-    time!(t, name: "WF1000+50", tags: "2 credit lecture");
-    time!(t, name: "WF1100+50", tags: "2 credit lecture");
-    time!(t, name: "MWF0800+50", tags: "3 credit bell schedule", "3×50", "mwf");
-    time!(t, name: "MWF0900+50", tags: "3 credit bell schedule", "3×50", "mwf");
-    time!(t, name: "MWF1000+50", tags: "3 credit bell schedule", "3×50", "mwf");
-    time!(t, name: "MWF1100+50", tags: "3 credit bell schedule", "3×50", "mwf");
-    time!(t, name: "MWF1200+50");
-    time!(t, name: "MTRF0800+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTRF0900+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTRF1000+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTRF1100+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTRF1200+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTRF1300+50", tags: "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTRF1400+50", tags: "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTRF1500+50", tags: "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTWF0800+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTWF0900+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTWF1000+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTWF1100+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTWF1200+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTWF1300+50", tags: "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTWF1400+50", tags: "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTWF1500+50", tags: "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTWR0800+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTWR0900+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTWR1000+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTWR1100+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTWR1200+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTWR1300+50", tags: "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTWR1400+50", tags: "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTWR1500+50", tags: "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MWRF0800+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MWRF0900+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MWRF1000+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MWRF1100+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MWRF1200+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MWRF1300+50", tags: "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MWRF1400+50", tags: "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MWRF1500+50", tags: "4 credit 4×50 extended bell schedule");
-    time!(t, name: "TWRF0800+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "TWRF0900+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "TWRF1000+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "TWRF1100+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "TWRF1200+50", tags: "4 credit bell schedule", "4 credit 4×50 bell schedule", "4 credit 4×50 extended bell schedule");
-    time!(t, name: "TWRF1300+50", tags: "4 credit 4×50 extended bell schedule");
-    time!(t, name: "TWRF1400+50", tags: "4 credit 4×50 extended bell schedule");
-    time!(t, name: "TWRF1500+50", tags: "4 credit 4×50 extended bell schedule");
-    time!(t, name: "MTWRF0800+50", tags: "5 credit bell schedule", "5 credit extended bell schedule");
-    time!(t, name: "MTWRF0900+50", tags: "5 credit bell schedule", "5 credit extended bell schedule");
-    time!(t, name: "MTWRF1000+50", tags: "5 credit bell schedule", "5 credit extended bell schedule");
-    time!(t, name: "MTWRF1100+50", tags: "5 credit bell schedule", "5 credit extended bell schedule");
-    time!(t, name: "MTWRF1200+50", tags: "5 credit bell schedule", "5 credit extended bell schedule");
-    time!(t, name: "MTWRF1300+50", tags: "5 credit extended bell schedule");
-    time!(t, name: "MTWRF1400+50", tags: "5 credit extended bell schedule");
-    time!(t, name: "MTWRF1500+50", tags: "5 credit extended bell schedule");
-    time!(t, name: "MTWRF1600+50", tags: "5 credit extended bell schedule");
-    time!(t, name: "M1030+75");
-    time!(t, name: "R0900+75");
-    time!(t, name: "R1330+75");
-    time!(t, name: "T1330+75");
-    time!(t, name: "T1500+75");
-    time!(t, name: "W1030+75");
-    time!(t, name: "MW0730+75", tags: "3 credit bell schedule", "2×75", "mw");
-    time!(t, name: "MW1200+75", tags: "3 credit bell schedule", "2×75", "mw");
-    time!(t, name: "MW1330+75", tags: "3 credit bell schedule", "2×75", "mw");
-    time!(t, name: "MW1500+75", tags: "3 credit bell schedule", "2×75", "mw");
-    time!(t, name: "MW1530+75");
-    time!(t, name: "MW1630+75", tags: "3 credit bell schedule", "2×75", "mw");
-    time!(t, name: "MW1645+75");
-    time!(t, name: "MW1800+75");
-    time!(t, name: "TR0730+75", tags: "3 credit bell schedule", "2×75", "tr");
-    time!(t, name: "TR0900+75", tags: "3 credit bell schedule", "2×75", "tr");
-    time!(t, name: "TR1030+75", tags: "3 credit bell schedule", "2×75", "tr");
-    time!(t, name: "TR1200+75", tags: "3 credit bell schedule", "2×75", "tr");
-    time!(t, name: "TR1330+75", tags: "3 credit bell schedule", "2×75", "tr");
-    time!(t, name: "TR1500+75", tags: "3 credit bell schedule", "2×75", "tr");
-    time!(t, name: "TR1630+75", tags: "3 credit bell schedule", "2×75", "tr");
-    time!(t, name: "TR1800+75");
-    time!(t, name: "MW1300+100", tags: "4 credit bell schedule", "4 credit 2×100 bell schedule");
-    time!(t, name: "MW1500+100", tags: "4 credit bell schedule", "4 credit 2×100 bell schedule");
-    time!(t, name: "MW1600+100");
-    time!(t, name: "MW1630+100");
-    time!(t, name: "MW1800+100");
-    time!(t, name: "TR1300+100", tags: "4 credit bell schedule", "4 credit 2×100 bell schedule");
-    time!(t, name: "TR1500+100", tags: "4 credit bell schedule", "4 credit 2×100 bell schedule");
-    time!(t, name: "TR1630+100");
-    time!(t, name: "TR1800+100");
-    time!(t, name: "F0800+110");
-    time!(t, name: "F0900+110");
-    time!(t, name: "F1000+110");
-    time!(t, name: "F1100+110");
-    time!(t, name: "F1200+110");
-    time!(t, name: "F1300+110");
-    time!(t, name: "M0800+110", tags: "2 hour lab M0800");
-    time!(t, name: "M0900+110", tags: "2 hour lab M0900");
-    time!(t, name: "M1000+110", tags: "2 hour lab M0800");
-    time!(t, name: "M1100+110", tags: "2 hour lab M0900");
-    time!(t, name: "M1200+110", tags: "2 hour lab M0800");
-    time!(t, name: "M1300+110", tags: "2 hour lab M0900");
-    time!(t, name: "M1400+110", tags: "2 hour lab M0800");
-    time!(t, name: "M1500+110", tags: "2 hour lab M0900");
-    time!(t, name: "M1600+110", tags: "2 hour lab M0800");
-    time!(t, name: "M1700+110");
-    time!(t, name: "R0800+110", tags: "2 hour lab R0800");
-    time!(t, name: "R0900+110", tags: "2 hour lab R0900");
-    time!(t, name: "R1000+110", tags: "2 hour lab R0800");
-    time!(t, name: "R1100+110", tags: "2 hour lab R0900");
-    time!(t, name: "R1200+110", tags: "2 hour lab R0800");
-    time!(t, name: "R1300+110", tags: "2 hour lab R0900");
-    time!(t, name: "R1400+110", tags: "2 hour lab R0800");
-    time!(t, name: "R1500+110", tags: "2 hour lab R0900");
-    time!(t, name: "R1600+110", tags: "2 hour lab R0800");
-    time!(t, name: "R1700+110");
-    time!(t, name: "R1715+110");
-    time!(t, name: "R1800+110");
-    time!(t, name: "R1900+110");
-    time!(t, name: "T0800+110", tags: "2 hour lab T0800");
-    time!(t, name: "T0900+110", tags: "2 hour lab T0900");
-    time!(t, name: "T1000+110", tags: "2 hour lab T0800");
-    time!(t, name: "T1100+110", tags: "2 hour lab T0900");
-    time!(t, name: "T1200+110", tags: "2 hour lab T0800");
-    time!(t, name: "T1300+110", tags: "2 hour lab T0900");
-    time!(t, name: "T1400+110", tags: "2 hour lab T0800");
-    time!(t, name: "T1500+110", tags: "2 hour lab T0900");
-    time!(t, name: "T1600+110", tags: "2 hour lab T0800");
-    time!(t, name: "T1700+110");
-    time!(t, name: "T1800+110");
-    time!(t, name: "T1900+110");
-    time!(t, name: "W0800+110", tags: "2 hour lab W0800");
-    time!(t, name: "W0900+110", tags: "2 hour lab W0900");
-    time!(t, name: "W1000+110", tags: "2 hour lab W0800");
-    time!(t, name: "W1100+110", tags: "2 hour lab W0900");
-    time!(t, name: "W1200+110", tags: "2 hour lab W0800");
-    time!(t, name: "W1300+110", tags: "2 hour lab W0900");
-    time!(t, name: "W1400+110", tags: "2 hour lab W0800");
-    time!(t, name: "W1500+110", tags: "2 hour lab W0900");
-    time!(t, name: "W1600+110", tags: "2 hour lab W0800");
-    time!(t, name: "W1700+110");
-    time!(t, name: "W1715+110");
-    time!(t, name: "W1800+110");
-    time!(t, name: "W1900+110");
-    time!(t, name: "MR1100+110");
-    time!(t, name: "MW0600+110");
-    time!(t, name: "MW0800+110", tags: "4 hour lab MW0800");
-    time!(t, name: "MW0900+110", tags: "4 hour lab MW0900");
-    time!(t, name: "MW1000+110", tags: "4 hour lab MW0800");
-    time!(t, name: "MW1100+110", tags: "4 hour lab MW0900");
-    time!(t, name: "MW1200+110", tags: "4 hour lab MW0800");
-    time!(t, name: "MW1300+110", tags: "4 hour lab MW0900");
-    time!(t, name: "MW1400+110", tags: "4 hour lab MW0800");
-    time!(t, name: "MW1500+110", tags: "4 hour lab MW0900");
-    time!(t, name: "MW1600+110", tags: "4 hour lab MW0800");
-    time!(t, name: "MW1700+110");
-    time!(t, name: "MW1800+110");
-    time!(t, name: "TR0600+110");
-    time!(t, name: "TR0800+110", tags: "4 hour lab TR0800");
-    time!(t, name: "TR0900+110", tags: "4 hour lab TR0900");
-    time!(t, name: "TR1000+110", tags: "4 hour lab TR0800");
-    time!(t, name: "TR1100+110", tags: "4 hour lab TR0900");
-    time!(t, name: "TR1200+110", tags: "4 hour lab TR0800");
-    time!(t, name: "TR1300+110", tags: "4 hour lab TR0900");
-    time!(t, name: "TR1400+110", tags: "4 hour lab TR0800");
-    time!(t, name: "TR1500+110", tags: "4 hour lab TR0900");
-    time!(t, name: "TR1600+110", tags: "4 hour lab TR0800");
-    time!(t, name: "TR1700+110");
-    time!(t, name: "TR1800+110");
-    time!(t, name: "F0800+115");
-    time!(t, name: "R1200+135");
-    time!(t, name: "R1530+150");
-    time!(t, name: "R1800+150", tags: "3 credit evening");
-    time!(t, name: "T1630+150");
-    time!(t, name: "T1800+150", tags: "3 credit evening");
-    time!(t, name: "W1630+150");
-    time!(t, name: "W1800+150", tags: "3 credit evening");
-    time!(t, name: "R1330+165");
-
-    time!(t, name: "M1100+170", tags: "3 hour lab M0800");
-    time!(t, name: "M1300+170", tags: "3 hour lab M1000");
-    time!(t, name: "M1930+170");
-
-    time!(t, name: "T0700+170");
-    time!(t, name: "T0800+170", tags: "3 hour lab T0800");
-    time!(t, name: "T0900+170", tags: "3 hour lab T0900");
-    time!(t, name: "T1000+170", tags: "3 hour lab T1000");
-    time!(t, name: "T1100+170", tags: "3 hour lab T0800");
-    time!(t, name: "T1200+170", tags: "3 hour lab T0900");
-    time!(t, name: "T1300+170", tags: "3 hour lab T1000");
-    time!(t, name: "T1400+170", tags: "3 hour lab T0800");
-    time!(t, name: "T1500+170", tags: "3 hour lab T0900");
-    time!(t, name: "T1600+170");
-    time!(t, name: "T1700+170");
-    time!(t, name: "T1800+170");
-    time!(t, name: "T1900+170");
-    time!(t, name: "T1930+170");
-
-    time!(t, name: "W0800+170", tags: "3 hour lab W0800");
-    time!(t, name: "W0900+170", tags: "3 hour lab W0900");
-    time!(t, name: "W1000+170", tags: "3 hour lab W1000");
-    time!(t, name: "W1100+170", tags: "3 hour lab W0800");
-    time!(t, name: "W1200+170", tags: "3 hour lab W0900");
-    time!(t, name: "W1300+170", tags: "3 hour lab W1000");
-    time!(t, name: "W1330+170");
-    time!(t, name: "W1400+170", tags: "3 hour lab W0800");
-    time!(t, name: "W1500+170", tags: "3 hour lab W0900");
-    time!(t, name: "W1600+170");
-    time!(t, name: "W1700+170");
-    time!(t, name: "W1930+170");
-
-    time!(t, name: "R0800+170", tags: "3 hour lab R0800");
-    time!(t, name: "R0900+170", tags: "3 hour lab R0900");
-    time!(t, name: "R1000+170", tags: "3 hour lab R1000");
-    time!(t, name: "R1100+170", tags: "3 hour lab R0800");
-    time!(t, name: "R1200+170", tags: "3 hour lab R0900");
-    time!(t, name: "R1300+170", tags: "3 hour lab R1000");
-    time!(t, name: "R1400+170", tags: "3 hour lab R0800");
-    time!(t, name: "R1500+170", tags: "3 hour lab R0900");
-    time!(t, name: "R1600+170");
-    time!(t, name: "R1630+170");
-    time!(t, name: "R1700+170");
-    time!(t, name: "R1900+170");
-
-    time!(t, name: "F0800+170");
-    time!(t, name: "F1100+170");
-    time!(t, name: "F1330+170");
-    time!(t, name: "F1400+170");
-
-    time!(t, name: "MW1500+170");
-    time!(t, name: "TR1500+170");
-    time!(t, name: "TR1600+170");
-    time!(t, name: "M1400+180");
-    time!(t, name: "MWF1330+180");
-    time!(t, name: "S1000+300");
-
-    Ok(())
-}
-
 pub fn input_set(t: &mut Solver) -> Result<(), String> {
-    room!(t, name: "BROWN 201", capacity: 65);
-    room!(t, name: "COE 121", capacity: 50);
-    room!(t, name: "HCC 476", capacity: 20);
-    room!(t, name: "SET 101", capacity: 18);
-    room!(t, name: "SET 102", capacity: 18);
-    room!(t, name: "SET 104", capacity: 40);
-    room!(t, name: "SET 105", capacity: 60, tags: "Science medium lecture", "Science small lecture");
-    room!(t, name: "SET 106", capacity: 125, tags: "Science large lecture", "Science medium lecture", "Science small lecture");
-    room!(t, name: "SET 201", capacity: 65, tags: "Science medium lecture", "Science small lecture");
-    room!(t, name: "SET 213", capacity: 20);
-    room!(t, name: "SET 214", capacity: 20);
-    room!(t, name: "SET 215", capacity: 20);
-    room!(t, name: "SET 216", capacity: 24);
-    room!(t, name: "SET 219", capacity: 24);
-    room!(t, name: "SET 225", capacity: 20);
-    room!(t, name: "SET 226", capacity: 40);
-    room!(t, name: "SET 301", capacity: 65, tags: "Science medium lecture", "Science small lecture");
-    room!(t, name: "SET 303", capacity: 12);
-    room!(t, name: "SET 304", capacity: 18);
-    room!(t, name: "SET 308", capacity: 24);
-    room!(t, name: "SET 309", capacity: 20);
-    room!(t, name: "SET 310", capacity: 14);
-    room!(t, name: "SET 312", capacity: 20);
-    room!(t, name: "SET 318", capacity: 24);
-    room!(t, name: "SET 319", capacity: 24);
-    room!(t, name: "SET 404", capacity: 16);
-    room!(t, name: "SET 405", capacity: 24);
-    room!(t, name: "SET 407", capacity: 24);
-    room!(t, name: "SET 408", capacity: 15);
-    room!(t, name: "SET 409", capacity: 24);
-    room!(t, name: "SET 410", capacity: 24);
-    room!(t, name: "SET 412", capacity: 24);
-    room!(t, name: "SET 418", capacity: 48, tags: "Science small lecture");
-    room!(t, name: "SET 420", capacity: 48, tags: "Science small lecture");
-    room!(t, name: "SET 501", capacity: 20);
-    room!(t, name: "SET 522", capacity: 24);
-    room!(t, name: "SET 523", capacity: 24);
-    room!(t, name: "SET 524", capacity: 45, tags: "Science small lecture");
-    room!(t, name: "SET 526", capacity: 24);
-    room!(t, name: "SET 527", capacity: 24);
-    room!(t, name: "SNOW 103", capacity: 16);
-    room!(t, name: "SNOW 112", capacity: 42, tags: "Math lecture");
-    room!(t, name: "SNOW 113", capacity: 36);
-    room!(t, name: "SNOW 124", capacity: 42, tags: "Math lecture");
-    room!(t, name: "SNOW 125", capacity: 42, tags: "Math lecture");
-    room!(t, name: "SNOW 128", capacity: 40, tags: "Science small lecture", "Science Snow lecture");
-    room!(t, name: "SNOW 144", capacity: 42, tags: "Math lecture");
-    room!(t, name: "SNOW 145", capacity: 42, tags: "Math lecture");
-    room!(t, name: "SNOW 147", capacity: 42, tags: "Math lecture");
-    room!(t, name: "SNOW 150", capacity: 42, tags: "Math lecture");
-    room!(t, name: "SNOW 151", capacity: 42, tags: "Math lecture");
-    room!(t, name: "SNOW 204", capacity: 10);
-    room!(t, name: "SNOW 208", capacity: 24, tags: "Science small lecture", "Science Snow lecture");
-    room!(t, name: "SNOW 216", capacity: 45, tags: "Science small lecture", "Science Snow lecture");
-    room!(t, name: "SNOW 3", capacity: 42, tags: "Math lecture");
-
     instructor!(t,
         name:
             "Alexander R Tye",

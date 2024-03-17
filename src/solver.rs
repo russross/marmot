@@ -361,42 +361,6 @@ pub trait ScoreCriterion {
 }
 
 impl Solver {
-    pub fn new(name: &str, start: time::Date, end: time::Date) -> Self {
-        // set up the term with 5-minute intervals
-        let mut slots = Bits::new(date_range_slots(start, end));
-        let mut day = start;
-        let mut i = 0;
-        while day <= end {
-            for _hour in 0..24 {
-                for _min in (0..60).step_by(5) {
-                    slots.set(i, true).unwrap();
-                    i += 1;
-                }
-            }
-            day = day.next_day().unwrap();
-        }
-        Self {
-            name: name.into(),
-            start,
-            end,
-            slots,
-            rooms: Vec::new(),
-            time_slots: Vec::new(),
-            instructors: Vec::new(),
-            input_sections: Vec::new(),
-            missing: Vec::new(),
-            time_slot_conflicts: Vec::new(),
-            anticonflicts: Vec::new(),
-
-            input_locked: false,
-            sections: Vec::new(),
-            room_placements: Vec::new(),
-            score: 0,
-            unplaced_current: 0,
-            unplaced_best: 0,
-        }
-    }
-
     pub fn lock_input(&mut self) -> Result<(), String> {
         for _ in 0..self.rooms.len() {
             self.room_placements.push(RoomPlacements {

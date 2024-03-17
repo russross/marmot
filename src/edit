@@ -152,6 +152,27 @@ def make_faculty(db, faculty, department, availability):
         duration = end - start
         db.execute('INSERT INTO availability VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?, ?, ?)', (faculty, day, start, duration, penalty))
 
+
+
+@cli.command()
+@click.argument('faculty')
+@click.argument('days_to_check')
+@click.argument('days_off')
+@click.pass_obj
+def faculty_default_clustering(db, faculty, days_to_check, days_off):
+    db.execute('INSERT INTO faculty_preferences VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?, ?, ?, ?)',
+            (faculty, days_to_check, 0 if days_off == 'no_preference' else int(days_off), 0 if days_off == 'no_preference' else 10, 10, 15))
+    intervals = (
+        (True, True, 110, 5),
+        (True, False, 165, 10),
+        (False, True, 60, 10),
+        (False, False, 105, 5),
+        (False, False, 195, 10),
+    )
+    for (is_cluster, is_too_short, interval_minutes, interval_penalty) in intervals:
+        db.execute('INSERT INTO faculty_preference_intervals VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?, ?, ?)',
+            (faculty, is_cluster, is_too_short, interval_minutes, interval_penalty))
+
 @cli.command()
 @click.argument('department')
 @click.argument('course')
@@ -198,9 +219,9 @@ def make_section(db, section, tags):
             print(f'section {section} tag "{tag}" found as both room_tag and time_slot_tag, unable to proceed')
             sys.exit(1)
         elif room_tags > 0:
-            db.execute('INSERT INTO section_room_tags VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?)', (section, tag, penalty if penalty > 0 else None))
+            db.execute('INSERT INTO section_room_tags VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?)', (section, tag, penalty))
         elif time_slot_tags > 0:
-            db.execute('INSERT INTO section_time_slot_tags VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?)', (section, tag, penalty if penalty > 0 else None))
+            db.execute('INSERT INTO section_time_slot_tags VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?)', (section, tag, penalty))
 
 @cli.command()
 @click.argument('faculty')
@@ -209,6 +230,34 @@ def make_section(db, section, tags):
 def assign_faculty_sections(db, faculty, sections):
     for section in sections:
         db.execute('INSERT INTO faculty_sections VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (faculty, section))
+
+@cli.command()
+@click.argument('name')
+@click.argument('sections', nargs=-1)
+@click.pass_obj
+def add_cross_listing(db, name, sections):
+    if len(sections) < 2:
+        print(f'add_cross_listing needs at least two sections to cross list')
+        sys.exit(1)
+    db.execute('INSERT INTO cross_listings VALUES ((SELECT term FROM terms WHERE current), ?)', (name,))
+    for section in sections:
+        db.execute('INSERT INTO cross_listing_sections VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (name, section))
+
+@cli.command()
+@click.argument('penalty')
+@click.argument('single')
+@click.argument('group', nargs=-1)
+@click.pass_obj
+def add_anti_conflict(db, penalty, single, group):
+    if len(group) < 1:
+        print(f'add_anti_conflict needs at least one section in the group')
+        sys.exit(1)
+    db.execute('INSERT INTO anti_conflicts VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (single, int(penalty)))
+    for elt in group:
+        if '-' not in elt:
+            db.execute('INSERT INTO anti_conflict_courses VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (single, elt))
+        else:
+            db.execute('INSERT INTO anti_conflict_sections VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (single, elt))
 
 @cli.command()
 @click.argument('program')
