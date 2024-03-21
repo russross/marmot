@@ -9,12 +9,7 @@ pub struct SoftConflictCriterion {
 }
 
 impl ScoreCriterion for SoftConflictCriterion {
-    fn check(
-        &self,
-        solver: &Solver,
-        section: usize,
-        records: &mut Vec<SectionScoreRecord>,
-    ) {
+    fn check(&self, solver: &Solver, section: usize, records: &mut Vec<SectionScoreRecord>) {
         // grab the time slot we are placed in
         let Some(RoomTimeWithPenalty {
             time_slot: my_time_slot,
@@ -87,12 +82,7 @@ pub struct AntiConflictCriterion {
 }
 
 impl ScoreCriterion for AntiConflictCriterion {
-    fn check(
-        &self,
-        solver: &Solver,
-        section: usize,
-        records: &mut Vec<SectionScoreRecord>,
-    ) {
+    fn check(&self, solver: &Solver, section: usize, records: &mut Vec<SectionScoreRecord>) {
         // grab the time slot of the single section
         let Some(RoomTimeWithPenalty { time_slot, .. }) = solver.sections[self.single].placement
         else {
@@ -165,12 +155,7 @@ pub struct InstructorClassSpreadCriterion {
 }
 
 impl ScoreCriterion for InstructorClassSpreadCriterion {
-    fn check(
-        &self,
-        solver: &Solver,
-        section: usize,
-        records: &mut Vec<SectionScoreRecord>,
-    ) {
+    fn check(&self, solver: &Solver, section: usize, records: &mut Vec<SectionScoreRecord>) {
         let &section_of_record = self.sections.iter().min().unwrap();
 
         // for each group of days, lay out the classes scheduled on those days in order
@@ -511,12 +496,7 @@ pub struct InstructorRoomCountCriterion {
 }
 
 impl ScoreCriterion for InstructorRoomCountCriterion {
-    fn check(
-        &self,
-        solver: &Solver,
-        section: usize,
-        records: &mut Vec<SectionScoreRecord>,
-    ) {
+    fn check(&self, solver: &Solver, section: usize, records: &mut Vec<SectionScoreRecord>) {
         let &section_of_record = self.sections.iter().min().unwrap();
         let mut rooms = Vec::new();
         for &sec in &self.sections {
@@ -652,7 +632,10 @@ impl SectionScoreRecord {
                 local,
                 ..
             } => {
-                let message = format!("unplaced section: {}", solver.input_sections[*section].get_name());
+                let message = format!(
+                    "unplaced section: {}",
+                    solver.input_sections[*section].get_name()
+                );
                 list.push((*local, message));
             }
 

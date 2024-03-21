@@ -110,175 +110,13 @@ pub fn setup() -> Result<Solver, String> {
     // used by time_slots_conflict
     for i in 0..solver.time_slots.len() {
         for j in 0..solver.time_slots.len() {
-            solver.time_slot_conflicts.push(solver.time_slots[i].conflicts.contains(&j));
+            solver
+                .time_slot_conflicts
+                .push(solver.time_slots[i].conflicts.contains(&j));
         }
     }
 
     Ok(solver)
-}
-
-pub fn make_instructor(solver: &mut Solver, name: &str, available_times_raw: Vec<(&str, isize)>,) -> Result<(), String> {
-    assert!(!solver.input_locked);
-
-    if find_instructor_by_name(solver, name).is_ok() {
-        return Err(format!("duplicate instructor name: {}", name));
-    }
-
-    let mut available_times = Vec::new();
-    for _ in 0..7 {
-        available_times.push(vec![-1isize; 24 * 12]);
-    }
-
-    // example: MTWRF 0900-1700
-    let re = regex::Regex::new(
-        r"^([mtwrfsuMTWRFSU]+) *([0-1][0-9]|2[0-3])([0-5][05])-([0-1][0-9]|2[0-4])([0-5][05])$",
-    )
-    .unwrap();
-
-    for (time_name, penalty) in available_times_raw {
-        if !(0..=99).contains(&penalty) {
-            return Err(format!(
-                "instructor {} cannot have an available time penalty of {}",
-                name, penalty
-            ));
-        }
-
-        let Some(caps) = re.captures(time_name) else {
-            return Err(format!(
-                "unrecognized time format '{}' should be like 'MTWRF 0900-1700' for instructor {}", time_name, name));
-        };
-
-        let days = parse_days(&caps[1])?;
-        let start_hour = caps[2].parse::<usize>().unwrap();
-        let start_minute = caps[3].parse::<usize>().unwrap();
-        let end_hour = caps[4].parse::<usize>().unwrap();
-        let end_minute = caps[5].parse::<usize>().unwrap();
-
-        if end_hour == 24 && end_minute != 0 {
-            return Err(format!(
-                "available time for instructor {} cannot end after midnight",
-                name
-            ));
-        }
-
-        let start_index = start_hour * 12 + start_minute / 5;
-        let end_index = end_hour * 12 + end_minute / 5;
-        if end_index <= start_index {
-            return Err(format!(
-                "available time for instructor {} cannot end before it begins",
-                name
-            ));
-        }
-        for &day_of_week in &days {
-            let day = &mut available_times[day_of_week.number_days_from_sunday() as usize];
-            for elt in day.iter_mut().take(end_index).skip(start_index) {
-                *elt = std::cmp::max(*elt, penalty);
-            }
-        }
-    }
-
-    solver.instructors.push(Instructor {
-        name: name.into(),
-        available_times,
-        sections: Vec::new(),
-        distribution: Vec::new(),
-    });
-    Ok(())
-}
-
-pub fn make_section(solver: &mut Solver, section_raw: &str, instructor_names: Vec<&str>, rooms_and_times: Vec<(&str, isize)>,) -> Result<(), String> {
-    assert!(!solver.input_locked);
-
-    let (prefix, course, Some(section)) = parse_section_name(section_raw)? else {
-        return Err(format!(
-            "section name {section_raw} must include prefix, course, and section, like 'CS 1400-01'"
-        ));
-    };
-
-    // start with instructors
-    let mut instructors = Vec::new();
-    for name in &instructor_names {
-        instructors.push(find_instructor_by_name(solver, name)?);
-    }
-    instructors.sort();
-    instructors.dedup();
-
-    // handle constraints
-    let mut rwp = Vec::new();
-    let mut twp = Vec::new();
-
-    for (t, badness) in rooms_and_times {
-        let tag = t.to_string();
-        if !(-1..=99).contains(&badness) {
-            return Err(format!(
-                "section {} cannot have a room/time penalty of {}",
-                section_raw, badness
-            ));
-        }
-        let mut found = false;
-
-        // check for matching rooms
-        for (room_i, _room) in solver.rooms.iter().enumerate().filter(|(_, r)| r.name == tag || r.tags.contains(&tag)) {
-            found = true;
-            add_room_with_penalty_keep_last(
-                &mut rwp,
-                RoomWithPenalty {
-                    room: room_i,
-                    penalty: badness,
-                },
-            );
-        }
-
-        // check for matching times
-        for (time_i, _time) in solver.time_slots.iter().enumerate().filter(|(_, t)| t.name == tag || t.tags.contains(&tag)) {
-            found = true;
-            add_time_with_penalty_keep_last(
-                &mut twp,
-                TimeWithPenalty {
-                    time_slot: time_i,
-                    penalty: badness,
-                },
-            );
-        }
-
-        if !found {
-            return Err(format!("unrecognized constraint tag for section: {}", tag));
-        }
-    }
-
-    if rwp.is_empty() {
-        return Err(format!("no rooms found for {}", section_raw));
-    }
-    if twp.is_empty() {
-        return Err(format!(
-            "section {} does not specify any time slots",
-            section_raw
-        ));
-    }
-
-    rwp.sort_by_key(|elt| elt.room);
-    twp.sort_by_key(|elt| elt.time_slot);
-    if solver.input_sections.iter().any(|s| s.prefix == prefix && s.course == course && s.section == section) {
-        return Err(format!("section {} appears more than once", section_raw));
-    }
-    for &instructor in &instructors {
-        solver.instructors[instructor].sections.push(solver.input_sections.len());
-    }
-    solver.input_sections.push(InputSection {
-        prefix,
-        course,
-        section,
-        instructors,
-        rooms: rwp,
-        time_slots: twp,
-        hard_conflicts: Vec::new(),
-        soft_conflicts: Vec::new(),
-        cross_listings: Vec::new(),
-        coreqs: Vec::new(),
-        prereqs: Vec::new(),
-    });
-
-    Ok(())
 }
 
 // set the conflict penalty between every pair of sections in the list
@@ -288,7 +126,12 @@ pub fn make_section(solver: &mut Solver, section_raw: &str, instructor_names: Ve
 // e.g.: specifying CS 101 and CS 102 will set the conflict between every
 // section of CS 101 vs every CS 102, but not between the individual
 // sections of CS 101 nor between the individual sections of CS 102
-pub fn make_conflict_clique(solver: &mut Solver, badness: isize, maximize: bool, sections_raw: Vec<&str>) -> Result<(), String> {
+pub fn make_conflict_clique(
+    solver: &mut Solver,
+    badness: isize,
+    maximize: bool,
+    sections_raw: Vec<&str>,
+) -> Result<(), String> {
     assert!(!solver.input_locked);
 
     // parse and sanity check the inputs
@@ -336,53 +179,12 @@ pub fn make_conflict_clique(solver: &mut Solver, badness: isize, maximize: bool,
     Ok(())
 }
 
-pub fn make_anti_conflict(solver: &mut Solver, badness: isize, single_raw: &str, group_raw: Vec<&str>) -> Result<(), String> {
-    assert!(!solver.input_locked);
-
-    // parse and sanity check the inputs
-    if !(1..100).contains(&badness) {
-        return Err("badness for an anticonflict must be between 1 and 99".into());
-    }
-
-    // look up the group sections first
-    let mut group = Vec::new();
-    for raw in group_raw {
-        let mut list = find_sections_by_name(solver, raw)?;
-        if list.is_empty() {
-            solver.missing.push(raw.to_string());
-        } else {
-            group.append(&mut list);
-        }
-    }
-
-    // see if the single section is present in the data
-    let single_list = find_sections_by_name(solver, single_raw)?;
-    if single_list.is_empty() {
-        solver.missing.push(single_raw.to_string());
-    }
-
-    // single must be a single section
-    if single_list.len() > 1 {
-        return Err(format!(
-            "anticonflict: single {} must be a single section",
-            single_raw
-        ));
-    }
-
-    // single and group must both exist
-    if group.is_empty() || single_list.len() != 1 {
-        return Ok(());
-    }
-    let single = single_list[0];
-    group.sort();
-    group.dedup();
-
-    solver.anticonflicts.push((badness, single, group));
-
-    Ok(())
-}
-
-pub fn add_prereqs_fn(solver: &mut Solver, course_raw: &str, coreqs_raw: Vec<&str>, prereqs_raw: Vec<&str>) -> Result<(), String> {
+pub fn add_prereqs_fn(
+    solver: &mut Solver,
+    course_raw: &str,
+    coreqs_raw: Vec<&str>,
+    prereqs_raw: Vec<&str>,
+) -> Result<(), String> {
     assert!(!solver.input_locked);
 
     // see if the course is present in the data
@@ -434,7 +236,10 @@ pub fn add_prereqs_fn(solver: &mut Solver, course_raw: &str, coreqs_raw: Vec<&st
     Ok(())
 }
 
-pub fn multiple_sections_reduce_penalties_fn(solver: &mut Solver, courses_raw: Vec<(&str, isize)>) -> Result<(), String> {
+pub fn multiple_sections_reduce_penalties_fn(
+    solver: &mut Solver,
+    courses_raw: Vec<(&str, isize)>,
+) -> Result<(), String> {
     assert!(!solver.input_locked);
 
     let threshold = 30;
@@ -479,39 +284,6 @@ pub fn multiple_sections_reduce_penalties_fn(solver: &mut Solver, courses_raw: V
     Ok(())
 }
 
-pub fn make_cross_listing(solver: &mut Solver, sections_raw: Vec<&str>) -> Result<(), String> {
-    assert!(!solver.input_locked);
-
-    let mut sections = Vec::new();
-    for section_raw in &sections_raw {
-        let section_list = find_sections_by_name(solver, section_raw)?;
-        if section_list.len() != 1 {
-            return Err(format!("section {section_raw} not found in cross-listing"));
-        }
-
-        sections.push(section_list[0]);
-    }
-    sections.sort();
-    sections.dedup();
-    if sections.len() < 2 {
-        return Err(format!(
-            "cross-listing that includes {} must include at least two unique sections",
-            solver.input_sections[sections[0]].get_name()
-        ));
-    }
-    for &i in &sections {
-        if !solver.input_sections[i].cross_listings.is_empty() {
-            return Err(format!(
-                "cannot cross list {} because it is already cross-listed",
-                solver.input_sections[i].get_name()
-            ));
-        }
-        solver.input_sections[i].cross_listings = sections.clone();
-    }
-
-    Ok(())
-}
-
 pub fn find_time_slot_by_name(solver: &Solver, name: &str) -> Result<usize, String> {
     let Some(i) = solver.time_slots.iter().position(|elt| elt.name == *name) else {
         return Err(format!("timeslot named \"{}\" not found", name));
@@ -530,7 +302,11 @@ pub fn find_section_by_name(solver: &Solver, section_raw: &String) -> Result<usi
     let (prefix, course, Some(section)) = parse_section_name(&section_raw)? else {
         return Err(format!("section name {section_raw} must include prefix, course, and section, like 'CS 1400-01'"));
     };
-    solver.input_sections.iter().position(|elt| elt.prefix == prefix && elt.course == course && elt.section == section).ok_or("could not find section".into())
+    solver
+        .input_sections
+        .iter()
+        .position(|elt| elt.prefix == prefix && elt.course == course && elt.section == section)
+        .ok_or("could not find section".into())
 }
 
 pub fn find_sections_by_name(solver: &Solver, course_raw: &str) -> Result<Vec<usize>, String> {
@@ -615,42 +391,6 @@ pub fn date_range_slots(start: time::Date, end: time::Date) -> usize {
         panic!("date_range_slots must have start < end");
     }
     size as usize
-}
-
-pub fn add_room_with_penalty_keep_worst(list: &mut Vec<RoomWithPenalty>, rwp: RoomWithPenalty) {
-    match list.iter().position(|elt| elt.room == rwp.room) {
-        Some(i) => list[i].penalty = std::cmp::max(list[i].penalty, rwp.penalty),
-        None => list.push(rwp),
-    }
-}
-
-pub fn add_time_with_penalty_keep_worst(list: &mut Vec<TimeWithPenalty>, twp: TimeWithPenalty) {
-    match list.iter().position(|elt| elt.time_slot == twp.time_slot) {
-        Some(i) => list[i].penalty = std::cmp::max(list[i].penalty, twp.penalty),
-        None => list.push(twp),
-    }
-}
-
-pub fn add_room_with_penalty_keep_last(list: &mut Vec<RoomWithPenalty>, rwp: RoomWithPenalty) {
-    if rwp.penalty < 0 {
-        list.retain(|elt| elt.room != rwp.room);
-    } else {
-        match list.iter().position(|elt| elt.room == rwp.room) {
-            Some(i) => list[i].penalty = rwp.penalty,
-            None => list.push(rwp),
-        }
-    }
-}
-
-pub fn add_time_with_penalty_keep_last(list: &mut Vec<TimeWithPenalty>, twp: TimeWithPenalty) {
-    if twp.penalty < 0 {
-        list.retain(|elt| elt.time_slot != twp.time_slot);
-    } else {
-        match list.iter().position(|elt| elt.time_slot == twp.time_slot) {
-            Some(i) => list[i].penalty = twp.penalty,
-            None => list.push(twp),
-        }
-    }
 }
 
 pub fn date(year: i32, month: u8, day: u8) -> Result<time::Date, String> {
@@ -790,8 +530,7 @@ pub enum DistributionPreference {
     },
 }
 
-#[derive(Clone)]
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum DurationWithPenalty {
     // a duration shorter than this gets a penalty
     TooShort {
@@ -891,50 +630,6 @@ impl InputSection {
     }
 }
 
-macro_rules! name_with_optional_penalty {
-    ($name:literal with penalty $pen:literal) => {
-        ($name, $pen)
-    };
-    ($name:literal) => {
-        ($name, 0)
-    };
-}
-
-macro_rules! instructor {
-    ($input:expr,
-            name: $name:expr,
-            available: $($tag:literal $(with penalty $pen:literal)?),+ $(,)?) => {
-        make_instructor($input,
-            $name,
-            vec![ $(name_with_optional_penalty!($tag $(with penalty $pen)?),)+ ]
-        )?
-    };
-}
-
-macro_rules! section {
-    ($input:expr,
-            course: $section:literal,
-            $(instructor: $inst:literal $(and $insts:literal)*,)?
-            rooms and times: $($tag:literal $(with penalty $pen:literal)?),+ $(,)?) => {
-        make_section($input,
-            $section,
-            vec![ $($inst, $($insts, )*)? ],
-            vec![ $(name_with_optional_penalty!($tag $(with penalty $pen)?),)+ ]
-        )?
-    };
-}
-
-macro_rules! crosslist {
-    ($input:expr,
-            $section:literal
-            $(cross-list with $sections:literal)+) => {
-        make_cross_listing($input, vec![
-            $section,
-            $($sections, )+
-        ])?
-    };
-}
-
 macro_rules! conflict {
     ($input:expr,
             set hard,
@@ -956,18 +651,6 @@ macro_rules! conflict {
         make_conflict_clique($input,
             0, false,
             vec![ $($sections, )+ ])?;
-    };
-}
-
-macro_rules! anticonflict {
-    ($input:expr,
-            set penalty to $penalty:expr,
-            single: $single_course:literal,
-            group: $($group_course:literal),+ $(,)?) => {
-        make_anti_conflict($input,
-            $penalty,
-            $single_course,
-            vec![ $($group_course, )+ ])?;
     };
 }
 
@@ -1007,7 +690,5 @@ macro_rules! multiple_sections_reduce_penalties {
 }
 
 pub(crate) use {
-    add_prereqs, anticonflict, conflict, course_with_online, crosslist,
-    instructor, multiple_sections_reduce_penalties, name_with_optional_penalty,
-    section,
+    add_prereqs, conflict, course_with_online, multiple_sections_reduce_penalties,
 };

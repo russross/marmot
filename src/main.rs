@@ -64,7 +64,7 @@ fn main() {
         Err(msg) => {
             eprintln!("{}", msg);
             return;
-        },
+        }
         _ => (),
     }
     /*
@@ -130,12 +130,16 @@ fn main() {
         solver.input_sections.len(),
     );
 
+    /*
     for section in &solver.input_sections {
-        println!("section {} with {} rooms and {} times",
+        println!(
+            "section {} with {} rooms and {} times",
             section.get_name(),
             section.rooms.len(),
-            section.time_slots.len());
+            section.time_slots.len()
+        );
     }
+    */
 
     // set up the static schedule
     place_static(&mut solver).unwrap();
@@ -159,11 +163,16 @@ fn dump_cs(solver: &Solver) {
         }
         println!("    \"{}\": {{", section.get_name());
         println!("        \"room_times\": {{");
-        for &RoomTimeWithPenalty{ room, time_slot, penalty } in &solsec.room_times {
-            println!("            (\"{}\", \"{}\", {}),",
-                solver.rooms[room].name,
-                solver.time_slots[time_slot].name,
-                penalty);
+        for &RoomTimeWithPenalty {
+            room,
+            time_slot,
+            penalty,
+        } in &solsec.room_times
+        {
+            println!(
+                "            (\"{}\", \"{}\", {}),",
+                solver.rooms[room].name, solver.time_slots[time_slot].name, penalty
+            );
         }
         println!("        }},");
         println!("        \"hard\": {{");
@@ -176,7 +185,11 @@ fn dump_cs(solver: &Solver) {
         }
         println!("        }},");
         println!("        \"soft\": {{");
-        for &SectionWithPenalty{ section: sec, penalty } in &solsec.soft_conflicts_list {
+        for &SectionWithPenalty {
+            section: sec,
+            penalty,
+        } in &solsec.soft_conflicts_list
+        {
             let other = &solver.input_sections[sec];
             if other.prefix != "CS" && other.prefix != "SE" && other.prefix != "IT" {
                 continue;

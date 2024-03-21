@@ -350,12 +350,7 @@ impl PlacementLog {
 }
 
 pub trait ScoreCriterion {
-    fn check(
-        &self,
-        solver: &Solver,
-        section: usize,
-        records: &mut Vec<SectionScoreRecord>,
-    );
+    fn check(&self, solver: &Solver, section: usize, records: &mut Vec<SectionScoreRecord>);
     fn get_neighbors(&self) -> Vec<usize>;
     fn debug(&self, solver: &Solver) -> String;
 }
@@ -480,13 +475,16 @@ impl Solver {
                     // make sure this room is acceptable to all cross-listings
                     // and fine the max penalty
                     for &cross_listing in &section.cross_listings {
-                        match self.input_sections[cross_listing].rooms.iter().find_map(|elt| {
-                            if elt.room == room {
-                                Some(elt.penalty)
-                            } else {
-                                None
-                            }
-                        }) {
+                        match self.input_sections[cross_listing]
+                            .rooms
+                            .iter()
+                            .find_map(|elt| {
+                                if elt.room == room {
+                                    Some(elt.penalty)
+                                } else {
+                                    None
+                                }
+                            }) {
                             Some(pen) => room_penalty = std::cmp::max(pen, room_penalty),
                             None => continue 'room,
                         };
@@ -557,7 +555,9 @@ impl Solver {
                 group: group_primaries.clone(),
             });
 
-            self.sections[single_primary].score_criteria.push(criterion.clone());
+            self.sections[single_primary]
+                .score_criteria
+                .push(criterion.clone());
             for &elt in &group_primaries {
                 self.sections[elt].score_criteria.push(criterion.clone());
             }
@@ -800,11 +800,7 @@ impl Solver {
         }
     }
 
-    pub fn compute_speculative_deltas_section(
-        &mut self,
-        section: usize,
-        old_score: isize,
-    ) {
+    pub fn compute_speculative_deltas_section(&mut self, section: usize, old_score: isize) {
         assert!(!self.sections[section].is_secondary_cross_listing);
 
         let current = match self.sections[section].placement {
@@ -1076,10 +1072,8 @@ impl Solver {
             if !section.instructors.is_empty() {
                 let plus = if section.instructors.len() == 1 { 0 } else { 1 };
                 let instructor = section.instructors[0];
-                name_len = std::cmp::max(
-                    name_len,
-                    self.instructors[instructor].name.len() + 1 + plus,
-                );
+                name_len =
+                    std::cmp::max(name_len, self.instructors[instructor].name.len() + 1 + plus);
             }
             let plus = if section.cross_listings.is_empty() {
                 0
@@ -1304,14 +1298,20 @@ pub fn solve(solver: &mut Solver, iterations: usize) {
         }
         let section = solver.select_section_to_place();
         if pause {
-            println!("picked section {}: {}", section, solver.input_sections[section].get_name());
+            println!(
+                "picked section {}: {}",
+                section,
+                solver.input_sections[section].get_name()
+            );
         }
         let room_time = solver.select_room_time_to_place(section);
         if pause {
-            println!("picked {} at {} penalty {}",
+            println!(
+                "picked {} at {} penalty {}",
                 solver.rooms[room_time.room].name,
                 solver.time_slots[room_time.time_slot].name,
-                room_time.penalty);
+                room_time.penalty
+            );
         }
         let undo = PlacementLog::move_section(solver, section, room_time);
         if pause && undo.entries.len() > 1 {
@@ -1319,13 +1319,15 @@ pub fn solve(solver: &mut Solver, iterations: usize) {
                 match elt {
                     PlacementEntry::Add(_) => (),
                     PlacementEntry::Remove(displaced, rtp) => {
-                        println!("--> displaced {}: {} from {} at {} penalty {}",
+                        println!(
+                            "--> displaced {}: {} from {} at {} penalty {}",
                             *displaced,
                             solver.input_sections[*displaced].get_name(),
                             solver.rooms[rtp.room].name,
                             solver.time_slots[rtp.time_slot].name,
-                            rtp.penalty);
-                    },
+                            rtp.penalty
+                        );
+                    }
                 }
             }
         }
@@ -1344,11 +1346,9 @@ pub fn solve(solver: &mut Solver, iterations: usize) {
             if winner.unplaced_current < 5 || initial {
                 let mut problems = Vec::new();
                 for i in 0..winner.sections.len() {
-                    winner.sections[i].score.gather_score_messages(
-                        &winner,
-                        &mut problems,
-                        false,
-                    );
+                    winner.sections[i]
+                        .score
+                        .gather_score_messages(&winner, &mut problems, false);
                 }
                 problems.sort_by_key(|(score, _)| -score);
 
@@ -1356,8 +1356,7 @@ pub fn solve(solver: &mut Solver, iterations: usize) {
                 println!();
                 //winner.print_schedule();
                 let filename = if initial { "static.js" } else { "placement.js" };
-                fs::write(filename, winner.dump_json())
-                    .expect("unable to write placements.js");
+                fs::write(filename, winner.dump_json()).expect("unable to write placements.js");
 
                 if !problems.is_empty() {
                     let digits = problems[0].0.to_string().len();
