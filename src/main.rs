@@ -130,6 +130,13 @@ fn main() {
         solver.input_sections.len(),
     );
 
+    for section in &solver.input_sections {
+        println!("section {} with {} rooms and {} times",
+            section.get_name(),
+            section.rooms.len(),
+            section.time_slots.len());
+    }
+
     // set up the static schedule
     place_static(&mut solver).unwrap();
 

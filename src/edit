@@ -150,7 +150,7 @@ def make_faculty(db, faculty, department, availability):
 
     for (day, start, end, penalty) in entries:
         duration = end - start
-        db.execute('INSERT INTO availability VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?, ?, ?)', (faculty, day, start, duration, penalty))
+        db.execute('INSERT INTO faculty_availability VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?, ?, ?)', (faculty, day, start, duration, penalty))
 
 
 

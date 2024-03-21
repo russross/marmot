@@ -141,8 +141,10 @@ echo building computing faculty and sections
 ./edit faculty-default-clustering 'Carol Stander' 'MT' no_preference
 ./edit make-section 'CS 1030-01' 'flex' '3 credit bell schedule'
 ./edit make-section 'CS 1410-01' 'flex' '3 credit bell schedule'
+./edit make-section 'CS 1410-40'
+./edit make-section 'IT 1100-40'
 ./edit make-section 'IT 2300-02' 'Smith 113' '3 credit bell schedule'
-./edit assign-faculty-sections 'Carol Stander' 'CS 1030-01' 'CS 1410-01' 'IT 2300-02'
+./edit assign-faculty-sections 'Carol Stander' 'CS 1030-01' 'CS 1410-01' 'CS 1410-40' 'IT 1100-40' 'IT 2300-02'
 
 ./edit make-faculty 'Curtis Larsen' Computing \
     'MWF 0900-1100,
@@ -157,7 +159,8 @@ echo building computing faculty and sections
 ./edit make-section 'CS 3510-01' 'Smith 116' 'flex:1' '3 credit bell schedule' 'TR 2×75 bell schedule:10'
 ./edit make-section 'CS 4320-01' 'Smith 116' 'flex:1' 'MWF 3×50 bell schedule:10' '2×75 bell schedule'
 ./edit make-section 'CS 4600-01' 'Smith 116' 'flex:1' '3 credit bell schedule' 'TR 2×75 bell schedule:10'
-./edit assign-faculty-sections 'Curtis Larsen' 'CS 3005-01' 'CS 3510-01' 'CS 4320-01' 'CS 4600-01'
+./edit make-section 'CS 4920R-01'
+./edit assign-faculty-sections 'Curtis Larsen' 'CS 3005-01' 'CS 3510-01' 'CS 4320-01' 'CS 4600-01' 'CS 4920R-01'
 
 ./edit make-faculty 'DJ Holt' Computing \
     'MW 1200-1500,
@@ -208,9 +211,13 @@ echo building computing faculty and sections
     'MWF 0800-1200,
      MW  1330-1500'
 ./edit faculty-default-clustering 'Joe Francom' 'MT' 1
+./edit make-section 'IT 1500-40A'
+./edit make-section 'IT 1500-41A'
+./edit make-section 'IT 1500-42A'
 ./edit make-section 'IT 3110-01' 'flex' '3 credit bell schedule'
 ./edit make-section 'IT 4600-01' 'flex' '3 credit bell schedule'
-./edit assign-faculty-sections 'Joe Francom' 'IT 3110-01' 'IT 4600-01'
+./edit make-section 'SE 4900R-02'
+./edit assign-faculty-sections 'Joe Francom' 'IT 1500-40A' 'IT 1500-41A' 'IT 1500-42A' 'IT 3110-01' 'IT 4600-01' 'SE 4900R-02'
 
 ./edit make-faculty 'Lora Klein' Computing \
     'TR 0900-1500,
@@ -223,10 +230,14 @@ echo building computing faculty and sections
     'MW 1200-1330,
      TR 0900-1330'
 ./edit faculty-default-clustering 'Matt Kearl' 'MT' 1
+./edit make-section 'SE 1400-02' 'macs' '3 credit bell schedule'
+./edit make-section 'SE 1400-40'
+./edit make-section 'SE 1400-42'
 ./edit make-section 'SE 3450-01' 'flex' 'macs' '3 credit bell schedule'
 ./edit make-section 'SE 3550-01' 'flex' 'macs' '3 credit bell schedule'
-./edit make-section 'SE 1400-02' 'macs' '3 credit bell schedule'
-./edit assign-faculty-sections 'Matt Kearl' 'SE 3450-01' 'SE 3550-01' 'SE 1400-02'
+./edit make-section 'SE 4900R-01'
+./edit make-section 'SE 4920-01'
+./edit assign-faculty-sections 'Matt Kearl' 'SE 1400-40' 'SE 1400-42' 'SE 1400-02' 'SE 3450-01' 'SE 3550-01' 'SE 4900R-01' 'SE 4920-01'
 
 ./edit make-faculty 'Phil Daley' Computing \
     'MWF 0900-1200,
@@ -258,18 +269,20 @@ echo building computing faculty and sections
 ./edit make-section 'CS 1410-02' 'flex' '3 credit bell schedule'
 ./edit make-section 'CS 2450-01' 'flex' '3 credit bell schedule'
 ./edit make-section 'CS 3150-01' 'flex' '3 credit bell schedule'
+./edit make-section 'CS 4800R-01'
 ./edit make-section 'CS 4991R-50' 'Smith 116' 'R1900+50'
 ./edit make-section 'CS 4992R-01' 'Smith 109' 'F1300+50'
-./edit assign-faculty-sections 'Ren Quinn' 'CS 1400-02' 'CS 1400-03' 'CS 1410-02' 'CS 2450-01' 'CS 3150-01' 'CS 4991R-50' 'CS 4992R-01'
+./edit assign-faculty-sections 'Ren Quinn' 'CS 1400-02' 'CS 1400-03' 'CS 1410-02' 'CS 2450-01' 'CS 3150-01' 'CS 4800R-01' 'CS 4991R-50' 'CS 4992R-01'
 
 ./edit make-faculty 'Russ Ross' Computing \
     'MTWR 1200-1500'
 ./edit faculty-default-clustering 'Russ Ross' 'MT' 0
 ./edit make-section 'CS 2810-01' 'Smith 109' '3 credit bell schedule'
 ./edit make-section 'CS 2810-02' 'Smith 109' '3 credit bell schedule'
-./edit make-section 'CS 3400-01' 'Smith 109' '3 credit bell schedule'
+./edit make-section 'CS 3410-01' 'Smith 109' '3 credit bell schedule'
 ./edit make-section 'CS 4307-01' 'Smith 109' '3 credit bell schedule'
-./edit assign-faculty-sections 'Russ Ross' 'CS 2810-01' 'CS 2810-02' 'CS 3400-01' 'CS 4307-01'
+./edit make-section 'CS 4800R-02'
+./edit assign-faculty-sections 'Russ Ross' 'CS 2810-01' 'CS 2810-02' 'CS 3410-01' 'CS 4307-01' 'CS 4800R-02'
 
 ./edit make-faculty 'Rex Frisbey' Computing \
     'MWF 1100-1200'

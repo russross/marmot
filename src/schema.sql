@@ -133,7 +133,7 @@ CREATE TABLE faculty (
     FOREIGN KEY (term, department) REFERENCES departments (term, department) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
 
-CREATE TABLE availability (
+CREATE TABLE faculty_availability (
     term                        TEXT NOT NULL,
     faculty                     TEXT NOT NULL,
     day_of_week                 TEXT NOT NULL,
@@ -158,7 +158,7 @@ CREATE TABLE faculty_preferences (
     days_off                    INTEGER NOT NULL,
     days_off_penalty            INTEGER NOT NULL,
     evenly_spread_penalty       INTEGER NOT NULL,
-    max_minutes_within_cluster  INTEGER NOT NULL,
+    max_gap_within_cluster      INTEGER NOT NULL,
 
     CHECK (instr(days_to_check, '$') = 0 AND
         replace(replace(replace(replace(replace(replace(replace('$'||days_to_check,
@@ -169,7 +169,7 @@ CREATE TABLE faculty_preferences (
     CHECK (days_off_penalty = 0 OR length(days_to_check) > 1),
     CHECK (evenly_spread_penalty >= 0 AND evenly_spread_penalty < 100),
     CHECK (evenly_spread_penalty = 0 OR length(days_to_check) > 1),
-    CHECK (max_minutes_within_cluster >= 0 AND max_minutes_within_cluster < 120),
+    CHECK (max_gap_within_cluster >= 0 AND max_gap_within_cluster < 120),
 
     PRIMARY KEY (term, faculty),
     FOREIGN KEY (term, faculty) REFERENCES faculty (term, faculty) ON DELETE CASCADE ON UPDATE CASCADE
@@ -293,6 +293,7 @@ CREATE TABLE cross_listing_sections (
     PRIMARY KEY (term, cross_listing_name, section),
     FOREIGN KEY (term, cross_listing_name) REFERENCES cross_listings (term, cross_listing_name) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
+CREATE UNIQUE INDEX cross_listing_section ON cross_listing_sections (term, section);
 
 CREATE TABLE anti_conflicts (
     term                        TEXT NOT NULL,
@@ -327,10 +328,10 @@ CREATE TABLE conflicts (
     term                        TEXT NOT NULL,
     program                     TEXT NOT NULL,
     conflict_name               TEXT NOT NULL,
-    conflict_level              INTEGER NOT NULL,
+    conflict_penalty            INTEGER NOT NULL,
     conflict_maximize           BOOLEAN NOT NULL,
 
-    CHECK (conflict_level >= 0 AND conflict_level <= 100),
+    CHECK (conflict_penalty >= 0 AND conflict_penalty <= 100),
 
     PRIMARY KEY (term, program, conflict_name),
     FOREIGN KEY (term, program) REFERENCES programs (term, program) ON DELETE CASCADE ON UPDATE CASCADE

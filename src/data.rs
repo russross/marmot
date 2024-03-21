@@ -1,7 +1,6 @@
 use super::bits::*;
 use super::input::*;
 use super::solver::Solver;
-use itertools::Itertools;
 use rusqlite::{Connection, OpenFlags, Result};
 
 const DB_PATH: &str = "timetable.db";
@@ -18,31 +17,19 @@ pub fn make_solver(db: &mut Connection) -> Result<Solver, String> {
         start_date: String,
         end_date: String,
     }
-    let term = db.query_row("
+    let term_row = db.query_row("
         SELECT term, start_date, end_date
         FROM terms
         WHERE current",
         [],
         |row| Ok(TermRow{
-            term: row.get(0)?,
-            start_date: row.get(1)?,
-            end_date: row.get(2)?,
+            term: row.get_unwrap(0),
+            start_date: row.get_unwrap(1),
+            end_date: row.get_unwrap(2),
         })).map_err(sql_err)?;
 
-    // get the holidays
-    struct HolidayRow {
-        holiday: String,
-    }
-    let mut holiday_stmt = db.prepare("
-        SELECT holiday
-        FROM holidays NATURAL JOIN terms
-        WHERE current").map_err(sql_err)?;
-    let holidays = holiday_stmt.query_map([], |row| Ok(HolidayRow{
-            holiday: row.get(0)?,
-        })).map_err(sql_err)?;
-
-    let start_date = parse_date(term.start_date)?;
-    let end_date = parse_date(term.end_date)?;
+    let start_date = parse_date(term_row.start_date)?;
+    let end_date = parse_date(term_row.end_date)?;
 
     // set up the term with 5-minute intervals
     let mut slots = Bits::new(date_range_slots(start_date, end_date));
@@ -59,9 +46,16 @@ pub fn make_solver(db: &mut Connection) -> Result<Solver, String> {
     }
 
     // add the holidays
-    for holiday_row in holidays {
+    let mut stmt = db.prepare("
+        SELECT holiday
+        FROM terms
+        NATURAL JOIN holidays
+        WHERE current").map_err(sql_err)?;
+    let mut rows = stmt.query([]).map_err(sql_err)?;
+
+    while let Some(row) = rows.next().unwrap() {
         // cross a holiday off the 5-minute interval list for the semester
-        let day = parse_date(holiday_row.map_err(sql_err)?.holiday)?;
+        let day = parse_date(row.get_unwrap(0))?;
         if day < start_date || day > end_date {
             return Err(format!( "block_out_holiday: {day} is outside the term"));
         }
@@ -76,24 +70,24 @@ pub fn make_solver(db: &mut Connection) -> Result<Solver, String> {
 
     // build the solver object
     Ok(Solver {
-        name: term.term,
-          start: start_date,
-          end: end_date,
-          slots,
-          rooms: Vec::new(),
-          time_slots: Vec::new(),
-          instructors: Vec::new(),
-          input_sections: Vec::new(),
-          missing: Vec::new(),
-          time_slot_conflicts: Vec::new(),
-          anticonflicts: Vec::new(),
+        name: term_row.term,
+        start: start_date,
+        end: end_date,
+        slots,
+        rooms: Vec::new(),
+        time_slots: Vec::new(),
+        instructors: Vec::new(),
+        input_sections: Vec::new(),
+        missing: Vec::new(),
+        time_slot_conflicts: Vec::new(),
+        anticonflicts: Vec::new(),
 
-          input_locked: false,
-          sections: Vec::new(),
-          room_placements: Vec::new(),
-          score: 0,
-          unplaced_current: 0,
-          unplaced_best: 0,
+        input_locked: false,
+        sections: Vec::new(),
+        room_placements: Vec::new(),
+        score: 0,
+        unplaced_current: 0,
+        unplaced_best: 0,
     })
 }
 
@@ -111,26 +105,43 @@ fn dept_clause(departments: &Vec<String>) -> String {
     }
 }
 
+fn dept_multi_clause(departments: &Vec<String>, tables: &Vec<String>) -> String {
+    let mut s = "".to_string();
+    if !departments.is_empty() {
+        for table in tables {
+            s = format!("{s} AND {table}.department IN (");
+            let mut sep = "";
+            for _ in departments {
+                s = format!("{s}{sep}?");
+                sep = ", ";
+            }
+            s = format!("{s})");
+        }
+    }
+    s
+}
+
 // load all rooms
 pub fn load_rooms(db: &mut Connection, solver: &mut Solver, departments: &Vec<String>) -> Result<(), String> {
-    let mut room_stmt = db.prepare(&format!("
+    let mut stmt = db.prepare(&format!("
         SELECT DISTINCT room, capacity
         FROM terms
         NATURAL JOIN courses
         NATURAL JOIN sections
+        NATURAL JOIN section_time_slot_tags
         NATURAL JOIN section_room_tags
         NATURAL JOIN rooms_room_tags
         NATURAL JOIN rooms
         WHERE current{}
         ORDER BY building, room_number", dept_clause(departments))).map_err(sql_err)?;
-    let rooms = room_stmt.query_map(rusqlite::params_from_iter(departments), |row| Ok(Room {
-        name: row.get(0)?,
-        capacity: row.get(1)?,
-        tags: Vec::new(),
-    })).map_err(sql_err)?;
+    let mut rows = stmt.query(rusqlite::params_from_iter(departments)).map_err(sql_err)?;
 
-    for room_row in rooms {
-        solver.rooms.push(room_row.map_err(sql_err)?);
+    while let Some(row) = rows.next().map_err(sql_err)? {
+        solver.rooms.push(Room {
+            name: row.get_unwrap(0),
+            capacity: row.get_unwrap(1),
+            tags: Vec::new(),
+        });
     }
 
     Ok(())
@@ -138,10 +149,13 @@ pub fn load_rooms(db: &mut Connection, solver: &mut Solver, departments: &Vec<St
 
 // load all time slots
 pub fn load_time_slots(db: &mut Connection, solver: &mut Solver, departments: &Vec<String>) -> Result<(), String> {
-    struct TimeSlotRow {
-        time_slot: String,
-    }
-    let mut time_slot_stmt = db.prepare(&format!("
+    // example: MWF0900+5
+    let re = regex::Regex::new(
+        r"^([mtwrfsuMTWRFSU]+)([0-1][0-9]|2[0-3])([0-5][05])\+([1-9][0-9]?[05])$",
+    )
+    .unwrap();
+
+    let mut stmt = db.prepare(&format!("
         SELECT DISTINCT time_slot
         FROM terms
         NATURAL JOIN courses
@@ -151,19 +165,10 @@ pub fn load_time_slots(db: &mut Connection, solver: &mut Solver, departments: &V
         NATURAL JOIN time_slots
         WHERE current{}
         ORDER BY duration * LENGTH(days), first_day, start_time, duration", dept_clause(departments))).map_err(sql_err)?;
-    let time_slots = time_slot_stmt.query_map(rusqlite::params_from_iter(departments), |row| Ok(TimeSlotRow{
-        time_slot: row.get(0)?,
-    })).map_err(sql_err)?;
+    let mut rows = stmt.query(rusqlite::params_from_iter(departments)).map_err(sql_err)?;
 
-    // example: MWF0900+5
-    let re = regex::Regex::new(
-        r"^([mtwrfsuMTWRFSU]+)([0-1][0-9]|2[0-3])([0-5][05])\+([1-9][0-9]?[05])$",
-    )
-    .unwrap();
-
-    for time_slot_row in time_slots {
-        let time_slot = time_slot_row.map_err(sql_err)?.time_slot;
-
+    while let Some(row) = rows.next().map_err(sql_err)? {
+        let time_slot: String = row.get_unwrap(0);
         let Some(caps) = re.captures(&time_slot) else {
             return Err(format!(
                 "unrecognized time format: '{}' should be like 'MWF0900+50'",
@@ -236,66 +241,454 @@ pub fn load_time_slots(db: &mut Connection, solver: &mut Solver, departments: &V
     Ok(())
 }
 
+// load faculty and their availability
+pub fn load_faculty(db: &mut Connection, solver: &mut Solver, departments: &Vec<String>) -> Result<(), String> {
+    {
+        let mut stmt = db.prepare(&format!("
+            SELECT DISTINCT faculty,
+                            day_of_week, start_time, start_time + duration AS end_time, availability_penalty
+            FROM terms
+            NATURAL JOIN courses
+            NATURAL JOIN sections
+            NATURAL JOIN section_time_slot_tags
+            NATURAL JOIN faculty_sections 
+            NATURAL JOIN faculty_availability
+            WHERE current{}
+            ORDER BY faculty",
+            dept_clause(departments))).map_err(sql_err)?;
+        let mut rows = stmt.query(rusqlite::params_from_iter(departments)).map_err(sql_err)?;
+
+        let mut faculty_name = String::new();
+        let mut faculty_index = 0;
+
+        while let Some(row) = rows.next().map_err(sql_err)? {
+            let name: String = row.get_unwrap(0);
+
+            // add the faculty if they do not already exist
+            if name != faculty_name {
+                faculty_name = name.clone();
+                faculty_index = solver.instructors.len();
+
+                let mut available_times = Vec::new();
+                for _ in 0..7 {
+                    available_times.push(vec![-1isize; 24*12]);
+                }
+
+                solver.instructors.push(Instructor {
+                    name: name.clone(),
+                    available_times,
+                    sections: Vec::new(),
+                    distribution: Vec::new(),
+                });
+            }
+
+            let faculty = &mut solver.instructors[faculty_index];
+
+            // set availability intervals
+            // note: it is okay to add these many times from the join
+            let day_of_week_s: String = row.get_unwrap(1);
+            let day_of_week = match day_of_week_s.as_str() {
+                "M" => time::Weekday::Monday,
+                "T" => time::Weekday::Tuesday,
+                "W" => time::Weekday::Wednesday,
+                "R" => time::Weekday::Thursday,
+                "F" => time::Weekday::Friday,
+                "S" => time::Weekday::Saturday,
+                "U" => time::Weekday::Sunday,
+                _ => {
+                    return Err(format!("Unknown day of week {day_of_week_s} in {name} faculty_availability"));
+                },
+            };
+            let start_index = row.get_unwrap::<usize, usize>(2) / 5;
+            let end_index = row.get_unwrap::<usize, usize>(3) / 5;
+            let day = &mut faculty.available_times[day_of_week.number_days_from_sunday() as usize];
+            for elt in day.iter_mut().take(end_index).skip(start_index) {
+                *elt = std::cmp::max(*elt, row.get_unwrap(4));
+            }
+        }
+    }
+
+    {
+        let mut stmt = db.prepare(&format!("
+            SELECT DISTINCT faculty,
+                            days_to_check, days_off, days_off_penalty, evenly_spread_penalty, max_gap_within_cluster,
+                            is_cluster, is_too_short, interval_minutes, interval_penalty
+            FROM terms
+            NATURAL JOIN courses
+            NATURAL JOIN sections
+            NATURAL JOIN section_time_slot_tags
+            NATURAL JOIN faculty_sections 
+            NATURAL JOIN faculty_preferences
+            LEFT OUTER NATURAL JOIN faculty_preference_intervals
+            WHERE current{}
+            ORDER BY faculty",
+            dept_clause(departments))).map_err(sql_err)?;
+        let mut rows = stmt.query(rusqlite::params_from_iter(departments)).map_err(sql_err)?;
+
+        let mut faculty_name = String::new();
+        let mut faculty_index = 0;
+        let mut clustering_index = None;
+
+        while let Some(row) = rows.next().map_err(sql_err)? {
+            let name: String = row.get_unwrap(0);
+
+            // is this the first row for this faculty?
+            if name != faculty_name {
+                faculty_name = name.clone();
+                faculty_index = solver.instructors.iter().position(|elt| elt.name == faculty_name).unwrap();
+
+                let faculty = &mut solver.instructors[faculty_index];
+                let days_to_check: String = row.get_unwrap(1);
+
+                // days off penalty?
+                let days_off: u8 = row.get_unwrap(2);
+                let days_off_penalty: isize = row.get_unwrap(3);
+                if days_off_penalty > 0 {
+                    faculty.distribution.push(DistributionPreference::DaysOff {
+                        days: parse_days(&days_to_check)?,
+                        days_off,
+                        penalty: days_off_penalty,
+                    });
+                }
+
+                // evenly spread penalty?
+                let evenly_spread_penalty: isize = row.get_unwrap(4);
+                if evenly_spread_penalty > 0 {
+                    faculty.distribution.push(DistributionPreference::DaysEvenlySpread {
+                        days: parse_days(&days_to_check)?,
+                        penalty: evenly_spread_penalty,
+                    });
+                }
+
+                // if there is no clustering interval than move on to the next faculty
+                if row.get::<usize, bool>(6).is_err() {
+                    continue;
+                }
+
+                // create the base clustering record
+                let max_gap_within_cluster: i64 = row.get_unwrap(5);
+                clustering_index = Some(faculty.distribution.len());
+                faculty.distribution.push(DistributionPreference::Clustering {
+                    days: parse_days(&days_to_check)?,
+                    max_gap: time::Duration::minutes(max_gap_within_cluster),
+                    cluster_limits: Vec::new(),
+                    gap_limits: Vec::new(),
+                });
+            }
+
+            let faculty = &mut solver.instructors[faculty_index];
+
+            let is_cluster: bool = row.get_unwrap(6);
+            let is_too_short: bool = row.get_unwrap(7);
+            let interval_minutes: i64 = row.get_unwrap(8);
+            let interval_penalty: isize = row.get_unwrap(9);
+
+            let dwp = if is_too_short {
+                DurationWithPenalty::TooShort {
+                    duration: time::Duration::minutes(interval_minutes),
+                    penalty: interval_penalty,
+                }
+            } else {
+                DurationWithPenalty::TooLong {
+                    duration: time::Duration::minutes(interval_minutes),
+                    penalty: interval_penalty,
+                }
+            };
+
+            match &mut faculty.distribution[clustering_index.unwrap()] {
+                DistributionPreference::Clustering { cluster_limits, gap_limits, .. } => {
+                    if is_cluster {
+                        cluster_limits.push(dwp);
+                    } else {
+                        gap_limits.push(dwp);
+                    }
+                },
+                _ => {
+                    panic!("I swear it was here a minute ago");
+                },
+            }
+        }
+    }
+
+    Ok(())
+}
+
 // load sections and the room/time combinations (plus penalties) associated with them
 pub fn load_sections(db: &mut Connection, solver: &mut Solver, departments: &Vec<String>) -> Result<(), String> {
-    struct SectionRow {
-        section: String,
-        room: String,
-        time_slot: String,
-        room_penalty: isize,
-        time_slot_penalty: isize,
+    {
+        let mut stmt = db.prepare(&format!("
+            SELECT DISTINCT section, time_slot, MAX(time_slot_penalty)
+            FROM terms
+            NATURAL JOIN courses
+            NATURAL JOIN sections
+            NATURAL JOIN section_time_slot_tags
+            NATURAL JOIN time_slots_time_slot_tags
+            WHERE current{}
+            GROUP BY section, time_slot
+            ORDER BY section", dept_clause(departments))).map_err(sql_err)?;
+        let mut rows = stmt.query(rusqlite::params_from_iter(departments)).map_err(sql_err)?;
+
+        let mut prev_name = String::new();
+
+        while let Some(row) = rows.next().map_err(sql_err)? {
+            let name: String = row.get_unwrap(0);
+
+            // add the section if it does not already exist
+            if name != prev_name {
+                prev_name = name.clone();
+
+                let (prefix, course, Some(section)) = parse_section_name(&name)? else {
+                    return Err(format!("section name {name} must include prefix, course, and section, like 'CS 1400-01'"));
+                };
+
+                solver.input_sections.push(InputSection {
+                        prefix,
+                        course,
+                        section,
+                        instructors: Vec::new(),
+                        rooms: Vec::new(),
+                        time_slots: Vec::new(),
+                        hard_conflicts: Vec::new(),
+                        soft_conflicts: Vec::new(),
+                        cross_listings: Vec::new(),
+                        coreqs: Vec::new(),
+                        prereqs: Vec::new(),
+                        });
+            }
+
+            let len = solver.input_sections.len();
+            let section = &mut solver.input_sections[len-1];
+
+            let time_slot_name: String = row.get_unwrap(1);
+            let time_slot = solver.time_slots.iter().position(|elt| elt.name == time_slot_name).unwrap();
+            let penalty: isize = row.get_unwrap(2);
+            section.time_slots.push(TimeWithPenalty{ time_slot, penalty });
+        }
     }
-    let mut section_stmt = db.prepare(&format!("
-        SELECT section, room, time_slot, MAX(room_penalty), MAX(time_slot_penalty)
+
+    {
+        let mut stmt = db.prepare(&format!("
+            SELECT DISTINCT section, room, MAX(room_penalty)
+            FROM terms
+            NATURAL JOIN courses
+            NATURAL JOIN sections
+            NATURAL JOIN section_time_slot_tags
+            NATURAL JOIN section_room_tags
+            NATURAL JOIN rooms_room_tags
+            WHERE current{}
+            GROUP BY section, room
+            ORDER BY section", dept_clause(departments))).map_err(sql_err)?;
+        let mut rows = stmt.query(rusqlite::params_from_iter(departments)).map_err(sql_err)?;
+
+        let mut prev_name = String::new();
+        let mut index = 0;
+
+        while let Some(row) = rows.next().map_err(sql_err)? {
+            let name: String = row.get_unwrap(0);
+
+            // look up the section if it is different than the previous one
+            if name != prev_name {
+                prev_name = name.clone();
+                index = find_section_by_name(solver, &name)?;
+            }
+
+            let section = &mut solver.input_sections[index];
+            let room_name: String = row.get_unwrap(1);
+            let room = solver.rooms.iter().position(|elt| elt.name == room_name).unwrap();
+            let penalty: isize = row.get_unwrap(2);
+            
+            section.rooms.push(RoomWithPenalty{ room, penalty });
+        }
+    }
+
+    {
+        let mut stmt = db.prepare(&format!("
+            SELECT DISTINCT faculty, section
+            FROM terms
+            NATURAL JOIN courses
+            NATURAL JOIN sections
+            NATURAL JOIN section_time_slot_tags
+            NATURAL JOIN faculty_sections
+            WHERE current{}
+            ORDER BY faculty", dept_clause(departments))).map_err(sql_err)?;
+        let mut rows = stmt.query(rusqlite::params_from_iter(departments)).map_err(sql_err)?;
+
+        let mut faculty_name = String::new();
+        let mut faculty_index = 0;
+
+        while let Some(row) = rows.next().map_err(sql_err)? {
+            let name: String = row.get_unwrap(0);
+            let section_name: String = row.get_unwrap(1);
+
+            // look up the faculty if it is different than the previous one
+            if name != faculty_name {
+                faculty_name = name.clone();
+                faculty_index = solver.instructors.iter().position(|elt| elt.name == name).unwrap();
+            }
+            
+            let section_index = find_section_by_name(solver, &section_name)?;
+            solver.instructors[faculty_index].sections.push(section_index);
+            solver.input_sections[section_index].instructors.push(faculty_index);
+        }
+    }
+
+    Ok(())
+}
+
+pub fn load_cross_listings(db: &mut Connection, solver: &mut Solver, departments: &Vec<String>) -> Result<(), String> {
+    let mut stmt = db.prepare(&format!("
+        SELECT DISTINCT cross_listing_name, section
         FROM terms
         NATURAL JOIN courses
         NATURAL JOIN sections
-        NATURAL JOIN section_room_tags
-        NATURAL JOIN rooms_room_tags
         NATURAL JOIN section_time_slot_tags
-        NATURAL JOIN time_slots_time_slot_tags
+        NATURAL JOIN cross_listing_sections
         WHERE current{}
-        GROUP BY section, room, time_slot
-        ORDER BY section, room, time_slot", dept_clause(departments))).map_err(sql_err)?;
-    let sections = section_stmt.query_map(rusqlite::params_from_iter(departments), |row| Ok(SectionRow{
-        section: row.get(0)?,
-        room: row.get(1)?,
-        time_slot: row.get(2)?,
-        room_penalty: row.get(3)?,
-        time_slot_penalty: row.get(4)?,
-    })).map_err(sql_err)?;
+        ORDER BY cross_listing_name", dept_clause(departments))).map_err(sql_err)?;
+    let mut rows = stmt.query(rusqlite::params_from_iter(departments)).map_err(sql_err)?;
 
-    let mut ungrouped = Vec::new();
-    for section_row in sections {
-        let section = section_row.map_err(sql_err)?;
-        ungrouped.push(section);
+    let mut prev_name = String::new();
+    let mut sections = Vec::new();
+
+    while let Some(row) = rows.next().map_err(sql_err)? {
+        let name: String = row.get_unwrap(0);
+
+        // start a new cross listing
+        if name != prev_name {
+            prev_name = name.clone();
+            sections.clear();
+        }
+
+        let section_name: String = row.get_unwrap(1);
+        let section_index = find_section_by_name(solver, &section_name)?;
+        sections.push(section_index);
+
+        if sections.len() > 1 {
+            sections.sort();
+            for &index in &sections {
+                solver.input_sections[index].cross_listings = sections.clone();
+            }
+        }
     }
 
-    for (section_name, group) in &ungrouped.iter().group_by(|row| &row.section) {
-        println!("section {section_name}");
+    Ok(())
+}
+
+pub fn load_anti_conflicts(db: &mut Connection, solver: &mut Solver, departments: &Vec<String>) -> Result<(), String> {
+    let dept_in = dept_multi_clause(departments, &vec!["courses".into(), "other_courses".into()]);
+    let mut stmt = db.prepare(&format!("
+        SELECT DISTINCT sections.section AS single_section, other_sections.section AS group_section, anti_conflict_penalty
+        FROM terms
+        NATURAL JOIN courses
+        NATURAL JOIN sections
+        NATURAL JOIN section_time_slot_tags
+        JOIN anti_conflicts
+            ON  anti_conflicts.term                             = terms.term
+            AND anti_conflicts.anti_conflict_single             = sections.section
+        NATURAL JOIN anti_conflict_sections
+        JOIN sections                                           AS other_sections
+            ON  other_sections.term                             = terms.term
+            AND other_sections.section                          = anti_conflict_section
+        JOIN courses                                            AS other_courses
+            ON  other_courses.term                              = terms.term
+            AND other_courses.course                            = other_sections.course
+        JOIN section_time_slot_tags                             AS other_section_time_slot_tags
+            ON  other_section_time_slot_tags.term               = terms.term
+            AND other_section_time_slot_tags.section            = other_sections.section
+        WHERE terms.current{dept_in}
+
+        UNION
+
+        SELECT DISTINCT sections.section, other_sections.section, anti_conflict_penalty
+        FROM terms
+        NATURAL JOIN courses
+        NATURAL JOIN sections
+        NATURAL JOIN section_time_slot_tags
+        JOIN anti_conflicts
+            ON  anti_conflicts.term                             = terms.term
+            AND anti_conflicts.anti_conflict_single             = sections.section
+        NATURAL JOIN anti_conflict_courses
+        JOIN courses                                            AS other_courses
+            ON  other_courses.term                              = terms.term
+            AND other_courses.course                            = anti_conflict_course
+        JOIN sections                                           AS other_sections
+            ON  other_sections.term                             = terms.term
+            AND other_sections.course                           = other_courses.course
+        JOIN section_time_slot_tags                             AS other_section_time_slot_tags
+            ON  other_section_time_slot_tags.term               = terms.term
+            AND other_section_time_slot_tags.section            = other_sections.section
+        WHERE terms.current{dept_in}
+
+        ORDER BY sections.section")).map_err(sql_err)?;
+
+    let mut departments_x4 = Vec::new();
+    departments_x4.extend(departments);
+    departments_x4.extend(departments);
+    departments_x4.extend(departments);
+    departments_x4.extend(departments);
+    let mut rows = stmt.query(rusqlite::params_from_iter(departments_x4)).map_err(sql_err)?;
+
+    let mut single_name = String::new();
+    let mut group = Vec::new();
+    let mut penalty = 0;
+
+    while let Some(row) = rows.next().map_err(sql_err)? {
+        let name: String = row.get_unwrap(0);
+        let other_name: String = row.get_unwrap(1);
+        let other = find_section_by_name(solver, &other_name)?;
+        let pen: isize = row.get_unwrap(2);
+        // start a new anti conflict
+        if name != single_name {
+            // close the previous one out
+            if !single_name.is_empty() && !group.is_empty() {
+                println!("anticonflict: penalty {penalty}, single {single_name}, group size {}", group.len());
+                let entry = (penalty, find_section_by_name(solver, &single_name)?, std::mem::take(&mut group));
+                solver.anticonflicts.push(entry);
+            }
+
+            // start a new one
+            single_name = name.clone();
+            penalty = pen;
+        }
+        group.push(other);
+    }
+
+    // close the final one out
+    if !single_name.is_empty() && !group.is_empty() {
+        println!("anticonflict: penalty {penalty}, single {single_name}, group size {}", group.len());
+        let entry = (penalty, find_section_by_name(solver, &single_name)?, std::mem::take(&mut group));
+        solver.anticonflicts.push(entry);
     }
 
     Ok(())
 }
 
 pub fn input() -> Result<Solver, String> {
-    let departments = vec!["Computing".to_string()];
+    //let departments = vec!["Computing".to_string()];
+    let departments = vec![];
 
     let mut db = Connection::open_with_flags(DB_PATH,
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX).map_err(sql_err)?;
 
     let mut solver = make_solver(&mut db)?;
     let mut t = &mut solver;
+    println!("loading rooms, times, faculty, sections");
     load_rooms(&mut db, t, &departments)?;
     load_time_slots(&mut db, t, &departments)?;
+    load_faculty(&mut db, t, &departments)?;
     load_sections(&mut db, t, &departments)?;
+    load_cross_listings(&mut db, t, &departments)?;
+    load_anti_conflicts(&mut db, t, &departments)?;
 
-    input_computing(&mut t)?;
+    //input_computing(&mut t)?;
     //input_set(&mut t)?;
+    println!("loading conflicts");
     input_computing_conflicts(&mut t)?;
-    //input_set_conflicts(&mut t)?;
+    input_set_conflicts(&mut t)?;
+    println!("loading multiples, prereqs");
     input_multiples(&mut t)?;
     input_prereqs(&mut t)?;
+    println!("doing postprocessing");
 
     //crosslist!(t, "GEO 2700R-01" cross-list with "ENVS 2700R-01");
     //crosslist!(t, "ENVS 3110-01" cross-list with "GEO 3110-01");
@@ -314,18 +707,18 @@ pub fn input() -> Result<Solver, String> {
 }
 
 pub fn input_computing(t: &mut Solver) -> Result<(), String> {
-    instructor!(t,
-        name:
-            "Bart Stander",
-        available:
-            "MWF 0900-1200",
-            "MW  1200-1330" with penalty 10,
-            "MW  1330-1630",
-            "TR  1030-1200",
-            "TR  1330-1500",
-            "TR  1500-1630" with penalty 10,
-    );
-    default_clustering!(t, instructor: "Bart Stander", days: "mt", days off: 1);
+    //instructor!(t,
+    //    name:
+    //        "Bart Stander",
+    //    available:
+    //        "MWF 0900-1200",
+    //        "MW  1200-1330" with penalty 10,
+    //        "MW  1330-1630",
+    //        "TR  1030-1200",
+    //        "TR  1330-1500",
+    //        "TR  1500-1630" with penalty 10,
+    //);
+    //default_clustering!(t, instructor: "Bart Stander", days: "mt", days off: 1);
     section!(t, course: "CS 2420-01",
             instructor: "Bart Stander",
             rooms and times: "stadium", "flex" with penalty 10, "3×50");
@@ -339,16 +732,16 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             instructor: "Bart Stander",
             rooms and times: "pcs", "3 credit bell schedule");
 
-    instructor!(t,
-        name:
-            "Carol Stander",
-        available:
-            "MWF 1000-1200",
-            "MW  1200-1330" with penalty 10,
-            "MW  1330-1500",
-            "TR  1330-1500" with penalty 5,
-    );
-    default_clustering!(t, instructor: "Carol Stander", days: "mt");
+    //instructor!(t,
+    //    name:
+    //        "Carol Stander",
+    //    available:
+    //        "MWF 1000-1200",
+    //        "MW  1200-1330" with penalty 10,
+    //        "MW  1330-1500",
+    //        "TR  1330-1500" with penalty 5,
+    //);
+    //default_clustering!(t, instructor: "Carol Stander", days: "mt");
     section!(t, course: "CS 1030-01",
             instructor: "Carol Stander",
             rooms and times: "flex", "3 credit bell schedule");
@@ -359,19 +752,19 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             instructor: "Carol Stander",
             rooms and times: "Smith 113", "3 credit bell schedule");
 
-    instructor!(t,
-        name:
-            "Curtis Larsen",
-        available:
-            "MWF 0900-1100",
-            "MWF 1100-1200" with penalty 10,
-            "MW  1200-1330" with penalty 10,
-            "MW  1330-1630",
-            "TR  0900-1030",
-            "TR  1030-1330" with penalty 10,
-            "TR  1330-1630",
-    );
-    default_clustering!(t, instructor: "Curtis Larsen", days: "mt", days off: 0);
+    //instructor!(t,
+    //    name:
+    //        "Curtis Larsen",
+    //    available:
+    //        "MWF 0900-1100",
+    //        "MWF 1100-1200" with penalty 10,
+    //        "MW  1200-1330" with penalty 10,
+    //        "MW  1330-1630",
+    //        "TR  0900-1030",
+    //        "TR  1030-1330" with penalty 10,
+    //        "TR  1330-1630",
+    //);
+    //default_clustering!(t, instructor: "Curtis Larsen", days: "mt", days off: 0);
     section!(t, course: "CS 3005-01",
             instructor: "Curtis Larsen",
             rooms and times: "Smith 116", "3×50");
@@ -385,16 +778,16 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             instructor: "Curtis Larsen",
             rooms and times: "Smith 116", "flex" with penalty 1, "3 credit bell schedule", "tr" with penalty 10);
 
-    instructor!(t,
-        name:
-            "DJ Holt",
-        available:
-            "MW 1200-1500",
-            "MW 1500-1630" with penalty 10,
-            "TR 0900-1500",
-            "TR 1500-1630" with penalty 10,
-    );
-    default_clustering!(t, instructor: "DJ Holt", days: "mt", days off: 0);
+    //instructor!(t,
+    //    name:
+    //        "DJ Holt",
+    //    available:
+    //        "MW 1200-1500",
+    //        "MW 1500-1630" with penalty 10,
+    //        "TR 0900-1500",
+    //        "TR 1500-1630" with penalty 10,
+    //);
+    //default_clustering!(t, instructor: "DJ Holt", days: "mt", days off: 0);
     section!(t, course: "SE 3010-01",
             instructor: "DJ Holt",
             rooms and times: "flex", "macs", "MW1500+75"); // same day as SE4200
@@ -410,27 +803,27 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
     crosslist!(t, "SE 4600-01" cross-list with "CS 4600-02");
     anticonflict!(t, set penalty to 50, single: "CS 4600-01", group: "CS 4600-02");
 
-    instructor!(t,
-        name:
-            "Eric Pedersen",
-        available:
-            "TR  1200-1330",
-    );
+    //instructor!(t,
+    //    name:
+    //        "Eric Pedersen",
+    //    available:
+    //        "TR  1200-1330",
+    //);
     section!(t, course: "SE 3500-01",
             instructor: "Eric Pedersen",
             rooms and times: "flex", "TR1200+75");
 
-    instructor!(t,
-        name:
-            "Jay Sneddon",
-        available:
-            "MWF 0800-0900" with penalty 15,
-            "MWF 0900-1200" with penalty 10,
-            "MW  1200-1630",
-            "TR  0900-1500",
-            "TR  1500-1630" with penalty 5,
-    );
-    default_clustering!(t, instructor: "Jay Sneddon", days: "mt", days off: 0);
+    //instructor!(t,
+    //    name:
+    //        "Jay Sneddon",
+    //    available:
+    //        "MWF 0800-0900" with penalty 15,
+    //        "MWF 0900-1200" with penalty 10,
+    //        "MW  1200-1630",
+    //        "TR  0900-1500",
+    //        "TR  1500-1630" with penalty 5,
+    //);
+    //default_clustering!(t, instructor: "Jay Sneddon", days: "mt", days off: 0);
     section!(t, course: "IT 1200-01",
             instructor: "Jay Sneddon",
             rooms and times: "Smith 107", "tr");
@@ -447,15 +840,15 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             instructor: "Jay Sneddon",
             rooms and times: "Smith 107", "3 credit bell schedule");
 
-    instructor!(t,
-        name:
-            "Jeff Compas",
-        available:
-            "MWF 0800-0900",
-            "MW  1630-1800",
-            "TR  1630-1800",
-            "T   1800-2030",
-    );
+    //instructor!(t,
+    //    name:
+    //        "Jeff Compas",
+    //    available:
+    //        "MWF 0800-0900",
+    //        "MW  1630-1800",
+    //        "TR  1630-1800",
+    //        "T   1800-2030",
+    //);
     section!(t, course: "CS 1400-01",
             instructor: "Jeff Compas",
             rooms and times: "stadium", "3 credit bell schedule", "3 credit evening");
@@ -469,14 +862,14 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             instructor: "Jeff Compas",
             rooms and times: "flex", "3 credit bell schedule", "3 credit evening");
 
-    instructor!(t,
-        name:
-            "Joe Francom",
-        available:
-            "MWF 0800-1200",
-            "MW  1330-1500",
-    );
-    default_clustering!(t, instructor: "Joe Francom", days: "mt", days off: 1);
+    //instructor!(t,
+    //    name:
+    //        "Joe Francom",
+    //    available:
+    //        "MWF 0800-1200",
+    //        "MW  1330-1500",
+    //);
+    //default_clustering!(t, instructor: "Joe Francom", days: "mt", days off: 1);
     section!(t, course: "IT 3110-01",
             instructor: "Joe Francom",
             rooms and times: "flex", "3 credit bell schedule");
@@ -484,28 +877,28 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             instructor: "Joe Francom",
             rooms and times: "flex", "3 credit bell schedule");
 
-    instructor!(t,
-        name:
-            "Lora Klein",
-        available:
-            "TR 0900-1500",
-            "MW 1500-1630" with penalty 15,
-    );
-    default_clustering!(t, instructor: "Lora Klein", days: "mt");
+    //instructor!(t,
+    //    name:
+    //        "Lora Klein",
+    //    available:
+    //        "TR 0900-1500",
+    //        "MW 1500-1630" with penalty 15,
+    //);
+    //default_clustering!(t, instructor: "Lora Klein", days: "mt");
     section!(t, course: "SE 3200-01",
             instructor: "Lora Klein",
             rooms and times: "Smith 107" with penalty 5, "flex", "3 credit bell schedule");
     //course: CS1410 ACE MW 9:30-10:45am, INV 112
     //course: CS1410 ACE MW 12:00-1:15pm, INV 112
 
-    instructor!(t,
-        name:
-            "Matt Kearl",
-        available:
-            "MW 1200-1330",
-            "TR 0900-1330",
-    );
-    default_clustering!(t, instructor: "Matt Kearl", days: "mt", days off: 1);
+    //instructor!(t,
+    //    name:
+    //        "Matt Kearl",
+    //    available:
+    //        "MW 1200-1330",
+    //        "TR 0900-1330",
+    //);
+    //default_clustering!(t, instructor: "Matt Kearl", days: "mt", days off: 1);
     section!(t, course: "SE 3450-01",
             instructor: "Matt Kearl",
             rooms and times: "flex", "macs", "3 credit bell schedule");
@@ -516,17 +909,17 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             instructor: "Matt Kearl",
             rooms and times: "macs", "3 credit bell schedule");
 
-    instructor!(t,
-        name:
-            "Phil Daley",
-        available:
-            "MWF 0900-1200",
-            "MW  1200-1500",
-            "MW  1500-1630" with penalty 10,
-            "TR  0900-1500",
-            "TR  1500-1630" with penalty 10,
-    );
-    default_clustering!(t, instructor: "Phil Daley", days: "mt", days off: 0);
+    //instructor!(t,
+    //    name:
+    //        "Phil Daley",
+    //    available:
+    //        "MWF 0900-1200",
+    //        "MW  1200-1500",
+    //        "MW  1500-1630" with penalty 10,
+    //        "TR  0900-1500",
+    //        "TR  1500-1630" with penalty 10,
+    //);
+    //default_clustering!(t, instructor: "Phil Daley", days: "mt", days off: 0);
     section!(t, course: "IT 1100-01",
             instructor: "Phil Daley",
             rooms and times: "pcs", "3 credit bell schedule");
@@ -540,27 +933,27 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             instructor: "Phil Daley",
             rooms and times: "Smith 107", "3 credit bell schedule");
 
-    instructor!(t,
-        name:
-            "Derek Sneddon",
-        available:
-            "R 1800-2230",
-    );
+    //instructor!(t,
+    //    name:
+    //        "Derek Sneddon",
+    //    available:
+    //        "R 1800-2230",
+    //);
     section!(t, course: "IT 4510-01",
             instructor: "Derek Sneddon",
             rooms and times: "flex", "R1800+150");
 
-    instructor!(t,
-        name:
-            "Ren Quinn",
-        available:
-            "MWF 0900-1200",
-            "TR  1200-1330" with penalty 5,
-            "TR  1330-1630",
-            "R   1900-2000",
-            "F   1300-1400",
-    );
-    default_clustering!(t, instructor: "Ren Quinn", days: "mt", days off: 0);
+    //instructor!(t,
+    //    name:
+    //        "Ren Quinn",
+    //    available:
+    //        "MWF 0900-1200",
+    //        "TR  1200-1330" with penalty 5,
+    //        "TR  1330-1630",
+    //        "R   1900-2000",
+    //        "F   1300-1400",
+    //);
+    //default_clustering!(t, instructor: "Ren Quinn", days: "mt", days off: 0);
     section!(t, course: "CS 1400-02",
             instructor: "Ren Quinn",
             rooms and times: "flex", "3 credit bell schedule");
@@ -583,14 +976,14 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             instructor: "Ren Quinn",
             rooms and times: "Smith 109", "F1300+50");
 
-    instructor!(t,
-        name:
-            "Russ Ross",
-        available:
-            "MTWR 1200-1500",
-            //"MTWR 1500-1630" with penalty 10,
-    );
-    default_clustering!(t, instructor: "Russ Ross", days: "mt", days off: 0);
+    //instructor!(t,
+    //    name:
+    //        "Russ Ross",
+    //    available:
+    //        "MTWR 1200-1500",
+    //        //"MTWR 1500-1630" with penalty 10,
+    //);
+    //default_clustering!(t, instructor: "Russ Ross", days: "mt", days off: 0);
     section!(t, course: "CS 2810-01",
             instructor: "Russ Ross",
             rooms and times: "Smith 109", "3 credit bell schedule");
@@ -604,22 +997,22 @@ pub fn input_computing(t: &mut Solver) -> Result<(), String> {
             instructor: "Russ Ross",
             rooms and times: "Smith 109", "3 credit bell schedule");
 
-    instructor!(t,
-        name:
-            "Rex Frisbey",
-        available:
-            "MWF 1100-1200",
-    );
+    //instructor!(t,
+    //    name:
+    //        "Rex Frisbey",
+    //    available:
+    //        "MWF 1100-1200",
+    //);
     section!(t, course: "SE 1400-01",
             instructor: "Rex Frisbey",
             rooms and times: "macs", "3 credit bell schedule");
 
-    instructor!(t,
-        name:
-            "Jamie Bennion",
-        available:
-            "W 1800-2030",
-    );
+    //instructor!(t,
+    //    name:
+    //        "Jamie Bennion",
+    //    available:
+    //        "W 1800-2030",
+    //);
     section!(t, course: "IT 4990-01",
             instructor: "Jamie Bennion",
             rooms and times: "flex", "3 credit evening");

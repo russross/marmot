@@ -526,6 +526,13 @@ pub fn find_room_by_name(solver: &Solver, name: &str) -> Result<usize, String> {
     Ok(i)
 }
 
+pub fn find_section_by_name(solver: &Solver, section_raw: &String) -> Result<usize, String> {
+    let (prefix, course, Some(section)) = parse_section_name(&section_raw)? else {
+        return Err(format!("section name {section_raw} must include prefix, course, and section, like 'CS 1400-01'"));
+    };
+    solver.input_sections.iter().position(|elt| elt.prefix == prefix && elt.course == course && elt.section == section).ok_or("could not find section".into())
+}
+
 pub fn find_sections_by_name(solver: &Solver, course_raw: &str) -> Result<Vec<usize>, String> {
     let (prefix, course, section) = parse_section_name(course_raw)?;
     let mut list = Vec::new();
@@ -784,6 +791,7 @@ pub enum DistributionPreference {
 }
 
 #[derive(Clone)]
+#[derive(PartialEq)]
 pub enum DurationWithPenalty {
     // a duration shorter than this gets a penalty
     TooShort {
@@ -963,121 +971,6 @@ macro_rules! anticonflict {
     };
 }
 
-macro_rules! duration_penalty {
-    (too short: less than $min:literal minutes incurs penalty $pen:literal) => {
-        DurationWithPenalty::TooShort {
-            duration: time::Duration::minutes($min),
-            penalty: $pen,
-        }
-    };
-    (too long: more than $min:literal minutes incurs penalty $pen:literal) => {
-        DurationWithPenalty::TooLong {
-            duration: time::Duration::minutes($min),
-            penalty: $pen,
-        }
-    };
-}
-
-macro_rules! clustering_preferences {
-    ($input:expr,
-            instructor: $inst:literal,
-            days: $days:literal,
-            max gap within cluster: $gap:literal minutes,
-            $(cluster too $ca:ident : $cb:ident than $cmin:literal minutes incurs penalty $cpen:literal),*,
-            $(gap too $ga:ident : $gb:ident than $gmin:literal minutes incurs penalty $gpen:literal),* $(,)?) => {
-
-        let i = find_instructor_by_name($input, $inst)?;
-        let cluster_limits = vec![$(duration_penalty!(too $ca: $cb than $cmin minutes incurs penalty $cpen)),+];
-        let gap_limits = vec![$(duration_penalty!(too $ga: $gb than $gmin minutes incurs penalty $gpen)),+];
-        assert!(!cluster_limits.is_empty() || !gap_limits.is_empty());
-
-        $input.instructors[i].distribution.push(
-            DistributionPreference::Clustering {
-                days: parse_days($days)?,
-                max_gap: time::Duration::minutes($gap),
-                cluster_limits,
-                gap_limits,
-            }
-        );
-    };
-}
-
-macro_rules! days_off_preference {
-    ($input:expr,
-            instructor: $inst:literal,
-            days: $days:literal,
-            days off: $off:literal,
-            penalty: $pen:literal) => {
-        let i = find_instructor_by_name($input, $inst)?;
-        $input.instructors[i]
-            .distribution
-            .push(DistributionPreference::DaysOff {
-                days: parse_days($days)?,
-                days_off: $off,
-                penalty: $pen,
-            });
-    };
-}
-
-macro_rules! evenly_spread_out_preference {
-    ($input:expr,
-            instructor: $inst:literal,
-            days: $days:literal,
-            penalty: $pen:literal) => {
-        let i = find_instructor_by_name($input, $inst)?;
-        $input.instructors[i]
-            .distribution
-            .push(DistributionPreference::DaysEvenlySpread {
-                days: parse_days($days)?,
-                penalty: $pen,
-            });
-    };
-}
-
-// default instructor distribution preferences
-macro_rules! default_clustering {
-    ($input:expr,
-            instructor: $inst:literal,
-            days: $days:literal,
-            days off: $off:literal) => {
-        clustering_preferences!($input,
-            instructor: $inst,
-            days: $days,
-            max gap within cluster: 15 minutes,
-            cluster too short: less than 110 minutes incurs penalty 5,
-            cluster too long: more than 165 minutes incurs penalty 10,
-            gap too short: less than 60 minutes incurs penalty 10,
-            gap too long: more than 105 minutes incurs penalty 5,
-            gap too long: more than 195 minutes incurs penalty 10);
-        days_off_preference!($input,
-            instructor: $inst,
-            days: $days,
-            days off: $off,
-            penalty: 10);
-        evenly_spread_out_preference!($input,
-            instructor: $inst,
-            days: $days,
-            penalty: 10);
-    };
-    ($input:expr,
-            instructor: $inst:literal,
-            days: $days:literal) => {
-        clustering_preferences!($input,
-            instructor: $inst,
-            days: $days,
-            max gap within cluster: 15 minutes,
-            cluster too short: less than 110 minutes incurs penalty 5,
-            cluster too long: more than 165 minutes incurs penalty 10,
-            gap too short: less than 60 minutes incurs penalty 10,
-            gap too long: more than 105 minutes incurs penalty 5,
-            gap too long: more than 195 minutes incurs penalty 10);
-        evenly_spread_out_preference!($input,
-            instructor: $inst,
-            days: $days,
-            penalty: 10);
-    };
-}
-
 macro_rules! add_prereqs {
     ($input:expr,
             course: $course:literal,
@@ -1114,8 +1007,7 @@ macro_rules! multiple_sections_reduce_penalties {
 }
 
 pub(crate) use {
-    add_prereqs, anticonflict, clustering_preferences, conflict, course_with_online, crosslist,
-    days_off_preference, default_clustering, duration_penalty, evenly_spread_out_preference,
+    add_prereqs, anticonflict, conflict, course_with_online, crosslist,
     instructor, multiple_sections_reduce_penalties, name_with_optional_penalty,
     section,
 };
