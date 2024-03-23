@@ -298,3 +298,18 @@ echo building computing faculty and sections
 ./edit add-anti-conflict 50 'CS 4600-01' 'CS 4600-02'
 ./edit add-anti-conflict 50 'CS 1030-01' 'CS 1400'
 #./edit add-anti-conflict 50 'SE 1400' 'IT 1100' # temporarily removed because of new hire planning
+
+./edit make-conflict 'Computer Science' 'spread out CS 1400' 100 maximize \
+    'CS 1400-01' 'CS 1400-02' 'CS 1400-03' 'CS 1400-50'
+./edit make-conflict 'Computer Science' 'spread out CS 1410' 100 maximize \
+    'CS 1410-01' 'CS 1410-02'
+./edit make-conflict 'Computer Science' 'spread out CS 2450' 100 maximize \
+    'CS 2450-01' 'CS 2450-02'
+./edit make-conflict 'Computer Science' 'spread out CS 2810' 100 maximize \
+    'CS 2810-01' 'CS 2810-02'
+./edit make-conflict 'Information Technology' 'spread out IT 1100' 100 maximize \
+    'IT 1100-01' 'IT 1100-02'
+./edit make-conflict 'Information Technology' 'spread out IT 2300' 100 maximize \
+    'IT 2300-01' 'IT 2300-02'
+./edit make-conflict 'Software Engineering' 'spread out SE 1400' 100 maximize \
+    'SE 1400-01' 'SE 1400-02'

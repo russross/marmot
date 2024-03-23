@@ -269,11 +269,11 @@ def make_program(db, program, department):
 @cli.command()
 @click.argument('program')
 @click.argument('conflict_name')
-@click.argument('conflict_level')
+@click.argument('conflict_penalty')
 @click.argument('maximize')
 @click.argument('courses', nargs=-1)
 @click.pass_obj
-def make_conflict(db, program, conflict_name, conflict_level, maximize, courses):
+def make_conflict(db, program, conflict_name, conflict_penalty, maximize, courses):
     if maximize == 'maximize':
         maximize = True
     elif maximize == 'minimize':
@@ -281,12 +281,12 @@ def make_conflict(db, program, conflict_name, conflict_level, maximize, courses)
     else:
         print(f'make_conflict: {program} {conflict_name}: maximize option must be "maximize" or "minimize"')
         sys.exit(1)
-    conflict_level = int(conflict_level)
-    if conflict_level < 0 or conflict_level > 100:
-        print(f'make_conflict: {program} {conflict_name}: conflict level option must be between 0 and 100')
+    conflict_penalty = int(conflict_penalty)
+    if conflict_penalty < 0 or conflict_penalty > 100:
+        print(f'make_conflict: {program} {conflict_name}: conflict penalty option must be between 0 and 100')
         sys.exit(1)
 
-    db.execute('INSERT INTO conflicts VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?, ?)', (program, conflict_name, conflict_level, maximize))
+    db.execute('INSERT INTO conflicts VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?, ?)', (program, conflict_name, conflict_penalty, maximize))
 
     for elt in courses:
         if '-' not in elt:

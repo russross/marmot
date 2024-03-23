@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use super::bits::*;
 use super::input::*;
 use super::solver::Solver;
@@ -7,6 +8,26 @@ const DB_PATH: &str = "timetable.db";
 
 pub fn sql_err(err: rusqlite::Error) -> String {
     format!("{err}")
+}
+
+fn dept_clause(departments: &Vec<String>, columns: &Vec<String>, with_where: bool) -> String {
+    let mut s = "".to_string();
+    if !departments.is_empty() {
+        for (i, col) in columns.iter().enumerate() {
+            s = if i == 0 && with_where {
+                format!("WHERE {col} IN (")
+            } else {
+                format!("{s} AND {col} IN (")
+            };
+            let mut sep = "";
+            for _ in departments {
+                s = format!("{s}{sep}?");
+                sep = ", ";
+            }
+            s = format!("{s})");
+        }
+    }
+    s
 }
 
 // build the solver object with term dates and holidays
@@ -51,14 +72,7 @@ pub fn make_solver(db: &mut Connection) -> Result<Solver, String> {
     }
 
     // add the holidays
-    let mut stmt = db
-        .prepare("
-                SELECT holiday
-                FROM terms
-                NATURAL JOIN holidays
-                WHERE current",
-        )
-        .map_err(sql_err)?;
+    let mut stmt = db.prepare("SELECT holiday FROM active_holidays").map_err(sql_err)?;
     let mut rows = stmt.query([]).map_err(sql_err)?;
 
     while let Some(row) = rows.next().unwrap() {
@@ -99,34 +113,67 @@ pub fn make_solver(db: &mut Connection) -> Result<Solver, String> {
     })
 }
 
-fn dept_clause(departments: &Vec<String>) -> String {
-    if departments.is_empty() {
-        "".to_string()
-    } else {
-        let mut s = " AND department IN (".to_string();
-        let mut sep = "";
-        for _ in departments {
-            s = format!("{s}{sep}?");
-            sep = ", ";
-        }
-        format!("{s})")
-    }
-}
+// get a map of cross-listed courses, mapping:
+//     section => canonical_section
+pub fn load_cross_listings(
+    db: &mut Connection,
+    departments: &Vec<String>,
+) -> Result<HashMap<String, String>, String> {
+    let dept_in = dept_clause(departments, &vec!["department".into()], true);
+    let mut stmt = db
+        .prepare(&format!("
+                SELECT cross_listing_name, section
+                FROM active_cross_listings
+                {}
+                ORDER BY cross_listing_name, section",
+            dept_in
+        ))
+        .map_err(sql_err)?;
+    let mut rows = stmt
+        .query(rusqlite::params_from_iter(departments))
+        .map_err(sql_err)?;
 
-fn dept_multi_clause(departments: &Vec<String>, tables: &Vec<String>) -> String {
-    let mut s = "".to_string();
-    if !departments.is_empty() {
-        for table in tables {
-            s = format!("{s} AND {table}.department IN (");
-            let mut sep = "";
-            for _ in departments {
-                s = format!("{s}{sep}?");
-                sep = ", ";
+    let mut map = HashMap::new();
+    let mut prev_name = String::new();
+    let mut sections = Vec::<String>::new();
+
+    while let Some(row) = rows.next().map_err(sql_err)? {
+        let name: String = row.get_unwrap(0);
+        let section: String = row.get_unwrap(1);
+
+        // start a new cross listing
+        if name != prev_name {
+            prev_name = name.clone();
+
+            // handle the previous group
+            if sections.len() > 1 {
+                // note: important that the first section in sort order
+                // is the canonical section
+                // so it will always be loaded before the secondary sections
+                for elt in sections.iter().skip(1) {
+                    map.insert(elt.clone(), sections[0].clone());
+                }
+                sections.clear();
             }
-            s = format!("{s})");
         }
+
+        sections.push(section);
     }
-    s
+
+    // handle the last group
+    if sections.len() > 1 {
+        for elt in sections.iter().skip(1) {
+            map.insert(elt.clone(), sections[0].clone());
+        }
+        sections.clear();
+    }
+
+    println!("cross-listings:");
+    for (key, val) in map.iter() {
+        println!("{key} {val}");
+    }
+
+    Ok(map)
 }
 
 // load all rooms
@@ -135,21 +182,13 @@ pub fn load_rooms(
     solver: &mut Solver,
     departments: &Vec<String>,
 ) -> Result<(), String> {
-    let mut stmt = db
-        .prepare(&format!("
-                SELECT DISTINCT room, capacity
-                FROM terms
-                NATURAL JOIN courses
-                NATURAL JOIN sections
-                NATURAL JOIN section_time_slot_tags
-                NATURAL JOIN section_room_tags
-                NATURAL JOIN rooms_room_tags
-                NATURAL JOIN rooms
-                WHERE current{}
-                ORDER BY building, room_number",
-            dept_clause(departments)
-        ))
-        .map_err(sql_err)?;
+    let dept_in = dept_clause(departments, &vec!["department".into()], true);
+    let mut stmt = db.prepare(&format!("
+            SELECT DISTINCT room, capacity
+            FROM active_rooms
+            {}
+            ORDER BY building, room_number",
+        dept_in)).map_err(sql_err)?;
     let mut rows = stmt
         .query(rusqlite::params_from_iter(departments))
         .map_err(sql_err)?;
@@ -177,20 +216,13 @@ pub fn load_time_slots(
     )
     .unwrap();
 
-    let mut stmt = db
-        .prepare(&format!("
-                SELECT DISTINCT time_slot
-                FROM terms
-                NATURAL JOIN courses
-                NATURAL JOIN sections
-                NATURAL JOIN section_time_slot_tags
-                NATURAL JOIN time_slots_time_slot_tags
-                NATURAL JOIN time_slots
-                WHERE current{}
-                ORDER BY duration * LENGTH(days), first_day, start_time, duration",
-            dept_clause(departments)
-        ))
-        .map_err(sql_err)?;
+    let dept_in = dept_clause(departments, &vec!["department".into()], true);
+    let mut stmt = db.prepare(&format!("
+            SELECT DISTINCT time_slot
+            FROM active_time_slots
+            {}
+            ORDER BY duration * LENGTH(days), first_day, start_time, duration",
+        dept_in)).map_err(sql_err)?;
     let mut rows = stmt
         .query(rusqlite::params_from_iter(departments))
         .map_err(sql_err)?;
@@ -276,18 +308,12 @@ pub fn load_faculty(
     departments: &Vec<String>,
 ) -> Result<(), String> {
     {
+        let dept_in = dept_clause(departments, &vec!["department".into()], true);
         let mut stmt = db.prepare(&format!("
-                SELECT DISTINCT faculty,
-                                day_of_week, start_time, start_time + duration AS end_time, availability_penalty
-                FROM terms
-                NATURAL JOIN courses
-                NATURAL JOIN sections
-                NATURAL JOIN section_time_slot_tags
-                NATURAL JOIN faculty_sections 
-                NATURAL JOIN faculty_availability
-                WHERE current{}
-                ORDER BY faculty",
-            dept_clause(departments))).map_err(sql_err)?;
+                SELECT DISTINCT faculty, day_of_week, start_time, start_time + duration AS end_time, availability_penalty
+                FROM active_faculty_availability
+                {}
+                ORDER BY faculty", dept_in)).map_err(sql_err)?;
         let mut rows = stmt
             .query(rusqlite::params_from_iter(departments))
             .map_err(sql_err)?;
@@ -345,20 +371,14 @@ pub fn load_faculty(
     }
 
     {
+        let dept_in = dept_clause(departments, &vec!["department".into()], true);
         let mut stmt = db.prepare(&format!("
                 SELECT DISTINCT faculty,
                                 days_to_check, days_off, days_off_penalty, evenly_spread_penalty, max_gap_within_cluster,
                                 is_cluster, is_too_short, interval_minutes, interval_penalty
-                FROM terms
-                NATURAL JOIN courses
-                NATURAL JOIN sections
-                NATURAL JOIN section_time_slot_tags
-                NATURAL JOIN faculty_sections 
-                NATURAL JOIN faculty_preferences
-                LEFT OUTER NATURAL JOIN faculty_preference_intervals
-                WHERE current{}
-                ORDER BY faculty",
-            dept_clause(departments))).map_err(sql_err)?;
+                FROM active_faculty_preference_intervals
+                {}
+                ORDER BY faculty", dept_in)).map_err(sql_err)?;
         let mut rows = stmt
             .query(rusqlite::params_from_iter(departments))
             .map_err(sql_err)?;
@@ -467,57 +487,79 @@ pub fn load_faculty(
 pub fn load_sections(
     db: &mut Connection,
     solver: &mut Solver,
+    cross_listings: &HashMap<String, String>,
     departments: &Vec<String>,
 ) -> Result<(), String> {
+    // load and create sections and their time slots
     {
+        fn intersect_twp_keep_worst(a: &Vec<TimeWithPenalty>, b: &Vec<TimeWithPenalty>) -> Vec<TimeWithPenalty> {
+            let mut combined = Vec::new();
+            for &TimeWithPenalty{ time_slot, penalty } in a {
+                match b.iter().position(|elt| elt.time_slot == time_slot) {
+                    Some(i) => combined.push(TimeWithPenalty{ time_slot, penalty: std::cmp::max(b[i].penalty, penalty)}),
+                    None => (),
+                }
+            }
+            combined
+        }
+        let dept_in = dept_clause(departments, &vec!["department".into()], true);
         let mut stmt = db
             .prepare(&format!("
-                    SELECT DISTINCT section, time_slot, MAX(time_slot_penalty)
-                    FROM terms
-                    NATURAL JOIN courses
-                    NATURAL JOIN sections
-                    NATURAL JOIN section_time_slot_tags
-                    NATURAL JOIN time_slots_time_slot_tags
-                    WHERE current{}
-                    GROUP BY section, time_slot
-                    ORDER BY section",
-                dept_clause(departments)
-            ))
-            .map_err(sql_err)?;
-        let mut rows = stmt
-            .query(rusqlite::params_from_iter(departments))
-            .map_err(sql_err)?;
+                    SELECT section, time_slot, time_slot_penalty
+                    FROM active_section_time_slots
+                    {}
+                    ORDER BY section", dept_in)).map_err(sql_err)?;
+        let mut rows = stmt.query(rusqlite::params_from_iter(departments)).map_err(sql_err)?;
 
         let mut prev_name = String::new();
+        let mut times_with_penalties = Vec::new();
 
         while let Some(row) = rows.next().map_err(sql_err)? {
             let name: String = row.get_unwrap(0);
 
-            // add the section if it does not already exist
             if name != prev_name {
+                if !cross_listings.contains_key(&name) {
+                    // create a new section, times to be filled in later
+                    let (prefix, course, Some(section)) = parse_section_name(&name)? else {
+                        return Err(format!("section name {name} must include prefix, course, and section, like 'CS 1400-01'"));
+                    };
+
+                    solver.input_sections.push(InputSection {
+                        prefix,
+                        course,
+                        section,
+                        instructors: Vec::new(),
+                        rooms: Vec::new(),
+                        time_slots: Vec::new(),
+                        hard_conflicts: Vec::new(),
+                        soft_conflicts: Vec::new(),
+                        cross_listings: Vec::new(),
+                        coreqs: Vec::new(),
+                        prereqs: Vec::new(),
+                    });
+                }
+
+                // note: this is an exact clone of the final section closeout code
+                if !times_with_penalties.is_empty() {
+                    // close out the previous section
+                    if cross_listings.contains_key(&prev_name) {
+                        // merge this with the canonical section
+                        let canonical = cross_listings.get(&prev_name).unwrap().clone();
+                        let index = find_section_by_name(solver, &canonical)?;
+                        let time_slots = intersect_twp_keep_worst(&times_with_penalties, &solver.input_sections[index].time_slots);
+                        if time_slots.is_empty() {
+                            return Err(format!("section {prev_name} is cross-listed with {canonical} but they have no time slots in common"));
+                        }
+                        solver.input_sections[index].time_slots = time_slots;
+                    } else {
+                        let index = find_section_by_name(solver, &prev_name)?;
+                        solver.input_sections[index].time_slots = times_with_penalties.clone();
+                    }
+                }
+
                 prev_name = name.clone();
-
-                let (prefix, course, Some(section)) = parse_section_name(&name)? else {
-                    return Err(format!("section name {name} must include prefix, course, and section, like 'CS 1400-01'"));
-                };
-
-                solver.input_sections.push(InputSection {
-                    prefix,
-                    course,
-                    section,
-                    instructors: Vec::new(),
-                    rooms: Vec::new(),
-                    time_slots: Vec::new(),
-                    hard_conflicts: Vec::new(),
-                    soft_conflicts: Vec::new(),
-                    cross_listings: Vec::new(),
-                    coreqs: Vec::new(),
-                    prereqs: Vec::new(),
-                });
+                times_with_penalties.clear();
             }
-
-            let len = solver.input_sections.len();
-            let section = &mut solver.input_sections[len - 1];
 
             let time_slot_name: String = row.get_unwrap(1);
             let time_slot = solver
@@ -526,45 +568,77 @@ pub fn load_sections(
                 .position(|elt| elt.name == time_slot_name)
                 .unwrap();
             let penalty: isize = row.get_unwrap(2);
-            section
-                .time_slots
-                .push(TimeWithPenalty { time_slot, penalty });
+            times_with_penalties.push(TimeWithPenalty { time_slot, penalty });
+        }
+
+        // handle the last section: this is an exact clone of the code above
+        if !times_with_penalties.is_empty() {
+            // close out the previous section
+            if cross_listings.contains_key(&prev_name) {
+                // merge this with the canonical section
+                let canonical = cross_listings.get(&prev_name).unwrap().clone();
+                let index = find_section_by_name(solver, &canonical)?;
+                let time_slots = intersect_twp_keep_worst(&times_with_penalties, &solver.input_sections[index].time_slots);
+                if time_slots.is_empty() {
+                    return Err(format!("section {prev_name} is cross-listed with {canonical} but they have no time slots in common"));
+                }
+                solver.input_sections[index].time_slots = time_slots;
+            } else {
+                let index = find_section_by_name(solver, &prev_name)?;
+                solver.input_sections[index].time_slots = times_with_penalties.clone();
+            }
         }
     }
 
+    // add rooms
     {
-        let mut stmt = db
-            .prepare(&format!("
-                    SELECT DISTINCT section, room, MAX(room_penalty)
-                    FROM terms
-                    NATURAL JOIN courses
-                    NATURAL JOIN sections
-                    NATURAL JOIN section_time_slot_tags
-                    NATURAL JOIN section_room_tags
-                    NATURAL JOIN rooms_room_tags
-                    WHERE current{}
-                    GROUP BY section, room
-                    ORDER BY section",
-                dept_clause(departments)
-            ))
-            .map_err(sql_err)?;
-        let mut rows = stmt
-            .query(rusqlite::params_from_iter(departments))
-            .map_err(sql_err)?;
+        fn intersect_rwp_keep_worst(a: &Vec<RoomWithPenalty>, b: &Vec<RoomWithPenalty>) -> Vec<RoomWithPenalty> {
+            let mut combined = Vec::new();
+            for &RoomWithPenalty{ room, penalty } in a {
+                match b.iter().position(|elt| elt.room == room) {
+                    Some(i) => combined.push(RoomWithPenalty{ room, penalty: std::cmp::max(b[i].penalty, penalty)}),
+                    None => (),
+                }
+            }
+            combined
+        }
+        let dept_in = dept_clause(departments, &vec!["department".into()], true);
+        let mut stmt = db.prepare(&format!("
+                    SELECT section, room, room_penalty
+                    FROM active_section_rooms
+                    {}
+                    ORDER BY section", dept_in)).map_err(sql_err)?;
+        let mut rows = stmt.query(rusqlite::params_from_iter(departments)) .map_err(sql_err)?;
 
         let mut prev_name = String::new();
-        let mut index = 0;
+        let mut rooms_with_penalties = Vec::new();
 
         while let Some(row) = rows.next().map_err(sql_err)? {
             let name: String = row.get_unwrap(0);
 
             // look up the section if it is different than the previous one
             if name != prev_name {
+                // close out the previous section: note same code is cloned below
+                if !rooms_with_penalties.is_empty() {
+                    if cross_listings.contains_key(&prev_name) {
+                        // merge this with the canonical section
+                        let canonical = cross_listings.get(&prev_name).unwrap().clone();
+                        let index = find_section_by_name(solver, &canonical)?;
+                        let rooms = intersect_rwp_keep_worst(&rooms_with_penalties, &solver.input_sections[index].rooms);
+                        if rooms.is_empty() {
+                            return Err(format!("section {prev_name} is cross-listed with {canonical} but they have no rooms in common"));
+                        }
+                        solver.input_sections[index].rooms = rooms;
+                    } else {
+                        let index = find_section_by_name(solver, &prev_name)?;
+                        solver.input_sections[index].rooms = rooms_with_penalties.clone();
+                    }
+                }
+
                 prev_name = name.clone();
-                index = find_section_by_name(solver, &name)?;
+                rooms_with_penalties.clear();
             }
 
-            let section = &mut solver.input_sections[index];
             let room_name: String = row.get_unwrap(1);
             let room = solver
                 .rooms
@@ -572,25 +646,104 @@ pub fn load_sections(
                 .position(|elt| elt.name == room_name)
                 .unwrap();
             let penalty: isize = row.get_unwrap(2);
+            rooms_with_penalties.push(RoomWithPenalty { room, penalty });
+        }
 
-            section.rooms.push(RoomWithPenalty { room, penalty });
+        // close out the last section: note same code is cloned above
+        if !rooms_with_penalties.is_empty() {
+            if cross_listings.contains_key(&prev_name) {
+                // merge this with the canonical section
+                let canonical = cross_listings.get(&prev_name).unwrap().clone();
+                let index = find_section_by_name(solver, &canonical)?;
+                let rooms = intersect_rwp_keep_worst(&rooms_with_penalties, &solver.input_sections[index].rooms);
+                if rooms.is_empty() {
+                    return Err(format!("section {prev_name} is cross-listed with {canonical} but they have no rooms in common"));
+                }
+                solver.input_sections[index].rooms = rooms;
+            } else {
+                let index = find_section_by_name(solver, &prev_name)?;
+                solver.input_sections[index].rooms = rooms_with_penalties.clone();
+            }
         }
     }
 
+    // add prereqs
     {
+        let dept_in = dept_clause(departments, &vec!["section_department".into(), "prereq_department".into()], true);
         let mut stmt = db
             .prepare(&format!("
-                    SELECT DISTINCT faculty, section
-                    FROM terms
-                    NATURAL JOIN courses
-                    NATURAL JOIN sections
-                    NATURAL JOIN section_time_slot_tags
-                    NATURAL JOIN faculty_sections
-                    WHERE current{}
-                    ORDER BY faculty",
-                dept_clause(departments)
-            ))
+                    SELECT section, prereq
+                    FROM active_prereqs
+                    {}", dept_in)).map_err(sql_err)?;
+
+        let mut departments_x2 = Vec::new();
+        departments_x2.extend(departments);
+        departments_x2.extend(departments);
+        let mut rows = stmt
+            .query(rusqlite::params_from_iter(departments_x2))
             .map_err(sql_err)?;
+
+        while let Some(row) = rows.next().map_err(sql_err)? {
+            let mut section: String = row.get_unwrap(0);
+            let mut prereq: String = row.get_unwrap(1);
+            match cross_listings.get(&section) {
+                Some(canonical) => section = canonical.clone(),
+                None => (),
+            }
+            match cross_listings.get(&prereq) {
+                Some(canonical) => prereq = canonical.clone(),
+                None => (),
+            }
+
+            let index = find_section_by_name(solver, &section)?;
+            let prereq_index = find_section_by_name(solver, &prereq)?;
+            solver.input_sections[index].prereqs.push(prereq_index);
+        }
+    }
+
+    // add coreqs
+    {
+        let dept_in = dept_clause(departments, &vec!["section_department".into(), "coreq_department".into()], true);
+        let mut stmt = db
+            .prepare(&format!("
+                    SELECT section, coreq
+                    FROM active_coreqs
+                    {}", dept_in)).map_err(sql_err)?;
+
+        let mut departments_x2 = Vec::new();
+        departments_x2.extend(departments);
+        departments_x2.extend(departments);
+        let mut rows = stmt
+            .query(rusqlite::params_from_iter(departments_x2))
+            .map_err(sql_err)?;
+
+        while let Some(row) = rows.next().map_err(sql_err)? {
+            let mut section: String = row.get_unwrap(0);
+            let mut coreq: String = row.get_unwrap(1);
+            match cross_listings.get(&section) {
+                Some(canonical) => section = canonical.clone(),
+                None => (),
+            }
+            match cross_listings.get(&coreq) {
+                Some(canonical) => coreq = canonical.clone(),
+                None => (),
+            }
+
+            let index = find_section_by_name(solver, &section)?;
+            let coreq_index = find_section_by_name(solver, &coreq)?;
+            solver.input_sections[index].coreqs.push(coreq_index);
+        }
+    }
+
+    // link sections to faculty
+    {
+        let dept_in = dept_clause(departments, &vec!["department".into()], true);
+        let mut stmt = db
+            .prepare(&format!("
+                    SELECT faculty, section
+                    FROM active_faculty_sections
+                    {}
+                    ORDER BY faculty", dept_in)).map_err(sql_err)?;
         let mut rows = stmt
             .query(rusqlite::params_from_iter(departments))
             .map_err(sql_err)?;
@@ -600,7 +753,11 @@ pub fn load_sections(
 
         while let Some(row) = rows.next().map_err(sql_err)? {
             let name: String = row.get_unwrap(0);
-            let section_name: String = row.get_unwrap(1);
+            let mut section_name: String = row.get_unwrap(1);
+            match cross_listings.get(&section_name) {
+                Some(canonical) => section_name = canonical.clone(),
+                None => (),
+            }
 
             // look up the faculty if it is different than the previous one
             if name != faculty_name {
@@ -613,61 +770,12 @@ pub fn load_sections(
             }
 
             let section_index = find_section_by_name(solver, &section_name)?;
-            solver.instructors[faculty_index]
-                .sections
-                .push(section_index);
-            solver.input_sections[section_index]
-                .instructors
-                .push(faculty_index);
-        }
-    }
-
-    Ok(())
-}
-
-pub fn load_cross_listings(
-    db: &mut Connection,
-    solver: &mut Solver,
-    departments: &Vec<String>,
-) -> Result<(), String> {
-    let mut stmt = db
-        .prepare(&format!("
-                SELECT DISTINCT cross_listing_name, section
-                FROM terms
-                NATURAL JOIN courses
-                NATURAL JOIN sections
-                NATURAL JOIN section_time_slot_tags
-                NATURAL JOIN cross_listing_sections
-                WHERE current{}
-                ORDER BY cross_listing_name",
-            dept_clause(departments)
-        ))
-        .map_err(sql_err)?;
-    let mut rows = stmt
-        .query(rusqlite::params_from_iter(departments))
-        .map_err(sql_err)?;
-
-    let mut prev_name = String::new();
-    let mut sections = Vec::new();
-
-    while let Some(row) = rows.next().map_err(sql_err)? {
-        let name: String = row.get_unwrap(0);
-
-        // start a new cross listing
-        if name != prev_name {
-            prev_name = name.clone();
-            sections.clear();
-        }
-
-        let section_name: String = row.get_unwrap(1);
-        let section_index = find_section_by_name(solver, &section_name)?;
-        sections.push(section_index);
-
-        if sections.len() > 1 {
-            sections.sort();
-            for &index in &sections {
-                solver.input_sections[index].cross_listings = sections.clone();
-            }
+            solver.instructors[faculty_index].sections.push(section_index);
+            solver.instructors[faculty_index].sections.sort();
+            solver.instructors[faculty_index].sections.dedup();
+            solver.input_sections[section_index].instructors.push(faculty_index);
+            solver.input_sections[section_index].instructors.sort();
+            solver.input_sections[section_index].instructors.dedup();
         }
     }
 
@@ -679,59 +787,18 @@ pub fn load_anti_conflicts(
     solver: &mut Solver,
     departments: &Vec<String>,
 ) -> Result<(), String> {
-    let dept_in = dept_multi_clause(departments, &vec!["courses".into(), "other_courses".into()]);
+    let dept_in = dept_clause(departments, &vec!["single_department".into(), "group_department".into()], true);
     let mut stmt = db.prepare(&format!("
-        SELECT DISTINCT sections.section AS single_section, other_sections.section AS group_section, anti_conflict_penalty
-        FROM terms
-        NATURAL JOIN courses
-        NATURAL JOIN sections
-        NATURAL JOIN section_time_slot_tags
-        JOIN anti_conflicts
-            ON  anti_conflicts.term                             = terms.term
-            AND anti_conflicts.anti_conflict_single             = sections.section
-        NATURAL JOIN anti_conflict_sections
-        JOIN sections                                           AS other_sections
-            ON  other_sections.term                             = terms.term
-            AND other_sections.section                          = anti_conflict_section
-        JOIN courses                                            AS other_courses
-            ON  other_courses.term                              = terms.term
-            AND other_courses.course                            = other_sections.course
-        JOIN section_time_slot_tags                             AS other_section_time_slot_tags
-            ON  other_section_time_slot_tags.term               = terms.term
-            AND other_section_time_slot_tags.section            = other_sections.section
-        WHERE terms.current{dept_in}
+        SELECT single_section, group_section, anti_conflict_penalty
+        FROM active_anti_conflicts
+        {}
+        ORDER BY single_section", dept_in)).map_err(sql_err)?;
 
-        UNION
-
-        SELECT DISTINCT sections.section, other_sections.section, anti_conflict_penalty
-        FROM terms
-        NATURAL JOIN courses
-        NATURAL JOIN sections
-        NATURAL JOIN section_time_slot_tags
-        JOIN anti_conflicts
-            ON  anti_conflicts.term                             = terms.term
-            AND anti_conflicts.anti_conflict_single             = sections.section
-        NATURAL JOIN anti_conflict_courses
-        JOIN courses                                            AS other_courses
-            ON  other_courses.term                              = terms.term
-            AND other_courses.course                            = anti_conflict_course
-        JOIN sections                                           AS other_sections
-            ON  other_sections.term                             = terms.term
-            AND other_sections.course                           = other_courses.course
-        JOIN section_time_slot_tags                             AS other_section_time_slot_tags
-            ON  other_section_time_slot_tags.term               = terms.term
-            AND other_section_time_slot_tags.section            = other_sections.section
-        WHERE terms.current{dept_in}
-
-        ORDER BY sections.section")).map_err(sql_err)?;
-
-    let mut departments_x4 = Vec::new();
-    departments_x4.extend(departments);
-    departments_x4.extend(departments);
-    departments_x4.extend(departments);
-    departments_x4.extend(departments);
+    let mut departments_x2 = Vec::new();
+    departments_x2.extend(departments);
+    departments_x2.extend(departments);
     let mut rows = stmt
-        .query(rusqlite::params_from_iter(departments_x4))
+        .query(rusqlite::params_from_iter(departments_x2))
         .map_err(sql_err)?;
 
     let mut single_name = String::new();
@@ -776,7 +843,7 @@ pub fn load_anti_conflicts(
 }
 
 pub fn input() -> Result<Solver, String> {
-    let departments = vec!["Computing".to_string(), "Math".to_string()];
+    let departments = vec!["Computing".to_string()];
     //let departments = vec![];
 
     let mut db = Connection::open_with_flags(
@@ -787,22 +854,25 @@ pub fn input() -> Result<Solver, String> {
 
     let mut solver = make_solver(&mut db)?;
     let mut t = &mut solver;
+    let cross_listings = load_cross_listings(&mut db, &departments)?;
+
     println!("loading rooms, times");
     load_rooms(&mut db, t, &departments)?;
     load_time_slots(&mut db, t, &departments)?;
+
     println!("loading faculty");
     load_faculty(&mut db, t, &departments)?;
-    println!("loading sections");
-    load_sections(&mut db, t, &departments)?;
-    load_cross_listings(&mut db, t, &departments)?;
+
+    println!("loading courses");
+    load_sections(&mut db, t, &cross_listings, &departments)?;
     load_anti_conflicts(&mut db, t, &departments)?;
 
     println!("loading conflicts");
     input_computing_conflicts(&mut t)?;
     input_set_conflicts(&mut t)?;
-    println!("loading multiples, prereqs");
+    println!("loading multiples");
     input_multiples(&mut t)?;
-    input_prereqs(&mut t)?;
+    //input_prereqs(&mut t)?;
     println!("doing postprocessing");
 
     Ok(solver)
@@ -1409,264 +1479,6 @@ pub fn input_set_conflicts(t: &mut Solver) -> Result<(), String> {
     conflict!(t, remove penalty, clique: "MATH 2050", "MATH 3060");
     conflict!(t, remove penalty, clique: "MATH 2270", "MATH 2250");
     conflict!(t, remove penalty, clique: "MATH 2280", "MATH 2250");
-
-    Ok(())
-}
-
-pub fn input_prereqs(t: &mut Solver) -> Result<(), String> {
-    add_prereqs!(t, course: "CS 1400", prereqs: "CS 1030", "MATH 1010");
-    add_prereqs!(t, course: "CS 1410", prereqs: "CS 1400");
-    add_prereqs!(t, course: "CS 2420", prereqs: "CS 1410");
-    add_prereqs!(t, course: "CS 2450", prereqs: "CS 1410");
-    add_prereqs!(t, course: "CS 2500", prereqs: "CS 1410");
-    add_prereqs!(t, course: "CS 2810", prereqs: "CS 1410");
-    add_prereqs!(t, course: "CS 3005", prereqs: "CS 1410");
-    add_prereqs!(t, course: "CS 3150", prereqs: "CS 2420", "CS 2810");
-    add_prereqs!(t, course: "CS 3310", prereqs: "CS 1410", "MATH 1100", "MATH 1210");
-    add_prereqs!(t, course: "CS 3400", prereqs: "CS 2420", "CS 2810", "CS 3005");
-    add_prereqs!(t, course: "CS 3410", prereqs: "CS 2420", "CS 2810");
-    add_prereqs!(t, course: "CS 3500", prereqs: "CS 3005");
-    add_prereqs!(t, course: "CS 3510", prereqs: "CS 2420", "CS 2810", "CS 3310");
-    add_prereqs!(t, course: "CS 3520", prereqs: "CS 2420", "CS 2810");
-    add_prereqs!(t, course: "CS 3530", coreqs: "CS 3310", prereqs: "CS 2420", "CS 2810", "CS 3310");
-    add_prereqs!(t, course: "CS 3600", prereqs: "CS 2420", "CS 3005");
-    add_prereqs!(t, course: "CS 4300", prereqs: "CS 2420", "CS 2810", "CS 3005");
-    add_prereqs!(t, course: "CS 4307", prereqs: "CS 2420", "CS 2810");
-    add_prereqs!(t, course: "CS 4310", prereqs: "CS 4307", "IT 2300");
-    add_prereqs!(t, course: "CS 4320", prereqs: "CS 2420", "CS 2810", "CS 3005");
-    add_prereqs!(t, course: "CS 4400", prereqs: "CS 2420", "CS 2810");
-    add_prereqs!(t, course: "CS 4410", prereqs: "CS 2420", "CS 2810");
-    add_prereqs!(t, course: "CS 4550", prereqs: "CS 2420", "CS 2810", "CS 3005");
-    add_prereqs!(t, course: "CS 4600", prereqs: "CS 2420", "CS 2810", "CS 3005"); // sorta
-    add_prereqs!(t, course: "CS 4991R", prereqs: "CS 1400");
-    add_prereqs!(t, course: "CS 4992R", prereqs: "CS 2420", "CS 2810");
-
-    add_prereqs!(t, course: "SE 3010", prereqs: "CS 2420", "CS 3005");
-    add_prereqs!(t, course: "SE 3020", prereqs: "CS 2420", "CS 3005");
-    add_prereqs!(t, course: "SE 3100", prereqs: "CS 2450");
-    add_prereqs!(t, course: "SE 3150", prereqs: "CS 2450");
-    add_prereqs!(t, course: "SE 3200", prereqs: "CS 1410", "SE 1400", "CS 2810");
-    add_prereqs!(t, course: "SE 3400", prereqs: "SE 1400");
-    add_prereqs!(t, course: "SE 3450", prereqs: "SE 1400");
-    add_prereqs!(t, course: "SE 4600", prereqs: "CS 2420", "CS 2450", "CS 2810", "CS 3005", "SE 1400", "SE 3200"); // sorta
-    add_prereqs!(t, course: "SE 4200", prereqs: "SE 3200");
-
-    add_prereqs!(t, course: "IT 2300", prereqs: "CS 1400", "IT 1100", "CS 1410");
-    add_prereqs!(t, course: "IT 2400", coreqs: "IT 1100", "IT 1500", prereqs: "IT 1100", "IT 1500");
-    add_prereqs!(t, course: "IT 2500", prereqs: "IT 2400");
-    add_prereqs!(t, course: "IT 2700", prereqs: "CS 1400", "IT 2400");
-    add_prereqs!(t, course: "IT 3100", prereqs: "CS 1400", "IT 1100", "IT 2400", "CS 3150");
-    add_prereqs!(t, course: "IT 3110", prereqs: "CS 1410", "IT 3100");
-    add_prereqs!(t, course: "IT 3150", prereqs: "IT 2400");
-    add_prereqs!(t, course: "IT 3300", prereqs: "IT 2400", "IT 1100", "CS 3150");
-    add_prereqs!(t, course: "IT 3400", prereqs: "IT 2400");
-    add_prereqs!(t, course: "IT 4100", prereqs: "IT 3100");
-    add_prereqs!(t, course: "IT 4200", prereqs: "CS 1400", "IT 2400", "CS 2810");
-    add_prereqs!(t, course: "IT 4310", prereqs: "IT 2300");
-    add_prereqs!(t, course: "IT 4400", prereqs: "IT 3400");
-    add_prereqs!(t, course: "IT 4600", prereqs: "CS 1410", "IT 2400"); // sorta
-    add_prereqs!(t, course: "IT 4510", prereqs: "CS 1410", "IT 3100");
-
-    // scraped data
-    add_prereqs!(t, course: "BIOL 1610", coreqs: "BIOL 1615");
-    add_prereqs!(t, course: "BIOL 1615", coreqs: "BIOL 1610");
-    add_prereqs!(t, course: "BIOL 1620", coreqs: "BIOL 1625", prereqs: "BIOL 1610");
-    add_prereqs!(t, course: "BIOL 1625", coreqs: "BIOL 1620", prereqs: "BIOL 1615", "BIOL 1615A");
-    add_prereqs!(t, course: "BIOL 2060", coreqs: "BIOL 2065", prereqs: "BIOL 1010", "BIOL 1200", "BIOL 1610");
-    add_prereqs!(t, course: "BIOL 2065", coreqs: "BIOL 2060");
-    add_prereqs!(t, course: "BIOL 2320", coreqs: "BIOL 2325");
-    add_prereqs!(t, course: "BIOL 2325", coreqs: "BIOL 2320");
-    add_prereqs!(t, course: "BIOL 2400", coreqs: "BIOL 2405");
-    add_prereqs!(t, course: "BIOL 2405", coreqs: "BIOL 2400");
-    add_prereqs!(t, course: "BIOL 2420", coreqs: "BIOL 2425");
-    add_prereqs!(t, course: "BIOL 2425", coreqs: "BIOL 2420");
-    add_prereqs!(t, course: "BIOL 3000R", prereqs: "HLOC 2000");
-    add_prereqs!(t, course: "BIOL 3010", prereqs: "BIOL 1620");
-    add_prereqs!(t, course: "BIOL 3030", prereqs: "BIOL 1610");
-    add_prereqs!(t, course: "BIOL 3040", prereqs: "BIOL 1620");
-    add_prereqs!(t, course: "BIOL 3045", coreqs: "BIOL 3040", prereqs: "BIOL 1620");
-    add_prereqs!(t, course: "BIOL 3100", prereqs: "BIOL 3010", "BIOL 3030", "BIOL 3040");
-    add_prereqs!(t, course: "BIOL 3110", prereqs: "ENGL 2010", "BIOL 3010", "BIOL 3030", "BIOL 3040");
-    add_prereqs!(t, course: "BIOL 3120", prereqs: "ENGL 2010", "BIOL 3010", "BIOL 3030", "BIOL 3040");
-    add_prereqs!(t, course: "BIOL 3140", coreqs: "BIOL 3145", prereqs: "BIOL 3010");
-    add_prereqs!(t, course: "BIOL 3145", coreqs: "BIOL 3140");
-    add_prereqs!(t, course: "BIOL 3155", prereqs: "BIOL 3010", "BIOL 3030", "MATH 3060");
-    add_prereqs!(t, course: "BIOL 3200", prereqs: "BIOL 3010", "BIOL 3030");
-    add_prereqs!(t, course: "BIOL 3205", coreqs: "BIOL 3200", prereqs: "BIOL 3010", "BIOL 3030");
-    add_prereqs!(t, course: "BIOL 3230R", prereqs: "BIOL 2320", "BIOL 2325");
-    add_prereqs!(t, course: "BIOL 3250", prereqs: "BIOL 3030");
-    add_prereqs!(t, course: "BIOL 3300", prereqs: "CS 1400", "IT 1100");
-    add_prereqs!(t, course: "BIOL 3340", coreqs: "BIOL 3345", prereqs: "MATH 1010");
-    add_prereqs!(t, course: "BIOL 3345", coreqs: "BIOL 3340", prereqs: "BIOL 1625", "BIOL 1625A", "BIOL 2405");
-    add_prereqs!(t, course: "BIOL 3360", prereqs: "BIOL 3010", "BIOL 3030");
-    add_prereqs!(t, course: "BIOL 3420", prereqs: "BIOL 1610");
-    add_prereqs!(t, course: "BIOL 3450", coreqs: "BIOL 3455", prereqs: "BIOL 3030", "CHEM 1220");
-    add_prereqs!(t, course: "BIOL 3455", coreqs: "BIOL 3450");
-    add_prereqs!(t, course: "BIOL 3460", prereqs: "BIOL 3010", "BIOL 3030");
-    add_prereqs!(t, course: "BIOL 3470", prereqs: "BIOL 3010", "CHEM 3510");
-    add_prereqs!(t, course: "BIOL 3550", coreqs: "BIOL 3555", prereqs: "BIOL 3030", "CHEM 2310");
-    add_prereqs!(t, course: "BIOL 3555", coreqs: "BIOL 3550", prereqs: "CHEM 2315");
-    add_prereqs!(t, course: "BIOL 4010", prereqs: "BIOL 3030");
-    add_prereqs!(t, course: "BIOL 4200", coreqs: "BIOL 4205", prereqs: "BIOL 1620");
-    add_prereqs!(t, course: "BIOL 4205", coreqs: "BIOL 4200");
-    add_prereqs!(t, course: "BIOL 4260", coreqs: "BIOL 4265", prereqs: "BIOL 3040", "BIOL 3045");
-    add_prereqs!(t, course: "BIOL 4265", coreqs: "BIOL 4260", prereqs: "BIOL 3040", "BIOL 3045");
-    add_prereqs!(t, course: "BIOL 4270", coreqs: "BIOL 4275", prereqs: "BIOL 3040", "BIOL 3045");
-    add_prereqs!(t, course: "BIOL 4275", coreqs: "BIOL 4270", prereqs: "BIOL 3040", "BIOL 3045");
-    add_prereqs!(t, course: "BIOL 4280", prereqs: "BIOL 3040");
-    add_prereqs!(t, course: "BIOL 4300", coreqs: "BIOL 4305", prereqs: "BIOL 3030", "CHEM 1220");
-    add_prereqs!(t, course: "BIOL 4305", coreqs: "BIOL 4300");
-    add_prereqs!(t, course: "BIOL 4310", prereqs: "BIOL 3300");
-    add_prereqs!(t, course: "BIOL 4320", prereqs: "BIOL 3300");
-    add_prereqs!(t, course: "BIOL 4350", coreqs: "BIOL 4355", prereqs: "BIOL 3010", "BIOL 3030");
-    add_prereqs!(t, course: "BIOL 4355", coreqs: "BIOL 4350", prereqs: "BIOL 3010", "BIOL 3030");
-    add_prereqs!(t, course: "BIOL 4380", coreqs: "BIOL 4385", prereqs: "BIOL 3040", "BIOL 3010");
-    add_prereqs!(t, course: "BIOL 4385", coreqs: "BIOL 4380");
-    add_prereqs!(t, course: "BIOL 4400", prereqs: "BIOL 2320", "BIOL 2325", "BIOL 2420", "BIOL 2425");
-    add_prereqs!(t, course: "BIOL 4411", coreqs: "BIOL 4415");
-    add_prereqs!(t, course: "BIOL 4415", coreqs: "BIOL 4411", prereqs: "BIOL 3045");
-    add_prereqs!(t, course: "BIOL 4440", prereqs: "BIOL 1620");
-    add_prereqs!(t, course: "BIOL 4500", coreqs: "BIOL 4505", prereqs: "BIOL 3010", "BIOL 3030", "CHEM 1220");
-    add_prereqs!(t, course: "BIOL 4505", coreqs: "BIOL 4500", prereqs: "CHEM 1225");
-    add_prereqs!(t, course: "BIOL 4600", coreqs: "BIOL 4605", prereqs: "BIOL 3010", "BIOL 3030", "CHEM 1220");
-    add_prereqs!(t, course: "BIOL 4605", coreqs: "BIOL 4600", prereqs: "CHEM 1225");
-    add_prereqs!(t, course: "BIOL 4910", prereqs: "ENGL 2010");
-    add_prereqs!(t, course: "BIOL 4930R", prereqs: "BIOL 3110");
-    add_prereqs!(t, course: "BTEC 2010", prereqs: "BTEC 1010", "BIOL 1610", "BIOL 1620", "BIOL 1620");
-    add_prereqs!(t, course: "BTEC 2020", prereqs: "BTEC 1010", "BIOL 1610", "BIOL 1620", "BIOL 1620");
-    add_prereqs!(t, course: "BTEC 2030", prereqs: "BTEC 1010", "BIOL 1610", "BIOL 1620", "BIOL 1620");
-    add_prereqs!(t, course: "BTEC 2050", prereqs: "BIOL 1610", "BIOL 1620");
-    add_prereqs!(t, course: "BTEC 3010", prereqs: "BIOL 3030");
-    add_prereqs!(t, course: "BTEC 3020", prereqs: "BTEC 2020");
-    add_prereqs!(t, course: "BTEC 3050", prereqs: "BTEC 2050");
-    add_prereqs!(t, course: "BTEC 4020", prereqs: "BTEC 3020");
-    add_prereqs!(t, course: "BTEC 4040", prereqs: "BTEC 3050");
-    add_prereqs!(t, course: "BTEC 4050", prereqs: "BTEC 3050");
-    add_prereqs!(t, course: "BTEC 4060", prereqs: "BTEC 4050");
-    add_prereqs!(t, course: "CHEM 1210", coreqs: "CHEM 1215", prereqs: "MATH 1050");
-    add_prereqs!(t, course: "CHEM 1215", coreqs: "CHEM 1210");
-    add_prereqs!(t, course: "CHEM 1220", coreqs: "CHEM 1225", prereqs: "CHEM 1210");
-    add_prereqs!(t, course: "CHEM 1225", coreqs: "CHEM 1220", prereqs: "CHEM 1215");
-    add_prereqs!(t, course: "CHEM 2310", coreqs: "CHEM 2315", prereqs: "CHEM 1220");
-    add_prereqs!(t, course: "CHEM 2315", coreqs: "CHEM 2310", prereqs: "CHEM 1225");
-    add_prereqs!(t, course: "CHEM 2320", coreqs: "CHEM 2325", prereqs: "CHEM 2310");
-    add_prereqs!(t, course: "CHEM 2325", coreqs: "CHEM 2320", prereqs: "CHEM 2315");
-    add_prereqs!(t, course: "CHEM 2600", prereqs: "CHEM 1220", "CHEM 1225");
-    add_prereqs!(t, course: "CHEM 3000", coreqs: "CHEM 3005", prereqs: "CHEM 1220");
-    add_prereqs!(t, course: "CHEM 3005", coreqs: "CHEM 3000", prereqs: "CHEM 1225");
-    add_prereqs!(t, course: "CHEM 3060", prereqs: "BIOL 3110");
-    add_prereqs!(t, course: "CHEM 3065", coreqs: "CHEM 3060", prereqs: "PHYS 2015", "PHYS 2215", "CHEM 2325");
-    add_prereqs!(t, course: "CHEM 3070", prereqs: "PHYS 2010", "PHYS 2210", "CHEM 2320", "MATH 1220");
-    add_prereqs!(t, course: "CHEM 3075", coreqs: "CHEM 3070", prereqs: "PHYS 2015", "PHYS 2215", "CHEM 2325");
-    add_prereqs!(t, course: "CHEM 3100", prereqs: "CHEM 2320");
-    add_prereqs!(t, course: "CHEM 3300", prereqs: "CHEM 3000", "CHEM 3005");
-    add_prereqs!(t, course: "CHEM 3510", coreqs: "CHEM 3515", prereqs: "BIOL 1610", "CHEM 2320");
-    add_prereqs!(t, course: "CHEM 3515", coreqs: "CHEM 3510", prereqs: "BIOL 1615", "CHEM 2325");
-    add_prereqs!(t, course: "CHEM 3520", coreqs: "CHEM 3525", prereqs: "CHEM 3510");
-    add_prereqs!(t, course: "CHEM 3525", coreqs: "CHEM 3520", prereqs: "CHEM 3515");
-    add_prereqs!(t, course: "CHEM 4100", prereqs: "CHEM 3100");
-    add_prereqs!(t, course: "CHEM 4200", prereqs: "CHEM 2320");
-    add_prereqs!(t, course: "CHEM 4310", prereqs: "CHEM 2320", "CHEM 2325");
-    add_prereqs!(t, course: "CHEM 4510", prereqs: "CHEM 2320", "CHEM 2325", "CHEM 3000", "CHEM 3005");
-    add_prereqs!(t, course: "CHEM 4610", prereqs: "CHEM 3520");
-    add_prereqs!(t, course: "CHEM 4800R", prereqs: "CHEM 2320", "CHEM 2325", "ENGL 2010", "ENGL 2010A");
-    add_prereqs!(t, course: "CHEM 4910", prereqs: "CHEM 2320", "CHEM 2325", "ENGL 2010");
-    add_prereqs!(t, course: "EDUC 3110", prereqs: "FSHD 1500", "PSY 1010", "PSY 1100");
-    add_prereqs!(t, course: "ENER 3310", prereqs: "MATH 1050", "CHEM 1210");
-    add_prereqs!(t, course: "ENER 4310", prereqs: "ENER 2310", "GEO 2050");
-    add_prereqs!(t, course: "ENVS 1210", coreqs: "ENVS 1215");
-    add_prereqs!(t, course: "ENVS 1215", coreqs: "ENVS 1210");
-    add_prereqs!(t, course: "ENVS 2210", prereqs: "ENVS 1210", "ENVS 1215", "MATH 1050", "CHEM 1210", "CHEM 1215");
-    add_prereqs!(t, course: "ENVS 2700R", prereqs: "ENVS 1210", "ENVS 1215");
-    add_prereqs!(t, course: "ENVS 3280", prereqs: "ENVS 2210");
-    add_prereqs!(t, course: "ENVS 3410", prereqs: "ENVS 2210", "CHEM 1210");
-    add_prereqs!(t, course: "ENVS 3510", prereqs: "ENVS 2210", "GEO 2050");
-    add_prereqs!(t, course: "ENVS 4080", prereqs: "ENVS 3410", "ENVS 2700R");
-    add_prereqs!(t, course: "GEO 1110", coreqs: "GEO 1115");
-    add_prereqs!(t, course: "GEO 1115", coreqs: "GEO 1110");
-    add_prereqs!(t, course: "GEO 1220", coreqs: "GEO 1225", prereqs: "GEO 1110");
-    add_prereqs!(t, course: "GEO 1225", coreqs: "GEO 1220", prereqs: "GEO 1115");
-    add_prereqs!(t, course: "GEO 2050", prereqs: "GEO 1110", "GEO 1115");
-    add_prereqs!(t, course: "GEO 2700R", prereqs: "GEO 1110", "GEO 1115");
-    add_prereqs!(t, course: "GEO 3000", prereqs: "GEO 1110", "GEO 1115");
-    add_prereqs!(t, course: "GEO 3060", prereqs: "GEO 1110", "GEO 1115");
-    add_prereqs!(t, course: "GEO 3180", prereqs: "GEO 1110", "GEO 1115");
-    add_prereqs!(t, course: "GEO 3200", prereqs: "GEO 1110", "GEO 1115", "MATH 1050", "CHEM 1210", "CHEM 1215");
-    add_prereqs!(t, course: "GEO 3400", prereqs: "GEO 1110", "GEO 1115", "CHEM 1210", "CHEM 1215");
-    add_prereqs!(t, course: "GEO 3500", coreqs: "GEOG 3600", "GEOG 3605", prereqs: "GEO 1110", "GEO 1115", "MATH 1060", "CHEM 1210", "CHEM 1215");
-    add_prereqs!(t, course: "GEO 3550", prereqs: "GEO 1220", "GEO 1225");
-    add_prereqs!(t, course: "GEO 3600", prereqs: "GEO 1110", "GEO 1115", "Math 1050", "CHEM 1210", "CHEM 1215", "GEO 3200");
-    add_prereqs!(t, course: "GEO 3700", prereqs: "GEO 1110", "GEO 1115", "MATH 1060", "MATH 1080");
-    add_prereqs!(t, course: "GEO 4600", prereqs: "GEO 2700R", "GEO 3550", "GEO 3700");
-    add_prereqs!(t, course: "GEO 4800R", prereqs: "GEO 2700R");
-    add_prereqs!(t, course: "GEOG 2410", prereqs: "ENVS 1210", "BIOL 1610");
-    add_prereqs!(t, course: "GEOG 3600", coreqs: "GEOG 3605");
-    add_prereqs!(t, course: "GEOG 3605", coreqs: "GEOG 3600");
-    add_prereqs!(t, course: "GEOG 4140", prereqs: "GEOG 3600", "GEOG 3605");
-    add_prereqs!(t, course: "GEOG 4180", prereqs: "GEOG 3600", "GEOG 3605");
-
-    add_prereqs!(t, course: "MATH 1040", prereqs: "MATH 0980");
-    add_prereqs!(t, course: "MATH 1050", prereqs: "MATH 1010", "MATH 1000");
-    add_prereqs!(t, course: "MATH 1060", prereqs: "MATH 1050");
-    add_prereqs!(t, course: "MATH 1080", prereqs: "MATH 1010", "MATH 1000");
-    add_prereqs!(t, course: "MATH 1210", prereqs: "MATH 1050", "MATH 1060", "MATH 1080");
-    add_prereqs!(t, course: "MATH 1220", prereqs: "MATH 1210");
-    add_prereqs!(t, course: "MATH 2050", prereqs: "MATH 1040");
-    add_prereqs!(t, course: "MATH 2200", prereqs: "MATH 1210");
-    add_prereqs!(t, course: "MATH 2210", prereqs: "MATH 1220");
-    add_prereqs!(t, course: "MATH 2250", prereqs: "Math 1220");
-    add_prereqs!(t, course: "MATH 2270", prereqs: "MATH 1210");
-    add_prereqs!(t, course: "MATH 2280", prereqs: "MATH 1220");
-    add_prereqs!(t, course: "MATH 3000", prereqs: "MATH 1220");
-    add_prereqs!(t, course: "MATH 3010", prereqs: "MATH 1210");
-    add_prereqs!(t, course: "MATH 3020", prereqs: "MATH 1210");
-    add_prereqs!(t, course: "MATH 3050", prereqs: "MATH 2050", "MATH 3060");
-    add_prereqs!(t, course: "MATH 3060", prereqs: "MATH 1210");
-    add_prereqs!(t, course: "MATH 3100", prereqs: "MATH 2200");
-    add_prereqs!(t, course: "MATH 3120", prereqs: "MATH 2200", "CS 3310");
-    add_prereqs!(t, course: "MATH 3150", prereqs: "MATH 2210", "MATH 2270", "MATH 2280");
-    add_prereqs!(t, course: "MATH 3200", prereqs: "MATH 3120");
-    add_prereqs!(t, course: "MATH 3400", prereqs: "MATH 1220");
-    add_prereqs!(t, course: "MATH 3410", prereqs: "MATH 3400");
-    add_prereqs!(t, course: "MATH 3450", prereqs: "MATH 3400");
-    add_prereqs!(t, course: "MATH 3500", prereqs: "MATH 2270", "MATH 2280", "MATH 2250");
-    add_prereqs!(t, course: "MATH 3605", prereqs: "MATH 1210");
-    add_prereqs!(t, course: "MATH 3700", prereqs: "MATH 2280");
-    add_prereqs!(t, course: "MATH 3900", prereqs: "MATH 3120");
-    add_prereqs!(t, course: "MATH 3905", prereqs: "CS 1400");
-    add_prereqs!(t, course: "MATH 4000", prereqs: "MATH 2270");
-    add_prereqs!(t, course: "MATH 4005", prereqs: "CS 1400", "MATH 2250", "MATH 2270");
-    add_prereqs!(t, course: "MATH 4010", prereqs: "MATH 4000");
-    add_prereqs!(t, course: "MATH 4100", prereqs: "MATH 2210", "MATH 3120");
-    add_prereqs!(t, course: "MATH 4200", prereqs: "MATH 3200");
-    add_prereqs!(t, course: "MATH 4250", coreqs: "MATH 2280", prereqs: "CS 1400");
-    add_prereqs!(t, course: "MATH 4330", prereqs: "MATH 2270", "MATH 3120");
-    add_prereqs!(t, course: "MATH 4400", prereqs: "MATH 1100");
-    add_prereqs!(t, course: "MATH 4410", prereqs: "MATH 4400");
-    add_prereqs!(t, course: "MATH 4500", prereqs: "MATH 1210");
-    add_prereqs!(t, course: "MATH 4550", prereqs: "MATH 3500");
-    conflict!(t, set hard, clique: "MATH 4250", "MATH 2280");
-
-    add_prereqs!(t, course: "PHYS 1010", prereqs: "MATH 1010");
-    add_prereqs!(t, course: "PHYS 1015", coreqs: "PHYS 1010");
-    add_prereqs!(t, course: "PHYS 1040", coreqs: "PHYS 1045");
-    add_prereqs!(t, course: "PHYS 1045", coreqs: "PHYS 1040");
-    add_prereqs!(t, course: "PHYS 2010", coreqs: "PHYS 2015", prereqs: "MATH 1060", "MATH 1080");
-    add_prereqs!(t, course: "PHYS 2015", coreqs: "PHYS 2010");
-    add_prereqs!(t, course: "PHYS 2020", coreqs: "PHYS 2025", prereqs: "PHYS 2010");
-    add_prereqs!(t, course: "PHYS 2025", coreqs: "PHYS 2020", prereqs: "PHYS 2015");
-    add_prereqs!(t, course: "PHYS 2210", coreqs: "PHYS 2215", prereqs: "MATH 1210", "MATH 1220");
-    add_prereqs!(t, course: "PHYS 2215", coreqs: "PHYS 2210");
-    add_prereqs!(t, course: "PHYS 2220", coreqs: "PHYS 2225", prereqs: "MATH 1220", "PHYS 2210");
-    add_prereqs!(t, course: "PHYS 2225", coreqs: "PHYS 2220", prereqs: "PHYS 2215");
-    add_prereqs!(t, course: "PHYS 3400", prereqs: "PHYS 2220");
-    add_prereqs!(t, course: "PHYS 3710", prereqs: "MATH 1220", "PHYS 2220");
-    add_prereqs!(t, course: "POLS 1100", prereqs: "ENGL 1010", "ENGL 1010D");
-    add_prereqs!(t, course: "PSY 2400", prereqs: "PSY 1010");
-    add_prereqs!(t, course: "PSY 3460", prereqs: "PSY 1010");
-    add_prereqs!(t, course: "PSY 3710", prereqs: "BIOL 1010", "BIOL 1610", "PSY 1010");
-    add_prereqs!(t, course: "SCED 4900", coreqs: "SCED 4989");
-    add_prereqs!(t, course: "SE 3100", prereqs: "SE 2450", "CS 2450", "WEB 3450");
 
     Ok(())
 }
