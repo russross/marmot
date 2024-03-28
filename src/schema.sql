@@ -7,19 +7,6 @@ CREATE TABLE terms (
     PRIMARY KEY (term)
 ) WITHOUT ROWID;
 
-CREATE TRIGGER terms_one_active_insert
-AFTER INSERT ON terms
-WHEN (SELECT COUNT(1) FROM terms WHERE current) > 1
-BEGIN
-    SELECT RAISE(FAIL, 'only one term can be current!');
-END;
-CREATE TRIGGER terms_one_active_update
-AFTER UPDATE ON terms
-WHEN (SELECT COUNT(1) FROM terms WHERE current) > 1
-BEGIN
-    SELECT RAISE(FAIL, 'only one term can be current!');
-END;
-
 CREATE TABLE holidays (
     term                        TEXT NOT NULL,
     holiday                     DATE NOT NULL,
@@ -194,8 +181,8 @@ CREATE TABLE faculty_preference_intervals (
 
 CREATE TABLE courses (
     term                        TEXT NOT NULL,
-    department                  TEXT NOT NULL,
     course                      TEXT NOT NULL,
+    department                  TEXT NOT NULL,
     course_name                 TEXT NOT NULL,
     prefix                      TEXT GENERATED ALWAYS AS (substr(course, 1, instr(course, ' ') - 1)) VIRTUAL NOT NULL,
     course_number               TEXT GENERATED ALWAYS AS (substr(course, instr(course, ' ') + 1)) VIRTUAL NOT NULL,
@@ -279,21 +266,21 @@ CREATE TABLE faculty_sections (
 
 CREATE TABLE cross_listings (
     term                        TEXT NOT NULL,
-    cross_listing_name          TEXT NOT NULL,
+    primary_section             TEXT NOT NULL,
 
-    PRIMARY KEY (term, cross_listing_name),
+    PRIMARY KEY (term, primary_section),
     FOREIGN KEY (term) REFERENCES terms (term) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
 
 CREATE TABLE cross_listing_sections (
     term                        TEXT NOT NULL,
-    cross_listing_name          TEXT NOT NULL,
     section                     TEXT NOT NULL,
+    primary_section             TEXT NOT NULL,
 
-    PRIMARY KEY (term, cross_listing_name, section),
-    FOREIGN KEY (term, cross_listing_name) REFERENCES cross_listings (term, cross_listing_name) ON DELETE CASCADE ON UPDATE CASCADE
+    PRIMARY KEY (term, section, primary_section),
+    FOREIGN KEY (term, primary_section) REFERENCES cross_listings (term, primary_section) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
-CREATE UNIQUE INDEX cross_listing_section ON cross_listing_sections (term, section);
+CREATE UNIQUE INDEX primary_section ON cross_listing_sections (term, section);
 
 CREATE TABLE anti_conflicts (
     term                        TEXT NOT NULL,
@@ -311,6 +298,8 @@ CREATE TABLE anti_conflict_sections (
     anti_conflict_single        TEXT NOT NULL,
     anti_conflict_section       TEXT NOT NULL,
 
+    CHECK (anti_conflict_single <> anti_conflict_section),
+
     PRIMARY KEY (term, anti_conflict_single, anti_conflict_section),
     FOREIGN KEY (term, anti_conflict_single) REFERENCES anti_conflicts (term, anti_conflict_single) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
@@ -319,6 +308,8 @@ CREATE TABLE anti_conflict_courses (
     term                        TEXT NOT NULL,
     anti_conflict_single        TEXT NOT NULL,
     anti_conflict_course        TEXT NOT NULL,
+
+    CHECK (anti_conflict_course <> substr(anti_conflict_single, 1, length(anti_conflict_course))),
 
     PRIMARY KEY (term, anti_conflict_single, anti_conflict_course),
     FOREIGN KEY (term, anti_conflict_single) REFERENCES anti_conflicts (term, anti_conflict_single) ON DELETE CASCADE ON UPDATE CASCADE
@@ -365,193 +356,314 @@ CREATE VIEW active_holidays (holiday) AS
     NATURAL JOIN holidays
     WHERE current;
 
-CREATE VIEW active_cross_listings (cross_listing_name, department, section) AS
-    SELECT DISTINCT cross_listing_name, department, section
+CREATE VIEW active_cross_listings (term, department, section, primary_section) AS
+    SELECT DISTINCT terms.term, department, cross_listing_sections.section, primary_section
     FROM terms
     NATURAL JOIN courses
     NATURAL JOIN sections
-    NATURAL JOIN section_time_slot_tags
     NATURAL JOIN cross_listing_sections
+    JOIN section_time_slot_tags
+        ON  section_time_slot_tags.term                         = terms.term
+        AND section_time_slot_tags.section                      = cross_listing_sections.primary_section
     WHERE current;
 
-CREATE VIEW active_rooms (department, room, building, room_number, capacity) AS
-    SELECT DISTINCT department, room, building, room_number, capacity
+CREATE VIEW active_sections (term, department, course, section, secondary_section) AS
+    SELECT term, department, course, section, section
     FROM terms
     NATURAL JOIN courses
     NATURAL JOIN sections
     NATURAL JOIN section_time_slot_tags
+    WHERE current
+
+    UNION
+
+    SELECT terms.term, department, course, active_cross_listings.primary_section, active_cross_listings.section
+    FROM terms
+    NATURAL JOIN courses
+    NATURAL JOIN sections
+    NATURAL JOIN active_cross_listings
+    JOIN section_time_slot_tags
+        ON  section_time_slot_tags.term                     = active_cross_listings.term
+        AND section_time_slot_tags.section                  = active_cross_listings.primary_section
+    WHERE current;
+
+CREATE VIEW active_rooms (term, department, room, building, room_number, capacity) AS
+    SELECT DISTINCT term, department, room, building, room_number, capacity
+    FROM active_sections
     NATURAL JOIN section_room_tags
     NATURAL JOIN rooms_room_tags
-    NATURAL JOIN rooms
-    WHERE current;
+    NATURAL JOIN rooms;
 
-CREATE VIEW active_time_slots (department, time_slot, days, start_time, duration, first_day) AS
-    SELECT DISTINCT department, time_slot, days, start_time, duration, first_day
-    FROM terms
-    NATURAL JOIN courses
-    NATURAL JOIN sections
+CREATE VIEW active_time_slots (term, department, time_slot, days, start_time, duration, first_day) AS
+    SELECT DISTINCT term, department, time_slot, days, start_time, duration, first_day
+    FROM active_sections
     NATURAL JOIN section_time_slot_tags
     NATURAL JOIN time_slots_time_slot_tags
-    NATURAL JOIN time_slots
-    WHERE current;
+    NATURAL JOIN time_slots;
 
-CREATE VIEW active_faculty_availability (department, faculty, day_of_week, start_time, duration, availability_penalty) AS
-    SELECT DISTINCT department, faculty, day_of_week, start_time, duration, availability_penalty
-    FROM terms
-    NATURAL JOIN courses
-    NATURAL JOIN sections
-    NATURAL JOIN section_time_slot_tags
-    NATURAL JOIN faculty_sections 
-    NATURAL JOIN faculty_availability
-    WHERE current;
+CREATE VIEW active_faculty_sections (term, faculty, department, course, section) AS
+    SELECT term, faculty, department, course, section
+    FROM active_sections
+    NATURAL JOIN faculty_sections;
 
-CREATE VIEW active_faculty_preference_intervals (department, faculty,
+CREATE VIEW active_faculty_availability (term, department, faculty, day_of_week, start_time, duration, availability_penalty) AS
+    SELECT DISTINCT term, department, faculty,
+                    day_of_week, start_time, duration, availability_penalty
+    FROM active_faculty_sections
+    NATURAL JOIN faculty_availability;
+
+CREATE VIEW active_faculty_preference_intervals (term, department, faculty,
         days_to_check, days_off, days_off_penalty, evenly_spread_penalty, max_gap_within_cluster,
         is_cluster, is_too_short, interval_minutes, interval_penalty) AS
-    SELECT DISTINCT department, faculty,
+    SELECT DISTINCT term, department, faculty,
                     days_to_check, days_off, days_off_penalty, evenly_spread_penalty, max_gap_within_cluster,
                     is_cluster, is_too_short, interval_minutes, interval_penalty
-    FROM terms
-    NATURAL JOIN courses
-    NATURAL JOIN sections
-    NATURAL JOIN section_time_slot_tags
-    NATURAL JOIN faculty_sections 
+    FROM active_faculty_sections
     NATURAL JOIN faculty_preferences
-    LEFT OUTER NATURAL JOIN faculty_preference_intervals
-    WHERE current;
+    LEFT OUTER NATURAL JOIN faculty_preference_intervals;
 
-CREATE VIEW active_section_time_slots (department, section, time_slot, time_slot_penalty) AS
-    SELECT DISTINCT department, section, time_slot, MAX(time_slot_penalty)
-    FROM terms
-    NATURAL JOIN courses
-    NATURAL JOIN sections
+CREATE VIEW active_section_time_slots (term, department, section, time_slot, time_slot_penalty) AS
+    SELECT term, department, section, time_slot, MAX(time_slot_penalty)
+    FROM active_sections
     NATURAL JOIN section_time_slot_tags
     NATURAL JOIN time_slots_time_slot_tags
-    WHERE current
-    GROUP BY department, section, time_slot;
+    GROUP BY term, department, section, time_slot;
 
-CREATE VIEW active_section_rooms (department, section, room, room_penalty) AS
-    SELECT DISTINCT department, section, room, MAX(room_penalty)
-    FROM terms
-    NATURAL JOIN courses
-    NATURAL JOIN sections
-    NATURAL JOIN section_time_slot_tags
+CREATE VIEW active_section_rooms (term, department, section, room, room_penalty) AS
+    SELECT term, department, section, room, MAX(room_penalty)
+    FROM active_sections
     NATURAL JOIN section_room_tags
     NATURAL JOIN rooms_room_tags
-    WHERE current
-    GROUP BY department, section, room;
+    GROUP BY term, department, section, room;
 
-CREATE VIEW active_faculty_sections (department, faculty, section) AS
-    SELECT DISTINCT department, faculty, section
-    FROM terms
-    NATURAL JOIN courses
-    NATURAL JOIN sections
-    NATURAL JOIN section_time_slot_tags
-    NATURAL JOIN faculty_sections
-    WHERE current;
-
-CREATE VIEW active_anti_conflicts (single_department, single_section, group_department, group_section, anti_conflict_penalty) AS
-    SELECT DISTINCT courses.department AS single_department, sections.section AS single_section,
-                    other_courses.department AS group_department, other_sections.section AS group_section,
-                    anti_conflict_penalty
-    FROM terms
-    NATURAL JOIN courses
-    NATURAL JOIN sections
-    NATURAL JOIN section_time_slot_tags
+CREATE VIEW active_anti_conflicts (term, single_department, single_section, group_department, group_section, anti_conflict_penalty) AS
+    SELECT  single_sections.term AS term,
+            single_sections.department AS single_department, single_sections.section AS single_section,
+            group_sections.department AS group_department, group_sections.section AS group_section,
+            anti_conflict_penalty
+    FROM active_sections                                    AS single_sections
     JOIN anti_conflicts
-        ON  anti_conflicts.term                             = terms.term
-        AND anti_conflicts.anti_conflict_single             = sections.section
-    NATURAL JOIN anti_conflict_sections
-    JOIN sections                                           AS other_sections
-        ON  other_sections.term                             = terms.term
-        AND other_sections.section                          = anti_conflict_section
-    JOIN courses                                            AS other_courses
-        ON  other_courses.term                              = terms.term
-        AND other_courses.course                            = other_sections.course
-    JOIN section_time_slot_tags                             AS other_section_time_slot_tags
-        ON  other_section_time_slot_tags.term               = terms.term
-        AND other_section_time_slot_tags.section            = other_sections.section
-    WHERE current
+        ON  anti_conflicts.term                             = single_sections.term
+        AND anti_conflicts.anti_conflict_single             = single_sections.secondary_section
+    JOIN anti_conflict_sections
+        ON  anti_conflict_sections.term                     = anti_conflicts.term
+        AND anti_conflict_sections.anti_conflict_single     = anti_conflicts.anti_conflict_single
+    JOIN active_sections                                    AS group_sections
+        ON  group_sections.term                             = anti_conflict_sections.term
+        AND group_sections.secondary_section                = anti_conflict_sections.anti_conflict_section
 
     UNION
 
-    SELECT DISTINCT courses.department AS single_department, sections.section AS single_section,
-                    other_courses.department AS group_department, other_sections.section AS group_section,
-                    anti_conflict_penalty
-    FROM terms
-    NATURAL JOIN courses
-    NATURAL JOIN sections
-    NATURAL JOIN section_time_slot_tags
+    SELECT  single_sections.term AS term,
+            single_sections.department AS single_department, single_sections.section AS single_section,
+            group_sections.department AS group_department, group_sections.section AS group_section,
+            anti_conflict_penalty
+    FROM active_sections                                    AS single_sections
     JOIN anti_conflicts
-        ON  anti_conflicts.term                             = terms.term
-        AND anti_conflicts.anti_conflict_single             = sections.section
-    NATURAL JOIN anti_conflict_courses
-    JOIN courses                                            AS other_courses
-        ON  other_courses.term                              = terms.term
-        AND other_courses.course                            = anti_conflict_course
-    JOIN sections                                           AS other_sections
-        ON  other_sections.term                             = terms.term
-        AND other_sections.course                           = other_courses.course
-    JOIN section_time_slot_tags                             AS other_section_time_slot_tags
-        ON  other_section_time_slot_tags.term               = terms.term
-        AND other_section_time_slot_tags.section            = other_sections.section
-    WHERE current;
+        ON  anti_conflicts.term                             = single_sections.term
+        AND anti_conflicts.anti_conflict_single             = single_sections.secondary_section
+    JOIN anti_conflict_courses
+        ON  anti_conflict_courses.term                      = anti_conflicts.term
+        AND anti_conflict_courses.anti_conflict_single      = anti_conflicts.anti_conflict_single
+    JOIN active_sections                                    AS group_sections
+        ON  group_sections.term                             = anti_conflict_courses.term
+        AND group_sections.course                           = anti_conflict_courses.anti_conflict_course;
 
-CREATE VIEW active_prereqs (section_department, section, prereq_department, prereq) AS
-    SELECT DISTINCT courses.department AS section_department, section_time_slot_tags.section AS section,
-                    prereq_courses.department AS prereq_department, prereq_section_time_slot_tags.section AS prereq
-    FROM terms
-    NATURAL JOIN courses
-    NATURAL JOIN sections
-    NATURAL JOIN section_time_slot_tags
-    NATURAL JOIN prereqs
-    JOIN courses                                            AS prereq_courses
-        ON  prereq_courses.term                             = terms.term
-        AND prereq_courses.course                           = prereq
-    JOIN sections                                           AS prereq_sections
-        ON  prereq_sections.term                            = terms.term
-        AND prereq_sections.course                          = prereq_courses.course
-    JOIN section_time_slot_tags                             AS prereq_section_time_slot_tags
-        ON  prereq_section_time_slot_tags.term              = terms.term
-        AND prereq_section_time_slot_tags.section           = prereq_sections.section
-    WHERE current;
+CREATE VIEW active_prereqs (term, section_department, section, prereq_department, prereq) AS
+    SELECT DISTINCT sections.term,
+                    sections.department AS section_department, sections.section AS section,
+                    prereq_sections.department AS prereq_department, prereq_sections.section AS prereq
+    FROM active_sections                                    AS sections
+    JOIN prereqs
+        ON  prereqs.term                                    = sections.term
+        AND prereqs.course                                  = sections.course
+    JOIN active_sections                                    AS prereq_sections
+        ON  prereq_sections.term                            = prereqs.term
+        AND prereq_sections.course                          = prereqs.prereq;
 
-CREATE VIEW active_coreqs (section_department, section, coreq_department, coreq) AS
-    SELECT DISTINCT courses.department AS section_department, section_time_slot_tags.section AS section,
-                    coreq_courses.department AS coreq_department, coreq_section_time_slot_tags.section AS coreq
-    FROM terms
-    NATURAL JOIN courses
-    NATURAL JOIN sections
-    NATURAL JOIN section_time_slot_tags
-    NATURAL JOIN coreqs
-    JOIN courses                                            AS coreq_courses
-        ON  coreq_courses.term                             = terms.term
-        AND coreq_courses.course                           = coreq
-    JOIN sections                                           AS coreq_sections
-        ON  coreq_sections.term                            = terms.term
-        AND coreq_sections.course                          = coreq_courses.course
-    JOIN section_time_slot_tags                             AS coreq_section_time_slot_tags
-        ON  coreq_section_time_slot_tags.term              = terms.term
-        AND coreq_section_time_slot_tags.section           = coreq_sections.section
-    WHERE current;
+CREATE VIEW active_coreqs (term, section_department, section, coreq_department, coreq) AS
+    SELECT DISTINCT sections.term,
+                    sections.department AS section_department, sections.section AS section,
+                    coreq_sections.department AS coreq_department, coreq_sections.section AS coreq
+    FROM active_sections                                    AS sections
+    JOIN coreqs
+        ON  coreqs.term                                     = sections.term
+        AND coreqs.course                                   = sections.course
+    JOIN active_sections                                    AS coreq_sections
+        ON  coreq_sections.term                             = coreqs.term
+        AND coreq_sections.course                           = coreqs.coreq;
 
-CREATE VIEW active_conflicts (program, conflict_name, conflict_penalty, conflict_maximize, department, course) AS
-    SELECT DISTINCT program, conflict_name, conflict_penalty, conflict_maximize, department, course
-    FROM terms
-    NATURAL JOIN courses
-    NATURAL JOIN sections
-    NATURAL JOIN section_time_slot_tags
+CREATE VIEW active_conflicts (term, program, conflict_name, conflict_penalty, conflict_maximize, department, course, section) AS
+    SELECT DISTINCT term, program, conflict_name, conflict_penalty, conflict_maximize, department, course, section
+    FROM active_sections
     NATURAL JOIN conflict_courses
-    NATURAL JOIN conflicts
-    WHERE current
+    NATURAL JOIN conflicts;
 
-    UNION
+-- FIXME
+-- only count if spreading requirement is in place?
+-- do not count if anticonflict is in place?
+-- secondary cross listings should not be confused with online
+CREATE VIEW active_section_counts (department, course, section_count) AS
+    WITH time_slot_courses AS (
+        SELECT DISTINCT department, course
+        FROM terms
+        NATURAL JOIN courses
+        NATURAL JOIN sections
+        NATURAL JOIN section_time_slot_tags
+    )
+    SELECT department, course, COUNT(section) AS section_count
+    FROM time_slot_courses
+    LEFT OUTER NATURAL JOIN sections
+    GROUP BY department, course
+    HAVING section_count > 1;
 
-    SELECT DISTINCT program, conflict_name, conflict_penalty, conflict_maximize, department, section
+CREATE TRIGGER terms_one_active_insert
+AFTER INSERT ON terms
+WHEN (SELECT COUNT(1) FROM terms WHERE current) > 1
+BEGIN
+    SELECT RAISE(ABORT, 'only one term can be current');
+END;
+CREATE TRIGGER terms_one_active_update
+AFTER UPDATE ON terms
+WHEN (SELECT COUNT(1) FROM terms WHERE current) > 1
+BEGIN
+    SELECT RAISE(ABORT, 'only one term can be current');
+END;
+
+CREATE TRIGGER no_secondary_cross_listing_room_tags_insert
+AFTER INSERT ON cross_listing_sections
+WHEN (
+    SELECT COUNT(1)
     FROM terms
-    NATURAL JOIN courses
-    NATURAL JOIN sections
+    NATURAL JOIN section_room_tags
+    NATURAL JOIN cross_listing_sections
+) > 0
+BEGIN
+    SELECT RAISE(ABORT, 'secondary section in cross listing cannot be assigned room tags');
+END;
+CREATE TRIGGER no_secondary_cross_listing_room_tags_update
+AFTER UPDATE ON cross_listing_sections
+WHEN (
+    SELECT COUNT(1)
+    FROM terms
+    NATURAL JOIN section_room_tags
+    NATURAL JOIN cross_listing_sections
+) > 0
+BEGIN
+    SELECT RAISE(ABORT, 'secondary section in cross listing cannot be assigned room tags');
+END;
+
+CREATE TRIGGER no_secondary_cross_listing_time_slot_tags_insert
+AFTER INSERT ON cross_listing_sections
+WHEN (
+    SELECT COUNT(1)
+    FROM terms
     NATURAL JOIN section_time_slot_tags
-    NATURAL JOIN conflict_sections
-    NATURAL JOIN conflicts
-    WHERE current;
+    NATURAL JOIN cross_listing_sections
+) > 0
+BEGIN
+    SELECT RAISE(ABORT, 'secondary section in cross listing cannot be assigned time_slot tags');
+END;
+CREATE TRIGGER no_secondary_cross_listing_time_slot_tags_update
+AFTER UPDATE ON cross_listing_sections
+WHEN (
+    SELECT COUNT(1)
+    FROM terms
+    NATURAL JOIN section_time_slot_tags
+    NATURAL JOIN cross_listing_sections
+) > 0
+BEGIN
+    SELECT RAISE(ABORT, 'secondary section in cross listing cannot be assigned time_slot tags');
+END;
+
+CREATE TRIGGER no_secondary_cross_listing_faculty_insert
+AFTER INSERT ON cross_listing_sections
+WHEN (
+    SELECT COUNT(1)
+    FROM terms
+    NATURAL JOIN faculty_sections
+    NATURAL JOIN cross_listing_sections
+) > 0
+BEGIN
+    SELECT RAISE(ABORT, 'secondary section in cross listing cannot be assigned to faculty');
+END;
+CREATE TRIGGER no_secondary_cross_listing_faculty_update
+AFTER UPDATE ON cross_listing_sections
+WHEN (
+    SELECT COUNT(1)
+    FROM terms
+    NATURAL JOIN faculty_sections
+    NATURAL JOIN cross_listing_sections
+) > 0
+BEGIN
+    SELECT RAISE(ABORT, 'secondary section in cross listing cannot be assigned to faculty');
+END;
+
+CREATE TRIGGER no_room_tags_for_secondary_cross_listing_insert
+AFTER INSERT ON section_room_tags
+WHEN (
+    SELECT COUNT(1)
+    FROM terms
+    NATURAL JOIN section_room_tags
+    NATURAL JOIN cross_listing_sections
+) > 0
+BEGIN
+    SELECT RAISE(ABORT, 'secondary section in cross listing cannot be assigned room tags');
+END;
+CREATE TRIGGER no_room_tags_for_secondary_cross_listing_update
+AFTER UPDATE ON section_room_tags
+WHEN (
+    SELECT COUNT(1)
+    FROM terms
+    NATURAL JOIN section_room_tags
+    NATURAL JOIN cross_listing_sections
+) > 0
+BEGIN
+    SELECT RAISE(ABORT, 'secondary section in cross listing cannot be assigned room tags');
+END;
+
+CREATE TRIGGER no_time_slot_tags_for_secondary_cross_listing_insert
+AFTER INSERT ON section_time_slot_tags
+WHEN (
+    SELECT COUNT(1)
+    FROM terms
+    NATURAL JOIN section_time_slot_tags
+    NATURAL JOIN cross_listing_sections
+) > 0
+BEGIN
+    SELECT RAISE(ABORT, 'secondary section in cross listing cannot be assigned time_slot tags');
+END;
+CREATE TRIGGER no_time_slot_tags_for_secondary_cross_listing_update
+AFTER UPDATE ON section_time_slot_tags
+WHEN (
+    SELECT COUNT(1)
+    FROM terms
+    NATURAL JOIN section_time_slot_tags
+    NATURAL JOIN cross_listing_sections
+) > 0
+BEGIN
+    SELECT RAISE(ABORT, 'secondary section in cross listing cannot be assigned time_slot tags');
+END;
+
+CREATE TRIGGER no_faculty_for_secondary_cross_listing_insert
+AFTER INSERT ON faculty_sections
+WHEN (
+    SELECT COUNT(1)
+    FROM terms
+    NATURAL JOIN faculty_sections
+    NATURAL JOIN cross_listing_sections
+) > 0
+BEGIN
+    SELECT RAISE(ABORT, 'secondary section in cross listing cannot be assigned to faculty');
+END;
+CREATE TRIGGER no_faculty_for_secondary_cross_listing_update
+AFTER UPDATE ON faculty_sections
+WHEN (
+    SELECT COUNT(1)
+    FROM terms
+    NATURAL JOIN faculty_sections
+    NATURAL JOIN cross_listing_sections
+) > 0
+BEGIN
+    SELECT RAISE(ABORT, 'secondary section in cross listing cannot be assigned to faculty');
+END;

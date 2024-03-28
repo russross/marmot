@@ -81,7 +81,7 @@ pub struct SolverSection {
     pub room_times: Vec<RoomTimeWithPenalty>,
     pub instructors: Vec<usize>,
     pub hard_conflicts: Vec<usize>,
-    pub soft_conflicts_list: Vec<SectionWithPenalty>,
+    pub soft_conflicts: Vec<SectionWithPenalty>,
     pub neighbors: Vec<usize>,
 
     // map from input.section[_].room_times to the effect on the score
@@ -91,10 +91,6 @@ pub struct SolverSection {
     // the maximum penalty improvement possible if this section was moved
     // computed as the minimum delta in speculative_deltas
     pub speculative_delta_min: Option<isize>,
-
-    // if a section is a non-primary cross listing, it is basically ignored
-    // by the solver and just exists to keep the numbering in sync with input
-    pub is_secondary_cross_listing: bool,
 }
 
 impl SolverSection {
@@ -363,150 +359,30 @@ impl Solver {
             });
         }
         for i in 0..self.input_sections.len() {
-            // non-primary cross listing sections are ignored
-            if !is_primary_cross_listing(self, i) {
-                self.sections.push(SolverSection {
-                    placement: None,
-                    tickets: 0,
-                    score: SectionScore::new(),
-                    room_times: Vec::new(),
-                    instructors: Vec::new(),
-                    hard_conflicts: Vec::new(),
-                    soft_conflicts_list: Vec::new(),
-                    neighbors: Vec::new(),
-                    score_criteria: Vec::new(),
-                    speculative_deltas: Vec::new(),
-                    speculative_delta_min: None,
-                    is_secondary_cross_listing: true,
-                });
-                continue;
-            }
-
-            // compute combined conflicts across cross-listings
-            let mut hard_conflicts = Vec::new();
-            let mut soft_conflicts = Vec::new();
+            let hard_conflicts = self.input_sections[i].hard_conflicts.clone();
+            let soft_conflicts = self.input_sections[i].soft_conflicts.clone();
             let mut score_criteria: Vec<Rc<dyn ScoreCriterion>> = Vec::new();
-            let mut cross_listings = self.input_sections[i].cross_listings.clone();
-            if cross_listings.is_empty() {
-                cross_listings.push(i);
-            }
-            for &self_cross_listing in &cross_listings {
-                for &other in &self.input_sections[self_cross_listing].hard_conflicts {
-                    hard_conflicts.push(get_primary_cross_listing(&self, other));
-                }
-                for &SectionWithPenalty { section, penalty } in
-                    &self.input_sections[self_cross_listing].soft_conflicts
-                {
-                    soft_conflicts.push(SectionWithPenalty {
-                        section: get_primary_cross_listing(&self, section),
-                        penalty,
-                    });
-                }
-            }
-            hard_conflicts.sort();
-            hard_conflicts.dedup();
 
-            // sort highest penalty first...
-            soft_conflicts.sort_by_key(|elt| (elt.section, -elt.penalty));
-            // ... so dedup will remove the lower penalty instances
-            soft_conflicts.dedup_by_key(|elt| elt.section);
-
-            let soft_conflicts_list = soft_conflicts.clone();
             if !soft_conflicts.is_empty() {
                 score_criteria.push(Rc::new(SoftConflictCriterion {
-                    sections_with_penalties: soft_conflicts,
+                    sections_with_penalties: soft_conflicts.clone(),
                 }));
             }
 
-            // get all instructors across all cross-listings
-            let mut instructors = Vec::new();
-            for &cross_listing in &cross_listings {
-                for &instructor in &self.input_sections[cross_listing].instructors {
-                    instructors.push(instructor);
-                }
-            }
-            instructors.sort();
-            instructors.dedup();
+            let instructors = self.input_sections[i].instructors.clone();
 
             // compute the combined room/time pairs and penalties
-            // considering cross-listings and instructor availability
             let mut room_times = Vec::new();
             let section = &self.input_sections[i];
-            'time_slot: for &TimeWithPenalty {
-                time_slot,
-                penalty: mut time_slot_penalty,
-            } in &section.time_slots
-            {
-                // make sure this time slot is acceptable to all cross-listings
-                // and find the max penalty
-                for &cross_listing in &section.cross_listings {
-                    match self.input_sections[cross_listing]
-                        .time_slots
-                        .iter()
-                        .find_map(|elt| {
-                            if elt.time_slot == time_slot {
-                                Some(elt.penalty)
-                            } else {
-                                None
-                            }
-                        }) {
-                        Some(pen) => time_slot_penalty = std::cmp::max(pen, time_slot_penalty),
-                        None => continue 'time_slot,
-                    };
-                }
-
-                // every instructor must be available during the entire time slot
-                let mut instructor_penalty = 0;
-                for &instructor in &instructors {
-                    match self.instructors[instructor]
-                        .get_time_slot_penalty(&self.time_slots[time_slot])
-                    {
-                        Some(pen) => instructor_penalty = std::cmp::max(pen, instructor_penalty),
-                        None => continue 'time_slot,
-                    }
-                }
-
+            for &TimeWithPenalty { time_slot, penalty: time_slot_penalty } in &section.time_slots {
                 // cross this with every room
-                'room: for &RoomWithPenalty {
-                    room,
-                    penalty: mut room_penalty,
-                } in &section.rooms
-                {
-                    // make sure this room is acceptable to all cross-listings
-                    // and fine the max penalty
-                    for &cross_listing in &section.cross_listings {
-                        match self.input_sections[cross_listing]
-                            .rooms
-                            .iter()
-                            .find_map(|elt| {
-                                if elt.room == room {
-                                    Some(elt.penalty)
-                                } else {
-                                    None
-                                }
-                            }) {
-                            Some(pen) => room_penalty = std::cmp::max(pen, room_penalty),
-                            None => continue 'room,
-                        };
-                    }
-
+                for &RoomWithPenalty { room, penalty: room_penalty } in &section.rooms {
                     room_times.push(RoomTimeWithPenalty {
                         room,
                         time_slot,
-                        penalty: std::cmp::min(
-                            99,
-                            time_slot_penalty + room_penalty + instructor_penalty,
-                        ),
+                        penalty: std::cmp::min(99, time_slot_penalty + room_penalty),
                     });
                 }
-            }
-
-            // the cross-listings and instructors have to agree on at least one room and time
-            if room_times.is_empty() {
-                return Err(format!(
-                    "section {} has no room+time combinations that work across all cross listings and instructors",
-                    self.input_sections[i].get_name()
-                ));
             }
             room_times.sort_by_key(|elt| (elt.room, elt.time_slot, elt.penalty));
 
@@ -524,41 +400,26 @@ impl Solver {
                 room_times,
                 instructors,
                 hard_conflicts,
-                soft_conflicts_list,
+                soft_conflicts,
                 neighbors: Vec::new(),
                 score_criteria,
                 speculative_deltas: deltas,
                 speculative_delta_min: None,
-                is_secondary_cross_listing: false,
             });
         }
 
         // build and place anticonflict rules
         for (penalty, single, group) in &self.anticonflicts {
-            // use primary cross listings
-            let single_primary = get_primary_cross_listing(&self, *single);
-            let mut group_primaries: Vec<usize> = group
-                .iter()
-                .map(|&elt| get_primary_cross_listing(&self, elt))
-                .collect();
-            group_primaries.sort();
-            group_primaries.dedup();
-            if group_primaries.contains(&single_primary) {
-                return Err(format!(
-                    "section {} cannot be an anticonflict with itself",
-                    self.input_sections[single_primary].get_name()
-                ));
-            }
             let criterion = Rc::new(AntiConflictCriterion {
                 penalty: *penalty,
-                single: single_primary,
-                group: group_primaries.clone(),
+                single: *single,
+                group: group.clone(),
             });
 
-            self.sections[single_primary]
+            self.sections[*single]
                 .score_criteria
                 .push(criterion.clone());
-            for &elt in &group_primaries {
+            for &elt in group{
                 self.sections[elt].score_criteria.push(criterion.clone());
             }
         }
@@ -568,14 +429,6 @@ impl Solver {
             if self.instructors[instructor].distribution.is_empty() {
                 continue;
             }
-
-            let mut sec_primaries: Vec<usize> = self.instructors[instructor]
-                .sections
-                .iter()
-                .map(|&elt| get_primary_cross_listing(&self, elt))
-                .collect();
-            sec_primaries.sort();
-            sec_primaries.dedup();
 
             let mut groups = std::collections::HashMap::<u8, Vec<DistributionPreference>>::new();
             for dist in &self.instructors[instructor].distribution {
@@ -606,28 +459,21 @@ impl Solver {
 
             let ics = Rc::new(InstructorClassSpreadCriterion {
                 instructor,
-                sections: sec_primaries.clone(),
+                sections: self.instructors[instructor].sections.clone(),
                 grouped_by_days,
             });
 
-            for &section in &sec_primaries {
+            for &section in &self.instructors[instructor].sections {
                 self.sections[section].score_criteria.push(ics.clone());
             }
         }
 
         // calculate theoretical minimum rooms possible for each instructor
         for instructor in 0..self.instructors.len() {
-            let mut sec_primaries: Vec<usize> = self.instructors[instructor]
-                .sections
-                .iter()
-                .map(|&elt| get_primary_cross_listing(&self, elt))
-                .collect();
-            sec_primaries.sort();
-            sec_primaries.dedup();
-
             // get a list of all possible rooms the instructor could use
             let mut all_possible = Vec::new();
-            for &section in &sec_primaries {
+            let sections = &self.instructors[instructor].sections;
+            for &section in sections {
                 for &RoomTimeWithPenalty { room, .. } in &self.sections[section].room_times {
                     all_possible.push(room);
                 }
@@ -639,9 +485,9 @@ impl Solver {
             // fewer than the max number of rooms, it will leave the
             // result at the max number without bothering to prove it
             let mut k = 1;
-            'min_rooms_loop: while k < sec_primaries.len() {
+            'min_rooms_loop: while k < sections.len() {
                 'set_loop: for room_set in all_possible.iter().combinations(k) {
-                    'section_loop: for &section in &sec_primaries {
+                    'section_loop: for &section in sections {
                         // is this section satisfied by one of the rooms in the set?
                         for &room in &room_set {
                             if self.sections[section]
@@ -663,13 +509,13 @@ impl Solver {
             }
 
             // do not bother if the best we can do is a distinct room per section
-            if k > sec_primaries.len() {
-                for &sec in &sec_primaries {
+            if k > sections.len() {
+                for &sec in sections {
                     self.sections[sec]
                         .score_criteria
                         .push(Rc::new(InstructorRoomCountCriterion {
                             instructor,
-                            sections: sec_primaries.clone(),
+                            sections: sections.clone(),
                             desired: k,
                             penalty: 2,
                         }));
@@ -701,8 +547,6 @@ impl Solver {
     // remove a section from its current room/time placement (if any)
     // remove it from both sections and room_placements
     pub fn remove_placement(&mut self, section: usize, undo: &mut Vec<PlacementEntry>) {
-        assert!(!self.sections[section].is_secondary_cross_listing);
-
         if let Some(RoomTimeWithPenalty {
             room, time_slot, ..
         }) = self.sections[section].placement
@@ -721,8 +565,6 @@ impl Solver {
         room_time: &RoomTimeWithPenalty,
         undo: &mut Vec<PlacementEntry>,
     ) {
-        assert!(!self.sections[section].is_secondary_cross_listing);
-
         let &RoomTimeWithPenalty {
             room, time_slot, ..
         } = room_time;
@@ -756,8 +598,6 @@ impl Solver {
         room_time: &RoomTimeWithPenalty,
         undo: &mut Vec<PlacementEntry>,
     ) {
-        assert!(!self.sections[section].is_secondary_cross_listing);
-
         // is this slot (or an overlapping time in the same room) already occupied?
         let mut evictees = Vec::new();
         for overlapping in &self.time_slots[room_time.time_slot].conflicts {
@@ -787,10 +627,6 @@ impl Solver {
     pub fn compute_speculative_deltas(&mut self) {
         let old_score = self.score;
         for section_i in 0..self.sections.len() {
-            if self.sections[section_i].is_secondary_cross_listing {
-                continue;
-            }
-
             // only move sections that have at least some potential for improvement
             if self.sections[section_i].score.local == 0 {
                 self.sections[section_i].speculative_delta_min = None;
@@ -801,8 +637,6 @@ impl Solver {
     }
 
     pub fn compute_speculative_deltas_section(&mut self, section: usize, old_score: isize) {
-        assert!(!self.sections[section].is_secondary_cross_listing);
-
         let current = match self.sections[section].placement {
             Some(RoomTimeWithPenalty {
                 room, time_slot, ..
@@ -842,10 +676,6 @@ impl Solver {
 
         // find the move that will improve the score the most
         for section in self.sections.iter_mut() {
-            if section.is_secondary_cross_listing {
-                assert!(section.tickets == 0);
-                continue;
-            }
             match section.speculative_delta_min {
                 Some(delta) => {
                     // ignore MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION
@@ -867,11 +697,6 @@ impl Solver {
         // (favoring sections with bad scores and thus more potential to improve)
         if pool_size == 0 {
             for section in &mut self.sections.iter_mut() {
-                if section.is_secondary_cross_listing {
-                    assert!(section.tickets == 0);
-                    continue;
-                }
-
                 // give everyone at least one ticket, sections with
                 // bad scores get more
                 section.tickets = std::cmp::max(1, section.score.local + 1);
@@ -909,8 +734,6 @@ impl Solver {
     }
 
     pub fn select_room_time_to_place(&self, section: usize) -> RoomTimeWithPenalty {
-        assert!(!self.sections[section].is_secondary_cross_listing);
-
         let room_times = &self.sections[section].room_times;
 
         if room_times.len() == 1 {
@@ -982,9 +805,6 @@ impl Solver {
         let mut pool_size = 0;
         for i in 0..self.sections.len() {
             let section = &self.sections[i];
-            if section.is_secondary_cross_listing {
-                continue;
-            }
             if section.placement.is_some() && section.room_times.len() == 1 {
                 // if it is already placed and there is only one placement possible,
                 // then placing it again would be a no-op
@@ -1019,8 +839,6 @@ impl Solver {
     // totals and the detail log,
     // but the overall solver score is not modified
     pub fn compute_section_score(&mut self, section: usize) {
-        assert!(!self.sections[section].is_secondary_cross_listing);
-
         assert!(self.sections[section].score.local == 0);
         assert!(self.sections[section].score.global == 0);
         assert!(self.sections[section].score.score_records.is_empty());
@@ -1065,22 +883,14 @@ impl Solver {
     pub fn print_schedule(&self) {
         let no_instructor_msg = "(no instructor)".to_string();
         let mut name_len = no_instructor_msg.len();
-        for (section_i, section) in self.input_sections.iter().enumerate() {
-            if self.sections[section_i].is_secondary_cross_listing {
-                continue;
-            }
+        for section in &self.input_sections {
             if !section.instructors.is_empty() {
                 let plus = if section.instructors.len() == 1 { 0 } else { 1 };
                 let instructor = section.instructors[0];
                 name_len =
                     std::cmp::max(name_len, self.instructors[instructor].name.len() + 1 + plus);
             }
-            let plus = if section.cross_listings.is_empty() {
-                0
-            } else {
-                1
-            };
-            name_len = std::cmp::max(name_len, section.get_name().len() + plus);
+            name_len = std::cmp::max(name_len, section.get_name().len());
         }
 
         for room in &self.rooms {
@@ -1137,13 +947,9 @@ impl Solver {
                 if let Some(section_i) =
                     self.room_placements[room_i].time_slot_placements[time_slot_i]
                 {
-                    let section = &self.input_sections[get_primary_cross_listing(self, section_i)];
+                    let section = &self.input_sections[section_i];
                     let name = section.get_name();
-                    if self.input_sections[section_i].cross_listings.len() > 1 {
-                        print!("| {:<width$}+ ", name, width = name_len - 1);
-                    } else {
-                        print!("| {:<width$} ", name, width = name_len);
-                    }
+                    print!("| {:<width$} ", name, width = name_len);
                 } else {
                     print!("| {:name_len$} ", "");
                 }
@@ -1164,15 +970,6 @@ impl Solver {
         let w = &mut s;
 
         let mut list = Vec::new();
-        let gather = |f: &mut dyn FnMut(usize), i: usize| {
-            if self.input_sections[i].cross_listings.is_empty() {
-                f(i);
-            } else {
-                for &cross in &self.input_sections[i].cross_listings {
-                    f(cross);
-                }
-            }
-        };
         let join = |lst: &mut Vec<String>| -> String {
             lst.sort();
             lst.dedup();
@@ -1188,30 +985,21 @@ impl Solver {
         write!(w, "window.placement = [").unwrap();
         let mut comma = "";
         for (i, section) in self.sections.iter().enumerate() {
-            if section.is_secondary_cross_listing {
-                continue;
-            }
-
             writeln!(w, "{comma}\n    {{").unwrap();
             comma = ",";
 
             // names
-            gather(&mut |i| list.push(self.input_sections[i].get_name()), i);
+            list.push(self.input_sections[i].get_name());
             writeln!(w, "        \"names\": [{}],", join(&mut list)).unwrap();
 
             // prefixes
-            gather(&mut |i| list.push(self.input_sections[i].prefix.clone()), i);
+            list.push(self.input_sections[i].prefix.clone());
             writeln!(w, "        \"prefixes\": [{}],", join(&mut list)).unwrap();
 
             // instuctors
-            gather(
-                &mut |i| {
-                    for &elt in &self.input_sections[i].instructors {
-                        list.push(self.instructors[elt].name.clone());
-                    }
-                },
-                i,
-            );
+            for &elt in &self.input_sections[i].instructors {
+                list.push(self.instructors[elt].name.clone());
+            }
             writeln!(w, "        \"instructors\": [{}],", join(&mut list)).unwrap();
             if let Some(RoomTimeWithPenalty {
                 room, time_slot, ..
@@ -1367,7 +1155,7 @@ pub fn solve(solver: &mut Solver, iterations: usize) {
                         println!("[{:width$}]  {}", score, message, width = digits);
                     }
                     for (i, section) in winner.sections.iter().enumerate() {
-                        if section.is_secondary_cross_listing || section.placement.is_some() {
+                        if section.placement.is_some() {
                             continue;
                         }
                         print!("unplaced: {}", solver.input_sections[i].get_name());

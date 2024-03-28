@@ -4,6 +4,7 @@ pub mod input;
 pub mod score;
 pub mod solver;
 pub mod static_placement;
+use self::data::*;
 use self::input::*;
 use self::solver::*;
 use self::static_placement::*;
@@ -17,49 +18,6 @@ fn main() {
         }
     };
 
-    //println!("term: {} from {} to {}", solver.name, solver.start, solver.end);
-
-    /*
-    for (i, time_slot) in solver.time_slots.iter().enumerate() {
-        print!("time slot {}: ", time_slot.name);
-        let mut sep = "";
-        for elt in &time_slot.days {
-            print!("{}{}", sep, elt);
-            sep = ", ";
-        }
-        print!(" at {} for {}", time_slot.start_time, time_slot.duration);
-        if time_slot.conflicts.len() > 1 {
-            print!(", conflicts with ");
-            sep = "";
-            for elt in &time_slot.conflicts {
-                if *elt == i {
-                    continue;
-                }
-                print!("{}{}", sep, solver.time_slots[*elt].name);
-                sep = ", ";
-            }
-        }
-        println!();
-    }
-    for room in &solver.rooms {
-        print!("{} {} tags:", room.name, room.capacity);
-        for tag in &room.tags {
-            print!(" {}", tag);
-        }
-        println!();
-    }
-    for inst in &solver.instructors {
-        print!("{}", inst.name);
-        for twp in &inst.available_times {
-            if twp.penalty == 0 {
-                print!(" {}", solver.time_slots[twp.time_slot].name);
-            } else {
-                print!(" {}:{}", solver.time_slots[twp.time_slot].name, twp.penalty);
-            }
-        }
-        println!();
-    }
-    */
     match solver.lock_input() {
         Err(msg) => {
             eprintln!("{}", msg);
@@ -130,6 +88,7 @@ fn main() {
         solver.input_sections.len(),
     );
 
+    /*
     for section in &solver.input_sections {
         println!(
             "section {} with {} rooms and {} times",
@@ -138,9 +97,10 @@ fn main() {
             section.time_slots.len()
         );
     }
+    */
 
     // set up the static schedule
-    place_static(&mut solver).unwrap();
+    //place_static(&mut solver).unwrap();
 
     let iterations = 50_000_000;
     solve(&mut solver, iterations);
@@ -156,9 +116,6 @@ fn dump_cs(solver: &Solver) {
             continue;
         }
         let solsec = &solver.sections[i];
-        if solsec.is_secondary_cross_listing {
-            continue;
-        }
         println!("    \"{}\": {{", section.get_name());
         println!("        \"room_times\": {{");
         for &RoomTimeWithPenalty {
@@ -186,7 +143,7 @@ fn dump_cs(solver: &Solver) {
         for &SectionWithPenalty {
             section: sec,
             penalty,
-        } in &solsec.soft_conflicts_list
+        } in &solsec.soft_conflicts
         {
             let other = &solver.input_sections[sec];
             if other.prefix != "CS" && other.prefix != "SE" && other.prefix != "IT" {

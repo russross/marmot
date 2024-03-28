@@ -1162,8 +1162,9 @@ echo building cset sections
 
 # BIOL 1010-11-alt: General Biology (LS)
 # assigned to SET 106 at TR1030+75
-./edit make-section 'BIOL 1010-11' 'Science large lecture' '3 credit bell schedule'
-./edit assign-faculty-sections 'Jeffrey V Yule' 'BIOL 1010-11'
+./edit make-section 'BIOL 1010-11' # 'Science large lecture' '3 credit bell schedule'
+# ./edit assign-faculty-sections 'Jeffrey V Yule' 'BIOL 1010-11'
+# cross-listed with BIOL 1010-05
 
 # BIOL 1015-04: General Biology Lab (LAB)
 # assigned to SET 312 at T1100+170
@@ -1356,8 +1357,9 @@ echo building cset sections
 
 # BIOL 2320-08: Human Anatomy: Supplemental Instruction
 # assigned to SET 301 at MW1330+75
-./edit make-section 'BIOL 2320-08' 'Science medium lecture' '3 credit bell schedule'
-./edit assign-faculty-sections 'Curtis B Walker' 'BIOL 2320-08'
+./edit make-section 'BIOL 2320-08' # 'Science medium lecture' '3 credit bell schedule'
+# ./edit assign-faculty-sections 'Curtis B Walker' 'BIOL 2320-08'
+# cross-listed with BIOL 2320-04
 
 # BIOL 2320-08-alt: Human Anatomy: Supplemental Instruction
 # assigned to SET 105 at R1330+75
@@ -1581,7 +1583,8 @@ echo building cset sections
 
 # BIOL 3010-02: Evolution
 # assigned to SET 301 at MWF1100+50
-./edit make-section 'BIOL 3010-02' 'Science medium lecture' '3 credit bell schedule'
+./edit make-section 'BIOL 3010-02' # 'Science medium lecture' '3 credit bell schedule'
+# cross-listed with BIOL 3010-01
 
 # BIOL 3010-02-alt: Evolution
 # assigned to SET 301 at R1200+50
@@ -1598,8 +1601,9 @@ echo building cset sections
 
 # BIOL 3030-02: Genetics
 # assigned to SET 301 at MWF0900+50
-./edit make-section 'BIOL 3030-02' 'Science medium lecture' '3 credit bell schedule'
-./edit assign-faculty-sections 'Randy Klabacka' 'BIOL 3030-02'
+./edit make-section 'BIOL 3030-02' # 'Science medium lecture' '3 credit bell schedule'
+# ./edit assign-faculty-sections 'Randy Klabacka' 'BIOL 3030-02'
+# cross-listed with BIOL 3030-01
 
 # BIOL 3030-02-alt: Genetics
 # assigned to SET 301 at R0900+50
@@ -1806,8 +1810,9 @@ echo building cset sections
 
 # BTEC 2050-02: Zebrafish Maintenance & Method
 # assigned to SET 303 at T1300+110
-./edit make-section 'BTEC 2050-02' 'SET 303' '2 hour lab T0900'
-./edit assign-faculty-sections 'Hung Yu Shih' 'BTEC 2050-02'
+./edit make-section 'BTEC 2050-02' # 'SET 303' '2 hour lab T0900'
+# ./edit assign-faculty-sections 'Hung Yu Shih' 'BTEC 2050-02'
+# cross-listed with BTEC 2050-01
 
 # BTEC 2050-02-alt: Zebrafish Maintenance & Method
 # assigned to SET 303 at T1600+50
@@ -2357,13 +2362,15 @@ echo building cset sections
 
 # GEO 2700R-01: Field Methods in Geoscience Research
 # assigned to SET 527 at F1400+170
-./edit make-section 'GEO 2700R-01' 'SET 527' 'F1400+170'
-./edit assign-faculty-sections 'Alexander R Tye' 'GEO 2700R-01'
+./edit make-section 'GEO 2700R-01' # 'SET 527' 'F1400+170'
+# ./edit assign-faculty-sections 'Alexander R Tye' 'GEO 2700R-01'
+# cross-listed with ENVS 2700R-01
 
 # GEO 3110-01: Scientific Writing
 # assigned to SET 408 at MWF1100+50
-./edit make-section 'GEO 3110-01' 'SET 408' '3 credit bell schedule'
-./edit assign-faculty-sections 'Jerald D Harris' 'GEO 3110-01'
+./edit make-section 'GEO 3110-01' # 'SET 408' '3 credit bell schedule'
+# ./edit assign-faculty-sections 'Jerald D Harris' 'GEO 3110-01'
+# cross-listed with ENVS 3110-01
 
 # GEO 3500-01: Geomorphology
 # assigned to SET 408 at R1200+170
@@ -2911,8 +2918,9 @@ echo building cset sections
 # MECH 3602-01: Thermo II
 # xlist entry: SC0A
 # assigned to SET 104 at MTWF0900+50
-./edit make-section 'MECH 3602-01' 'SET 104' '4 credit bell schedule'
-./edit assign-faculty-sections 'Russell C Reid' 'MECH 3602-01'
+./edit make-section 'MECH 3602-01' # 'SET 104' '4 credit bell schedule'
+# ./edit assign-faculty-sections 'Russell C Reid' 'MECH 3602-01'
+# cross-listed with MECH 3600-01
 
 # MECH 3605-01: Thermodynamics Lab
 # assigned to SET 104 at R1400+110
@@ -2941,8 +2949,9 @@ echo building cset sections
 
 # MECH 4010-01: Product Design II
 # assigned to SET 219 at MWF1330+180
-./edit make-section 'MECH 4010-01' 'SET 219' 'MWF1330+180'
-./edit assign-faculty-sections 'Brant A Ross' 'MECH 4010-01'
+./edit make-section 'MECH 4010-01' # 'SET 219' 'MWF1330+180'
+# ./edit assign-faculty-sections 'Brant A Ross' 'MECH 4010-01'
+# cross-listed with ECE 4010-01
 
 # MECH 4500-01: Advanced Engineering Math
 # assigned to SET 523 at TR1500+75
@@ -3087,15 +3096,18 @@ echo building cset sections
 
 # PHYS 3600-01: Thermodynamics
 # assigned to SET 104 at MTWF0900+50
-./edit make-section 'PHYS 3600-01' 'SET 104' '4 credit bell schedule'
+./edit make-section 'PHYS 3600-01' # 'SET 104' '4 credit bell schedule'
+# cross-listed with MECH 3600-01
 
 # PHYS 3605-01: Thermodynamics Lab
 # assigned to SET 104 at R1400+110
-./edit make-section 'PHYS 3605-01' 'SET 104' '2 hour lab R0800'
+./edit make-section 'PHYS 3605-01' # 'SET 104' '2 hour lab R0800'
+# cross-listed with MECH 3605-01
 
 # PHYS 3605-02: Thermodynamics Lab
 # assigned to SET 104 at R1600+110
-./edit make-section 'PHYS 3605-02' 'SET 104' '2 hour lab R0800'
+./edit make-section 'PHYS 3605-02' # 'SET 104' '2 hour lab R0800'
+# cross-listed with MECH 3605-02
 
 # SCI 4700-01: Secondary Sci Teaching Methods
 # assigned to SET 216 at R1530+150
@@ -3106,14 +3118,16 @@ echo building cset sections
 # assigned to SET 501 at F1400+170
 ./edit make-section 'SCI 4720-01' 'SET 501' 'F1400+170'
 
-./edit add-cross-listing geo-envs-field-methods 'GEO 2700R-01' 'ENVS 2700R-01'
-./edit add-cross-listing scientific-writing 'ENVS 3110-01' 'GEO 3110-01'
-./edit add-cross-listing product-design 'ECE 4010-01' 'MECH 4010-01'
-./edit add-cross-listing thermodynamics 'MECH 3600-01' 'MECH 3602-01' 'PHYS 3600-01'
-./edit add-cross-listing thermodynamics-lab-1 'MECH 3605-01' 'PHYS 3605-01'
-./edit add-cross-listing thermodynamics-lab-2 'MECH 3605-02' 'PHYS 3605-02'
-./edit add-cross-listing si-yule 'BIOL 1010-05' 'BIOL 1010-11'
-./edit add-cross-listing si-walker-anatomy 'BIOL 2320-04' 'BIOL 2320-08'
-./edit add-cross-listing si-walker-evolution 'BIOL 3010-01' 'BIOL 3010-02'
-./edit add-cross-listing si-klabacka 'BIOL 3030-01' 'BIOL 3030-02'
-./edit add-cross-listing zebrafish 'BTEC 2050-01' 'BTEC 2050-02'
+./edit add-cross-listing 'ENVS 2700R-01' 'GEO 2700R-01'
+./edit add-cross-listing 'ENVS 3110-01' 'GEO 3110-01'
+./edit add-cross-listing 'ECE 4010-01' 'MECH 4010-01'
+./edit add-cross-listing 'MECH 3600-01' 'MECH 3602-01' 'PHYS 3600-01'
+./edit add-cross-listing 'MECH 3605-01' 'PHYS 3605-01'
+./edit add-cross-listing 'MECH 3605-02' 'PHYS 3605-02'
+./edit add-cross-listing 'BIOL 1010-05' 'BIOL 1010-11'
+./edit add-cross-listing 'BIOL 2320-04' 'BIOL 2320-08'
+./edit add-cross-listing 'BIOL 3010-01' 'BIOL 3010-02'
+./edit add-cross-listing 'BIOL 3030-01' 'BIOL 3030-02'
+./edit add-cross-listing 'BTEC 2050-01' 'BTEC 2050-02'
+
+sqlite3 timetable.db analyze

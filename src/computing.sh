@@ -171,9 +171,9 @@ echo building computing faculty and sections
 # SE 3010-01 same day as SE 4200-01
 ./edit make-section 'SE 3010-01' 'flex' 'macs' 'MW1500+75'
 ./edit make-section 'SE 4200-01' 'flex' 'macs' 'MW1330+75'
-./edit make-section 'SE 4600-01' 'flex' '3 credit bell schedule'
+./edit make-section 'SE 4600-01'
 ./edit make-section 'CS 4600-02' 'flex' '3 credit bell schedule'
-./edit assign-faculty-sections 'DJ Holt' 'SE 3010-01' 'SE 4200-01' 'SE 4600-01' 'CS 4600-02'
+./edit assign-faculty-sections 'DJ Holt' 'SE 3010-01' 'SE 4200-01' 'CS 4600-02'
 # crosslist!(t, "SE 4600-01" cross-list with "CS 4600-02");
 # anticonflict!(t, set penalty to 50, single: "CS 4600-01", group: "CS 4600-02");
 
@@ -294,7 +294,7 @@ echo building computing faculty and sections
 ./edit make-section 'IT 4990-01' 'flex' '1×150 evening'
 ./edit assign-faculty-sections 'Jamie Bennion' 'IT 4990-01'
 
-./edit add-cross-listing cs-se-senior-project 'SE 4600-01' 'CS 4600-02'
+./edit add-cross-listing 'CS 4600-02' 'SE 4600-01'
 ./edit add-anti-conflict 50 'CS 4600-01' 'CS 4600-02'
 ./edit add-anti-conflict 50 'CS 1030-01' 'CS 1400'
 #./edit add-anti-conflict 50 'SE 1400' 'IT 1100' # temporarily removed because of new hire planning

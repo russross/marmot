@@ -179,7 +179,7 @@ def faculty_default_clustering(db, faculty, days_to_check, days_off):
 @click.argument('course_name')
 @click.pass_obj
 def make_course(db, department, course, course_name):
-    db.execute('INSERT INTO courses VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?)', (department, course, course_name))
+    db.execute('INSERT INTO courses VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?)', (course, department, course_name))
 
 @cli.command()
 @click.argument('course')
@@ -232,16 +232,16 @@ def assign_faculty_sections(db, faculty, sections):
         db.execute('INSERT INTO faculty_sections VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (faculty, section))
 
 @cli.command()
-@click.argument('name')
+@click.argument('primary')
 @click.argument('sections', nargs=-1)
 @click.pass_obj
-def add_cross_listing(db, name, sections):
-    if len(sections) < 2:
+def add_cross_listing(db, primary, sections):
+    if len(sections) < 1:
         print(f'add_cross_listing needs at least two sections to cross list')
         sys.exit(1)
-    db.execute('INSERT INTO cross_listings VALUES ((SELECT term FROM terms WHERE current), ?)', (name,))
+    db.execute('INSERT INTO cross_listings VALUES ((SELECT term FROM terms WHERE current), ?)', (primary,))
     for section in sections:
-        db.execute('INSERT INTO cross_listing_sections VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (name, section))
+        db.execute('INSERT INTO cross_listing_sections VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (section, primary))
 
 @cli.command()
 @click.argument('penalty')

@@ -16,11 +16,6 @@ pub fn place(
     }
 
     let section = section_list.pop().unwrap();
-    if !is_primary_cross_listing(solver, section) {
-        //println!("skipping non-primary course {course_raw}");
-        return Ok(());
-    }
-
     let room = find_room_by_name(solver, room_raw)?;
     let time_slot = find_time_slot_by_name(solver, time_slot_raw)?;
     let room_time = solver.sections[section]
