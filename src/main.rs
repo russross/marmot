@@ -28,13 +28,13 @@ fn main() {
     /*
     for (sec_i, sec) in input.input_sections.iter().enumerate() {
         let solve = &solver.sections[sec_i];
-        print!("{}", sec.get_name());
+        print!("{}", sec.name);
         if !sec.cross_listings.is_empty() {
             for &other in sec.cross_listings.iter() {
                 if sec_i == other {
                     continue;
                 }
-                print!(" x {}", input.input_sections[other].get_name());
+                print!(" x {}", input.input_sections[other].name);
             }
         }
         print!(" [");
@@ -59,7 +59,7 @@ fn main() {
         if !solve.hard_conflicts.is_empty() {
             print!("    hard conflicts:");
             for &i in solve.hard_conflicts.iter() {
-                print!(" {}", input.input_sections[i].get_name());
+                print!(" {}", input.input_sections[i].name);
             }
             println!();
         }
@@ -92,7 +92,7 @@ fn main() {
     for section in &solver.input_sections {
         println!(
             "section {} with {} rooms and {} times",
-            section.get_name(),
+            section.name,
             section.rooms.len(),
             section.time_slots.len()
         );
@@ -102,7 +102,7 @@ fn main() {
     // set up the static schedule
     //place_static(&mut solver).unwrap();
 
-    let iterations = 50_000_000;
+    let iterations = 50_000;
     solve(&mut solver, iterations);
 
     dump_cs(&solver);
@@ -112,11 +112,8 @@ fn dump_cs(solver: &Solver) {
     println!("course_data = {{");
     for i in 0..solver.input_sections.len() {
         let section = &solver.input_sections[i];
-        if section.prefix != "CS" && section.prefix != "SE" && section.prefix != "IT" {
-            continue;
-        }
         let solsec = &solver.sections[i];
-        println!("    \"{}\": {{", section.get_name());
+        println!("    \"{}\": {{", section.name);
         println!("        \"room_times\": {{");
         for &RoomTimeWithPenalty {
             room,
@@ -133,10 +130,7 @@ fn dump_cs(solver: &Solver) {
         println!("        \"hard\": {{");
         for &hard in &solsec.hard_conflicts {
             let other = &solver.input_sections[hard];
-            if other.prefix != "CS" && other.prefix != "SE" && other.prefix != "IT" {
-                continue;
-            }
-            println!("            \"{}\",", other.get_name());
+            println!("            \"{}\",", other.name);
         }
         println!("        }},");
         println!("        \"soft\": {{");
@@ -146,10 +140,7 @@ fn dump_cs(solver: &Solver) {
         } in &solsec.soft_conflicts
         {
             let other = &solver.input_sections[sec];
-            if other.prefix != "CS" && other.prefix != "SE" && other.prefix != "IT" {
-                continue;
-            }
-            println!("            \"{}\": {},", other.get_name(), penalty);
+            println!("            \"{}\": {},", other.name, penalty);
         }
         println!("        }},");
         println!("    }},");

@@ -45,10 +45,10 @@ pub fn place(
         {
             println!(
                 "section {} in {} at {} displaced by {} in {} at {} in initial load",
-                solver.input_sections[loser].get_name(),
+                solver.input_sections[loser].name,
                 solver.rooms[loser_room].name,
                 solver.time_slots[loser_time_slot].name,
-                solver.input_sections[section].get_name(),
+                solver.input_sections[section].name,
                 solver.rooms[room].name,
                 solver.time_slots[time_slot].name,
             );

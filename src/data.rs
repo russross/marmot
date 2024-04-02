@@ -15,26 +15,28 @@ pub fn setup() -> Result<Solver, String> {
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
     )
     .map_err(sql_err)?;
+    db.pragma_update(None, "foreign_keys", "ON").map_err(sql_err)?;
+    db.pragma_update(None, "temp_store", "memory").map_err(sql_err)?;
+    db.pragma_update(None, "mmap_size", "100000000").map_err(sql_err)?;
 
     let mut solver = make_solver(&mut db)?;
-    let cross_listings = load_cross_listings(&mut db, &departments)?;
 
     println!("loading rooms, times");
     load_rooms(&mut db, &mut solver, &departments)?;
     load_time_slots(&mut db, &mut solver, &departments)?;
 
     println!("loading sections");
-    load_sections(&mut db, &mut solver, &cross_listings, &departments)?;
+    load_sections(&mut db, &mut solver, &departments)?;
 
     println!("loading conflicts");
-    load_conflicts(&mut db, &mut solver, &cross_listings, &departments)?;
-    load_prereqs(&mut db, &mut solver, &cross_listings, &departments)?;
-    discount_multiple_sections(&mut db, &mut solver, &cross_listings, &departments)?;
-    load_anti_conflicts(&mut db, &mut solver, &cross_listings, &departments)?;
+    load_conflicts(&mut db, &mut solver, &departments)?;
+    load_prereqs(&mut db, &mut solver, &departments)?;
+    //discount_multiple_sections(&mut db, &mut solver, &departments)?;
+    load_anti_conflicts(&mut db, &mut solver, &departments)?;
 
     println!("loading faculty");
     load_faculty(&mut db, &mut solver, &departments)?;
-    load_faculty_section_assignments(&mut db, &mut solver, &cross_listings, &departments)?;
+    load_faculty_section_assignments(&mut db, &mut solver, &departments)?;
 
     Ok(solver)
 }
@@ -122,64 +124,6 @@ pub fn make_solver(db: &mut Connection) -> Result<Solver, String> {
     })
 }
 
-// get a map of cross-listed courses, mapping:
-//     section => canonical_section
-pub fn load_cross_listings(
-    db: &mut Connection,
-    departments: &Vec<String>,
-) -> Result<HashMap<String, String>, String> {
-    let dept_in = dept_clause(departments, &vec!["department".into()], true);
-    let mut stmt = db
-        .prepare(&format!("
-                SELECT cross_listing_name, section
-                FROM active_cross_listings
-                {}
-                ORDER BY cross_listing_name, section",
-            dept_in
-        ))
-        .map_err(sql_err)?;
-    let mut rows = stmt
-        .query(rusqlite::params_from_iter(departments))
-        .map_err(sql_err)?;
-
-    let mut map = HashMap::new();
-    let mut prev_name = String::new();
-    let mut sections = Vec::<String>::new();
-
-    while let Some(row) = rows.next().map_err(sql_err)? {
-        let name: String = row.get_unwrap(0);
-        let section: String = row.get_unwrap(1);
-
-        // start a new cross listing
-        if name != prev_name {
-            prev_name = name.clone();
-
-            // handle the previous group
-            if sections.len() > 1 {
-                // note: important that the first section in sort order
-                // is the canonical section
-                // so it will always be loaded before the secondary sections
-                for elt in sections.iter().skip(1) {
-                    map.insert(elt.clone(), sections[0].clone());
-                }
-                sections.clear();
-            }
-        }
-
-        sections.push(section);
-    }
-
-    // handle the last group
-    if sections.len() > 1 {
-        for elt in sections.iter().skip(1) {
-            map.insert(elt.clone(), sections[0].clone());
-        }
-        sections.clear();
-    }
-
-    Ok(map)
-}
-
 // load all rooms
 pub fn load_rooms(
     db: &mut Connection,
@@ -188,7 +132,7 @@ pub fn load_rooms(
 ) -> Result<(), String> {
     let dept_in = dept_clause(departments, &vec!["department".into()], true);
     let mut stmt = db.prepare(&format!("
-            SELECT DISTINCT room, capacity
+            SELECT room
             FROM active_rooms
             {}
             ORDER BY building, room_number",
@@ -200,8 +144,6 @@ pub fn load_rooms(
     while let Some(row) = rows.next().map_err(sql_err)? {
         solver.rooms.push(Room {
             name: row.get_unwrap(0),
-            capacity: row.get_unwrap(1),
-            tags: Vec::new(),
         });
     }
 
@@ -223,7 +165,7 @@ pub fn load_time_slots(
 
         let dept_in = dept_clause(departments, &vec!["department".into()], true);
         let mut stmt = db.prepare(&format!("
-                SELECT DISTINCT time_slot
+                SELECT time_slot
                 FROM active_time_slots
                 {}
                 ORDER BY duration * LENGTH(days), first_day, start_time, duration",
@@ -299,7 +241,6 @@ pub fn load_time_slots(
                 start_time,
                 duration,
                 conflicts,
-                tags: Vec::new(),
             });
         }
     }
@@ -321,120 +262,52 @@ pub fn load_time_slots(
 pub fn load_sections(
     db: &mut Connection,
     solver: &mut Solver,
-    cross_listings: &HashMap<String, String>,
     departments: &Vec<String>,
 ) -> Result<(), String> {
     // load and create sections and their time slots
     {
-        fn intersect_twp_keep_worst(a: &Vec<TimeWithPenalty>, b: &Vec<TimeWithPenalty>) -> Vec<TimeWithPenalty> {
-            let mut combined = Vec::new();
-            for &TimeWithPenalty{ time_slot, penalty } in a {
-                match b.iter().position(|elt| elt.time_slot == time_slot) {
-                    Some(i) => combined.push(TimeWithPenalty{ time_slot, penalty: std::cmp::max(b[i].penalty, penalty)}),
-                    None => (),
-                }
-            }
-            combined
-        }
         let dept_in = dept_clause(departments, &vec!["department".into()], true);
-        let mut stmt = db
-            .prepare(&format!("
+        let mut stmt = db.prepare(&format!("
                     SELECT section, time_slot, time_slot_penalty
                     FROM active_section_time_slots
                     {}
                     ORDER BY section", dept_in)).map_err(sql_err)?;
         let mut rows = stmt.query(rusqlite::params_from_iter(departments)).map_err(sql_err)?;
 
-        let mut prev_name = String::new();
-        let mut times_with_penalties = Vec::new();
-
+        let mut section_name = String::new();
         while let Some(row) = rows.next().map_err(sql_err)? {
-            let name: String = row.get_unwrap(0);
+            let new_section_name: String = row.get_unwrap(0);
+            let time_slot_name: String = row.get_unwrap(1);
+            let penalty: isize = row.get_unwrap(2);
 
-            if name != prev_name {
-                if !cross_listings.contains_key(&name) {
-                    // create a new section, times to be filled in later
-                    let (prefix, course, Some(section)) = parse_section_name(&name)? else {
-                        return Err(format!("section name {name} must include prefix, course, and section, like 'CS 1400-01'"));
-                    };
-
-                    solver.input_sections.push(InputSection {
-                        prefix,
-                        course,
-                        section,
-                        instructors: Vec::new(),
-                        rooms: Vec::new(),
-                        time_slots: Vec::new(),
-                        hard_conflicts: Vec::new(),
-                        soft_conflicts: Vec::new(),
-                        coreqs: Vec::new(),
-                        prereqs: Vec::new(),
-                    });
-                }
-
-                // note: this is an exact clone of the final section closeout code
-                if !times_with_penalties.is_empty() {
-                    // close out the previous section
-                    if cross_listings.contains_key(&prev_name) {
-                        // merge this with the canonical section
-                        let canonical = cross_listings.get(&prev_name).unwrap().clone();
-                        let index = find_section_by_name(solver, &canonical)?;
-                        let time_slots = intersect_twp_keep_worst(&times_with_penalties, &solver.input_sections[index].time_slots);
-                        if time_slots.is_empty() {
-                            return Err(format!("section {prev_name} is cross-listed with {canonical} but they have no time slots in common"));
-                        }
-                        solver.input_sections[index].time_slots = time_slots;
-                    } else {
-                        let index = find_section_by_name(solver, &prev_name)?;
-                        solver.input_sections[index].time_slots = times_with_penalties.clone();
-                    }
-                }
-
-                prev_name = name.clone();
-                times_with_penalties.clear();
+            // is this a new section?
+            if new_section_name != section_name {
+                section_name = new_section_name.clone();
+                solver.input_sections.push(InputSection {
+                    name: new_section_name,
+                    instructors: Vec::new(),
+                    rooms: Vec::new(),
+                    time_slots: Vec::new(),
+                    hard_conflicts: Vec::new(),
+                    soft_conflicts: Vec::new(),
+                    coreqs: Vec::new(),
+                    prereqs: Vec::new(),
+                });
             }
 
-            let time_slot_name: String = row.get_unwrap(1);
             let time_slot = solver
                 .time_slots
                 .iter()
                 .position(|elt| elt.name == time_slot_name)
                 .unwrap();
-            let penalty: isize = row.get_unwrap(2);
-            times_with_penalties.push(TimeWithPenalty { time_slot, penalty });
-        }
-
-        // handle the last section: this is an exact clone of the code above
-        if !times_with_penalties.is_empty() {
-            // close out the previous section
-            if cross_listings.contains_key(&prev_name) {
-                // merge this with the canonical section
-                let canonical = cross_listings.get(&prev_name).unwrap().clone();
-                let index = find_section_by_name(solver, &canonical)?;
-                let time_slots = intersect_twp_keep_worst(&times_with_penalties, &solver.input_sections[index].time_slots);
-                if time_slots.is_empty() {
-                    return Err(format!("section {prev_name} is cross-listed with {canonical} but they have no time slots in common"));
-                }
-                solver.input_sections[index].time_slots = time_slots;
-            } else {
-                let index = find_section_by_name(solver, &prev_name)?;
-                solver.input_sections[index].time_slots = times_with_penalties.clone();
-            }
+            let len = solver.input_sections.len();
+            solver.input_sections[len - 1]
+                .time_slots.push(TimeWithPenalty { time_slot, penalty });
         }
     }
 
     // add rooms
     {
-        fn intersect_rwp_keep_worst(a: &Vec<RoomWithPenalty>, b: &Vec<RoomWithPenalty>) -> Vec<RoomWithPenalty> {
-            let mut combined = Vec::new();
-            for &RoomWithPenalty{ room, penalty } in a {
-                match b.iter().position(|elt| elt.room == room) {
-                    Some(i) => combined.push(RoomWithPenalty{ room, penalty: std::cmp::max(b[i].penalty, penalty)}),
-                    None => (),
-                }
-            }
-            combined
-        }
         let dept_in = dept_clause(departments, &vec!["department".into()], true);
         let mut stmt = db.prepare(&format!("
                     SELECT section, room, room_penalty
@@ -443,60 +316,30 @@ pub fn load_sections(
                     ORDER BY section", dept_in)).map_err(sql_err)?;
         let mut rows = stmt.query(rusqlite::params_from_iter(departments)) .map_err(sql_err)?;
 
-        let mut prev_name = String::new();
-        let mut rooms_with_penalties = Vec::new();
+        let mut section_name = String::new();
+        let mut section_index = None;
 
         while let Some(row) = rows.next().map_err(sql_err)? {
-            let name: String = row.get_unwrap(0);
+            let new_section_name: String = row.get_unwrap(0);
+            let room_name: String = row.get_unwrap(1);
+            let penalty: isize = row.get_unwrap(2);
 
-            // look up the section if it is different than the previous one
-            if name != prev_name {
-                // close out the previous section: note same code is cloned below
-                if !rooms_with_penalties.is_empty() {
-                    if cross_listings.contains_key(&prev_name) {
-                        // merge this with the canonical section
-                        let canonical = cross_listings.get(&prev_name).unwrap().clone();
-                        let index = find_section_by_name(solver, &canonical)?;
-                        let rooms = intersect_rwp_keep_worst(&rooms_with_penalties, &solver.input_sections[index].rooms);
-                        if rooms.is_empty() {
-                            return Err(format!("section {prev_name} is cross-listed with {canonical} but they have no rooms in common"));
-                        }
-                        solver.input_sections[index].rooms = rooms;
-                    } else {
-                        let index = find_section_by_name(solver, &prev_name)?;
-                        solver.input_sections[index].rooms = rooms_with_penalties.clone();
-                    }
+            if new_section_name != section_name {
+                let mut index = section_index.unwrap_or(0);
+                while solver.input_sections[index].name != new_section_name {
+                    index += 1;
                 }
-
-                prev_name = name.clone();
-                rooms_with_penalties.clear();
+                section_name = new_section_name;
+                section_index = Some(index);
             }
 
-            let room_name: String = row.get_unwrap(1);
             let room = solver
                 .rooms
                 .iter()
                 .position(|elt| elt.name == room_name)
                 .unwrap();
-            let penalty: isize = row.get_unwrap(2);
-            rooms_with_penalties.push(RoomWithPenalty { room, penalty });
-        }
-
-        // close out the last section: note same code is cloned above
-        if !rooms_with_penalties.is_empty() {
-            if cross_listings.contains_key(&prev_name) {
-                // merge this with the canonical section
-                let canonical = cross_listings.get(&prev_name).unwrap().clone();
-                let index = find_section_by_name(solver, &canonical)?;
-                let rooms = intersect_rwp_keep_worst(&rooms_with_penalties, &solver.input_sections[index].rooms);
-                if rooms.is_empty() {
-                    return Err(format!("section {prev_name} is cross-listed with {canonical} but they have no rooms in common"));
-                }
-                solver.input_sections[index].rooms = rooms;
-            } else {
-                let index = find_section_by_name(solver, &prev_name)?;
-                solver.input_sections[index].rooms = rooms_with_penalties.clone();
-            }
+            solver.input_sections[section_index.unwrap()]
+                .rooms.push(RoomWithPenalty { room, penalty });
         }
     }
 
@@ -508,7 +351,7 @@ pub fn load_sections(
 // e.g.: specifying CS 101 and CS 102 will set the conflict between every
 // section of CS 101 vs every CS 102, but not between the individual
 // sections of CS 101 nor between the individual sections of CS 102
-pub fn load_conflicts(db: &mut Connection, solver: &mut Solver, cross_listings: &HashMap<String, String>, departments: &Vec<String>) -> Result<(), String> {
+pub fn load_conflicts(db: &mut Connection, solver: &mut Solver, departments: &Vec<String>) -> Result<(), String> {
     // load and merge conflicts for all programs
     let dept_in = dept_clause(departments, &vec!["department".into()], true);
     let mut stmt = db.prepare(&format!("
@@ -566,10 +409,7 @@ pub fn load_conflicts(db: &mut Connection, solver: &mut Solver, cross_listings: 
         clique.maximize = maximize;
         course_name = new_course;
 
-        let index = match cross_listings.get(&section) {
-            Some(canonical) => find_section_by_name(solver, &canonical)?,
-            None => find_section_by_name(solver, &section)?,
-        };
+        let index = find_section_by_name(solver, &section)?;
         sections_in_course.push(index);
     }
 
@@ -636,7 +476,6 @@ pub fn load_conflicts(db: &mut Connection, solver: &mut Solver, cross_listings: 
 pub fn load_prereqs(
     db: &mut Connection,
     solver: &mut Solver,
-    cross_listings: &HashMap<String, String>,
     departments: &Vec<String>,
 ) -> Result<(), String> {
     // add prereqs
@@ -656,16 +495,8 @@ pub fn load_prereqs(
             .map_err(sql_err)?;
 
         while let Some(row) = rows.next().map_err(sql_err)? {
-            let mut section: String = row.get_unwrap(0);
-            let mut prereq: String = row.get_unwrap(1);
-            match cross_listings.get(&section) {
-                Some(canonical) => section = canonical.clone(),
-                None => (),
-            }
-            match cross_listings.get(&prereq) {
-                Some(canonical) => prereq = canonical.clone(),
-                None => (),
-            }
+            let section: String = row.get_unwrap(0);
+            let prereq: String = row.get_unwrap(1);
 
             let index = find_section_by_name(solver, &section)?;
             let prereq_index = find_section_by_name(solver, &prereq)?;
@@ -690,16 +521,8 @@ pub fn load_prereqs(
             .map_err(sql_err)?;
 
         while let Some(row) = rows.next().map_err(sql_err)? {
-            let mut section: String = row.get_unwrap(0);
-            let mut coreq: String = row.get_unwrap(1);
-            match cross_listings.get(&section) {
-                Some(canonical) => section = canonical.clone(),
-                None => (),
-            }
-            match cross_listings.get(&coreq) {
-                Some(canonical) => coreq = canonical.clone(),
-                None => (),
-            }
+            let section: String = row.get_unwrap(0);
+            let coreq: String = row.get_unwrap(1);
 
             let index = find_section_by_name(solver, &section)?;
             let coreq_index = find_section_by_name(solver, &coreq)?;
@@ -782,8 +605,10 @@ pub fn load_prereqs(
 
 //
 // TODO: does not handle cross listings
-// TODO: only sections with hard conflicts between them (or online) count
+// TODO: only sections with hard conflicts between them (or online) count. count + explicit
+// overrides?
 //
+/*
 pub fn discount_multiple_sections(db: &mut Connection, solver: &mut Solver, cross_listings: &HashMap<String, String>, departments: &Vec<String>) -> Result<(), String> {
     // discount conflicts for courses with multiple sections
     let threshold = 30;
@@ -827,11 +652,11 @@ pub fn discount_multiple_sections(db: &mut Connection, solver: &mut Solver, cros
 
     Ok(())
 }
+*/
 
 pub fn load_anti_conflicts(
     db: &mut Connection,
     solver: &mut Solver,
-    cross_listings: &HashMap<String, String>,
     departments: &Vec<String>,
 ) -> Result<(), String> {
     let dept_in = dept_clause(departments, &vec!["single_department".into(), "group_department".into()], true);
@@ -848,36 +673,25 @@ pub fn load_anti_conflicts(
         .query(rusqlite::params_from_iter(departments_x2))
         .map_err(sql_err)?;
 
-    let mut all_canonicals = Vec::new();
     let mut single_name = String::new();
-    let mut canonical_name = String::new();
     let mut group = Vec::new();
     let mut penalty = 0;
 
     while let Some(row) = rows.next().map_err(sql_err)? {
         let new_single_name: String = row.get_unwrap(0);
-        let mut other_name: String = row.get_unwrap(1);
-        match cross_listings.get(&other_name) {
-            Some(canonical) => other_name = canonical.clone(),
-            None => (),
-        };
-        if other_name == canonical_name {
-            return Err(format!("cross listing led to anticonflict single entry {canonical_name} appearing in its own group list"));
-        }
+        let other_name: String = row.get_unwrap(1);
         let other = find_section_by_name(solver, &other_name)?;
         let pen: isize = row.get_unwrap(2);
 
         // start a new anti conflict
-        // note: track using the original name, not the canonical name
-        // to ensure accurate groupings
         if new_single_name != single_name {
             // close the previous one out
-            if !single_name.is_empty() && !group.is_empty() {
+            if !group.is_empty() {
                 group.sort();
                 group.dedup();
                 let entry = (
                     penalty,
-                    find_section_by_name(solver, &canonical_name)?,
+                    find_section_by_name(solver, &single_name)?,
                     std::mem::take(&mut group),
                 );
                 solver.anticonflicts.push(entry);
@@ -885,24 +699,16 @@ pub fn load_anti_conflicts(
 
             // start a new one
             single_name = new_single_name;
-            canonical_name = match cross_listings.get(&single_name) {
-                Some(canonical) => canonical.clone(),
-                None => single_name.clone(),
-            };
-            if all_canonicals.contains(&canonical_name) {
-                return Err(format!("cross listings led to two anticonflict entries for {canonical_name}"));
-            }
-            all_canonicals.push(canonical_name.clone());
             penalty = pen;
         }
         group.push(other);
     }
 
     // close the final one out
-    if !canonical_name.is_empty() && !group.is_empty() {
+    if !group.is_empty() {
         let entry = (
             penalty,
-            find_section_by_name(solver, &canonical_name)?,
+            find_section_by_name(solver, &single_name)?,
             std::mem::take(&mut group),
         );
         solver.anticonflicts.push(entry);
@@ -920,7 +726,7 @@ pub fn load_faculty(
     {
         let dept_in = dept_clause(departments, &vec!["department".into()], true);
         let mut stmt = db.prepare(&format!("
-                SELECT DISTINCT faculty, day_of_week, start_time, start_time + duration AS end_time, availability_penalty
+                SELECT faculty, day_of_week, start_time, start_time + duration AS end_time, availability_penalty
                 FROM active_faculty_availability
                 {}
                 ORDER BY faculty", dept_in)).map_err(sql_err)?;
@@ -983,9 +789,9 @@ pub fn load_faculty(
     {
         let dept_in = dept_clause(departments, &vec!["department".into()], true);
         let mut stmt = db.prepare(&format!("
-                SELECT DISTINCT faculty,
-                                days_to_check, days_off, days_off_penalty, evenly_spread_penalty, max_gap_within_cluster,
-                                is_cluster, is_too_short, interval_minutes, interval_penalty
+                SELECT  faculty,
+                        days_to_check, days_off, days_off_penalty, evenly_spread_penalty, max_gap_within_cluster,
+                        is_cluster, is_too_short, interval_minutes, interval_penalty
                 FROM active_faculty_preference_intervals
                 {}
                 ORDER BY faculty", dept_in)).map_err(sql_err)?;
@@ -1096,7 +902,6 @@ pub fn load_faculty(
 pub fn load_faculty_section_assignments(
     db: &mut Connection,
     solver: &mut Solver,
-    cross_listings: &HashMap<String, String>,
     departments: &Vec<String>,
 ) -> Result<(), String> {
     // link sections to faculty
@@ -1117,11 +922,7 @@ pub fn load_faculty_section_assignments(
 
         while let Some(row) = rows.next().map_err(sql_err)? {
             let name: String = row.get_unwrap(0);
-            let mut section_name: String = row.get_unwrap(1);
-            match cross_listings.get(&section_name) {
-                Some(canonical) => section_name = canonical.clone(),
-                None => (),
-            }
+            let section_name: String = row.get_unwrap(1);
 
             // look up the faculty if it is different than the previous one
             if name != faculty_name {

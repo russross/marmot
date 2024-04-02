@@ -15,25 +15,22 @@ pub fn find_room_by_name(solver: &Solver, name: &str) -> Result<usize, String> {
     Ok(i)
 }
 
-pub fn find_section_by_name(solver: &Solver, section_raw: &String) -> Result<usize, String> {
-    let (prefix, course, Some(section)) = parse_section_name(&section_raw)? else {
-        return Err(format!("section name {section_raw} must include prefix, course, and section, like 'CS 1400-01'"));
+pub fn find_section_by_name(solver: &Solver, name: &str) -> Result<usize, String> {
+    let Some(i) = solver.input_sections.iter().position(|elt| elt.name == *name) else {
+        return Err(format!("section named \"{}\" not found", name));
     };
-    solver
-        .input_sections
-        .iter()
-        .position(|elt| elt.prefix == prefix && elt.course == course && elt.section == section)
-        .ok_or("could not find section".into())
+    Ok(i)
 }
 
 pub fn find_sections_by_name(solver: &Solver, course_raw: &str) -> Result<Vec<usize>, String> {
     let (prefix, course, section) = parse_section_name(course_raw)?;
     let mut list = Vec::new();
     solver.input_sections.iter().enumerate().for_each(|(i, s)| {
-        if s.prefix == *prefix && s.course == *course {
+        let (elt_prefix, elt_course, elt_section) = parse_section_name(&s.name).unwrap();
+        if elt_prefix == *prefix && elt_course == *course {
             match &section {
                 None => list.push(i),
-                Some(name) if *name == s.section => list.push(i),
+                Some(name) if *name == elt_section.unwrap() => list.push(i),
                 _ => (),
             }
         }
@@ -128,8 +125,6 @@ pub fn parse_date(s: String) -> Result<time::Date, String> {
 #[derive(Clone)]
 pub struct Room {
     pub name: String,
-    pub capacity: u16,
-    pub tags: Vec<String>,
 }
 
 #[derive(Clone)]
@@ -143,7 +138,6 @@ pub struct TimeSlot {
     // a list of all overlapping time slots
     // a time slot IS always in its own conflict list
     pub conflicts: Vec<usize>,
-    pub tags: Vec<String>,
 }
 
 #[derive(Clone)]
@@ -252,12 +246,8 @@ pub enum DurationWithPenalty {
 
 #[derive(Clone)]
 pub struct InputSection {
-    // prefix, e.g.: "CS"
-    pub prefix: String,
-    // course name, e.g.: "2810"
-    pub course: String,
-    // section name, e.g.: "01"
-    pub section: String,
+    // e.g.,: "CS 1410-02"
+    pub name: String,
 
     // instructors assigned to this section
     pub instructors: Vec<usize>,
@@ -316,9 +306,5 @@ impl InputSection {
                 }),
             }
         }
-    }
-
-    pub fn get_name(&self) -> String {
-        format!("{} {}-{}", self.prefix, self.course, self.section)
     }
 }

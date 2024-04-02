@@ -890,7 +890,7 @@ impl Solver {
                 name_len =
                     std::cmp::max(name_len, self.instructors[instructor].name.len() + 1 + plus);
             }
-            name_len = std::cmp::max(name_len, section.get_name().len());
+            name_len = std::cmp::max(name_len, section.name.len());
         }
 
         for room in &self.rooms {
@@ -948,8 +948,7 @@ impl Solver {
                     self.room_placements[room_i].time_slot_placements[time_slot_i]
                 {
                     let section = &self.input_sections[section_i];
-                    let name = section.get_name();
-                    print!("| {:<width$} ", name, width = name_len);
+                    print!("| {:<width$} ", section.name, width = name_len);
                 } else {
                     print!("| {:name_len$} ", "");
                 }
@@ -989,11 +988,12 @@ impl Solver {
             comma = ",";
 
             // names
-            list.push(self.input_sections[i].get_name());
+            list.push(self.input_sections[i].name.clone());
             writeln!(w, "        \"names\": [{}],", join(&mut list)).unwrap();
 
             // prefixes
-            list.push(self.input_sections[i].prefix.clone());
+            let (prefix, _course, _section) = parse_section_name(&self.input_sections[i].name).unwrap();
+            list.push(prefix);
             writeln!(w, "        \"prefixes\": [{}],", join(&mut list)).unwrap();
 
             // instuctors
@@ -1089,7 +1089,7 @@ pub fn solve(solver: &mut Solver, iterations: usize) {
             println!(
                 "picked section {}: {}",
                 section,
-                solver.input_sections[section].get_name()
+                solver.input_sections[section].name
             );
         }
         let room_time = solver.select_room_time_to_place(section);
@@ -1110,7 +1110,7 @@ pub fn solve(solver: &mut Solver, iterations: usize) {
                         println!(
                             "--> displaced {}: {} from {} at {} penalty {}",
                             *displaced,
-                            solver.input_sections[*displaced].get_name(),
+                            solver.input_sections[*displaced].name,
                             solver.rooms[rtp.room].name,
                             solver.time_slots[rtp.time_slot].name,
                             rtp.penalty
@@ -1158,14 +1158,14 @@ pub fn solve(solver: &mut Solver, iterations: usize) {
                         if section.placement.is_some() {
                             continue;
                         }
-                        print!("unplaced: {}", solver.input_sections[i].get_name());
+                        print!("unplaced: {}", solver.input_sections[i].name);
 
                         // report who displaces this section the most
                         let lst = evicted_by.get_top_evictors(i, 5);
                         if !lst.is_empty() {
                             print!(" displaced by");
                             for (sec, count) in lst {
-                                print!(" {}×{}", solver.input_sections[sec].get_name(), count);
+                                print!(" {}×{}", solver.input_sections[sec].name, count);
                             }
                         }
                         println!();

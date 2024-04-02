@@ -17,6 +17,8 @@ def cli(ctx):
     conn.execute("PRAGMA journal_mode = MEMORY")
     conn.execute("PRAGMA locking_mode = NORMAL")
     conn.execute("PRAGMA synchronous = OFF")
+    conn.execute("PRAGMA temp_store = MEMORY");
+    conn.execute("PRAGMA mmap_size = 100000000");
     ctx.obj = ctx.with_resource(conn)
 
 @cli.command()

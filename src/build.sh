@@ -3130,4 +3130,5 @@ echo building cset sections
 ./edit add-cross-listing 'BIOL 3030-01' 'BIOL 3030-02'
 ./edit add-cross-listing 'BTEC 2050-01' 'BTEC 2050-02'
 
+sqlite3 timetable.db vacuum
 sqlite3 timetable.db analyze
