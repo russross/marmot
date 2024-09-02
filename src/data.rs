@@ -940,14 +940,16 @@ pub fn load_faculty_section_assignments(
 
             // intersect faculty availability with section time slots
             // note: this combines instructor and section time penalties
-            let mut time_slots = Vec::new();
-            for &TimeWithPenalty{ time_slot, penalty } in &solver.input_sections[section_index].time_slots {
+            let old_time_slots = std::mem::take(&mut solver.input_sections[section_index].time_slots);
+            for &TimeWithPenalty{ time_slot, penalty } in &old_time_slots {
                 match solver.instructors[faculty_index].get_time_slot_penalty(&solver.time_slots[time_slot]) {
-                    Some(pen) => time_slots.push(TimeWithPenalty{ time_slot, penalty: std::cmp::min(99, pen + penalty) }),
+                    Some(pen) => solver.input_sections[section_index].time_slots.push(
+                        TimeWithPenalty{ time_slot, penalty: std::cmp::min(99, pen + penalty) }
+                    ),
                     None => (),
                 }
             }
-            if time_slots.is_empty() {
+            if solver.input_sections[section_index].time_slots.is_empty() {
                 return Err(format!("assigning faculty {faculty_name} to section {section_name} left not viable time slots"));
             }
         }

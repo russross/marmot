@@ -1,3 +1,6 @@
+PRAGMA encoding = 'UTF-8';
+
+
 CREATE TABLE terms (
     term                        TEXT NOT NULL,
     start_date                  DATE NOT NULL,
@@ -349,6 +352,15 @@ CREATE TABLE conflict_sections (
     FOREIGN KEY (term, program, conflict_name) REFERENCES conflicts (term, program, conflict_name) ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (term, section) REFERENCES sections (term, section) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
+
+-- TODO
+CREATE TABLE multiple_section_overrides (
+    term                        TEXT NOT NULL,
+    course                      TEXT NOT NULL,
+    section_count               INTEGER NOT NULL,
+
+    PRIMARY KEY (term, course),
+    FOREIGN KEY (term, course) REFERENCES courses (term, course) ON DELETE CASCADE ON UPDATE CASCADE) WITHOUT ROWID;
 
 CREATE VIEW active_holidays (term, holiday) AS
     SELECT term, holiday

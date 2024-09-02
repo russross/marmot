@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
+import apsw
 import contextlib
 import click
-import sqlite3
 import sys
 
 DB_FILE = 'timetable.db'
@@ -10,16 +10,15 @@ DB_FILE = 'timetable.db'
 @click.group()
 @click.pass_context
 def cli(ctx):
-    conn = sqlite3.connect(f'file:{DB_FILE}?mode=rw', uri=True)
-    conn.execute("PRAGMA busy_timeout = 10000")
-    conn.execute("PRAGMA encoding = 'UTF-8'")
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA journal_mode = MEMORY")
-    conn.execute("PRAGMA locking_mode = NORMAL")
-    conn.execute("PRAGMA synchronous = OFF")
-    conn.execute("PRAGMA temp_store = MEMORY");
-    conn.execute("PRAGMA mmap_size = 100000000");
-    ctx.obj = ctx.with_resource(conn)
+    db = apsw.Connection(DB_FILE, flags=apsw.SQLITE_OPEN_READWRITE)
+    db.execute('PRAGMA busy_timeout = 10000')
+    db.execute('PRAGMA foreign_keys = ON')
+    db.execute('PRAGMA journal_mode = MEMORY')
+    db.execute('PRAGMA locking_mode = NORMAL')
+    db.execute('PRAGMA synchronous = OFF')
+    db.execute('PRAGMA temp_store = MEMORY')
+    db.execute('PRAGMA mmap_size = 100000000')
+    ctx.obj = ctx.with_resource(db)
 
 @cli.command()
 @click.argument('term')
@@ -303,7 +302,7 @@ def make_conflict(db, program, conflict_name, conflict_penalty, maximize, course
 
 try:
     cli()
-except sqlite3.Error as e:
+except apsw.Error as e:
     cmd = sys.argv[0]
     for elt in sys.argv[1:]:
         if len([ch for ch in elt if not ch.isalpha() and not ch.isdigit()]) > 0:
