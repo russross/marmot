@@ -32,6 +32,7 @@ pub fn setup() -> Result<Solver, String> {
     load_conflicts(&mut db, &mut solver, &departments)?;
     load_prereqs(&mut db, &mut solver, &departments)?;
     //discount_multiple_sections(&mut db, &mut solver, &departments)?;
+    discount_multiple_sections(&mut solver)?;
     load_anti_conflicts(&mut db, &mut solver, &departments)?;
 
     println!("loading faculty");
@@ -653,6 +654,51 @@ pub fn discount_multiple_sections(db: &mut Connection, solver: &mut Solver, cros
     Ok(())
 }
 */
+
+// hard-coded list of sections that are discounted because they have multiple sections
+pub fn discount_multiple_sections(solver: &mut Solver) -> Result<(), String> {
+    let threshold = 30;
+    let list = vec![
+        ("CS 1400", 4),
+        ("CS 1410", 2),
+        ("CS 2450", 2),
+        ("CS 2810", 2),
+        ("CS 3005", 2),
+
+        ("IT 1100", 3),
+        ("IT 2300", 2),
+
+        ("SE 1400", 4),
+    ];
+
+    for (course, count) in &list {
+        let course_list = find_sections_by_name(solver, &course.to_string())?;
+        for sec_i in course_list {
+            let others: Vec<usize> = solver.input_sections[sec_i]
+                .soft_conflicts
+                .iter()
+                .map(|elt| elt.section)
+                .collect();
+            for other in others {
+                let old_score = solver.input_sections[sec_i].get_conflict(other);
+                if old_score >= 100 || old_score <= 0 {
+                    continue;
+                }
+                let mut new_score =
+                    (solver.input_sections[sec_i].get_conflict(other) - 1) / (count + 1);
+                if new_score < threshold {
+                    new_score = 0;
+                }
+
+                // set in both directions
+                solver.input_sections[sec_i].set_conflict(other, new_score);
+                solver.input_sections[other].set_conflict(sec_i, new_score);
+            }
+        }
+    }
+
+    Ok(())
+}
 
 pub fn load_anti_conflicts(
     db: &mut Connection,

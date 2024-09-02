@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+
+from pyquery import PyQuery as pq
+
+prefixes = {
+#    'BIOL':     'Biology',
+#    'BTEC':     'Biology',
+#    'CHEM':     'Chemistry',
+    'CS':       'Computing',
+#    'DES':      'Design',
+#    'ECE':      'Engineering',
+#    'ENER':     'Earth',
+#    'ENGR':     'Engineering',
+#    'ENVS':     'Earth',
+#    'GEOG':     'Earth',
+#    'GEO':      'Earth',
+    'IT':       'Computing',
+#    'IXD':      'Design',
+    'MATH':     'Math',
+#    'MECH':     'Engineering',
+#    'MTRN':     'Engineering',
+#    'PHYS':     'Engineering',
+#    'SCI':      'Biology',
+    'SE':       'Computing',
+} 
+
+pages = [ 'cs', 'it', 'math', 'se' ]
+#pages = [ 'biol', 'btech', 'chem', 'cs', 'des', 'ece', 'ener', 'engr', 'envs',
+#    'geog', 'geo', 'it', 'ixd', 'math', 'mech', 'mtrn', 'phys', 'sci', 'se' ]
+
+courses = {}
+
+def crawl_prefix(prefix):
+    page = pq(url=f'https://catalog.utahtech.edu/courses/{prefix}/')
+    for div in page('.courseblock'):
+        title = pq(div).find('p.courseblocktitle strong')[0]
+        (course, title, hours) = title.text_content().split('.  ')
+        hours = hours[:-1]
+
+        desc = pq(div).find('p.courseblockdesc')
+        desc_html = desc.html()
+        pre_start = desc_html.find('Prerequisites:')
+        if pre_start < 0: pre_start = desc_html.find('Prerequisite:')
+        if pre_start >= 0:
+            pre = desc_html[pre_start:]
+            pre = pre[pre.find(':'):]
+            pre = pre[:pre.find('.')]
+            pre = [ elt.text for elt in pq(pre).find('a.bubblelink.code') ]
+        else:
+            pre = []
+
+        co_start = desc_html.find('Corequisites:')
+        if co_start < 0: co_start = desc_html.find('Corequisite:')
+        if co_start >= 0:
+            co = desc_html[co_start:]
+            co = co[co.find(':'):]
+            co = co[:co.find('.')]
+            co = [ elt.text for elt in pq(co).find('a.bubblelink.code') ]
+        else:
+            co = []
+
+        courses[course] = {
+            'title': title,
+            'pre': pre,
+            'co': co,
+        }
+
+depts = set()
+print('set -e')
+print()
+print('echo building departments')
+for dept in sorted(set(prefixes.values())):
+    print(f'./edit make-department {dept}')
+
+for page in pages:
+    crawl_prefix(page)
+
+#
+# corrections
+#
+
+patches = {
+    'CS 2810': { 'co': ['CS 1410'] },
+    'CS 3530': { 'co': ['CS 2100'] },
+    'CS 4600': { 'pre': ['CS 2420', 'CS 2810', 'CS 3005'] },
+    'IT 2400': { 'co': ['IT 1100', 'IT 1500'] },
+    'IT 4600': { 'pre': ['CS 1410', 'IT 2400'] },
+    'SE 3200': { 'pre': ['CS 2810'] },
+    'SE 4600': { 'pre': ['CS 2420', 'CS 2450', 'CS 2810', 'CS 3005', 'SE 1400', 'SE 3200'] },
+    'MATH 2250': { 'pre': ['MATH 1220'] },
+    'MATH 3020': { 'pre': ['MATH 1210'] },
+}
+for (name, patch) in patches.items():
+    if name not in courses: continue
+    for (kind, lst) in patch.items():
+        for elt in lst:
+            if elt not in courses[name][kind]:
+                courses[name][kind].append(elt)
+
+print()
+print('echo building courses')
+for name in sorted(courses.keys()):
+    data = courses[name]
+    title = data['title']
+    dept = prefixes[name[:name.index(' ')]]
+    print(f'./edit make-course {dept} {repr(name)} {repr(title)}')
+
+def filter_courses(lst, context):
+    filtered = []
+    prefix = ''
+    for elt in lst:
+        if elt in filtered:
+            continue
+        if ' ' in elt:
+            prefix = elt[:elt.index(' ')]
+        if elt in courses:
+            filtered.append(elt)
+        elif f'{prefix} {elt}' in courses:
+            filtered.append(f'{prefix} {elt}')
+        else:
+            if prefix in prefixes:
+                print(f'course {repr(elt)} not found for course {context}')
+
+    return filtered
+
+print()
+print('echo adding prereqs')
+for (name, data) in sorted(courses.items()):
+    lst = filter_courses(data['pre'], name)
+    if len(lst) == 0:
+        continue
+    s = f'./edit add-prereqs {repr(name)}'
+    for elt in lst:
+        s += f' {repr(elt)}'
+    print(s)
+
+print()
+print('echo adding coreqs')
+for (name, data) in sorted(courses.items()):
+    lst = filter_courses(data['co'], name)
+    if len(lst) == 0:
+        continue
+    s = f'./edit add-coreqs {repr(name)}'
+    for elt in lst:
+        s += f' {repr(elt)}'
+    print(s)
