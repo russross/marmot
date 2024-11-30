@@ -1,0 +1,269 @@
+#!/usr/bin/env python3
+
+PREVIOUS_FILE = 'previous.csv'
+CURRENT_JSON = 'schedule.json'
+NEW_CSV = 'updated.csv'
+MINUTE_MAP = {
+    'MW': 75,
+    'TR': 75,
+    'MWF': 50,
+    'M': 150,
+    'T': 150,
+    'W': 150,
+    'R': 50,
+    'F': 50,
+}
+CAPACITY_MAP = {
+    '107': 32,
+    '108': 32,
+    '109': 32,
+    '112': 24,
+    '113': 24,
+    '116': 38,
+    '117': 38,
+}
+FACULTY_IDS = {
+    'Bart Stander':     '00003379',
+    'Bob Nielson':      '00145686',
+    'Carol Stander':    '00004136',
+    'Curtis Larsen':    '00003064',
+    'DJ Holt':          '00005694',
+    'Eric Pedersen':    '00002139',
+    'Jay Sneddon':      '00336758',
+    'Joe Francom':      '00003177',
+    'Lora Klein':       '00264610',
+    'Matt Kearl':       '00117731',
+    'Phil Daley':       '00227773',
+    'Ren Quinn':        '00171908',
+    'Rex Frisbey':      '00111327',
+    'Russ Ross':        '00051975',
+    'Tom Picklesimer':  '00131833',
+}
+BUILDING = 'SMITH'
+
+# columns
+CRN=0
+FID=1
+LNAME=2
+FNAME=3
+SUBJECT=6
+COURSE=7
+SECTION=8
+TITLE=9
+CAMPUS=10
+ACTIVE=11
+LEC=12
+DELIVERY=13
+SESSION=14
+CREDITS=15
+WLF=16
+BUD=17
+DAYS=19
+BEGTIME=20
+ENDTIME=21
+CAP=22
+ENROLL=23
+WAITCAP=24
+WAITACT=25
+BLDG=26
+ROOM=27
+XLIST=28
+
+import csv
+import json
+import sys
+
+def get_old(filename):
+    result = []
+    with open(filename) as fp:
+        reader = csv.reader(fp)
+        for row in reader:
+            result.append(row)
+    return result
+
+def get_new(filename):
+    raw = None
+    with open(filename) as fp:
+        raw = json.load(fp)
+    result = []
+    for (name, courses) in raw.items():
+        for course in courses:
+            row = [name]
+            row.extend(course)
+            result.append(row)
+    return result
+
+def split_fields(row):
+    (raw_instructor, raw_course, raw_room, raw_time) = row
+    out = [''] * (XLIST+1)
+
+    if '.' in raw_instructor:
+        (fname, lname) = raw_instructor.split('.')
+    elif ' ' in raw_instructor:
+        (fname, lname) = raw_instructor.split()
+    else:
+        (fname, lname) = (raw_instructor, '')
+    if fname == 'adjunct':
+        (fname, lname) = (lname, '')
+    if fname == 'unknown':
+        (fname, lname) = ('', '')
+    (out[FNAME], out[LNAME]) = (fname, lname)
+
+    subject = ''
+    for (index, ch) in enumerate(raw_course):
+        if ch.isdigit():
+            (subject, course) = (raw_course[:index], raw_course[index:])
+            break
+    if subject not in ('CS', 'IT', 'SE', 'ZZ'):
+        print(repr(row))
+        print('unknown course prefix:', row)
+        sys.exit(1)
+    out[SUBJECT] = subject
+    out[COURSE] = course
+
+    (building, room) = (BUILDING, raw_room)
+    out[BLDG] = building
+    out[ROOM] = room
+
+    credits = '3'
+    out[CREDITS] = credits
+
+    days = ''
+    for (index, ch) in enumerate(raw_time):
+        if ch.isdigit():
+            (days, start) = (raw_time[:index], raw_time[index:])
+            break
+    if days not in ('MW', 'MWF', 'TR', 'M', 'T', 'W', 'R', 'F'):
+        print('unknown time prefix:', row)
+        sys.exit(1)
+    minutes = MINUTE_MAP[days]
+    if subject == 'CS' and course == '4991R':
+        start = '1900'
+        minutes = 50
+        credits = '0.5'
+    elif subject == 'CS' and course == '4992R':
+        start = '1300'
+        minutes = 50
+        credits = '1'
+        
+    start_hour = int(start[:2], 10)
+    start_minute = int(start[2:], 10)
+    end = start_minute + minutes
+    end_hour = start_hour + end//60
+    end_minute = end%60
+    end = f'{end_hour:02d}{end_minute:02d}'
+    out[DAYS] = days
+    out[BEGTIME] = start
+    out[ENDTIME] = end
+    out[CREDITS] = credits
+
+    if raw_room not in CAPACITY_MAP:
+        print('unknown room capacity:', row)
+        sys.exit(1)
+    capacity = CAPACITY_MAP[raw_room]
+    out[CAP] = str(capacity)
+
+    out[CAMPUS] = 'A01'
+    out[ACTIVE] = 'A'
+    out[LEC] = 'LEC'
+    out[DELIVERY] = 'P'
+    out[SESSION] = 1
+    out[WLF] = credits
+    out[BUD] = 'BA'
+    out[ENROLL] = '0'
+    out[WAITCAP] = '25'
+    out[WAITACT] = '0'
+
+    return out
+
+def merge(past, future):
+    out = [past[0]]
+    out[0].append('')
+    past = past[1:]
+    end_marker = future[-1][:]
+    end_marker[COURSE] = '9999'
+    past.append(end_marker)
+
+    prev_course = ('AA', '0000')
+    for frow in future:
+        this_course = (frow[SUBJECT], frow[COURSE])
+        if this_course == prev_course:
+            section += 1
+        else:
+            section = 1
+        if len(frow[DAYS]) == 1 and section < 50 and frow[DAYS] != 'F':
+            section = 50
+        prev_course = this_course
+        frow[SECTION] = f'{section:01d}'
+
+        prow = past[0]
+
+        # skip over leftovers from previous course
+        while (prow[SUBJECT], prow[COURSE]) < this_course:
+            if prow[CRN] == '':
+                pass
+            elif prow[SUBJECT] == 'IT' and prow[COURSE] in ('4060', '4070'):
+                prow.append('SKIP')
+            elif prow[SECTION].isdigit() and (int(prow[SECTION]) < 10 or int(prow[SECTION]) >= 50) and prow[LEC] == 'LEC':
+                prow.append('DELETE')
+            else:
+                prow.append('SKIP')
+            out.append(prow)
+            past = past[1:]
+            prow = past[0]
+
+        # match?
+        if (prow[SUBJECT], prow[COURSE]) == this_course:
+            if prow[SECTION] == frow[SECTION] or prow[SECTION].isdigit() and int(prow[SECTION]) < 20:
+                frow[CRN] = prow[CRN] # copy CRN
+                frow[TITLE] = prow[TITLE] # copy title
+                name = ' '.join([frow[FNAME], frow[LNAME]])
+                if name in FACULTY_IDS:
+                    frow[FID] = FACULTY_IDS[name]
+                frow.append(diff(prow, frow))
+                out.append(frow)
+                past = past[1:]
+                prow = past[0]
+                continue
+
+        # insert a new section?
+        frow.append('INSERT')
+        out.append(frow)
+        name = ' '.join([frow[FNAME], frow[LNAME]])
+        if name in FACULTY_IDS:
+            frow[FID] = FACULTY_IDS[name]
+
+    return out[:-1]
+
+def diff(left, right):
+    key = '....'
+    for i in range(4, len(left)):
+        if left[i] == right[i]:
+            key += '.'
+        else:
+            key += '*'
+    return key
+
+def time_key(raw_time):
+    days = ''
+    for (index, ch) in enumerate(raw_time):
+        if ch.isdigit():
+            (days, start) = (raw_time[:index], raw_time[index:])
+            break
+    if len(days) == 1:
+        return '~'+raw_time
+    else:
+        return raw_time
+
+def main():
+    old = get_old(PREVIOUS_FILE)
+    new = [split_fields(row) for row in get_new(CURRENT_JSON)]
+    new.append(split_fields(['', 'ZZ1111', '109', 'MWF0700']))
+    new.sort(key=lambda row: (row[SUBJECT], row[COURSE], row[DAYS] if len(row[DAYS]) > 1 else '~'+row[DAYS], row[BEGTIME]))
+    out = merge(old, new)
+    with open(NEW_CSV, 'w') as fp:
+        writer = csv.writer(fp, delimiter='\t', quoting=csv.QUOTE_ALL)
+        for row in out:
+            writer.writerow(row)
+
+main()

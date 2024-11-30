@@ -20,7 +20,7 @@ echo building term and holidays
 
 source courses.sh
 source computing.sh
-source math.sh
+#source math.sh
 
 sqlite3 timetable.db vacuum
 sqlite3 timetable.db analyze

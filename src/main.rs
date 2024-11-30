@@ -103,7 +103,7 @@ fn main() {
     place_static(&mut solver).unwrap();
     //dump_cs(&solver);
 
-    let iterations = 50_000;
+    let iterations = 0;
     solve(&mut solver, iterations);
 
 }

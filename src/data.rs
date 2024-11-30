@@ -7,8 +7,8 @@ use rusqlite::{Connection, OpenFlags, Result};
 const DB_PATH: &str = "timetable.db";
 
 pub fn setup() -> Result<Solver, String> {
-    let departments = vec!["Computing".to_string()];
-    //let departments = vec![];
+    //let departments = vec!["Computing".to_string(), "Math".to_string()];
+    let departments = vec![];
 
     let mut db = Connection::open_with_flags(
         DB_PATH,
@@ -661,14 +661,26 @@ pub fn discount_multiple_sections(solver: &mut Solver) -> Result<(), String> {
     let list = vec![
         ("CS 1400", 4),
         ("CS 1410", 2),
-        ("CS 2450", 2),
         ("CS 2810", 2),
         ("CS 3005", 2),
+        ("CS 3510", 2),
 
         ("IT 1100", 3),
         ("IT 2300", 2),
 
         ("SE 1400", 4),
+        //("SE 3200", 2),
+
+        ("MATH 0900", 7),
+        ("MATH 0980", 6),
+        ("MATH 1010", 6),
+        ("MATH 1030", 6),
+        ("MATH 1040", 13),
+        ("MATH 1050", 6),
+        ("MATH 1060", 2),
+        ("MATH 1210", 3),
+        ("MATH 1220", 2),
+        ("MATH 2020", 2),
     ];
 
     for (course, count) in &list {

@@ -164,7 +164,8 @@ window.addEventListener('load', function () {
     prefixes = [];
     for (elt of window.placement) {
         //if (elt.is_placed && (elt.room.startsWith('SNOW ') || elt.room.startsWith('SET ') || elt.room.startsWith('Smith '))) {
-        if (elt.is_placed && (['SET 105', 'SET 106', 'SET 201', 'SET 301', 'SET 418', 'SET 420', 'SET 524'].includes(elt.room))) {
+        //if (elt.is_placed && (['SET 105', 'SET 106', 'SET 201', 'SET 301', 'SET 418', 'SET 420', 'SET 524'].includes(elt.room))) {
+        if (elt.is_placed) {
             sections.push(elt);
             for (prefix of elt.prefixes)
                 if (!prefixes.includes(prefix))

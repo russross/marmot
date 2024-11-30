@@ -79,7 +79,7 @@ def make_department(db, department):
 def make_faculty(db, faculty, department, availability):
     week = 'MTWRFSU'
 
-    # parse the availability string: "MWF 0900-1200 with penalty 10, ..."
+    # parse the availability string: "MWF 0900-1200 with penalty 9, ..."
     all_intervals = [ [ -1 for interval in range(24*60//5) ] for day in range(7) ]
     for span in availability.split(','):
         days = []
@@ -162,13 +162,13 @@ def make_faculty(db, faculty, department, availability):
 @click.pass_obj
 def faculty_default_clustering(db, faculty, days_to_check, days_off):
     db.execute('INSERT INTO faculty_preferences VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?, ?, ?, ?)',
-            (faculty, days_to_check, 0 if days_off == 'no_preference' else int(days_off), 0 if days_off == 'no_preference' else 10, 10, 15))
+            (faculty, days_to_check, 0 if days_off == 'no_preference' else int(days_off), 0 if days_off == 'no_preference' else 9, 9, 15))
     intervals = (
-        (True, True, 110, 5),
-        (True, False, 165, 10),
-        (False, True, 60, 10),
-        (False, False, 105, 5),
-        (False, False, 195, 10),
+        (True, True, 110, 4),
+        (True, False, 165, 9),
+        (False, True, 60, 9),
+        (False, False, 105, 4),
+        (False, False, 195, 9),
     )
     for (is_cluster, is_too_short, interval_minutes, interval_penalty) in intervals:
         db.execute('INSERT INTO faculty_preference_intervals VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?, ?, ?)',
@@ -182,9 +182,9 @@ def faculty_default_clustering(db, faculty, days_to_check, days_off):
 @click.pass_obj
 def faculty_custom_clustering(db, faculty, days_to_check, days_off, intervals):
     # note: interval format is: cluster/gap,too_short/too_long,minutes,penalty
-    # e.g.: cluster,too_short,110,5
+    # e.g.: cluster,too_short,110,4
     db.execute('INSERT INTO faculty_preferences VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?, ?, ?, ?)',
-            (faculty, days_to_check, 0 if days_off == 'no_preference' else int(days_off), 0 if days_off == 'no_preference' else 10, 10, 15))
+            (faculty, days_to_check, 0 if days_off == 'no_preference' else int(days_off), 0 if days_off == 'no_preference' else 9, 9, 15))
     for interval_raw in intervals:
         parts = interval_raw.split(',')
         if len(parts) != 4:

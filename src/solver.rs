@@ -1077,8 +1077,10 @@ pub fn solve(solver: &mut Solver, iterations: usize) {
     let start = time::Instant::now();
     let mut best_score = solver.score + 1;
     println!("initial score = {}", solver.score);
-    let mut initial = true;
     let mut pause = false;
+
+    // print the initial static placement and write it to static.js
+    report_best(&solver, &evicted_by, true);
 
     for iteration in 0..iterations {
         if pause {
@@ -1131,47 +1133,8 @@ pub fn solve(solver: &mut Solver, iterations: usize) {
             best_score = score;
             winner = solver.clone();
 
-            if winner.unplaced_current < 5 || initial {
-                let mut problems = Vec::new();
-                for i in 0..winner.sections.len() {
-                    winner.sections[i]
-                        .score
-                        .gather_score_messages(&winner, &mut problems, false);
-                }
-                problems.sort_by_key(|(score, _)| -score);
-
-                println!();
-                println!();
-                //winner.print_schedule();
-                let filename = if initial { "static.js" } else { "placement.js" };
-                fs::write(filename, winner.dump_json()).expect("unable to write placements.js");
-
-                if !problems.is_empty() {
-                    let digits = problems[0].0.to_string().len();
-                    for (score, message) in &problems {
-                        if *score == PENALTY_FOR_UNPLACED_SECTION {
-                            continue;
-                        }
-                        println!("[{:width$}]  {}", score, message, width = digits);
-                    }
-                    for (i, section) in winner.sections.iter().enumerate() {
-                        if section.placement.is_some() {
-                            continue;
-                        }
-                        print!("unplaced: {}", solver.input_sections[i].name);
-
-                        // report who displaces this section the most
-                        let lst = evicted_by.get_top_evictors(i, 5);
-                        if !lst.is_empty() {
-                            print!(" displaced by");
-                            for (sec, count) in lst {
-                                print!(" {}×{}", solver.input_sections[sec].name, count);
-                            }
-                        }
-                        println!();
-                    }
-                }
-                initial = false;
+            if winner.unplaced_current < 5 {
+                report_best(&solver, &evicted_by, false);
             }
 
             let elapsed = start.elapsed();
@@ -1180,6 +1143,48 @@ pub fn solve(solver: &mut Solver, iterations: usize) {
                 "score = {} with {} unplaced sections, solving at a rate of {}/second",
                 score, winner.unplaced_current, rate as i64
             );
+        }
+    }
+}
+
+fn report_best(solver: &Solver, evicted_by: &EvictionTracker, initial: bool) {
+    let mut problems = Vec::new();
+    for i in 0..solver.sections.len() {
+        solver.sections[i]
+            .score
+            .gather_score_messages(solver, &mut problems, false);
+    }
+    problems.sort_by_key(|(score, _)| -score);
+
+    println!();
+    println!();
+    //solver.print_schedule();
+    let filename = if initial { "static.js" } else { "placement.js" };
+    fs::write(filename, solver.dump_json()).expect("unable to write placements.js");
+
+    if !problems.is_empty() {
+        let digits = problems[0].0.to_string().len();
+        for (score, message) in &problems {
+            if *score == PENALTY_FOR_UNPLACED_SECTION {
+                continue;
+            }
+            println!("[{:width$}]  {}", score, message, width = digits);
+        }
+        for (i, section) in solver.sections.iter().enumerate() {
+            if section.placement.is_some() {
+                continue;
+            }
+            print!("unplaced: {}", solver.input_sections[i].name);
+
+            // report who displaces this section the most
+            let lst = evicted_by.get_top_evictors(i, 5);
+            if !lst.is_empty() {
+                print!(" displaced by");
+                for (sec, count) in lst {
+                    print!(" {}×{}", solver.input_sections[sec].name, count);
+                }
+            }
+            println!();
         }
     }
 }
