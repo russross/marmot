@@ -53,8 +53,7 @@ pub fn make_solver(db: &mut Connection) -> Result<Solver, String> {
     let term_row = db
         .query_row("
                 SELECT term, start_date, end_date
-                FROM terms
-                WHERE current",
+                FROM terms",
             [],
             |row| {
                 Ok(TermRow {
@@ -84,7 +83,7 @@ pub fn make_solver(db: &mut Connection) -> Result<Solver, String> {
     }
 
     // add the holidays
-    let mut stmt = db.prepare("SELECT holiday FROM active_holidays").map_err(sql_err)?;
+    let mut stmt = db.prepare("SELECT holiday FROM holidays").map_err(sql_err)?;
     let mut rows = stmt.query([]).map_err(sql_err)?;
 
     while let Some(row) = rows.next().unwrap() {

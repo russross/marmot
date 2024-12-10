@@ -26,19 +26,19 @@ def cli(ctx):
 @click.argument('end_date')
 @click.pass_obj
 def make_term(db, term, start_date, end_date):
-    db.execute('INSERT INTO terms VALUES (?, ?, ?, ?)', (term, start_date, end_date, True))
+    db.execute('INSERT INTO terms VALUES (?, ?, ?)', (term, start_date, end_date))
 
 @cli.command()
 @click.argument('holiday')
 @click.pass_obj
 def make_holiday(db, holiday):
-    db.execute('INSERT INTO holidays VALUES ((SELECT term FROM terms WHERE current), ?)', (holiday,))
+    db.execute('INSERT INTO holidays VALUES (?)', (holiday,))
 
 @cli.command()
 @click.argument('building')
 @click.pass_obj
 def make_building(db, building):
-    db.execute('INSERT INTO buildings VALUES ((SELECT term FROM terms WHERE current), ?)', (building,))
+    db.execute('INSERT INTO buildings VALUES (?)', (building,))
 
 @cli.command()
 @click.argument('room')
@@ -46,30 +46,30 @@ def make_building(db, building):
 @click.argument('room_tags', nargs=-1)
 @click.pass_obj
 def make_room(db, room, capacity, room_tags):
-    db.execute('INSERT INTO rooms VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (room, capacity))
+    db.execute('INSERT INTO rooms VALUES (?, ?)', (room, capacity))
     for room_tag in room_tags + (room, ):
-        (n,) = db.execute('SELECT COUNT(1) FROM room_tags NATURAL JOIN terms WHERE current AND room_tag = ?', (room_tag,)).fetchone() 
+        (n,) = db.execute('SELECT COUNT(1) FROM room_tags WHERE room_tag = ?', (room_tag,)).fetchone() 
         if n == 0:
-            db.execute('INSERT INTO room_tags VALUES ((SELECT term FROM terms WHERE current), ?)', (room_tag,))
-        db.execute('INSERT INTO rooms_room_tags VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (room_tag, room))
+            db.execute('INSERT INTO room_tags VALUES (?)', (room_tag,))
+        db.execute('INSERT INTO rooms_room_tags VALUES (?, ?)', (room_tag, room))
 
 @cli.command()
 @click.argument('time_slot')
 @click.argument('time_slot_tags', nargs=-1)
 @click.pass_obj
 def make_time_slot(db, time_slot, time_slot_tags):
-    db.execute('INSERT INTO time_slots VALUES ((SELECT term FROM terms WHERE current), ?)', (time_slot,))
+    db.execute('INSERT INTO time_slots VALUES (?)', (time_slot,))
     for time_slot_tag in time_slot_tags + (time_slot, ):
-        (n,) = db.execute('SELECT COUNT(1) FROM time_slot_tags NATURAL JOIN terms WHERE current AND time_slot_tag = ?', (time_slot_tag,)).fetchone() 
+        (n,) = db.execute('SELECT COUNT(1) FROM time_slot_tags WHERE time_slot_tag = ?', (time_slot_tag,)).fetchone() 
         if n == 0:
-            db.execute('INSERT INTO time_slot_tags VALUES ((SELECT term FROM terms WHERE current), ?)', (time_slot_tag,))
-        db.execute('INSERT INTO time_slots_time_slot_tags VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (time_slot_tag, time_slot))
+            db.execute('INSERT INTO time_slot_tags VALUES (?)', (time_slot_tag,))
+        db.execute('INSERT INTO time_slots_time_slot_tags VALUES (?, ?)', (time_slot_tag, time_slot))
 
 @cli.command()
 @click.argument('department')
 @click.pass_obj
 def make_department(db, department):
-    db.execute('INSERT INTO departments VALUES ((SELECT term FROM terms WHERE current), ?)', (department,))
+    db.execute('INSERT INTO departments VALUES (?)', (department,))
 
 @cli.command()
 @click.argument('faculty')
@@ -130,7 +130,7 @@ def make_faculty(db, faculty, department, availability):
             for interval in range(start_time//5, end_time//5):
                 all_intervals[day][interval] = max(all_intervals[day][interval], penalty)
 
-    db.execute('INSERT INTO faculty VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (faculty, department))
+    db.execute('INSERT INTO faculty VALUES (?, ?)', (faculty, department))
         
     # now reformat it for the db
     entries = []
@@ -151,7 +151,7 @@ def make_faculty(db, faculty, department, availability):
 
     for (day, start, end, penalty) in entries:
         duration = end - start
-        db.execute('INSERT INTO faculty_availability VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?, ?, ?)', (faculty, day, start, duration, penalty))
+        db.execute('INSERT INTO faculty_availability VALUES (?, ?, ?, ?, ?)', (faculty, day, start, duration, penalty))
 
 
 
@@ -161,7 +161,7 @@ def make_faculty(db, faculty, department, availability):
 @click.argument('days_off')
 @click.pass_obj
 def faculty_default_clustering(db, faculty, days_to_check, days_off):
-    db.execute('INSERT INTO faculty_preferences VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?, ?, ?, ?)',
+    db.execute('INSERT INTO faculty_preferences VALUES (?, ?, ?, ?, ?, ?)',
             (faculty, days_to_check, 0 if days_off == 'no_preference' else int(days_off), 0 if days_off == 'no_preference' else 10, 10, 15))
     intervals = (
         (True, True, 110, 5),
@@ -171,7 +171,7 @@ def faculty_default_clustering(db, faculty, days_to_check, days_off):
         (False, False, 195, 10),
     )
     for (is_cluster, is_too_short, interval_minutes, interval_penalty) in intervals:
-        db.execute('INSERT INTO faculty_preference_intervals VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?, ?, ?)',
+        db.execute('INSERT INTO faculty_preference_intervals VALUES (?, ?, ?, ?, ?)',
             (faculty, is_cluster, is_too_short, interval_minutes, interval_penalty))
 
 @cli.command()
@@ -180,7 +180,7 @@ def faculty_default_clustering(db, faculty, days_to_check, days_off):
 @click.argument('course_name')
 @click.pass_obj
 def make_course(db, department, course, course_name):
-    db.execute('INSERT INTO courses VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?)', (course, department, course_name))
+    db.execute('INSERT INTO courses VALUES (?, ?, ?)', (course, department, course_name))
 
 @cli.command()
 @click.argument('course')
@@ -188,7 +188,7 @@ def make_course(db, department, course, course_name):
 @click.pass_obj
 def add_prereqs(db, course, prereqs):
     for elt in prereqs:
-        db.execute('INSERT INTO prereqs VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (course, elt))
+        db.execute('INSERT INTO prereqs VALUES (?, ?)', (course, elt))
 
 @cli.command()
 @click.argument('course')
@@ -196,14 +196,14 @@ def add_prereqs(db, course, prereqs):
 @click.pass_obj
 def add_coreqs(db, course, coreqs):
     for elt in coreqs:
-        db.execute('INSERT INTO coreqs VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (course, elt))
+        db.execute('INSERT INTO coreqs VALUES (?, ?)', (course, elt))
 
 @cli.command()
 @click.argument('section')
 @click.argument('tags', nargs=-1)
 @click.pass_obj
 def make_section(db, section, tags):
-    db.execute('INSERT INTO sections VALUES ((SELECT term FROM terms WHERE current), ?)', (section, ))
+    db.execute('INSERT INTO sections VALUES (?)', (section, ))
     for tag in tags:
         colon = tag.find(':')
         if colon >= 0:
@@ -211,8 +211,8 @@ def make_section(db, section, tags):
             tag = tag[:colon]
         else:
             penalty = 0
-        (room_tags,) = db.execute('SELECT COUNT(1) FROM room_tags NATURAL JOIN terms WHERE current AND room_tag = ?', (tag,)).fetchone()
-        (time_slot_tags,) = db.execute('SELECT COUNT(1) FROM time_slot_tags NATURAL JOIN terms WHERE current AND time_slot_tag = ?', (tag,)).fetchone()
+        (room_tags,) = db.execute('SELECT COUNT(1) FROM room_tags WHERE room_tag = ?', (tag,)).fetchone()
+        (time_slot_tags,) = db.execute('SELECT COUNT(1) FROM time_slot_tags WHERE time_slot_tag = ?', (tag,)).fetchone()
         if room_tags == 0 and time_slot_tags == 0:
             print(f'section {section} tag "{tag}" not found as room_tag or time_slot_tag')
             sys.exit(1)
@@ -220,9 +220,9 @@ def make_section(db, section, tags):
             print(f'section {section} tag "{tag}" found as both room_tag and time_slot_tag, unable to proceed')
             sys.exit(1)
         elif room_tags > 0:
-            db.execute('INSERT INTO section_room_tags VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?)', (section, tag, penalty))
+            db.execute('INSERT INTO section_room_tags VALUES (?, ?, ?)', (section, tag, penalty))
         elif time_slot_tags > 0:
-            db.execute('INSERT INTO section_time_slot_tags VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?)', (section, tag, penalty))
+            db.execute('INSERT INTO section_time_slot_tags VALUES (?, ?, ?)', (section, tag, penalty))
 
 @cli.command()
 @click.argument('faculty')
@@ -230,7 +230,7 @@ def make_section(db, section, tags):
 @click.pass_obj
 def assign_faculty_sections(db, faculty, sections):
     for section in sections:
-        db.execute('INSERT INTO faculty_sections VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (faculty, section))
+        db.execute('INSERT INTO faculty_sections VALUES (?, ?)', (faculty, section))
 
 @cli.command()
 @click.argument('primary')
@@ -240,9 +240,9 @@ def add_cross_listing(db, primary, sections):
     if len(sections) < 1:
         print(f'add_cross_listing needs at least two sections to cross list')
         sys.exit(1)
-    db.execute('INSERT INTO cross_listings VALUES ((SELECT term FROM terms WHERE current), ?)', (primary,))
+    db.execute('INSERT INTO cross_listings VALUES (?)', (primary,))
     for section in sections:
-        db.execute('INSERT INTO cross_listing_sections VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (section, primary))
+        db.execute('INSERT INTO cross_listing_sections VALUES (?, ?)', (section, primary))
 
 @cli.command()
 @click.argument('penalty')
@@ -253,19 +253,19 @@ def add_anti_conflict(db, penalty, single, group):
     if len(group) < 1:
         print(f'add_anti_conflict needs at least one section in the group')
         sys.exit(1)
-    db.execute('INSERT INTO anti_conflicts VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (single, int(penalty)))
+    db.execute('INSERT INTO anti_conflicts VALUES (?, ?)', (single, int(penalty)))
     for elt in group:
         if '-' not in elt:
-            db.execute('INSERT INTO anti_conflict_courses VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (single, elt))
+            db.execute('INSERT INTO anti_conflict_courses VALUES (?, ?)', (single, elt))
         else:
-            db.execute('INSERT INTO anti_conflict_sections VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (single, elt))
+            db.execute('INSERT INTO anti_conflict_sections VALUES (?, ?)', (single, elt))
 
 @cli.command()
 @click.argument('program')
 @click.argument('department')
 @click.pass_obj
 def make_program(db, program, department):
-    db.execute('INSERT INTO programs VALUES ((SELECT term FROM terms WHERE current), ?, ?)', (program, department))
+    db.execute('INSERT INTO programs VALUES (?, ?)', (program, department))
 
 @cli.command()
 @click.argument('program')
@@ -287,17 +287,17 @@ def make_conflict(db, program, conflict_name, conflict_penalty, maximize, course
         print(f'make_conflict: {program} {conflict_name}: conflict penalty option must be between 0 and 100')
         sys.exit(1)
 
-    db.execute('INSERT INTO conflicts VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?, ?)', (program, conflict_name, conflict_penalty, maximize))
+    db.execute('INSERT INTO conflicts VALUES (?, ?, ?, ?)', (program, conflict_name, conflict_penalty, maximize))
 
     for elt in courses:
         if '-' not in elt:
-            (n,) = db.execute('SELECT COUNT(1) FROM courses NATURAL JOIN terms WHERE current AND course = ?', (elt,)).fetchone()
+            (n,) = db.execute('SELECT COUNT(1) FROM courses WHERE course = ?', (elt,)).fetchone()
             if n == 0:
                 print(f'make_conflict error: "{program}" "{conflict_name}": no course "{elt}" found, skipping')
             else:
-                db.execute('INSERT INTO conflict_courses VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?)', (program, conflict_name, elt))
+                db.execute('INSERT INTO conflict_courses VALUES (?, ?, ?)', (program, conflict_name, elt))
         else:
-            db.execute('INSERT INTO conflict_sections VALUES ((SELECT term FROM terms WHERE current), ?, ?, ?)', (program, conflict_name, elt))
+            db.execute('INSERT INTO conflict_sections VALUES (?, ?, ?)', (program, conflict_name, elt))
 
 
 try:
