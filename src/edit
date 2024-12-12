@@ -1,271 +1,113 @@
 #!/usr/bin/env python3
 
-import apsw
-import contextlib
 import click
 import sys
+import queries
 
 DB_FILE = 'timetable.db'
 
 @click.group()
-@click.pass_context
-def cli(ctx):
-    db = apsw.Connection(DB_FILE, flags=apsw.SQLITE_OPEN_READWRITE)
-    db.execute('PRAGMA busy_timeout = 10000')
-    db.execute('PRAGMA foreign_keys = ON')
-    db.execute('PRAGMA journal_mode = MEMORY')
-    db.execute('PRAGMA locking_mode = NORMAL')
-    db.execute('PRAGMA synchronous = OFF')
-    db.execute('PRAGMA temp_store = MEMORY')
-    db.execute('PRAGMA mmap_size = 100000000')
-    ctx.obj = ctx.with_resource(db)
+def cli() -> None:
+    pass
 
 @cli.command()
 @click.argument('term')
 @click.argument('start_date')
 @click.argument('end_date')
-@click.pass_obj
-def make_term(db, term, start_date, end_date):
-    db.execute('INSERT INTO terms VALUES (?, ?, ?)', (term, start_date, end_date))
+def make_term(term: str, start_date: str, end_date: str) -> None:
+    db.make_term(term, start_date, end_date)
 
 @cli.command()
 @click.argument('holiday')
-@click.pass_obj
-def make_holiday(db, holiday):
-    db.execute('INSERT INTO holidays VALUES (?)', (holiday,))
+def make_holiday(holiday: str) -> None:
+    db.make_holiday(holiday)
 
 @cli.command()
 @click.argument('building')
-@click.pass_obj
-def make_building(db, building):
-    db.execute('INSERT INTO buildings VALUES (?)', (building,))
+def make_building(building: str) -> None:
+    db.make_building(building)
 
 @cli.command()
 @click.argument('room')
 @click.argument('capacity', type=int)
 @click.argument('room_tags', nargs=-1)
-@click.pass_obj
-def make_room(db, room, capacity, room_tags):
-    db.execute('INSERT INTO rooms VALUES (?, ?)', (room, capacity))
-    for room_tag in room_tags + (room, ):
-        (n,) = db.execute('SELECT COUNT(1) FROM room_tags WHERE room_tag = ?', (room_tag,)).fetchone() 
-        if n == 0:
-            db.execute('INSERT INTO room_tags VALUES (?)', (room_tag,))
-        db.execute('INSERT INTO rooms_room_tags VALUES (?, ?)', (room_tag, room))
+def make_room(room: str, capacity: str, room_tags: list[str]) -> None:
+    db.make_room(room, int(capacity), room_tags)
 
 @cli.command()
 @click.argument('time_slot')
 @click.argument('time_slot_tags', nargs=-1)
-@click.pass_obj
-def make_time_slot(db, time_slot, time_slot_tags):
-    db.execute('INSERT INTO time_slots VALUES (?)', (time_slot,))
-    for time_slot_tag in time_slot_tags + (time_slot, ):
-        (n,) = db.execute('SELECT COUNT(1) FROM time_slot_tags WHERE time_slot_tag = ?', (time_slot_tag,)).fetchone() 
-        if n == 0:
-            db.execute('INSERT INTO time_slot_tags VALUES (?)', (time_slot_tag,))
-        db.execute('INSERT INTO time_slots_time_slot_tags VALUES (?, ?)', (time_slot_tag, time_slot))
+def make_time_slot(time_slot: str, time_slot_tags: list[str]) -> None:
+    db.make_time_slot(time_slot, time_slot_tags)
 
 @cli.command()
 @click.argument('department')
-@click.pass_obj
-def make_department(db, department):
-    db.execute('INSERT INTO departments VALUES (?)', (department,))
+def make_department(department: str) -> None:
+    db.make_department(department)
 
 @cli.command()
 @click.argument('faculty')
 @click.argument('department')
 @click.argument('availability')
-@click.pass_obj
-def make_faculty(db, faculty, department, availability):
-    week = 'MTWRFSU'
-
-    # parse the availability string: "MWF 0900-1200 with penalty 10, ..."
-    all_intervals = [ [ -1 for interval in range(24*60//5) ] for day in range(7) ]
-    for span in availability.split(','):
-        days = []
-        span = span.strip()
-        while len(span) > 0 and span[0].upper() in week:
-            days.append(week.index(span[0].upper()))
-            span = span[1:]
-        if len(days) == 0:
-            print(f'faculty {faculty} availability span must start with days of week, e.g., MWF')
-            sys.exit(1)
-        span = span.strip()
-
-        start = ''
-        while len(span) > 0 and span[0].isdigit():
-            start += span[0]
-            span = span[1:]
-        if span[0] != '-':
-            print(f'faculty {faculty} availability span time must be of form start-end, e.g., 0800-1030')
-            sys.exit(1)
-        span = span[1:]
-        end = ''
-        while len(span) > 0 and span[0].isdigit():
-            end += span[0]
-            span = span[1:].strip()
-        if len(start) < 3 or len(start) > 4 or len(end) < 3 or len(end) > 4:
-            print(f'faculty {faculty} availability span time must be of form start-end, e.g., 0800-1030')
-            sys.exit(1)
-        start = ('0000' + start)[-4:]
-        end = ('0000' + end)[-4:]
-        start_time = int(start[:2]) * 60 + int(start[2:])
-        end_time = int(end[:2]) * 60 + int(end[2:])
-        if start_time % 5 != 0 or end_time % 5 != 0 or start_time >= end_time or end_time > 24*60:
-            print(f'faculty {faculty} start must come before end time and end time must be before midnight')
-            sys.exit(1)
-
-        penalty = 0
-        if span.startswith('with penalty '):
-            span = span[len('with penalty '):]
-            penalty = int(span)
-        elif span != '':
-            print(f'faculty {faculty} availability span must end with no penalty or "with penalty xyz"')
-            sys.exit(1)
-        if penalty < 0 or penalty > 99:
-            print(f'faculty {faculty} availability span penalty must be between 0 and 99')
-            sys.exit(1)
-
-        for day in days:
-            for interval in range(start_time//5, end_time//5):
-                all_intervals[day][interval] = max(all_intervals[day][interval], penalty)
-
-    db.execute('INSERT INTO faculty VALUES (?, ?)', (faculty, department))
-        
-    # now reformat it for the db
-    entries = []
-    for (day, intervals) in zip(week, all_intervals):
-        start = 0
-        prev = -1
-        for (minute, penalty) in zip(range(0, 24*60, 5), intervals):
-            if penalty == prev:
-                continue
-            if prev >= 0:
-                # end of a range
-                entries.append((day, start, minute, prev))
-            if penalty >= 0:
-                start = minute
-            prev = penalty
-        if prev >= 0:
-            entries.append((day, start, minute, prev))
-
-    for (day, start, end, penalty) in entries:
-        duration = end - start
-        db.execute('INSERT INTO faculty_availability VALUES (?, ?, ?, ?, ?)', (faculty, day, start, duration, penalty))
-
-
+def make_faculty(faculty: str, department: str, availability: str) -> None:
+    db.make_faculty(faculty, department, availability)
 
 @cli.command()
 @click.argument('faculty')
 @click.argument('days_to_check')
 @click.argument('days_off')
-@click.pass_obj
-def faculty_default_clustering(db, faculty, days_to_check, days_off):
-    db.execute('INSERT INTO faculty_preferences VALUES (?, ?, ?, ?, ?, ?)',
-            (faculty, days_to_check, 0 if days_off == 'no_preference' else int(days_off), 0 if days_off == 'no_preference' else 10, 10, 15))
-    intervals = (
-        (True, True, 110, 5),
-        (True, False, 165, 10),
-        (False, True, 60, 10),
-        (False, False, 105, 5),
-        (False, False, 195, 10),
-    )
-    for (is_cluster, is_too_short, interval_minutes, interval_penalty) in intervals:
-        db.execute('INSERT INTO faculty_preference_intervals VALUES (?, ?, ?, ?, ?)',
-            (faculty, is_cluster, is_too_short, interval_minutes, interval_penalty))
+def faculty_default_clustering(faculty: str, days_to_check: str, days_off: str) -> None:
+    db.faculty_default_clustering(faculty, days_to_check, int(days_off))
 
 @cli.command()
 @click.argument('department')
 @click.argument('course')
 @click.argument('course_name')
-@click.pass_obj
-def make_course(db, department, course, course_name):
-    db.execute('INSERT INTO courses VALUES (?, ?, ?)', (course, department, course_name))
+def make_course(department: str, course: str, course_name: str) -> None:
+    db.make_course(department, course, course_name)
 
 @cli.command()
 @click.argument('course')
 @click.argument('prereqs', nargs=-1)
-@click.pass_obj
-def add_prereqs(db, course, prereqs):
-    for elt in prereqs:
-        db.execute('INSERT INTO prereqs VALUES (?, ?)', (course, elt))
+def add_prereqs(course: str, prereqs: list[str]) -> None:
+    db.add_prereqs(course, prereqs)
 
 @cli.command()
 @click.argument('course')
 @click.argument('coreqs', nargs=-1)
-@click.pass_obj
-def add_coreqs(db, course, coreqs):
-    for elt in coreqs:
-        db.execute('INSERT INTO coreqs VALUES (?, ?)', (course, elt))
+def add_coreqs(course: str, coreqs: list[str]) -> None:
+    db.add_coreqs(course, coreqs)
 
 @cli.command()
 @click.argument('section')
 @click.argument('tags', nargs=-1)
-@click.pass_obj
-def make_section(db, section, tags):
-    db.execute('INSERT INTO sections VALUES (?)', (section, ))
-    for tag in tags:
-        colon = tag.find(':')
-        if colon >= 0:
-            penalty = int(tag[colon+1:])
-            tag = tag[:colon]
-        else:
-            penalty = 0
-        (room_tags,) = db.execute('SELECT COUNT(1) FROM room_tags WHERE room_tag = ?', (tag,)).fetchone()
-        (time_slot_tags,) = db.execute('SELECT COUNT(1) FROM time_slot_tags WHERE time_slot_tag = ?', (tag,)).fetchone()
-        if room_tags == 0 and time_slot_tags == 0:
-            print(f'section {section} tag "{tag}" not found as room_tag or time_slot_tag')
-            sys.exit(1)
-        elif room_tags > 0 and time_slot_tags > 0:
-            print(f'section {section} tag "{tag}" found as both room_tag and time_slot_tag, unable to proceed')
-            sys.exit(1)
-        elif room_tags > 0:
-            db.execute('INSERT INTO section_room_tags VALUES (?, ?, ?)', (section, tag, penalty))
-        elif time_slot_tags > 0:
-            db.execute('INSERT INTO section_time_slot_tags VALUES (?, ?, ?)', (section, tag, penalty))
+def make_section(section: str, tags: list[str]) -> None:
+    db.make_section(section, tags)
 
 @cli.command()
 @click.argument('faculty')
 @click.argument('sections', nargs=-1)
-@click.pass_obj
-def assign_faculty_sections(db, faculty, sections):
-    for section in sections:
-        db.execute('INSERT INTO faculty_sections VALUES (?, ?)', (faculty, section))
+def assign_faculty_sections(faculty: str, sections: list[str]) -> None:
+    db.assign_faculty_sections(faculty, sections)
 
 @cli.command()
 @click.argument('primary')
 @click.argument('sections', nargs=-1)
-@click.pass_obj
-def add_cross_listing(db, primary, sections):
-    if len(sections) < 1:
-        print(f'add_cross_listing needs at least two sections to cross list')
-        sys.exit(1)
-    db.execute('INSERT INTO cross_listings VALUES (?)', (primary,))
-    for section in sections:
-        db.execute('INSERT INTO cross_listing_sections VALUES (?, ?)', (section, primary))
+def add_cross_listing(primary: str, sections: list[str]) -> None:
+    db.add_cross_listing(primary, sections)
 
 @cli.command()
 @click.argument('penalty')
 @click.argument('single')
 @click.argument('group', nargs=-1)
-@click.pass_obj
-def add_anti_conflict(db, penalty, single, group):
-    if len(group) < 1:
-        print(f'add_anti_conflict needs at least one section in the group')
-        sys.exit(1)
-    db.execute('INSERT INTO anti_conflicts VALUES (?, ?)', (single, int(penalty)))
-    for elt in group:
-        if '-' not in elt:
-            db.execute('INSERT INTO anti_conflict_courses VALUES (?, ?)', (single, elt))
-        else:
-            db.execute('INSERT INTO anti_conflict_sections VALUES (?, ?)', (single, elt))
+def add_anti_conflict(penalty: str, single: str, group: list[str]) -> None:
+    db.add_anti_conflict(int(penalty), single, group)
 
 @cli.command()
 @click.argument('program')
 @click.argument('department')
-@click.pass_obj
-def make_program(db, program, department):
-    db.execute('INSERT INTO programs VALUES (?, ?)', (program, department))
+def make_program(program: str, department: str) -> None:
+    db.make_program(program, department)
 
 @cli.command()
 @click.argument('program')
@@ -273,36 +115,13 @@ def make_program(db, program, department):
 @click.argument('conflict_penalty')
 @click.argument('maximize')
 @click.argument('courses', nargs=-1)
-@click.pass_obj
-def make_conflict(db, program, conflict_name, conflict_penalty, maximize, courses):
-    if maximize == 'maximize':
-        maximize = True
-    elif maximize == 'minimize':
-        maximize = False
-    else:
-        print(f'make_conflict: {program} {conflict_name}: maximize option must be "maximize" or "minimize"')
-        sys.exit(1)
-    conflict_penalty = int(conflict_penalty)
-    if conflict_penalty < 0 or conflict_penalty > 100:
-        print(f'make_conflict: {program} {conflict_name}: conflict penalty option must be between 0 and 100')
-        sys.exit(1)
-
-    db.execute('INSERT INTO conflicts VALUES (?, ?, ?, ?)', (program, conflict_name, conflict_penalty, maximize))
-
-    for elt in courses:
-        if '-' not in elt:
-            (n,) = db.execute('SELECT COUNT(1) FROM courses WHERE course = ?', (elt,)).fetchone()
-            if n == 0:
-                print(f'make_conflict error: "{program}" "{conflict_name}": no course "{elt}" found, skipping')
-            else:
-                db.execute('INSERT INTO conflict_courses VALUES (?, ?, ?)', (program, conflict_name, elt))
-        else:
-            db.execute('INSERT INTO conflict_sections VALUES (?, ?, ?)', (program, conflict_name, elt))
-
+def make_conflict(program: str, conflict_name: str, conflict_penalty: str, maximize: str, courses: list[str]) -> None:
+    db.make_conflict(program, conflict_name, int(conflict_penalty), maximize, courses)
 
 try:
+    db = queries.DB(DB_FILE)
     cli()
-except apsw.Error as e:
+except Exception as e:
     cmd = sys.argv[0]
     for elt in sys.argv[1:]:
         if len([ch for ch in elt if not ch.isalpha() and not ch.isdigit()]) > 0:
@@ -311,4 +130,7 @@ except apsw.Error as e:
             cmd += ' ' + elt
     print(f'{cmd}')
     print(f'--> error: {e}')
+    db.db.rollback()
     sys.exit(1)
+finally:
+    db.db.commit()

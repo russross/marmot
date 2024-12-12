@@ -100,8 +100,8 @@ fn main() {
     */
 
     // set up the static schedule
-    place_static(&mut solver).unwrap();
-    //dump_cs(&solver);
+    //place_static(&mut solver).unwrap();
+    dump_cs(&solver);
 
     let iterations = 0;
     solve(&mut solver, iterations);
