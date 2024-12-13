@@ -99,9 +99,14 @@ fn main() {
     }
     */
 
-    // set up the static schedule
-    //place_static(&mut solver).unwrap();
-    dump_cs(&solver);
+    // change this to true to set up the static schedule
+    if false {
+        place_static(&mut solver).unwrap();
+    }
+    // change this to true to dump the schedule data for python
+    if false {
+        dump_cs(&solver);
+    }
 
     let iterations = 0;
     solve(&mut solver, iterations);

@@ -248,3 +248,7 @@ class DB:
                     self.db.execute('INSERT INTO conflict_courses VALUES (?, ?, ?)', (program, conflict_name, elt))
             else:
                 self.db.execute('INSERT INTO conflict_sections VALUES (?, ?, ?)', (program, conflict_name, elt))
+
+    @rollback_on_exception
+    def add_multiple_section_override(self, course: str, section_count: int) -> None:
+        self.db.execute('INSERT INTO multiple_section_overrides VALUES (?, ?)', (course, section_count))

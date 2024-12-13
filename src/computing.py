@@ -318,4 +318,6 @@ db.make_conflict('Information Technology', 'spread out IT 2300', 100, 'maximize'
 db.make_conflict('Software Engineering', 'spread out SE 1400', 100, 'maximize',
     ['SE 1400-01', 'SE 1400-02'])
 
+db.add_multiple_section_override('CS 4600', 1)
+
 db.db.commit()

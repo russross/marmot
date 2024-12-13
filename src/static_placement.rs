@@ -59,7 +59,8 @@ pub fn place(
 }
 
 pub fn place_static(solver: &mut Solver) -> Result<(), String> {
-    
+    println!("setting static placement for {}", solver.name);
 
+    
     Ok(())
 }

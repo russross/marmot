@@ -293,7 +293,6 @@ CREATE TABLE conflict_sections (
     FOREIGN KEY (section) REFERENCES sections (section) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
 
--- TODO
 CREATE TABLE multiple_section_overrides (
     course                      TEXT PRIMARY KEY,
     section_count               INTEGER NOT NULL,
@@ -421,22 +420,30 @@ CREATE VIEW active_faculty_sections (faculty, department, course, section) AS
     FROM active_sections
     NATURAL JOIN faculty_sections;
 
--- FIXME
--- only count if spreading requirement is in place?
--- do not count if anticonflict is in place?
--- secondary cross listings should not be confused with online
+-- note: use multiple_section_overrides to handle
+--       cross listings, anticonflicts, etc.
 CREATE VIEW active_section_counts (department, course, section_count) AS
-    WITH time_slot_courses AS (
-        SELECT DISTINCT department, course
+    -- get raw section counts including online sections
+    WITH all_sections AS (
+        SELECT department, course, COUNT(section) AS section_count
         FROM courses
         NATURAL JOIN sections
-        NATURAL JOIN section_time_slot_tags
+        GROUP BY department, course
+    ),
+    with_overrides AS (
+        SELECT department, all_sections.course AS course,
+            -- use the override if present, but otherwise the all_sections count
+            iif(multiple_section_overrides.section_count IS NULL,
+                all_sections.section_count,
+                multiple_section_overrides.section_count) AS final_count
+        FROM all_sections
+        LEFT OUTER JOIN multiple_section_overrides
+            ON  all_sections.course     =   multiple_section_overrides.course
     )
-    SELECT department, course, COUNT(section) AS section_count
-    FROM time_slot_courses
-    LEFT OUTER NATURAL JOIN sections
-    GROUP BY department, course
-    HAVING section_count > 1;
+    SELECT DISTINCT department, course, final_count
+    FROM with_overrides
+    NATURAL JOIN active_sections
+    WHERE final_count > 1;
 
 CREATE TRIGGER terms_one_insert
 AFTER INSERT ON terms

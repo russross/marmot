@@ -1074,7 +1074,7 @@ impl EvictionTracker {
 pub fn solve(solver: &mut Solver, iterations: usize) {
     let mut evicted_by = EvictionTracker::new();
     let mut winner;
-    let start = time::Instant::now();
+    let start = std::time::Instant::now();
     let mut best_score = solver.score + 1;
     println!("initial score = {}", solver.score);
     let mut pause = false;
@@ -1138,7 +1138,7 @@ pub fn solve(solver: &mut Solver, iterations: usize) {
             }
 
             let elapsed = start.elapsed();
-            let rate = (iteration as f64) / elapsed.as_seconds_f64();
+            let rate = (iteration as f64) / elapsed.as_secs_f64();
             println!(
                 "score = {} with {} unplaced sections, solving at a rate of {}/second",
                 score, winner.unplaced_current, rate as i64

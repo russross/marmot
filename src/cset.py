@@ -3114,4 +3114,6 @@ db.add_cross_listing('BIOL 3010-01', ['BIOL 3010-02'])
 db.add_cross_listing('BIOL 3030-01', ['BIOL 3030-02'])
 db.add_cross_listing('BTEC 2050-01', ['BTEC 2050-02'])
 
+db.add_multiple_section_override('MATH 1050', 6)
+
 db.db.commit()

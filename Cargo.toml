@@ -11,4 +11,4 @@ itertools = "0.13.0"
 rand = "0.8.5"
 regex = "1.10.6"
 rusqlite = "0.32.1"
-time = { version = "0.3.36", features = ["parsing"]}
+time = { version = "0.3.36", features = ["parsing"] }

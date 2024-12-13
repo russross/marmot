@@ -31,8 +31,7 @@ pub fn setup() -> Result<Solver, String> {
     println!("loading conflicts");
     load_conflicts(&mut db, &mut solver, &departments)?;
     load_prereqs(&mut db, &mut solver, &departments)?;
-    //discount_multiple_sections(&mut db, &mut solver, &departments)?;
-    discount_multiple_sections(&mut solver)?;
+    discount_multiple_sections(&mut db, &mut solver, &departments)?;
     load_anti_conflicts(&mut db, &mut solver, &departments)?;
 
     println!("loading faculty");
@@ -603,13 +602,7 @@ pub fn load_prereqs(
     Ok(())
 }
 
-//
-// TODO: does not handle cross listings
-// TODO: only sections with hard conflicts between them (or online) count. count + explicit
-// overrides?
-//
-/*
-pub fn discount_multiple_sections(db: &mut Connection, solver: &mut Solver, cross_listings: &HashMap<String, String>, departments: &Vec<String>) -> Result<(), String> {
+pub fn discount_multiple_sections(db: &mut Connection, solver: &mut Solver, departments: &Vec<String>) -> Result<(), String> {
     // discount conflicts for courses with multiple sections
     let threshold = 30;
     let dept_in = dept_clause(departments, &vec!["department".into()], true);
@@ -626,64 +619,6 @@ pub fn discount_multiple_sections(db: &mut Connection, solver: &mut Solver, cros
         let count: isize = row.get_unwrap(1);
 
         let course_list = find_sections_by_name(solver, &course)?;
-        for sec_i in course_list {
-            let others: Vec<usize> = solver.input_sections[sec_i]
-                .soft_conflicts
-                .iter()
-                .map(|elt| elt.section)
-                .collect();
-            for other in others {
-                let old_score = solver.input_sections[sec_i].get_conflict(other);
-                if old_score >= 100 || old_score <= 0 {
-                    continue;
-                }
-                let mut new_score =
-                    (solver.input_sections[sec_i].get_conflict(other) - 1) / (count + 1);
-                if new_score < threshold {
-                    new_score = 0;
-                }
-
-                // set in both directions
-                solver.input_sections[sec_i].set_conflict(other, new_score);
-                solver.input_sections[other].set_conflict(sec_i, new_score);
-            }
-        }
-    }
-
-    Ok(())
-}
-*/
-
-// hard-coded list of sections that are discounted because they have multiple sections
-pub fn discount_multiple_sections(solver: &mut Solver) -> Result<(), String> {
-    let threshold = 30;
-    let list = vec![
-        ("CS 1400", 4),
-        ("CS 1410", 2),
-        ("CS 2810", 2),
-        ("CS 3005", 2),
-        ("CS 3510", 2),
-
-        ("IT 1100", 3),
-        ("IT 2300", 2),
-
-        ("SE 1400", 4),
-        //("SE 3200", 2),
-
-        ("MATH 0900", 7),
-        ("MATH 0980", 6),
-        ("MATH 1010", 6),
-        ("MATH 1030", 6),
-        ("MATH 1040", 13),
-        ("MATH 1050", 6),
-        ("MATH 1060", 2),
-        ("MATH 1210", 3),
-        ("MATH 1220", 2),
-        ("MATH 2020", 2),
-    ];
-
-    for (course, count) in &list {
-        let course_list = find_sections_by_name(solver, &course.to_string())?;
         for sec_i in course_list {
             let others: Vec<usize> = solver.input_sections[sec_i]
                 .soft_conflicts
