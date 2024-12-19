@@ -56,8 +56,25 @@ CREATE TABLE time_slots (
     CHECK (days || SUBSTR('00'||CAST(start_time / 60 AS TEXT), -2) || SUBSTR('00'||CAST(start_time % 60 AS TEXT), -2) || '+' || CAST(duration AS TEXT) = time_slot)
 ) WITHOUT ROWID;
 
---CREATE VIEW time_slot_conflicts (time_slot, conflict_time_slot) AS (
-    
+CREATE VIEW time_slot_conflicts (department, time_slot_a, time_slot_b) AS
+    SELECT a.department, a.time_slot, b.time_slot
+    FROM active_time_slots AS a
+    JOIN active_time_slots AS b
+    ON
+        a.department = b.department
+        AND CASE
+            WHEN INSTR(a.time_slot, 'M') > 0 AND INSTR(b.time_slot, 'M') > 0 THEN 1
+            WHEN INSTR(a.time_slot, 'T') > 0 AND INSTR(b.time_slot, 'T') > 0 THEN 1
+            WHEN INSTR(a.time_slot, 'W') > 0 AND INSTR(b.time_slot, 'W') > 0 THEN 1
+            WHEN INSTR(a.time_slot, 'R') > 0 AND INSTR(b.time_slot, 'R') > 0 THEN 1
+            WHEN INSTR(a.time_slot, 'F') > 0 AND INSTR(b.time_slot, 'F') > 0 THEN 1
+            WHEN INSTR(a.time_slot, 'S') > 0 AND INSTR(b.time_slot, 'S') > 0 THEN 1
+            WHEN INSTR(a.time_slot, 'U') > 0 AND INSTR(b.time_slot, 'U') > 0 THEN 1
+            ELSE 0 END = 1
+        AND CASE
+            WHEN a.start_time + a.duration <= b.start_time THEN 0
+            WHEN a.start_time >= b.start_time + b.duration THEN 0
+            ELSE 1 END = 1;
 
 CREATE TABLE time_slot_tags (
     time_slot_tag               TEXT PRIMARY KEY
