@@ -1,5 +1,5 @@
 use super::bits::*;
-use super::solver::Solver;
+use super::solver::{Solver, Score};
 
 pub fn find_time_slot_by_name(solver: &Solver, name: &str) -> Result<usize, String> {
     let Some(i) = solver.time_slots.iter().position(|elt| elt.name == *name) else {
@@ -149,26 +149,26 @@ pub struct RoomTime {
 #[derive(Clone)]
 pub struct TimeWithPenalty {
     pub time_slot: usize,
-    pub penalty: isize,
+    pub penalty: Score,
 }
 
 #[derive(Clone)]
 pub struct RoomWithPenalty {
     pub room: usize,
-    pub penalty: isize,
+    pub penalty: Score,
 }
 
 #[derive(Clone)]
 pub struct RoomTimeWithPenalty {
     pub room: usize,
     pub time_slot: usize,
-    pub penalty: isize,
+    pub penalty: Score,
 }
 
 #[derive(Clone)]
 pub struct SectionWithPenalty {
     pub section: usize,
-    pub penalty: isize,
+    pub penalty: Score,
 }
 
 #[derive(Clone)]
@@ -178,18 +178,18 @@ pub struct Instructor {
     // one entry per day of the week (time::Weekday::number_days_from_sunday())
     // each day has a list of penalty values for each 5-minute slot,
     // with -1 meaning impossible
-    pub available_times: Vec<Vec<isize>>,
+    pub available_times: Vec<Vec<Option<Score>>>,
     pub sections: Vec<usize>,
     pub distribution: Vec<DistributionPreference>,
 }
 
 impl Instructor {
-    pub fn get_time_slot_penalty(&self, time_slot: &TimeSlot) -> Option<isize> {
+    pub fn get_time_slot_penalty(&self, time_slot: &TimeSlot) -> Option<Score> {
         let start_hour = time_slot.start_time.hour() as usize;
         let start_minute = time_slot.start_time.minute() as usize;
         let minutes = time_slot.duration.whole_minutes() as usize;
 
-        let mut penalty = 0;
+        let mut penalty = Score::new();
         for &day_of_week in &time_slot.days {
             let day = &self.available_times[day_of_week.number_days_from_sunday() as usize];
             let start_index = start_hour * 12 + start_minute / 5;
@@ -234,13 +234,13 @@ pub enum DurationWithPenalty {
     // a duration shorter than this gets a penalty
     TooShort {
         duration: time::Duration,
-        penalty: isize,
+        penalty: Score,
     },
 
     // a duration longer than this gets a penalty
     TooLong {
         duration: time::Duration,
-        penalty: isize,
+        penalty: Score,
     },
 }
 
@@ -268,10 +268,10 @@ pub struct InputSection {
 }
 
 impl InputSection {
-    pub fn get_conflict(&self, other: usize) -> isize {
+    pub fn get_conflict(&self, other: usize) -> Score {
         for elt in &self.hard_conflicts {
             if *elt == other {
-                return 100;
+                return Score::new_hard_conflict();
             }
         }
         for elt in &self.soft_conflicts {
@@ -282,12 +282,11 @@ impl InputSection {
         0
     }
 
-    pub fn set_conflict(&mut self, other: usize, penalty: isize) {
-        assert!((0..=100).contains(&penalty));
-        if penalty == 0 {
+    pub fn set_conflict(&mut self, other: usize, penalty: Score) {
+        if penalty.is_zero() {
             self.hard_conflicts.retain(|&elt| elt != other);
             self.soft_conflicts.retain(|elt| elt.section != other);
-        } else if penalty == 100 {
+        } else if penalty.is_hard() {
             if !self.hard_conflicts.iter().any(|&elt| elt == other) {
                 self.hard_conflicts.push(other);
             }

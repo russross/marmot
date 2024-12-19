@@ -3,12 +3,30 @@ use super::input::*;
 use super::score::*;
 use itertools::Itertools;
 use rand::Rng;
+use std::fmt;
 use std::fmt::Write;
 use std::fs;
+use std::ops;
 use std::rc::Rc;
 
-const PENALTY_FOR_UNPLACED_SECTION: isize = 1000;
+// score levels:
+//     0: unplaced
+//     1: hard conflict (two sections in same room/time, etc.)
+//     2: multi-department core conflict
+//     3: single department core conflict
+//     4: emphasis core conflict
+//     5: track core conflict
+//     6: core elective, highly constrained
+//     7: core elective, more choices
+//     8: elective, highly constrained
+//     9: elective, more choices
+//     10-19: preferences
+
+const LEVEL_FOR_UNPLACED_SECTION: usize = 0;
+const LEVEL_FOR_HARD_CONFLICT: usize = 1;
 const MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION: isize = 1000;
+const SCORE_LEVELS: usize = 20;
+type ScoreLevel = i16;
 
 #[derive(Clone)]
 pub struct Solver {
@@ -36,7 +54,7 @@ pub struct Solver {
     pub time_slot_conflicts: Vec<bool>,
 
     // scoring data
-    pub anticonflicts: Vec<(isize, usize, Vec<usize>)>,
+    pub anticonflicts: Vec<(Score, usize, Vec<usize>)>,
 
     //
     // everything above this point becomes immutable once
@@ -47,9 +65,118 @@ pub struct Solver {
     // solver data
     pub sections: Vec<SolverSection>,
     pub room_placements: Vec<RoomPlacements>,
-    pub score: isize,
+    pub score: Score,
     pub unplaced_current: usize,
     pub unplaced_best: usize,
+}
+
+#[derive(Clone,Copy,PartialEq,Eq,PartialOrd,Ord)]
+pub struct Score {
+    pub levels: [ScoreLevel; SCORE_LEVELS],
+}
+
+impl Score {
+    pub fn new() -> Self {
+        Score {
+            levels: [0; SCORE_LEVELS],
+        }
+    }
+
+    pub fn new_hard_conflict() -> Self {
+        let mut out = Score {
+            levels: [0; SCORE_LEVELS],
+        };
+        out.levels[LEVEL_FOR_HARD_CONFLICT] = 1;
+        out
+    }
+
+    pub fn new_with_one_penalty(level: usize) -> Self {
+        let mut out = Score {
+            levels: [0; SCORE_LEVELS],
+        };
+        out.levels[level] = 1;
+        out
+    }
+
+    pub fn is_zero(&self) -> bool {
+        for i in 0..SCORE_LEVELS {
+            if self.levels[i] != 0 {
+                return false;
+            }
+        }
+        true
+    }
+
+    pub fn is_hard(&self) -> bool {
+        for (level, n) in self.levels.iter().enumerate() {
+            if level == LEVEL_FOR_HARD_CONFLICT {
+                if n != 1 {
+                    return false;
+                }
+            } else if n != 0 {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+impl fmt::Display for Score {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_zero() {
+            write!(f, "zero")
+        } else {
+            let mut sep = "";
+            write!(f, "<")?;
+            for (level, count) in self.levels.iter().enumerate() {
+                if level != 0 {
+                    write!(f, "{sep}{level}×{count}")?;
+                    sep = ",";
+                }
+            }
+            write!(f, ">")
+        }
+    }
+}
+
+impl ops::Add for Score {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Score {
+        let mut out = Score { levels: [0; SCORE_LEVELS] };
+        for i in 0..SCORE_LEVELS {
+            out.levels[i] = self.levels[i] + rhs.levels[i];
+        }
+        out
+    }
+}
+
+impl ops::AddAssign for Score {
+    fn add_assign(&mut self, rhs: Self) {
+        for i in 0..SCORE_LEVELS {
+            self.levels[i] += rhs.levels[i];
+        }
+    }
+}
+
+impl ops::Sub for Score {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self {
+        let mut out = Score { levels: [0; SCORE_LEVELS] };
+        for i in 0..SCORE_LEVELS {
+            out.levels[i] = self.levels[i] - rhs.levels[i];
+        }
+        out
+    }
+}
+
+impl ops::SubAssign for Score {
+    fn sub_assign(&mut self, rhs: Self) {
+        for i in 0..SCORE_LEVELS {
+            self.levels[i] -= rhs.levels[i];
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -86,11 +213,11 @@ pub struct SolverSection {
 
     // map from input.section[_].room_times to the effect on the score
     // if we placed this section at that room/time
-    pub speculative_deltas: Vec<Option<isize>>,
+    pub speculative_deltas: Vec<Option<Score>>,
 
     // the maximum penalty improvement possible if this section was moved
     // computed as the minimum delta in speculative_deltas
-    pub speculative_delta_min: Option<isize>,
+    pub speculative_delta_min: Option<Score>,
 }
 
 impl SolverSection {
@@ -131,7 +258,7 @@ pub struct SectionScore {
     // will be counted for all applicable sections in this field.
     // this is useful for estimating the maximum potential benefit
     // to moving this section
-    pub local: isize,
+    pub local: Score,
 
     // the penalty points that this section directly contributed
     // to the overall score.
@@ -143,7 +270,7 @@ pub struct SectionScore {
     //
     // subtracting this value from the overall score and then re-computing
     // this section's score is a no-op
-    pub global: isize,
+    pub global: Score,
 
     // a log of all penalty scores tied to this section in its current
     // placement. when it moves or an adjacent section moves, this can
@@ -163,19 +290,19 @@ pub struct SectionScore {
 impl SectionScore {
     pub fn new() -> Self {
         SectionScore {
-            local: 0,
-            global: 0,
+            local: Score::new(),
+            global: Score::new(),
             score_records: Vec::new(),
         }
     }
 
     pub fn new_unplaced(section: usize) -> Self {
         SectionScore {
-            local: PENALTY_FOR_UNPLACED_SECTION,
-            global: PENALTY_FOR_UNPLACED_SECTION,
+            local: Score::new_with_one_penalty(LEVEL_FOR_UNPLACED_SECTION),
+            global: Score::new_with_one_penalty(LEVEL_FOR_UNPLACED_SECTION),
             score_records: vec![SectionScoreRecord {
-                local: PENALTY_FOR_UNPLACED_SECTION,
-                global: PENALTY_FOR_UNPLACED_SECTION,
+                local: Score::new_with_one_penalty(LEVEL_FOR_UNPLACED_SECTION),
+                global: Score::new_with_one_penalty(LEVEL_FOR_UNPLACED_SECTION),
                 details: SectionScoreDetails::SectionNotPlaced { section },
             }],
         }
@@ -190,7 +317,7 @@ impl SectionScore {
     pub fn gather_score_messages(
         &self,
         solver: &Solver,
-        list: &mut Vec<(isize, String)>,
+        list: &mut Vec<(Score, String)>,
         include_dups: bool,
     ) {
         for record in &self.score_records {
@@ -636,7 +763,7 @@ impl Solver {
         }
     }
 
-    pub fn compute_speculative_deltas_section(&mut self, section: usize, old_score: isize) {
+    pub fn compute_speculative_deltas_section(&mut self, section: usize, old_score: Score) {
         let current = match self.sections[section].placement {
             Some(RoomTimeWithPenalty {
                 room, time_slot, ..
@@ -839,8 +966,8 @@ impl Solver {
     // totals and the detail log,
     // but the overall solver score is not modified
     pub fn compute_section_score(&mut self, section: usize) {
-        assert!(self.sections[section].score.local == 0);
-        assert!(self.sections[section].score.global == 0);
+        assert!(self.sections[section].score.local.is_zero());
+        assert!(self.sections[section].score.global.is_zero());
         assert!(self.sections[section].score.score_records.is_empty());
 
         let mut records = Vec::new();
@@ -849,7 +976,7 @@ impl Solver {
             Some(RoomTimeWithPenalty { penalty, .. }) => {
                 // room/time penalty handled as a special case
                 // since the penalty is stored as part of the placement record
-                if penalty != 0 {
+                if !penalty.is_zero() {
                     records.push(SectionScoreRecord {
                         local: penalty,
                         global: penalty,
@@ -865,8 +992,8 @@ impl Solver {
             None => {
                 // unplaced sections are a special case
                 records.push(SectionScoreRecord {
-                    local: PENALTY_FOR_UNPLACED_SECTION,
-                    global: PENALTY_FOR_UNPLACED_SECTION,
+                    local: Score::new_with_one_penalty(LEVEL_FOR_UNPLACED_SECTION),
+                    global: Score::new_with_one_penalty(LEVEL_FOR_UNPLACED_SECTION),
                     details: SectionScoreDetails::SectionNotPlaced { section },
                 });
             }
@@ -1075,7 +1202,8 @@ pub fn solve(solver: &mut Solver, iterations: usize) {
     let mut evicted_by = EvictionTracker::new();
     let mut winner;
     let start = std::time::Instant::now();
-    let mut best_score = solver.score + 1;
+    let mut best_score = solver.score;
+    best_score.levels[0] += 1;
     println!("initial score = {}", solver.score);
     let mut pause = false;
 
@@ -1165,7 +1293,7 @@ fn report_best(solver: &Solver, evicted_by: &EvictionTracker, initial: bool) {
     if !problems.is_empty() {
         let digits = problems[0].0.to_string().len();
         for (score, message) in &problems {
-            if *score == PENALTY_FOR_UNPLACED_SECTION {
+            if score.levels[LEVEL_FOR_UNPLACED_SECTION] != 0 {
                 continue;
             }
             println!("[{:width$}]  {}", score, message, width = digits);

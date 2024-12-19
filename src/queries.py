@@ -145,12 +145,12 @@ class DB:
 
         for (letter, start_minute, end_minute, penalty) in entries:
             duration = end_minute - start_minute
-            self.db.execute('INSERT INTO faculty_availability VALUES (?, ?, ?, ?, ?)', (faculty, letter, start_minute, duration, penalty))
+            self.db.execute('INSERT INTO faculty_availability VALUES (?, ?, ?, ?, ?)', (faculty, letter, start_minute, duration, None if penalty == 0 else penalty))
 
     @rollback_on_exception
     def faculty_default_clustering(self, faculty: str, days_to_check: str, days_off: int) -> None:
         self.db.execute('INSERT INTO faculty_preferences VALUES (?, ?, ?, ?, ?, ?)',
-                (faculty, days_to_check, 0 if days_off < 0 else days_off, 0 if days_off < 0 else 10, 10, 15))
+                (faculty, days_to_check, None if days_off < 0 else days_off, None if days_off < 0 else 10, 10, 15))
         intervals = (
             (True, True, 110, 5),
             (True, False, 165, 10),
@@ -160,7 +160,7 @@ class DB:
         )
         for (is_cluster, is_too_short, interval_minutes, interval_penalty) in intervals:
             self.db.execute('INSERT INTO faculty_preference_intervals VALUES (?, ?, ?, ?, ?)',
-                (faculty, is_cluster, is_too_short, interval_minutes, interval_penalty))
+                (faculty, is_cluster, is_too_short, interval_minutes, None if interval_penalty == 0 else interval_penalty))
 
     @rollback_on_exception
     def make_course(self, department: str, course: str, course_name: str) -> None:
@@ -193,9 +193,9 @@ class DB:
             elif room_tags > 0 and time_slot_tags > 0:
                 raise RuntimeError(f'section {section} tag "{tag}" found as both room_tag and time_slot_tag, unable to proceed')
             elif room_tags > 0:
-                self.db.execute('INSERT INTO section_room_tags VALUES (?, ?, ?)', (section, tag, penalty))
+                self.db.execute('INSERT INTO section_room_tags VALUES (?, ?, ?)', (section, tag, None if penalty == 0 else penalty))
             elif time_slot_tags > 0:
-                self.db.execute('INSERT INTO section_time_slot_tags VALUES (?, ?, ?)', (section, tag, penalty))
+                self.db.execute('INSERT INTO section_time_slot_tags VALUES (?, ?, ?)', (section, tag, None if penalty == 0 else penalty))
 
     @rollback_on_exception
     def assign_faculty_sections(self, faculty: str, sections: list[str]) -> None:
@@ -237,7 +237,7 @@ class DB:
         if conflict_penalty < 0 or conflict_penalty > 100:
             raise RuntimeError(f'make_conflict: {program} {conflict_name}: conflict penalty option must be between 0 and 100')
 
-        self.db.execute('INSERT INTO conflicts VALUES (?, ?, ?, ?)', (program, conflict_name, conflict_penalty, maximize))
+        self.db.execute('INSERT INTO conflicts VALUES (?, ?, ?, ?)', (program, conflict_name, None if conflict_penalty == 0 else conflict_penalty, maximize))
 
         for elt in courses:
             if '-' not in elt:

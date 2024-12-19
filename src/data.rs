@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use super::bits::*;
 use super::input::*;
-use super::solver::Solver;
+use super::solver::{Solver, Score};
 use rusqlite::{Connection, OpenFlags, Result};
 
 const DB_PATH: &str = "timetable.db";
+const MIN_PREFERENCE_LEVEL: usize = 10;
 
 pub fn setup() -> Result<Solver, String> {
     //let departments = vec!["Computing".to_string(), "Math".to_string()];
@@ -117,7 +118,7 @@ pub fn make_solver(db: &mut Connection) -> Result<Solver, String> {
         input_locked: false,
         sections: Vec::new(),
         room_placements: Vec::new(),
-        score: 0,
+        score: Score::new(),
         unplaced_current: 0,
         unplaced_best: 0,
     })
@@ -277,7 +278,7 @@ pub fn load_sections(
         while let Some(row) = rows.next().map_err(sql_err)? {
             let new_section_name: String = row.get_unwrap(0);
             let time_slot_name: String = row.get_unwrap(1);
-            let penalty: isize = row.get_unwrap(2);
+            let penalty = Score::new_with_one_penalty(row.get_unwrap(2));
 
             // is this a new section?
             if new_section_name != section_name {
@@ -321,7 +322,7 @@ pub fn load_sections(
         while let Some(row) = rows.next().map_err(sql_err)? {
             let new_section_name: String = row.get_unwrap(0);
             let room_name: String = row.get_unwrap(1);
-            let penalty: isize = row.get_unwrap(2);
+            let penalty = Score::new_with_one_penalty(row.get_unwrap(2));
 
             if new_section_name != section_name {
                 let mut index = section_index.unwrap_or(0);
@@ -363,7 +364,7 @@ pub fn load_conflicts(db: &mut Connection, solver: &mut Solver, departments: &Ve
         .map_err(sql_err)?;
 
     struct Clique {
-        penalty: isize,
+        penalty: Score,
         maximize: bool,
         courses: Vec<Vec<usize>>,
     }
@@ -372,14 +373,14 @@ pub fn load_conflicts(db: &mut Connection, solver: &mut Solver, departments: &Ve
 
     // first gather and group all of the entries
     let mut single_program = Vec::new();
-    let mut clique = Clique{ penalty: 0, maximize: true, courses: Vec::new() };
+    let mut clique = Clique{ penalty: Score::new(), maximize: true, courses: Vec::new() };
     let mut clique_name = ("".into(), "".into());
     let mut sections_in_course = Vec::new();
     let mut course_name = None;
 
     while let Some(row) = rows.next().map_err(sql_err)? {
         let new_clique_name: (String, String) = (row.get_unwrap(0), row.get_unwrap(1));
-        let penalty: isize = row.get_unwrap(2);
+        let penalty = Score::new_with_one_penalty(row.get_unwrap(2));
         let maximize: bool = row.get_unwrap(3);
         let new_course: Option<String> = row.get_unwrap(4);
         let section: String = row.get_unwrap(5);
@@ -417,18 +418,18 @@ pub fn load_conflicts(db: &mut Connection, solver: &mut Solver, departments: &Ve
         clique.courses.push(std::mem::take(&mut sections_in_course));
     }
     if clique.courses.len() > 1 {
-        single_program.push(std::mem::replace(&mut clique, Clique{ penalty: 0, maximize: true, courses: Vec::new() }));
+        single_program.push(std::mem::replace(&mut clique, Clique{ penalty: Score::new(), maximize: true, courses: Vec::new() }));
     }
     if !single_program.is_empty() {
         all_programs.push(std::mem::take(&mut single_program));
     }
 
     // now process the conflicts
-    let mut all_conflicts: HashMap<usize, HashMap<usize, isize>> = HashMap::new();
+    let mut all_conflicts: HashMap<usize, HashMap<usize, Score>> = HashMap::new();
 
     for program in &all_programs {
         // build all the conflits for this program
-        let mut program_conflicts: HashMap<usize, HashMap<usize, isize>> = HashMap::new();
+        let mut program_conflicts: HashMap<usize, HashMap<usize, Score>> = HashMap::new();
 
         for clique in program {
             let mut sections = Vec::new();
@@ -461,7 +462,7 @@ pub fn load_conflicts(db: &mut Connection, solver: &mut Solver, departments: &Ve
     // copy it all into the solver
     for (&section, others) in all_conflicts.iter() {
         for (&other, &penalty) in others.iter() {
-            if penalty > 0 {
+            if !penalty.is_zero() {
                 solver.input_sections[section].set_conflict(other, penalty);
                 solver.input_sections[other].set_conflict(section, penalty);
             }
@@ -592,9 +593,9 @@ pub fn load_prereqs(
             let prereq = solver.input_sections[sec_i].prereqs[pre_i];
 
             // delete the conflict unless it is marked as a hard conflict
-            if (1..=99).contains(&solver.input_sections[sec_i].get_conflict(prereq)) {
-                solver.input_sections[sec_i].set_conflict(prereq, 0);
-                solver.input_sections[prereq].set_conflict(sec_i, 0);
+            if !solver.input_sections[sec_i].get_conflict(prereq).is_hard() {
+                solver.input_sections[sec_i].set_conflict(prereq, Score::new());
+                solver.input_sections[prereq].set_conflict(sec_i, Score::new());
             }
         }
     }
@@ -604,7 +605,7 @@ pub fn load_prereqs(
 
 pub fn discount_multiple_sections(db: &mut Connection, solver: &mut Solver, departments: &Vec<String>) -> Result<(), String> {
     // discount conflicts for courses with multiple sections
-    let threshold = 30;
+    let threshold = Score::new_with_one_penalty(MIN_PREFERENCE_LEVEL);
     let dept_in = dept_clause(departments, &vec!["department".into()], true);
     let mut stmt = db.prepare(&format!("
         SELECT course, section_count
@@ -627,13 +628,13 @@ pub fn discount_multiple_sections(db: &mut Connection, solver: &mut Solver, depa
                 .collect();
             for other in others {
                 let old_score = solver.input_sections[sec_i].get_conflict(other);
-                if old_score >= 100 || old_score <= 0 {
+                if old_score.is_zero() {
                     continue;
                 }
                 let mut new_score =
                     (solver.input_sections[sec_i].get_conflict(other) - 1) / (count + 1);
                 if new_score < threshold {
-                    new_score = 0;
+                    new_score = Score::new();
                 }
 
                 // set in both directions
@@ -667,13 +668,13 @@ pub fn load_anti_conflicts(
 
     let mut single_name = String::new();
     let mut group = Vec::new();
-    let mut penalty = 0;
+    let mut penalty = Score::new();
 
     while let Some(row) = rows.next().map_err(sql_err)? {
         let new_single_name: String = row.get_unwrap(0);
         let other_name: String = row.get_unwrap(1);
         let other = find_section_by_name(solver, &other_name)?;
-        let pen: isize = row.get_unwrap(2);
+        let pen = Score::new_with_one_penalty(row.get_unwrap(2));
 
         // start a new anti conflict
         if new_single_name != single_name {
@@ -739,7 +740,7 @@ pub fn load_faculty(
 
                 let mut available_times = Vec::new();
                 for _ in 0..7 {
-                    available_times.push(vec![-1isize; 24 * 12]);
+                    available_times.push(vec![None; 24 * 12]);
                 }
 
                 solver.instructors.push(Instructor {
@@ -773,7 +774,11 @@ pub fn load_faculty(
             let end_index = row.get_unwrap::<usize, usize>(3) / 5;
             let day = &mut faculty.available_times[day_of_week.number_days_from_sunday() as usize];
             for elt in day.iter_mut().take(end_index).skip(start_index) {
-                *elt = std::cmp::max(*elt, row.get_unwrap(4));
+                let score = Score::new_with_one_penalty(row.get_unwrap(4));
+                *elt = match *elt {
+                    None => Some(score),
+                    Some(old) => Some(std::cmp::max(old, score)),
+                }
             }
         }
     }
@@ -812,8 +817,8 @@ pub fn load_faculty(
 
                 // days off penalty?
                 let days_off: u8 = row.get_unwrap(2);
-                let days_off_penalty: isize = row.get_unwrap(3);
-                if days_off_penalty > 0 {
+                let days_off_penalty = Score::new_with_one_penalty(row.get_unwrap(3));
+                if !days_off_penalty.is_zero() {
                     faculty.distribution.push(DistributionPreference::DaysOff {
                         days: parse_days(&days_to_check)?,
                         days_off,
@@ -822,8 +827,8 @@ pub fn load_faculty(
                 }
 
                 // evenly spread penalty?
-                let evenly_spread_penalty: isize = row.get_unwrap(4);
-                if evenly_spread_penalty > 0 {
+                let evenly_spread_penalty = Score::new_with_one_penalty(row.get_unwrap(4));
+                if !evenly_spread_penalty.is_zero() {
                     faculty
                         .distribution
                         .push(DistributionPreference::DaysEvenlySpread {
@@ -855,7 +860,7 @@ pub fn load_faculty(
             let is_cluster: bool = row.get_unwrap(6);
             let is_too_short: bool = row.get_unwrap(7);
             let interval_minutes: i64 = row.get_unwrap(8);
-            let interval_penalty: isize = row.get_unwrap(9);
+            let interval_penalty = Score::new_with_one_penalty(row.get_unwrap(9));
 
             let dwp = if is_too_short {
                 DurationWithPenalty::TooShort {
@@ -936,7 +941,7 @@ pub fn load_faculty_section_assignments(
             for &TimeWithPenalty{ time_slot, penalty } in &old_time_slots {
                 match solver.instructors[faculty_index].get_time_slot_penalty(&solver.time_slots[time_slot]) {
                     Some(pen) => solver.input_sections[section_index].time_slots.push(
-                        TimeWithPenalty{ time_slot, penalty: std::cmp::min(99, pen + penalty) }
+                        TimeWithPenalty{ time_slot, penalty: pen + penalty }
                     ),
                     None => (),
                 }

@@ -76,7 +76,7 @@ impl ScoreCriterion for SoftConflictCriterion {
 // if it does not, the penalty is applied locally to every section
 // in the group and globally for the single section
 pub struct AntiConflictCriterion {
-    pub penalty: isize,
+    pub penalty: Score,
     pub single: usize,
     pub group: Vec<usize>,
 }
@@ -347,7 +347,7 @@ impl ScoreCriterion for InstructorClassSpreadCriterion {
                                 global: if section == section_of_record {
                                     penalty
                                 } else {
-                                    0
+                                    Score::new()
                                 },
                                 details: SectionScoreDetails::DaysOff {
                                     instructor: self.instructor,
@@ -380,7 +380,7 @@ impl ScoreCriterion for InstructorClassSpreadCriterion {
                                 global: if section == section_of_record {
                                     penalty
                                 } else {
-                                    0
+                                    Score::new()
                                 },
                                 details: SectionScoreDetails::DaysEvenlySpread {
                                     instructor: self.instructor,
@@ -492,7 +492,7 @@ pub struct InstructorRoomCountCriterion {
     pub instructor: usize,
     pub sections: Vec<usize>,
     pub desired: usize,
-    pub penalty: isize,
+    pub penalty: Score,
 }
 
 impl ScoreCriterion for InstructorRoomCountCriterion {
@@ -515,7 +515,7 @@ impl ScoreCriterion for InstructorRoomCountCriterion {
                 global: if section == section_of_record {
                     self.penalty
                 } else {
-                    0
+                    Score::new()
                 },
                 details: SectionScoreDetails::TooManyRooms {
                     instructor: self.instructor,
@@ -550,8 +550,8 @@ impl ScoreCriterion for InstructorRoomCountCriterion {
 
 #[derive(Clone)]
 pub struct SectionScoreRecord {
-    pub local: isize,
-    pub global: isize,
+    pub local: Score,
+    pub global: Score,
     pub details: SectionScoreDetails,
 }
 
@@ -559,7 +559,7 @@ impl SectionScoreRecord {
     pub fn gather_score_messages(
         &self,
         solver: &Solver,
-        list: &mut Vec<(isize, String)>,
+        list: &mut Vec<(Score, String)>,
         include_dups: bool,
     ) {
         match self {
