@@ -455,38 +455,75 @@ CREATE VIEW active_undiscounted_conflicts (department_a, course_a, section_a, de
     -- expand conflict_courses cliques
     -- note: does NOT create conflicts between sections within a course
     --       for that, see paired_conflict_sections
-    WITH paired_conflict_courses AS (
+    WITH paired_conflict_courses_courses AS (
         SELECT conflicts.program, conflicts.conflict_name, conflict_penalty, conflict_maximize, s1.section AS section_a, s2.section AS section_b
         FROM conflicts
-        NATURAL JOIN conflict_courses cc1
-        JOIN conflict_courses cc2
-            ON  cc2.program                                     =  conflicts.program
-            AND cc2.conflict_name                               =  conflicts.conflict_name
-            AND cc2.course                                      <> cc1.course
+        JOIN conflict_courses c1
+            ON  c1.program                                      =  conflicts.program
+            AND c1.conflict_name                                =  conflicts.conflict_name
         JOIN sections s1
-            ON  s1.course                                       =  cc1.course
+            ON  s1.course                                       =  c1.course
+        JOIN conflict_courses c2
+            ON  c2.program                                      =  conflicts.program
+            AND c2.conflict_name                                =  conflicts.conflict_name
         JOIN sections s2
-            ON  s2.course                                       =  cc2.course
+            ON  s2.course                                       =  c2.course
+        WHERE   c2.course                                       <> c1.course
             AND s2.section                                      >  s1.section
     ),
 
     -- expand conflict_sections cliques
-    paired_conflict_sections AS (
-        SELECT conflicts.program, conflicts.conflict_name, conflict_penalty, conflict_maximize, cs1.section AS section_a, cs2.section AS section_b
+    paired_conflict_sections_sections AS (
+        SELECT conflicts.program, conflicts.conflict_name, conflict_penalty, conflict_maximize, s1.section AS section_a, s2.section AS section_b
         FROM conflicts
-        NATURAL JOIN conflict_sections cs1
-        JOIN conflict_sections cs2
-            ON  cs2.program                                     =  conflicts.program
-            AND cs2.conflict_name                               =  conflicts.conflict_name
-            AND cs2.section                                     <> cs1.section
-            AND cs2.section                                     >  cs1.section
+        JOIN conflict_sections s1
+            ON  s1.program                                      =  conflicts.program
+            AND s1.conflict_name                                =  conflicts.conflict_name
+        JOIN conflict_sections s2
+            ON  s2.program                                      =  conflicts.program
+            AND s2.conflict_name                                =  conflicts.conflict_name
+        WHERE   s2.section                                      >  s1.section
+    ),
+
+    -- expand conflict_sections -> conflict_courses
+    paired_conflict_sections_courses AS (
+        SELECT conflicts.program, conflicts.conflict_name, conflict_penalty, conflict_maximize, s1.section AS section_a, s2.section AS section_b
+        FROM conflicts
+        JOIN conflict_sections s1
+            ON  s1.program                                      =  conflicts.program
+            AND s1.conflict_name                                =  conflicts.conflict_name
+        JOIN conflict_courses c2
+            ON  c2.program                                      =  conflicts.program
+            AND c2.conflict_name                                =  conflicts.conflict_name
+        JOIN sections s2
+            ON  s2.course                                       =  c2.course
+        WHERE   s2.section                                      >  s1.section
+    ),
+
+    -- expand conflict_courses -> conflict_sections
+    paired_conflict_courses_sections AS (
+        SELECT conflicts.program, conflicts.conflict_name, conflict_penalty, conflict_maximize, s1.section AS section_a, s2.section AS section_b
+        FROM conflicts
+        JOIN conflict_courses c1
+            ON  c1.program                                      =  conflicts.program
+            AND c1.conflict_name                                =  conflicts.conflict_name
+        JOIN sections s1
+            ON  s1.course                                       =  c1.course
+        JOIN conflict_sections s2
+            ON  s2.program                                      =  conflicts.program
+            AND s2.conflict_name                                =  conflicts.conflict_name
+        WHERE   s2.section                                      >  s1.section
     ),
 
     -- merge all section conflicts derived from sections or courses
     paired_conflicts AS (
-        SELECT * FROM paired_conflict_courses
+        SELECT * FROM paired_conflict_courses_courses
         UNION
-        SELECT * FROM paired_conflict_sections
+        SELECT * FROM paired_conflict_sections_sections
+        UNION
+        SELECT * FROM paired_conflict_sections_courses
+        UNION
+        SELECT * FROM paired_conflict_courses_sections
     ),
 
     -- combine conflicts within a program, tracking maximizing and minimizing conflicts
