@@ -97,13 +97,13 @@ CREATE TABLE faculty_availability (
     day_of_week                 TEXT NOT NULL,
     start_time                  INTEGER NOT NULL,
     duration                    INTEGER NOT NULL,
-    availability_penalty        INTEGER,
+    availability_priority       INTEGER,
 
     CHECK (day_of_week IN ('M', 'T', 'W', 'R', 'F', 'S', 'U')),
     CHECK (start_time >= 0 AND start_time % 5 = 0),
     CHECK (duration > 0 AND duration % 5 = 0),
     CHECK (start_time + duration < 24*60),
-    CHECK (availability_penalty IS NULL OR availability_penalty > 0 AND availability_penalty < 100),
+    CHECK (availability_priority IS NULL OR availability_priority >= 10 AND availability_priority < 20),
 
     PRIMARY KEY (faculty, day_of_week, start_time),
     FOREIGN KEY (faculty) REFERENCES faculty (faculty) ON DELETE CASCADE ON UPDATE CASCADE
@@ -113,19 +113,19 @@ CREATE TABLE faculty_preferences (
     faculty                     TEXT PRIMARY KEY,
     days_to_check               TEXT NOT NULL,
     days_off                    INTEGER,
-    days_off_penalty            INTEGER,
-    evenly_spread_penalty       INTEGER,
+    days_off_priority           INTEGER,
+    evenly_spread_priority      INTEGER,
     max_gap_within_cluster      INTEGER NOT NULL,
 
     CHECK (INSTR(days_to_check, '$') = 0 AND
         REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE('$'||days_to_check,
             '$M','$'), '$T','$'), '$W','$'), '$R','$'), '$F','$'), '$S','$'), '$U','$') = '$'),
     CHECK (days_off IS NULL OR days_off >= 0 AND days_off < 7),
-    CHECK (days_off_penalty IS NULL OR days_off_penalty > 0 AND days_off_penalty < 100),
-    CHECK (days_off_penalty IS NULL AND days_off IS NULL OR days_off_penalty IS NOT NULL AND days_off IS NOT NULL),
-    CHECK (days_off_penalty IS NULL OR LENGTH(days_to_check) > 1),
-    CHECK (evenly_spread_penalty IS NULL OR evenly_spread_penalty > 0 AND evenly_spread_penalty < 100),
-    CHECK (evenly_spread_penalty IS NULL OR LENGTH(days_to_check) > 1),
+    CHECK (days_off_priority IS NULL OR days_off_priority >= 10 AND days_off_priority < 20),
+    CHECK (days_off_priority IS NULL AND days_off IS NULL OR days_off_priority IS NOT NULL AND days_off IS NOT NULL),
+    CHECK (days_off_priority IS NULL OR LENGTH(days_to_check) > 1),
+    CHECK (evenly_spread_priority IS NULL OR evenly_spread_priority >= 10 AND evenly_spread_priority < 20),
+    CHECK (evenly_spread_priority IS NULL OR LENGTH(days_to_check) > 1),
     CHECK (max_gap_within_cluster >= 0 AND max_gap_within_cluster < 120),
 
     FOREIGN KEY (faculty) REFERENCES faculty (faculty) ON DELETE CASCADE ON UPDATE CASCADE
@@ -136,12 +136,12 @@ CREATE TABLE faculty_preference_intervals (
     is_cluster                  BOOLEAN NOT NULL,       -- true => cluster, false => gap
     is_too_short                BOOLEAN NOT NULL,       -- true => too short, false => too long
     interval_minutes            INTEGER NOT NULL,
-    interval_penalty            INTEGER,
-    -- e.g., cluster shorter than 110 minutes incurs penalty 5,
-    -- or    gap     longer  than 105 minutes incurs penalty 10
+    interval_priority           INTEGER,
+    -- e.g., cluster shorter than 110 minutes with priority 16,
+    -- or    gap     longer  than 105 minutes with priority 11
 
     CHECK (interval_minutes > 0 AND interval_minutes < 24*60),
-    CHECK (interval_penalty IS NULL OR interval_penalty > 0 AND interval_penalty < 100),
+    CHECK (interval_priority IS NULL OR interval_priority >= 10 AND interval_priority < 20),
 
     PRIMARY KEY (faculty, is_cluster, is_too_short, interval_minutes),
     FOREIGN KEY (faculty) REFERENCES faculty_preferences (faculty)
@@ -193,9 +193,9 @@ CREATE TABLE sections (
 CREATE TABLE section_room_tags (
     section                     TEXT NOT NULL,
     room_tag                    TEXT NOT NULL,
-    room_penalty                INTEGER,
+    room_priority               INTEGER,
 
-    CHECK (room_penalty IS NULL OR room_penalty > 0 AND room_penalty < 100),
+    CHECK (room_priority IS NULL OR room_priority >= 10 AND room_priority < 20),
 
     PRIMARY KEY (section, room_tag),
     FOREIGN KEY (section) REFERENCES sections (section) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -205,9 +205,9 @@ CREATE TABLE section_room_tags (
 CREATE TABLE section_time_slot_tags (
     section                     TEXT NOT NULL,
     time_slot_tag               TEXT NOT NULL,
-    time_slot_penalty           INTEGER,
+    time_slot_priority          INTEGER,
 
-    CHECK (time_slot_penalty IS NULL OR time_slot_penalty > 0 AND time_slot_penalty < 100),
+    CHECK (time_slot_priority IS NULL OR time_slot_priority >= 10 AND time_slot_priority < 20),
 
     PRIMARY KEY (section, time_slot_tag),
     FOREIGN KEY (section) REFERENCES sections (section) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -238,9 +238,9 @@ CREATE UNIQUE INDEX primary_section ON cross_listing_sections (section);
 
 CREATE TABLE anti_conflicts (
     anti_conflict_single        TEXT PRIMARY KEY,
-    anti_conflict_penalty       INTEGER NOT NULL,
+    anti_conflict_priority      INTEGER NOT NULL,
 
-    CHECK (anti_conflict_penalty > 0 AND anti_conflict_penalty <= 100),
+    CHECK (anti_conflict_priority > 0 AND anti_conflict_priority < 10),
 
     FOREIGN KEY (anti_conflict_single) REFERENCES sections (section) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
@@ -268,11 +268,11 @@ CREATE TABLE anti_conflict_courses (
 CREATE TABLE conflicts (
     program                     TEXT NOT NULL,
     conflict_name               TEXT NOT NULL,
-    conflict_penalty            INTEGER,
-    conflict_maximize           BOOLEAN NOT NULL,
+    conflict_priority           INTEGER,
+    boost_priority              BOOLEAN NOT NULL,
 
-    CHECK (conflict_penalty IS NULL OR conflict_penalty > 0 AND conflict_penalty <= 100),
-    CHECK (conflict_penalty IS NOT NULL OR NOT conflict_maximize),
+    CHECK (conflict_priority IS NULL OR conflict_priority > 0 AND conflict_priority < 10),
+    CHECK (conflict_priority IS NOT NULL OR NOT boost_priority),
 
     PRIMARY KEY (program, conflict_name),
     FOREIGN KEY (program) REFERENCES programs (program) ON DELETE CASCADE ON UPDATE CASCADE
@@ -525,19 +525,19 @@ CREATE VIEW sections_to_be_scheduled (department, course, section, secondary_sec
     JOIN section_time_slot_tags
         ON section_time_slot_tags.section = schedulable_cross_listings.primary_section;
 
--- the time slots that a given section can be assigned to and the associated penalty
+-- the time slots that a given section can be assigned to and the associated priority
 -- only primary cross listings are included
 -- this considers:
 --   *   times assigned to the section
 --   *   when either:
 --       * all assigned faculty are available, or
 --       * there are no assigned faculty
-CREATE VIEW time_slots_available_to_sections (department, section, time_slot, time_slot_penalty) AS
-    WITH per_faculty (department, section, faculty, time_slot, time_slot_penalty) AS (
+CREATE VIEW time_slots_available_to_sections (department, section, time_slot, time_slot_priority) AS
+    WITH per_faculty (department, section, faculty, time_slot, time_slot_priority) AS (
         SELECT department, section, faculty, time_slot,
-            CASE WHEN time_slot_penalty IS NULL THEN faculty_time_slot_penalty
-                 WHEN faculty_time_slot_penalty IS NULL THEN time_slot_penalty
-                 ELSE MAX(time_slot_penalty, faculty_time_slot_penalty) END
+            CASE WHEN time_slot_priority IS NULL THEN faculty_time_slot_priority
+                 WHEN faculty_time_slot_priority IS NULL THEN time_slot_priority
+                 ELSE MIN(time_slot_priority, faculty_time_slot_priority) END
         FROM sections_to_be_scheduled
         NATURAL JOIN section_time_slot_tags
         NATURAL JOIN time_slots_time_slot_tags
@@ -545,27 +545,27 @@ CREATE VIEW time_slots_available_to_sections (department, section, time_slot, ti
         NATURAL JOIN time_slots_available_to_faculty
     ),
 
-    group_faculty (department, section, time_slot, time_slot_penalty, faculty_assigned) AS (
-        SELECT department, section, time_slot, MAX(time_slot_penalty), COUNT(faculty)
+    group_faculty (department, section, time_slot, time_slot_priority, faculty_assigned) AS (
+        SELECT department, section, time_slot, MIN(time_slot_priority), COUNT(faculty)
         FROM per_faculty
         GROUP BY department, section, time_slot
     ),
 
     faculty_count (section, total_faculty_assigned) AS (
-        SELECT section, COUNT(1) as faculty_assigned
+        SELECT section, COUNT(1) AS faculty_assigned
         FROM faculty_sections
         GROUP BY section
     ),
 
-    intersect_faculty (department, section, time_slot, time_slot_penalty) AS (
-        SELECT department, section, time_slot, time_slot_penalty
+    intersect_faculty (department, section, time_slot, time_slot_priority) AS (
+        SELECT department, section, time_slot, time_slot_priority
         FROM group_faculty
         NATURAL JOIN faculty_count
         WHERE faculty_assigned = total_faculty_assigned
     )
 
     -- time slots where all faculty are available
-    SELECT department, section, time_slot, time_slot_penalty
+    SELECT department, section, time_slot, time_slot_priority
     FROM intersect_faculty
 
     UNION
@@ -578,10 +578,10 @@ CREATE VIEW time_slots_available_to_sections (department, section, time_slot, ti
     NATURAL LEFT OUTER JOIN faculty_sections
     WHERE faculty is NULL;
 
--- the rooms that a given section can be assigned to and the associated penalty
+-- the rooms that a given section can be assigned to and the associated priority
 -- only primary cross listings are included
-CREATE VIEW rooms_available_to_sections (department, section, room, room_penalty) AS
-    SELECT department, section, room, MAX(room_penalty)
+CREATE VIEW rooms_available_to_sections (department, section, room, room_priority) AS
+    SELECT department, section, room, MIN(room_priority)
     FROM sections_to_be_scheduled
     NATURAL JOIN section_room_tags
     NATURAL JOIN rooms_room_tags
@@ -605,8 +605,8 @@ CREATE VIEW time_slots_used_by_departments (department, time_slot, days, start_t
     NATURAL JOIN time_slots;
 
 -- all time slots that are compatible with a faculty's availability
-CREATE VIEW time_slots_available_to_faculty (faculty, time_slot, faculty_time_slot_penalty) AS
-    WITH overlapping_intervals (faculty, faculty_minutes, penalty, time_slot, time_slot_minutes) AS (
+CREATE VIEW time_slots_available_to_faculty (faculty, time_slot, faculty_time_slot_priority) AS
+    WITH overlapping_intervals (faculty, faculty_minutes, priority, time_slot, time_slot_minutes) AS (
         SELECT  faculty,
                 CASE
                     -- time slot is entirely inside availability
@@ -624,7 +624,7 @@ CREATE VIEW time_slots_available_to_faculty (faculty, time_slot, faculty_time_sl
                     ELSE
                         ts.start_time + ts.duration - fa.start_time
                     END,
-                availability_penalty,
+                availability_priority,
                 time_slot,
                 LENGTH(ts.days) * ts.duration AS time_slot_minutes
         FROM faculty_availability AS fa
@@ -639,7 +639,7 @@ CREATE VIEW time_slots_available_to_faculty (faculty, time_slot, faculty_time_sl
                  ELSE 1 END = 1
     )
 
-    SELECT faculty, time_slot, MAX(penalty)
+    SELECT faculty, time_slot, MIN(priority)
     FROM overlapping_intervals
     GROUP BY faculty, time_slot, time_slot_minutes
     HAVING SUM(faculty_minutes) = time_slot_minutes;
@@ -656,11 +656,11 @@ CREATE VIEW faculty_sections_to_be_scheduled (faculty, department, course, secti
 --       not the department that houses the faculty, so the same data
 --       may appear multiple times for faculty teaching across departments
 CREATE VIEW faculty_to_be_scheduled_preference_intervals (faculty, department,
-        days_to_check, days_off, days_off_penalty, evenly_spread_penalty, max_gap_within_cluster,
-        is_cluster, is_too_short, interval_minutes, interval_penalty) AS
+        days_to_check, days_off, days_off_priority, evenly_spread_priority, max_gap_within_cluster,
+        is_cluster, is_too_short, interval_minutes, interval_priority) AS
     SELECT DISTINCT department, faculty,
-                    days_to_check, days_off, days_off_penalty, evenly_spread_penalty, max_gap_within_cluster,
-                    is_cluster, is_too_short, interval_minutes, interval_penalty
+                    days_to_check, days_off, days_off_priority, evenly_spread_priority, max_gap_within_cluster,
+                    is_cluster, is_too_short, interval_minutes, interval_priority
     FROM faculty_sections_to_be_scheduled
     NATURAL JOIN faculty_preferences
     NATURAL LEFT OUTER JOIN faculty_preference_intervals;
@@ -672,11 +672,11 @@ CREATE VIEW faculty_to_be_scheduled_preference_intervals (faculty, department,
 -- but does not account for prereqs and multiple sections
 --
 -- note: this is not intended to be used directly; it is input to conflict_pairs
-CREATE VIEW undiscounted_conflict_pairs (department_a, course_a, section_a, department_b, course_b, section_b, penalty) AS
+CREATE VIEW undiscounted_conflict_pairs (department_a, course_a, section_a, department_b, course_b, section_b, priority) AS
     -- expand conflict_courses cliques
     -- note: does NOT create conflicts between sections within a course
     WITH paired_conflict_courses_courses AS (
-        SELECT conflicts.program, conflicts.conflict_name, conflict_penalty, conflict_maximize, s1.section AS section_a, s2.section AS section_b
+        SELECT conflicts.program, conflicts.conflict_name, conflict_priority, boost_priority, s1.section AS section_a, s2.section AS section_b
         FROM conflicts
         JOIN conflict_courses c1
             ON  c1.program                                      =  conflicts.program
@@ -693,7 +693,7 @@ CREATE VIEW undiscounted_conflict_pairs (department_a, course_a, section_a, depa
 
     -- expand conflict_sections cliques
     paired_conflict_sections_sections AS (
-        SELECT conflicts.program, conflicts.conflict_name, conflict_penalty, conflict_maximize, s1.section AS section_a, s2.section AS section_b
+        SELECT conflicts.program, conflicts.conflict_name, conflict_priority, boost_priority, s1.section AS section_a, s2.section AS section_b
         FROM conflicts
         JOIN conflict_sections s1
             ON  s1.program                                      =  conflicts.program
@@ -706,7 +706,7 @@ CREATE VIEW undiscounted_conflict_pairs (department_a, course_a, section_a, depa
 
     -- expand conflict_sections -> conflict_courses
     paired_conflict_sections_courses AS (
-        SELECT conflicts.program, conflicts.conflict_name, conflict_penalty, conflict_maximize, s1.section AS section_a, s2.section AS section_b
+        SELECT conflicts.program, conflicts.conflict_name, conflict_priority, boost_priority, s1.section AS section_a, s2.section AS section_b
         FROM conflicts
         JOIN conflict_sections s1
             ON  s1.program                                      =  conflicts.program
@@ -721,7 +721,7 @@ CREATE VIEW undiscounted_conflict_pairs (department_a, course_a, section_a, depa
 
     -- expand conflict_courses -> conflict_sections
     paired_conflict_courses_sections AS (
-        SELECT conflicts.program, conflicts.conflict_name, conflict_penalty, conflict_maximize, s1.section AS section_a, s2.section AS section_b
+        SELECT conflicts.program, conflicts.conflict_name, conflict_priority, boost_priority, s1.section AS section_a, s2.section AS section_b
         FROM conflicts
         JOIN conflict_courses c1
             ON  c1.program                                      =  conflicts.program
@@ -748,8 +748,11 @@ CREATE VIEW undiscounted_conflict_pairs (department_a, course_a, section_a, depa
     -- combine conflicts within a program, tracking maximizing and minimizing conflicts
     per_program_conflicts AS (
         SELECT program, section_a, section_b,
-            MAX(CASE WHEN conflict_maximize THEN conflict_penalty ELSE NULL END) as max_penalty,
-            MIN(CASE WHEN conflict_maximize THEN NULL ELSE conflict_penalty END) as min_penalty
+            -- highest priority is lowest number
+            MIN(conflict_priority) FILTER (WHERE boost_priority) AS highest_priority,
+            -- lowest priority is highest number, but NULL means the conflict should be canceled
+            -- so we change NULL to 10 (normal range is [1,9]) so MAX will not ignore it
+            MAX(CASE WHEN conflict_priority IS NULL THEN 10 ELSE conflict_priority END) FILTER (WHERE NOT boost_priority) AS lowest_priority
         FROM paired_conflicts
         GROUP BY program, section_a, section_b
     ),
@@ -757,17 +760,26 @@ CREATE VIEW undiscounted_conflict_pairs (department_a, course_a, section_a, depa
     -- apply minimizing conflicts to reduce penalties
     reduced_conflicts AS (
         SELECT program, section_a, section_b,
-            CASE WHEN max_penalty IS NOT NULL AND min_penalty IS NOT NULL THEN MIN(max_penalty, min_penalty)
-                 WHEN max_penalty IS NOT NULL THEN max_penalty
-                 ELSE 0
-            END AS penalty
+            CASE
+                -- never reduce a hard conflict
+                WHEN highest_priority = 1 then 1
+                -- lowest_priority = 10 => the conflict should be canceled
+                WHEN lowest_priority = 10 then NULL
+                -- lowest_priority wins when both are set, but only if it actually lowers the priority (increases number)
+                WHEN highest_priority IS NOT NULL AND lowest_priority IS NOT NULL THEN MAX(highest_priority, lowest_priority)
+                -- absense of lowest_priority means just use highest_priority
+                WHEN highest_priority IS NOT NULL THEN highest_priority
+                -- if there is no highest_priority (no boost_priority entries) then no priority, i.e.,
+                -- lowest_priority should never introduce a priority
+                ELSE NULL
+            END AS priority
         FROM per_program_conflicts
-        WHERE penalty IS NOT NULL
+        WHERE priority IS NOT NULL
     )
 
     -- merge conflicts across programs
     SELECT  as_a.department, as_a.course, section_a,
-            as_b.department, as_b.course, section_b, MAX(penalty)
+            as_b.department, as_b.course, section_b, MIN(priority)
     FROM reduced_conflicts
     JOIN sections_to_be_scheduled AS as_a
         ON section_a = as_a.section
@@ -789,7 +801,7 @@ CREATE VIEW prereq_transitive_closure (course, prereq) AS
     WITH merged_pre_and_co AS (
         SELECT course, prereq FROM prereqs
         UNION
-        SELECT course, coreq as prereq FROM coreqs
+        SELECT course, coreq AS prereq FROM coreqs
     ),
 
     -- ... to build the transitive closure of prereqs ...
@@ -848,22 +860,25 @@ CREATE VIEW section_counts (department, course, section_count) AS
 -- accounts for conflits across programs, prereqs/coreqs, and multiple section discounts
 --
 -- note: discounting formula is hard-coded, as is minimum conflict value
-CREATE VIEW conflict_pairs (department_a, section_a, department_b, section_b, penalty) AS
+--       we discount by adding 4 to priority for each extra section
+--       and drop conflict altogether when it hits 10 (conflict priorities are [1,9])
+CREATE VIEW conflict_pairs (department_a, section_a, department_b, section_b, priority) AS
     -- remove conflicts when there is a prereq relationship
     -- and discount multiple sections
-    WITH merged (department_a, section_a, department_b, section_b, penalty) AS (
+    WITH merged (department_a, section_a, department_b, section_b, priority) AS (
         SELECT department_a, section_a, department_b, section_b,
-            CASE WHEN undiscounted.penalty = 100
-                    THEN undiscounted.penalty
+            CASE WHEN undiscounted.priority = 1
+                    -- hard conflicts are never reduced
+                    THEN undiscounted.priority
                  WHEN counts_a.section_count IS NOT NULL AND counts_b.section_count IS NOT NULL
-                    THEN ((undiscounted.penalty - 1) / (counts_a.section_count + 1) - 1) / (counts_b.section_count + 1)
+                    THEN undiscounted.priority + 4 * ((counts_a.section_count-1) + (counts_b.section_count-1))
                  WHEN counts_a.section_count IS NOT NULL
-                    THEN  (undiscounted.penalty - 1) / (counts_a.section_count + 1)
+                    THEN undiscounted.priority + 4 *  (counts_a.section_count-1)
                  WHEN counts_b.section_count IS NOT NULL
-                    THEN  (undiscounted.penalty - 1) / (counts_b.section_count + 1)
+                    THEN undiscounted.priority + 4 *  (counts_b.section_count-1)
                  ELSE
-                    undiscounted.penalty
-            END AS discounted_penalty
+                    undiscounted.priority
+            END AS discounted_priority
         FROM undiscounted_conflict_pairs AS undiscounted
         -- hack: doing this as two left outer joins is much faster
         -- than a join condition with an OR to consider both cases
@@ -878,27 +893,27 @@ CREATE VIEW conflict_pairs (department_a, section_a, department_b, section_b, pe
         LEFT OUTER JOIN section_counts AS counts_b
             ON  counts_b.course                                 = undiscounted.course_b
         WHERE pre_1.course IS NULL AND pre_1.prereq IS NULL AND pre_2.course IS NULL AND pre_2.prereq IS NULL
-        AND discounted_penalty >= 30
+        AND discounted_priority < 10
 
         UNION
 
         -- merge with hard conflict for courses with the same instructor
-        SELECT  sec_a.department, sec_a.section, sec_b.department, sec_b.section, 100
+        SELECT  sec_a.department, sec_a.section, sec_b.department, sec_b.section, 1
         FROM faculty_sections_to_be_scheduled AS sec_a
         JOIN faculty_sections_to_be_scheduled AS sec_b
-            ON  sec_a.faculty                                   = sec_b.faculty
-            AND sec_a.section                                   < sec_b.section
+            ON  sec_a.faculty                                   =  sec_b.faculty
+            AND sec_a.section                                   <> sec_b.section
     )
 
-    SELECT department_a, section_a, department_b, section_b, MAX(penalty)
+    SELECT department_a, section_a, department_b, section_b, MIN(priority)
     FROM merged
     GROUP BY department_a, section_a, department_b, section_b;
 
 -- every pairing of an anti-conflict primary section with a group section
-CREATE VIEW anti_conflict_pairs (single_department, single_section, group_department, group_section, anti_conflict_penalty) AS
+CREATE VIEW anti_conflict_pairs (single_department, single_section, group_department, group_section, anti_conflict_priority) AS
     SELECT  single_sections.department AS single_department, single_sections.section AS single_section,
             group_sections.department AS group_department, group_sections.section AS group_section,
-            anti_conflict_penalty
+            anti_conflict_priority
     FROM sections_to_be_scheduled                           AS single_sections
     JOIN anti_conflicts
         ON  anti_conflicts.anti_conflict_single             = single_sections.secondary_section
@@ -911,7 +926,7 @@ CREATE VIEW anti_conflict_pairs (single_department, single_section, group_depart
 
     SELECT  single_sections.department AS single_department, single_sections.section AS single_section,
             group_sections.department AS group_department, group_sections.section AS group_section,
-            anti_conflict_penalty
+            anti_conflict_priority
     FROM sections_to_be_scheduled                           AS single_sections
     JOIN anti_conflicts
         ON  anti_conflicts.anti_conflict_single             = single_sections.secondary_section

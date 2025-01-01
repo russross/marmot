@@ -31,7 +31,7 @@ class DB:
         self.db = sqlite3.connect(f'file:{filename}?mode=rw', uri=True)
         self.db.execute('PRAGMA busy_timeout = 10000')
         self.db.execute('PRAGMA foreign_keys = ON')
-        #self.db.execute('PRAGMA journal_mode = MEMORY')
+        self.db.execute('PRAGMA journal_mode = MEMORY')
         self.db.execute('PRAGMA locking_mode = NORMAL')
         #self.db.execute('PRAGMA synchronous = OFF')
         self.db.execute('PRAGMA temp_store = MEMORY')
@@ -79,7 +79,7 @@ class DB:
     def make_faculty(self, faculty: str, department: str, availability: str) -> None:
         week = 'MTWRFSU'
 
-        # parse the availability string: "MWF 0900-1200 with penalty 10, ..."
+        # parse the availability string: "MWF 0900-1200 with priority 10, ..."
         all_intervals = [ [ -1 for interval in range(24*60//5) ] for day in range(7) ]
         for span in availability.split(','):
             days = []
@@ -111,56 +111,56 @@ class DB:
             if start_time % 5 != 0 or end_time % 5 != 0 or start_time >= end_time or end_time > 24*60:
                 raise RuntimeError(f'faculty {faculty} start must come before end time and end time must be before midnight')
 
-            penalty = 0
-            if span.startswith('with penalty '):
-                span = span[len('with penalty '):]
-                penalty = int(span)
+            priority = 20
+            if span.startswith('with priority '):
+                span = span[len('with priority '):]
+                priority = int(span)
             elif span != '':
-                raise RuntimeError(f'faculty {faculty} availability span must end with no penalty or "with penalty xyz"')
-            if penalty < 0 or penalty > 99:
-                raise RuntimeError(f'faculty {faculty} availability span penalty must be between 0 and 99')
+                raise RuntimeError(f'faculty {faculty} availability span must end with no priority or "with priority xyz"')
+            if priority < 10 or priority > 20:
+                raise RuntimeError(f'faculty {faculty} availability span priority must be between 10 and 20 (20 meaning no priority)')
 
             for day in days:
                 for interval in range(start_time//5, end_time//5):
-                    all_intervals[day][interval] = max(all_intervals[day][interval], penalty)
+                    all_intervals[day][interval] = min(all_intervals[day][interval], priority)
 
         self.db.execute('INSERT INTO faculty VALUES (?, ?)', (faculty, department))
             
-        # now reformat it for the self
+        # now reformat it
         entries = []
         for (letter, intervals) in zip(week, all_intervals):
             start_minute = 0
             prev = -1
-            for (minute, penalty) in zip(range(0, 24*60, 5), intervals):
-                if penalty == prev:
+            for (minute, priority) in zip(range(0, 24*60, 5), intervals):
+                if priority == prev:
                     continue
                 if prev >= 0:
                     # end of a range
                     entries.append((letter, start_minute, minute, prev))
-                if penalty >= 0:
+                if priority >= 0:
                     start_minute = minute
-                prev = penalty
+                prev = priority
             if prev >= 0:
                 entries.append((letter, start_minute, minute, prev))
 
-        for (letter, start_minute, end_minute, penalty) in entries:
+        for (letter, start_minute, end_minute, priority) in entries:
             duration = end_minute - start_minute
-            self.db.execute('INSERT INTO faculty_availability VALUES (?, ?, ?, ?, ?)', (faculty, letter, start_minute, duration, None if penalty == 0 else penalty))
+            self.db.execute('INSERT INTO faculty_availability VALUES (?, ?, ?, ?, ?)', (faculty, letter, start_minute, duration, None if priority == 20 else priority))
 
     @rollback_on_exception
     def faculty_default_clustering(self, faculty: str, days_to_check: str, days_off: int) -> None:
         self.db.execute('INSERT INTO faculty_preferences VALUES (?, ?, ?, ?, ?, ?)',
-                (faculty, days_to_check, None if days_off < 0 else days_off, None if days_off < 0 else 10, 10, 15))
+                (faculty, days_to_check, None if days_off < 0 else days_off, None if days_off < 0 else 11, 11, 15))
         intervals = (
-            (True, True, 110, 5),
-            (True, False, 165, 10),
-            (False, True, 60, 10),
-            (False, False, 105, 5),
-            (False, False, 195, 10),
+            (True, True, 110, 15),
+            (True, False, 165, 11),
+            (False, True, 60, 11),
+            (False, False, 105, 15),
+            (False, False, 195, 11),
         )
-        for (is_cluster, is_too_short, interval_minutes, interval_penalty) in intervals:
+        for (is_cluster, is_too_short, interval_minutes, interval_priority) in intervals:
             self.db.execute('INSERT INTO faculty_preference_intervals VALUES (?, ?, ?, ?, ?)',
-                (faculty, is_cluster, is_too_short, interval_minutes, None if interval_penalty == 0 else interval_penalty))
+                (faculty, is_cluster, is_too_short, interval_minutes, None if interval_priority == 0 else interval_priority))
 
     @rollback_on_exception
     def make_course(self, department: str, course: str, course_name: str) -> None:
@@ -182,10 +182,10 @@ class DB:
         for tag in tags:
             colon = tag.find(':')
             if colon >= 0:
-                penalty = int(tag[colon+1:])
+                priority = int(tag[colon+1:])
                 tag = tag[:colon]
             else:
-                penalty = 0
+                priority = 0
             (room_tags,) = self.db.execute('SELECT COUNT(1) FROM room_tags WHERE room_tag = ?', (tag,)).fetchone()
             (time_slot_tags,) = self.db.execute('SELECT COUNT(1) FROM time_slot_tags WHERE time_slot_tag = ?', (tag,)).fetchone()
             if room_tags == 0 and time_slot_tags == 0:
@@ -193,9 +193,9 @@ class DB:
             elif room_tags > 0 and time_slot_tags > 0:
                 raise RuntimeError(f'section {section} tag "{tag}" found as both room_tag and time_slot_tag, unable to proceed')
             elif room_tags > 0:
-                self.db.execute('INSERT INTO section_room_tags VALUES (?, ?, ?)', (section, tag, None if penalty == 0 else penalty))
+                self.db.execute('INSERT INTO section_room_tags VALUES (?, ?, ?)', (section, tag, None if priority == 0 else priority))
             elif time_slot_tags > 0:
-                self.db.execute('INSERT INTO section_time_slot_tags VALUES (?, ?, ?)', (section, tag, None if penalty == 0 else penalty))
+                self.db.execute('INSERT INTO section_time_slot_tags VALUES (?, ?, ?)', (section, tag, None if priority == 0 else priority))
 
     @rollback_on_exception
     def assign_faculty_sections(self, faculty: str, sections: list[str]) -> None:
@@ -211,10 +211,10 @@ class DB:
             self.db.execute('INSERT INTO cross_listing_sections VALUES (?, ?)', (section, primary))
 
     @rollback_on_exception
-    def add_anti_conflict(self, penalty: int, single: str, group: list[str]) -> None:
+    def add_anti_conflict(self, priority: int, single: str, group: list[str]) -> None:
         if len(group) < 1:
             raise RuntimeError(f'add_anti_conflict needs at least one section in the group')
-        self.db.execute('INSERT INTO anti_conflicts VALUES (?, ?)', (single, int(penalty)))
+        self.db.execute('INSERT INTO anti_conflicts VALUES (?, ?)', (single, int(priority)))
         for elt in group:
             if '-' not in elt:
                 self.db.execute('INSERT INTO anti_conflict_courses VALUES (?, ?)', (single, elt))
@@ -226,18 +226,18 @@ class DB:
         self.db.execute('INSERT INTO programs VALUES (?, ?)', (program, department))
 
     @rollback_on_exception
-    def make_conflict(self, program: str, conflict_name: str, conflict_penalty: int, maximize_s: str, courses: list[str]) -> None:
-        if maximize_s == 'maximize':
-            maximize = True
-        elif maximize_s == 'minimize':
-            maximize = False
+    def make_conflict(self, program: str, conflict_name: str, conflict_priority: int, boost_s: str, courses: list[str]) -> None:
+        if boost_s == 'boost':
+            boost = True
+        elif boost_s == 'reduce':
+            boost = False
         else:
-            raise RuntimeError(f'make_conflict: {program} {conflict_name}: maximize option must be "maximize" or "minimize"')
-        conflict_penalty = int(conflict_penalty)
-        if conflict_penalty < 0 or conflict_penalty > 100:
-            raise RuntimeError(f'make_conflict: {program} {conflict_name}: conflict penalty option must be between 0 and 100')
+            raise RuntimeError(f'make_conflict: {program} {conflict_name}: boost option must be "boost" or "reduce"')
+        conflict_priority = int(conflict_priority)
+        if conflict_priority < 0 or conflict_priority >= 10:
+            raise RuntimeError(f'make_conflict: {program} {conflict_name}: conflict priority option must be between 0 and 10')
 
-        self.db.execute('INSERT INTO conflicts VALUES (?, ?, ?, ?)', (program, conflict_name, None if conflict_penalty == 0 else conflict_penalty, maximize))
+        self.db.execute('INSERT INTO conflicts VALUES (?, ?, ?, ?)', (program, conflict_name, None if conflict_priority == 0 else conflict_priority, boost))
 
         for elt in courses:
             if '-' not in elt:

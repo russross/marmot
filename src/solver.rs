@@ -11,15 +11,15 @@ use std::rc::Rc;
 
 // score levels:
 //     0: unplaced
-//     1: hard conflict (two sections in same room/time, etc.)
+//     1: hard conflict (two sections in same room/time, etc.) (100)
 //     2: multi-department core conflict
-//     3: single department core conflict
-//     4: emphasis core conflict
-//     5: track core conflict
-//     6: core elective, highly constrained
-//     7: core elective, more choices
+//     3: single department core conflict (99)
+//     4: core elective, highly constrained (60)
+//     5: core elective, more choices (50)
+//     6: emphasis core conflict
+//     7: track core conflict (45)
 //     8: elective, highly constrained
-//     9: elective, more choices
+//     9: elective, more choices (30)
 //     10-19: preferences
 
 const LEVEL_FOR_UNPLACED_SECTION: usize = 0;

@@ -8,7 +8,7 @@ db = queries.DB(DB_FILE)
 print('building cset conflicts')
 
 db.make_program('Envs Envs emphasis', 'Earth')
-db.make_conflict('Envs Envs emphasis', 'core requirements', 99, 'maximize',
+db.make_conflict('Envs Envs emphasis', 'core requirements', 3, 'boost',
     ['ENVS 1210', 'ENVS 1215',
     'ENVS 2210',
     'GEO 1110', 'GEO 1115',
@@ -22,7 +22,7 @@ db.make_conflict('Envs Envs emphasis', 'core requirements', 99, 'maximize',
     'ENVS 3920'])
 
 db.make_program('Envs Geo emphasis', 'Earth')
-db.make_conflict('Envs Geo emphasis', 'core requirements', 99, 'maximize',
+db.make_conflict('Envs Geo emphasis', 'core requirements', 3, 'boost',
     ['ENVS 1210', 'ENVS 1215',
     'ENVS 2210',
     'GEO 1110', 'GEO 1115',
@@ -35,7 +35,7 @@ db.make_conflict('Envs Geo emphasis', 'core requirements', 99, 'maximize',
     'GEO 2700R'])
 
 db.make_program('Geological Sciences', 'Earth')
-db.make_conflict('Geological Sciences', 'core requirements', 99, 'maximize',
+db.make_conflict('Geological Sciences', 'core requirements', 3, 'boost',
     ['BIOL 3110',
     'CHEM 1210', 'CHEM 1215', 'CHEM 1220', 'CHEM 1225',
     'GEO 1110', 'GEO 1115', 'GEO 1220', 'GEO 1225', 'GEO 2700R', 'GEO 2990R',
@@ -48,12 +48,12 @@ db.make_conflict('Geological Sciences', 'core requirements', 99, 'maximize',
     'GEO 3000', 'GEO 3910',
     'ENVS 3910', 'ENVS 3920', 'ENVS 3930',
     'GEOG 3930'])
-db.make_conflict('Geological Sciences', 'take one set', 0, 'minimize',
+db.make_conflict('Geological Sciences', 'take one set', 0, 'reduce',
     ['PHYS 2010', 'PHYS 2015', 'PHYS 2020', 'PHYS 2025',
     'PHYS 2210', 'PHYS 2215', 'PHYS 2220', 'PHYS 2225'])
 
 db.make_program('Bioinformatics', 'Biology')
-db.make_conflict('Bioinformatics', 'core requirements', 99, 'maximize',
+db.make_conflict('Bioinformatics', 'core requirements', 3, 'boost',
     ['BIOL 1610', 'BIOL 1615', 'BIOL 1620', 'BIOL 1625',
     'BIOL 3010', 'BIOL 3300', 'BIOL 3030', 'BIOL 4010', 'BIOL 4300',
     'BIOL 4305', 'BIOL 4310', 'BIOL 4320', 'BIOL 4810R', 'BIOL 4910',
@@ -61,7 +61,7 @@ db.make_conflict('Bioinformatics', 'core requirements', 99, 'maximize',
     'CS 1400', 'CS 1410', 'CS 2420', 'CS 2450', 'CS 3310',
     'IT 1100', 'IT 2300',
     'MATH 1210', 'MATH 3060'])
-db.make_conflict('Bioinformatics', 'pick one tech lab course', 30, 'maximize',
+db.make_conflict('Bioinformatics', 'pick one tech lab course', 9, 'boost',
     ['BIOL 1610', 'BIOL 1615', 'BIOL 1620', 'BIOL 1625',
     'BIOL 3010', 'BIOL 3300', 'BIOL 3030', 'BIOL 4010', 'BIOL 4300',
     'BIOL 4305', 'BIOL 4310', 'BIOL 4320', 'BIOL 4810R', 'BIOL 4910',
@@ -70,11 +70,11 @@ db.make_conflict('Bioinformatics', 'pick one tech lab course', 30, 'maximize',
     'IT 1100', 'IT 2300',
     'MATH 1210', 'MATH 3060',
     'BTEC 2010', 'BTEC 2020', 'BTEC 2030', 'BTEC 2050', 'BIOL 2300'])
-db.make_conflict('Bioinformatics', 'take one technical lab', 0, 'minimize',
+db.make_conflict('Bioinformatics', 'take one technical lab', 0, 'reduce',
     ['BTEC 2010', 'BTEC 2020', 'BTEC 2030', 'BTEC 2050', 'BIOL 2300'])
 
 db.make_program('Biology Education emphasis', 'Biology')
-db.make_conflict('Biology Education emphasis', 'core requirements', 99, 'maximize',
+db.make_conflict('Biology Education emphasis', 'core requirements', 3, 'boost',
     ['BIOL 1610', 'BIOL 1615', 'BIOL 1620', 'BIOL 1625', 'CHEM 1210', 'CHEM 1215', 'CHEM 1220', 'CHEM 1225',
     'BIOL 3010', 'BIOL 3030',
     'MATH 1050',
@@ -83,30 +83,30 @@ db.make_conflict('Biology Education emphasis', 'core requirements', 99, 'maximiz
     'BIOL 2400', 'BIOL 2405', 'BIOL 3200', 'BIOL 3205', 'BIOL 4260', 'BIOL 4265', 'BIOL 4270',
     'BIOL 4275', 'BIOL 4350', 'BIOL 4355', 'BIOL 4380', 'BIOL 4385', 'BIOL 4411', 'BIOL 4415', 'BIOL 4440',
     'SCI 2600', 'SCI 4700'])
-db.make_conflict('Biology Education emphasis', 'take one pair', 0, 'minimize',
+db.make_conflict('Biology Education emphasis', 'take one pair', 0, 'reduce',
     ['BIOL 3450', 'BIOL 3455', 'BIOL 3550', 'BIOL 3555'])
-db.make_conflict('Biology Education emphasis', 'yet another take a pair', 0, 'minimize',
+db.make_conflict('Biology Education emphasis', 'yet another take a pair', 0, 'reduce',
     ['BIOL 3200', 'BIOL 3205', 'BIOL 4260', 'BIOL 4265', 'BIOL 4270', 'BIOL 4275',
     'BIOL 4280', 'BIOL 4350', 'BIOL 4355', 'BIOL 4380', 'BIOL 4385', 'BIOL 4411', 'BIOL 4415', 'BIOL 4440'])
-db.make_conflict('Biology Education emphasis', 'only need one set', 0, 'minimize',
+db.make_conflict('Biology Education emphasis', 'only need one set', 0, 'reduce',
     ['BIOL 3200', 'BIOL 3205', 'BIOL 4260', 'BIOL 4265', 'BIOL 4270', 'BIOL 4275',
     'BIOL 4280', 'BIOL 4350', 'BIOL 4355', 'BIOL 4380', 'BIOL 4385', 'BIOL 4411', 'BIOL 4415', 'BIOL 4440'])
-db.make_conflict('Biology Education emphasis', 'choose one set', 0, 'minimize',
+db.make_conflict('Biology Education emphasis', 'choose one set', 0, 'reduce',
     ['BIOL 2320', 'BIOL 2325', 'BIOL 3140', 'BIOL 3145'])
-db.make_conflict('Biology Education emphasis', 'another choice', 0, 'minimize',
+db.make_conflict('Biology Education emphasis', 'another choice', 0, 'reduce',
     ['BIOL 2420', 'BIOL 2425', 'BIOL 4500', 'BIOL 4505'])
-db.make_conflict('Biology Education emphasis', 'final choice', 0, 'minimize',
+db.make_conflict('Biology Education emphasis', 'final choice', 0, 'reduce',
     ['BIOL 2060', 'BIOL 2065', 'BIOL 3450', 'BIOL 3455', 'BIOL 3550', 'BIOL 3555'])
 
 db.make_program('Biology Biology emphasis', 'Biology')
-db.make_conflict('Biology Biology emphasis', 'core requirements', 99, 'maximize',
+db.make_conflict('Biology Biology emphasis', 'core requirements', 3, 'boost',
     ['BIOL 1610', 'BIOL 1615', 'BIOL 1620', 'BIOL 1625', 'BIOL 3010', 'BIOL 3030',
     'CHEM 1210', 'CHEM 1215', 'CHEM 1220', 'CHEM 1225', 'CHEM 2310', 'CHEM 2315', 'CHEM 2320', 'CHEM 2325',
     'MATH 1210',
     'BIOL 3040', 'BIOL 3045', 'BIOL 3155',
     'MATH 3060',
     'BIOL 4910'])
-db.make_conflict('Biology Biology emphasis', 'choices', 45, 'maximize',
+db.make_conflict('Biology Biology emphasis', 'choices', 7, 'boost',
     ['BIOL 1610', 'BIOL 1615', 'BIOL 1620', 'BIOL 1625', 'BIOL 3010', 'BIOL 3030',
     'CHEM 1210', 'CHEM 1215', 'CHEM 1220', 'CHEM 1225', 'CHEM 2310', 'CHEM 2315', 'CHEM 2320', 'CHEM 2325',
     'MATH 1210',
@@ -119,7 +119,7 @@ db.make_conflict('Biology Biology emphasis', 'choices', 45, 'maximize',
     'BIOL 3420', 'BIOL 4500', 'BIOL 4505', 'BIOL 4600', 'BIOL 4605',
     'BIOL 3200', 'BIOL 3205', 'BIOL 4260', 'BIOL 4265', 'BIOL 4270', 'BIOL 4275',
     'BIOL 4280', 'BIOL 4350', 'BIOL 4355', 'BIOL 4380', 'BIOL 4385', 'BIOL 4411', 'BIOL 4415', 'BIOL 4440'])
-db.make_conflict('Biology Biology emphasis', 'electives', 30, 'maximize',
+db.make_conflict('Biology Biology emphasis', 'electives', 9, 'boost',
     ['BIOL 1610', 'BIOL 1615', 'BIOL 1620', 'BIOL 1625', 'BIOL 3010', 'BIOL 3030',
     'CHEM 1210', 'CHEM 1215', 'CHEM 1220', 'CHEM 1225', 'CHEM 2310', 'CHEM 2315', 'CHEM 2320', 'CHEM 2325',
     'MATH 1210',
@@ -134,24 +134,24 @@ db.make_conflict('Biology Biology emphasis', 'electives', 30, 'maximize',
     'BIOL 4280', 'BIOL 4350', 'BIOL 4355', 'BIOL 4380', 'BIOL 4385', 'BIOL 4411', 'BIOL 4415', 'BIOL 4440',
     'BTEC 3020', 'CHEM 3510', 'CHEM 3515', 'CHEM 3520', 'CHEM 3525',
     'BTEC 3010', 'BTEC 3040', 'BTEC 3050', 'BTEC 4020', 'BTEC 4040', 'BTEC 4050', 'BTEC 4060'])
-db.make_conflict('Biology Biology emphasis', 'take one set', 0, 'minimize',
+db.make_conflict('Biology Biology emphasis', 'take one set', 0, 'reduce',
     ['PHYS 2010', 'PHYS 2015', 'PHYS 2020', 'PHYS 2025',
     'PHYS 2210', 'PHYS 2215', 'PHYS 2220', 'PHYS 2225'])
-db.make_conflict('Biology Biology emphasis', 'take one technical lab', 0, 'minimize',
+db.make_conflict('Biology Biology emphasis', 'take one technical lab', 0, 'reduce',
     ['BTEC 2010', 'BTEC 2020', 'BTEC 2030', 'BTEC 2050', 'BIOL 2300'])
-db.make_conflict('Biology Biology emphasis', 'take one pair', 0, 'minimize',
+db.make_conflict('Biology Biology emphasis', 'take one pair', 0, 'reduce',
     ['BIOL 3450', 'BIOL 3455', 'BIOL 3550', 'BIOL 3555'])
-db.make_conflict('Biology Biology emphasis', 'another take one pair', 0, 'minimize',
+db.make_conflict('Biology Biology emphasis', 'another take one pair', 0, 'reduce',
     ['BIOL 3420', 'BIOL 4500', 'BIOL 4505', 'BIOL 4600', 'BIOL 4605'])
-db.make_conflict('Biology Biology emphasis', 'yet another take a pair', 0, 'minimize',
+db.make_conflict('Biology Biology emphasis', 'yet another take a pair', 0, 'reduce',
     ['BIOL 3200', 'BIOL 3205', 'BIOL 4260', 'BIOL 4265', 'BIOL 4270', 'BIOL 4275',
     'BIOL 4280', 'BIOL 4350', 'BIOL 4355', 'BIOL 4380', 'BIOL 4385', 'BIOL 4411', 'BIOL 4415', 'BIOL 4440'])
-db.make_conflict('Biology Biology emphasis', 'only need one set', 0, 'minimize',
+db.make_conflict('Biology Biology emphasis', 'only need one set', 0, 'reduce',
     ['BIOL 3200', 'BIOL 3205', 'BIOL 4260', 'BIOL 4265', 'BIOL 4270', 'BIOL 4275',
     'BIOL 4280', 'BIOL 4350', 'BIOL 4355', 'BIOL 4380', 'BIOL 4385', 'BIOL 4411', 'BIOL 4415', 'BIOL 4440'])
 
 db.make_program('Biology Biomed emphasis', 'Biology')
-db.make_conflict('Biology Biomed emphasis', 'core requirements', 99, 'maximize',
+db.make_conflict('Biology Biomed emphasis', 'core requirements', 3, 'boost',
     ['BIOL 1610', 'BIOL 1615', 'BIOL 1620', 'BIOL 1625', 'BIOL 3010', 'BIOL 3030', 'BIOL 3040',
     'CHEM 1210', 'CHEM 1215', 'CHEM 1220', 'CHEM 1225', 'CHEM 2310', 'CHEM 2315',
     'CHEM 2320', 'CHEM 2325', 'CHEM 3510', 'CHEM 3515',
@@ -162,7 +162,7 @@ db.make_conflict('Biology Biomed emphasis', 'core requirements', 99, 'maximize',
     'BIOL 3155', 'BIOL 3450', 'BIOL 3455', 'BIOL 3550', 'BIOL 3555', 'BIOL 4910',
     'BTEC 2010', 'BTEC 2020', 'BTEC 2030', 'BTEC 2050',
     'BIOL 2300'])
-db.make_conflict('Biology Biomed emphasis', 'electives', 30, 'maximize',
+db.make_conflict('Biology Biomed emphasis', 'electives', 9, 'boost',
     ['BIOL 1610', 'BIOL 1615', 'BIOL 1620', 'BIOL 1625', 'BIOL 3010', 'BIOL 3030', 'BIOL 3040',
     'CHEM 1210', 'CHEM 1215', 'CHEM 1220', 'CHEM 1225', 'CHEM 2310', 'CHEM 2315',
     'CHEM 2320', 'CHEM 2325', 'CHEM 3510', 'CHEM 3515',
@@ -178,16 +178,16 @@ db.make_conflict('Biology Biomed emphasis', 'electives', 30, 'maximize',
     'BIOL 4300', 'BIOL 4305', 'BIOL 4440', 'BIOL 4930R',
     'CHEM 3520', 'CHEM 3525',
     'MATH 1210'])
-db.make_conflict('Biology Biomed emphasis', 'take one set', 0, 'minimize',
+db.make_conflict('Biology Biomed emphasis', 'take one set', 0, 'reduce',
     ['PHYS 2010', 'PHYS 2015', 'PHYS 2020', 'PHYS 2025',
     'PHYS 2210', 'PHYS 2215', 'PHYS 2220', 'PHYS 2225'])
-db.make_conflict('Biology Biomed emphasis', 'take one technical lab', 0, 'minimize',
+db.make_conflict('Biology Biomed emphasis', 'take one technical lab', 0, 'reduce',
     ['BTEC 2010', 'BTEC 2020', 'BTEC 2030', 'BTEC 2050', 'BIOL 2300'])
-db.make_conflict('Biology Biomed emphasis', 'take one pair', 0, 'minimize',
+db.make_conflict('Biology Biomed emphasis', 'take one pair', 0, 'reduce',
     ['BIOL 3450', 'BIOL 3455', 'BIOL 3550', 'BIOL 3555'])
 
 db.make_program('Biology Natural Sciences emphasis', 'Biology')
-db.make_conflict('Biology Natural Sciences emphasis', 'core requirements', 99, 'maximize',
+db.make_conflict('Biology Natural Sciences emphasis', 'core requirements', 3, 'boost',
     ['BIOL 1610', 'BIOL 1615', 'BIOL 1620', 'BIOL 1625', 'BIOL 2400', 'BIOL 2405',
     'BIOL 3010', 'BIOL 3030', 'BIOL 3040', 'BIOL 3045', 'BIOL 3110', 'BIOL 3120', 'BIOL 4910',
     'CHEM 1210', 'CHEM 1215', 'CHEM 1220', 'CHEM 1225',
@@ -196,7 +196,7 @@ db.make_conflict('Biology Natural Sciences emphasis', 'core requirements', 99, '
     'GEOG 3600', 'GEOG 3605',
     'MATH 1040', 'MATH 1050',
     'PHYS 1010', 'PHYS 1015', 'PHYS 2010', 'PHYS 2015'])
-db.make_conflict('Biology Natural Sciences emphasis', 'choices', 45, 'maximize',
+db.make_conflict('Biology Natural Sciences emphasis', 'choices', 7, 'boost',
     ['BIOL 1610', 'BIOL 1615', 'BIOL 1620', 'BIOL 1625', 'BIOL 2400', 'BIOL 2405',
     'BIOL 3010', 'BIOL 3030', 'BIOL 3040', 'BIOL 3045', 'BIOL 3110', 'BIOL 3120', 'BIOL 4910',
     'CHEM 1210', 'CHEM 1215', 'CHEM 1220', 'CHEM 1225',
@@ -208,7 +208,7 @@ db.make_conflict('Biology Natural Sciences emphasis', 'choices', 45, 'maximize',
     'BIOL 3200', 'BIOL 3340', 'BIOL 3345', 'BIOL 4200', 'BIOL 4205', 'BIOL 4260',
     'BIOL 4265', 'BIOL 4270', 'BIOL 4275', 'BIOL 4280', 'BIOL 4350', 'BIOL 4355',
     'BIOL 4380', 'BIOL 4385', 'BIOL 4411', 'BIOL 4415', 'BIOL 4440', 'BIOL 4600', 'BIOL 4605'])
-db.make_conflict('Biology Natural Sciences emphasis', 'electives', 30, 'maximize',
+db.make_conflict('Biology Natural Sciences emphasis', 'electives', 9, 'boost',
     ['BIOL 1610', 'BIOL 1615', 'BIOL 1620', 'BIOL 1625', 'BIOL 2400', 'BIOL 2405',
     'BIOL 3010', 'BIOL 3030', 'BIOL 3040', 'BIOL 3045', 'BIOL 3110', 'BIOL 3120', 'BIOL 4910',
     'CHEM 1210', 'CHEM 1215', 'CHEM 1220', 'CHEM 1225',
@@ -226,14 +226,14 @@ db.make_conflict('Biology Natural Sciences emphasis', 'electives', 30, 'maximize
     'GEOG 4140', 'GEOG 4180',
     'MATH 1210', 'MATH 3060',
     'BIOL 3155'])
-db.make_conflict('Biology Natural Sciences emphasis', 'take one pair', 0, 'minimize',
+db.make_conflict('Biology Natural Sciences emphasis', 'take one pair', 0, 'reduce',
     ['BIOL 3450', 'BIOL 3455', 'BIOL 3550', 'BIOL 3555'])
-db.make_conflict('Biology Natural Sciences emphasis', 'only need one set', 0, 'minimize',
+db.make_conflict('Biology Natural Sciences emphasis', 'only need one set', 0, 'reduce',
     ['BIOL 3200', 'BIOL 3205', 'BIOL 4260', 'BIOL 4265', 'BIOL 4270', 'BIOL 4275',
     'BIOL 4280', 'BIOL 4350', 'BIOL 4355', 'BIOL 4380', 'BIOL 4385', 'BIOL 4411', 'BIOL 4415', 'BIOL 4440'])
 
 db.make_program('Biology Integrated Education Sciences', 'Biology')
-db.make_conflict('Biology Integrated Education Sciences', 'core requirements', 99, 'maximize',
+db.make_conflict('Biology Integrated Education Sciences', 'core requirements', 3, 'boost',
     ['CHEM 1210', 'CHEM 1215', 'CHEM 1220', 'CHEM 1225',
     'PHYS 2010', 'PHYS 2015',
     'MATH 1050', 'MATH 1060', 'MATH 1080',
@@ -248,24 +248,24 @@ db.make_conflict('Biology Integrated Education Sciences', 'core requirements', 9
     'PHYS 1040', 'PHYS 1045',
     'SCI 2600',
     'SCI 4700'])
-db.make_conflict('Biology Integrated Education Sciences', 'take one pair', 0, 'minimize',
+db.make_conflict('Biology Integrated Education Sciences', 'take one pair', 0, 'reduce',
     ['BIOL 3450', 'BIOL 3455', 'BIOL 3550', 'BIOL 3555'])
-db.make_conflict('Biology Integrated Education Sciences', 'only need one set', 0, 'minimize',
+db.make_conflict('Biology Integrated Education Sciences', 'only need one set', 0, 'reduce',
     ['BIOL 3200', 'BIOL 3205', 'BIOL 4260', 'BIOL 4265', 'BIOL 4270', 'BIOL 4275',
     'BIOL 4280', 'BIOL 4350', 'BIOL 4355', 'BIOL 4380', 'BIOL 4385', 'BIOL 4411', 'BIOL 4415', 'BIOL 4440'])
-db.make_conflict('Biology Integrated Education Sciences', 'math 1050 or 1080', 0, 'minimize',
+db.make_conflict('Biology Integrated Education Sciences', 'math 1050 or 1080', 0, 'reduce',
     ['MATH 1050', 'MATH 1080'])
-db.make_conflict('Biology Integrated Education Sciences', 'math 1060 or 1080', 0, 'minimize',
+db.make_conflict('Biology Integrated Education Sciences', 'math 1060 or 1080', 0, 'reduce',
     ['MATH 1060', 'MATH 1080'])
-db.make_conflict('Biology Integrated Education Sciences', 'choose one set', 0, 'minimize',
+db.make_conflict('Biology Integrated Education Sciences', 'choose one set', 0, 'reduce',
     ['BIOL 2320', 'BIOL 2325', 'BIOL 3140', 'BIOL 3145'])
-db.make_conflict('Biology Integrated Education Sciences', 'another choice', 0, 'minimize',
+db.make_conflict('Biology Integrated Education Sciences', 'another choice', 0, 'reduce',
     ['BIOL 2420', 'BIOL 2425', 'BIOL 4500', 'BIOL 4505'])
-db.make_conflict('Biology Integrated Education Sciences', 'final choice', 0, 'minimize',
+db.make_conflict('Biology Integrated Education Sciences', 'final choice', 0, 'reduce',
     ['BIOL 2060', 'BIOL 2065', 'BIOL 3450', 'BIOL 3455', 'BIOL 3550', 'BIOL 3555'])
 
 db.make_program('Chemistry Chemistry emphasis', 'Chemistry')
-db.make_conflict('Chemistry Chemistry emphasis', 'core requirements', 99, 'maximize',
+db.make_conflict('Chemistry Chemistry emphasis', 'core requirements', 3, 'boost',
     ['MATH 1210', 'MATH 1220',
     'BIOL 1610', 'BIOL 1615',
     'PHYS 2210', 'PHYS 2215', 'PHYS 2220', 'PHYS 2225',
@@ -274,7 +274,7 @@ db.make_conflict('Chemistry Chemistry emphasis', 'core requirements', 99, 'maxim
     'CHEM 3000', 'CHEM 3005', 'CHEM 3060', 'CHEM 3065', 'CHEM 3070', 'CHEM 3075',
     'CHEM 3100', 'CHEM 3300', 'CHEM 3510', 'CHEM 3515', 'CHEM 3520', 'CHEM 3525',
     'CHEM 4100', 'CHEM 4800R', 'CHEM 4910', 'CHEM 4200', 'CHEM 4310', 'CHEM 4510', 'CHEM 4610'])
-db.make_conflict('Chemistry Chemistry emphasis', 'electives', 30, 'maximize',
+db.make_conflict('Chemistry Chemistry emphasis', 'electives', 9, 'boost',
     ['MATH 1210', 'MATH 1220',
     'BIOL 1610', 'BIOL 1615',
     'PHYS 2210', 'PHYS 2215', 'PHYS 2220', 'PHYS 2225',
@@ -284,15 +284,15 @@ db.make_conflict('Chemistry Chemistry emphasis', 'electives', 30, 'maximize',
     'CHEM 3000', 'CHEM 3005', 'CHEM 3060', 'CHEM 3065', 'CHEM 3070', 'CHEM 3075',
     'CHEM 3100', 'CHEM 3300', 'CHEM 3510', 'CHEM 3515', 'CHEM 3520', 'CHEM 3525',
     'CHEM 4100', 'CHEM 4800R', 'CHEM 4910', 'CHEM 4200', 'CHEM 4310', 'CHEM 4510', 'CHEM 4610'])
-db.make_conflict('Chemistry Chemistry emphasis', 'pair or single', 0, 'minimize',
+db.make_conflict('Chemistry Chemistry emphasis', 'pair or single', 0, 'reduce',
     ['CHEM 2310', 'CHEM 2315', 'CHEM 3000'])
-db.make_conflict('Chemistry Chemistry emphasis', 'math 2250 or 2270', 0, 'minimize',
+db.make_conflict('Chemistry Chemistry emphasis', 'math 2250 or 2270', 0, 'reduce',
     ['MATH 2270', 'MATH 2250'])
-db.make_conflict('Chemistry Chemistry emphasis', 'math 2250 or 2280', 0, 'minimize',
+db.make_conflict('Chemistry Chemistry emphasis', 'math 2250 or 2280', 0, 'reduce',
     ['MATH 2280', 'MATH 2250'])
 
 db.make_program('Chemistry Molecular Biology emphasis', 'Chemistry')
-db.make_conflict('Chemistry Molecular Biology emphasis', 'core requirements', 99, 'maximize',
+db.make_conflict('Chemistry Molecular Biology emphasis', 'core requirements', 3, 'boost',
     ['CHEM 1210', 'CHEM 1215', 'CHEM 1220', 'CHEM 1225', 'CHEM 2310', 'CHEM 2315',
     'CHEM 2320', 'CHEM 2325', 'CHEM 2600', 'CHEM 2990R',
     'CHEM 3000', 'CHEM 3005', 'CHEM 3060', 'CHEM 3065', 'CHEM 3070', 'CHEM 3075', 'CHEM 3100',
@@ -303,7 +303,7 @@ db.make_conflict('Chemistry Molecular Biology emphasis', 'core requirements', 99
     'PHYS 2210', 'PHYS 2215', 'PHYS 2220', 'PHYS 2225',
     'CHEM 4800R',
     'BIOL 4810R', 'BIOL 4890R'])
-db.make_conflict('Chemistry Molecular Biology emphasis', 'electives', 30, 'maximize',
+db.make_conflict('Chemistry Molecular Biology emphasis', 'electives', 9, 'boost',
     ['CHEM 1210', 'CHEM 1215', 'CHEM 1220', 'CHEM 1225', 'CHEM 2310', 'CHEM 2315',
     'CHEM 2320', 'CHEM 2325', 'CHEM 2600', 'CHEM 2990R',
     'CHEM 3000', 'CHEM 3005', 'CHEM 3060', 'CHEM 3065', 'CHEM 3070', 'CHEM 3075', 'CHEM 3100',
@@ -317,14 +317,14 @@ db.make_conflict('Chemistry Molecular Biology emphasis', 'electives', 30, 'maxim
     'CHEM 4100', 'CHEM 4610',
     'BIOL 3010', 'BIOL 3250', 'BIOL 3360', 'BIOL 3420',
     'BIOL 3450', 'BIOL 3455', 'BIOL 3470', 'BIOL 3460', 'BIOL 4400'])
-db.make_conflict('Chemistry Molecular Biology emphasis', 'take one set', 0, 'minimize',
+db.make_conflict('Chemistry Molecular Biology emphasis', 'take one set', 0, 'reduce',
     ['PHYS 2010', 'PHYS 2015', 'PHYS 2020', 'PHYS 2025',
     'PHYS 2210', 'PHYS 2215', 'PHYS 2220', 'PHYS 2225'])
-db.make_conflict('Chemistry Molecular Biology emphasis', 'pair or single', 0, 'minimize',
+db.make_conflict('Chemistry Molecular Biology emphasis', 'pair or single', 0, 'reduce',
     ['CHEM 2310', 'CHEM 2315', 'CHEM 3000'])
 
 db.make_program('Chemistry Physical Sciences emphasis', 'Chemistry')
-db.make_conflict('Chemistry Physical Sciences emphasis', 'core requirements', 99, 'maximize',
+db.make_conflict('Chemistry Physical Sciences emphasis', 'core requirements', 3, 'boost',
     ['SCI 4700',
     'CHEM 1210', 'CHEM 1215', 'CHEM 1220', 'CHEM 1225', 'CHEM 2310', 'CHEM 2315', 'CHEM 3000',
     'GEO 1110', 'GEO 1115', 'GEO 1220', 'GEO 1225', 'GEO 3060',
@@ -334,18 +334,18 @@ db.make_conflict('Chemistry Physical Sciences emphasis', 'core requirements', 99
     'SCI 2600', 'SCI 4800R',
     'CHEM 3510',
     'PHYS 3400'])
-db.make_conflict('Chemistry Physical Sciences emphasis', 'pair or single', 0, 'minimize',
+db.make_conflict('Chemistry Physical Sciences emphasis', 'pair or single', 0, 'reduce',
     ['CHEM 2310', 'CHEM 2315', 'CHEM 3000'])
-db.make_conflict('Chemistry Physical Sciences emphasis', 'chem or phys', 0, 'minimize',
+db.make_conflict('Chemistry Physical Sciences emphasis', 'chem or phys', 0, 'reduce',
     ['CHEM 3510', 'PHYS 3400'])
 
 db.make_program('Math', 'Math')
-db.make_conflict('Math', 'core requirements', 99, 'maximize',
+db.make_conflict('Math', 'core requirements', 3, 'boost',
     ['MATH 1210', 'MATH 1220', 'MATH 2200', 'MATH 2210', 'MATH 2270', 'MATH 2280',
     'MATH 3200', 'MATH 3400', 'MATH 3900', 'MATH 4000', 'MATH 4900',
     'CS 1400',
     'PHYS 2210', 'PHYS 2215'])
-db.make_conflict('Math', 'electives', 30, 'maximize',
+db.make_conflict('Math', 'electives', 9, 'boost',
     ['MATH 1210', 'MATH 1220', 'MATH 2200', 'MATH 2210', 'MATH 2270', 'MATH 2280',
     'MATH 3200', 'MATH 3400', 'MATH 3900', 'MATH 4000', 'MATH 4900',
     'CS 1400',
@@ -357,14 +357,14 @@ db.make_conflict('Math', 'electives', 30, 'maximize',
     'PHYS 2220', 'PHYS 2225'])
 
 db.make_program('Math ACM Data Analytics', 'Math')
-db.make_conflict('Math ACM Data Analytics', 'core requirements', 99, 'maximize',
+db.make_conflict('Math ACM Data Analytics', 'core requirements', 3, 'boost',
     ['CS 1400', 'CS 1410',
     'MATH 1210', 'MATH 1220', 'MATH 2200', 'CS 3310',
     'MATH 2210', 'MATH 2270', 'MATH 2280', 'MATH 3400', 'MATH 3700',
     'MATH 4250', 'MATH 4800', 'MATH 4890R', 'MATH 4900',
     'MATH 2050', 'MATH 3050', 'MATH 3450',
     'IT 1100', 'IT 2300', 'IT 2400', 'IT 4310'])
-db.make_conflict('Math ACM Data Analytics', 'electives', 30, 'maximize',
+db.make_conflict('Math ACM Data Analytics', 'electives', 9, 'boost',
     ['CS 1400', 'CS 1410',
     'MATH 1210', 'MATH 1220', 'MATH 2200', 'CS 3310',
     'MATH 2210', 'MATH 2270', 'MATH 2280', 'MATH 3400', 'MATH 3700',
@@ -375,11 +375,11 @@ db.make_conflict('Math ACM Data Analytics', 'electives', 30, 'maximize',
     'MATH 3100', 'MATH 3150', 'MATH 3120', 'MATH 3200', 'MATH 3500',
     'MATH 3900', 'MATH 3905', 'MATH 4000', 'MATH 4005', 'MATH 4010',
     'MATH 4100', 'MATH 4200', 'MATH 4330', 'MATH 4550'])
-db.make_conflict('Math ACM Data Analytics', 'discrete math', 0, 'minimize',
+db.make_conflict('Math ACM Data Analytics', 'discrete math', 0, 'reduce',
     ['MATH 2200', 'CS 3310'])
 
 db.make_program('Math Education', 'Math')
-db.make_conflict('Math Education', 'core requirements', 99, 'maximize',
+db.make_conflict('Math Education', 'core requirements', 3, 'boost',
     ['MATH 1040', 'MATH 1210', 'MATH 1220', 'MATH 2200', 'MATH 2210',
     'MATH 2270', 'MATH 2280', 'MATH 3000', 'MATH 3010', 'MATH 3020',
     'MATH 3100', 'MATH 3120', 'MATH 3200', 'MATH 3400', 'MATH 4000',
@@ -387,7 +387,7 @@ db.make_conflict('Math Education', 'core requirements', 99, 'maximize',
     'PHYS 2210', 'PHYS 2215'])
 
 db.make_program('Math ACM Computational Mathematics', 'Math')
-db.make_conflict('Math ACM Computational Mathematics', 'core requirements', 99, 'maximize',
+db.make_conflict('Math ACM Computational Mathematics', 'core requirements', 3, 'boost',
     ['CS 1400', 'CS 1410',
     'MATH 1210', 'MATH 1220', 'MATH 2200', 'CS 3310',
     'MATH 2210', 'MATH 2270', 'MATH 2280', 'MATH 3400', 'MATH 3700',
@@ -396,7 +396,7 @@ db.make_conflict('Math ACM Computational Mathematics', 'core requirements', 99, 
     'MATH 2050', 'MATH 3150', 'MATH 3500', 'MATH 4550',
     'MECH 2010', 'MECH 2030',
     'PHYS 2210', 'PHYS 2215', 'PHYS 2220', 'PHYS 2225'])
-db.make_conflict('Math ACM Computational Mathematics', 'electives', 30, 'maximize',
+db.make_conflict('Math ACM Computational Mathematics', 'electives', 9, 'boost',
     ['CS 1400', 'CS 1410',
     'MATH 1210', 'MATH 1220', 'MATH 2200', 'CS 3310',
     'MATH 2210', 'MATH 2270', 'MATH 2280', 'MATH 3400', 'MATH 3700',
@@ -410,18 +410,18 @@ db.make_conflict('Math ACM Computational Mathematics', 'electives', 30, 'maximiz
     'MATH 3200', 'MATH 4200',
     'MECH 3600', 'MECH 3700', 'MECH 3705',
     'PHYS 3400', 'PHYS 3710'])
-db.make_conflict('Math ACM Computational Mathematics', 'discrete math', 0, 'minimize',
+db.make_conflict('Math ACM Computational Mathematics', 'discrete math', 0, 'reduce',
     ['MATH 2200', 'CS 3310'])
 
 db.make_program('Math ACM Actuarial Sciences', 'Math')
-db.make_conflict('Math ACM Actuarial Sciences', 'core requirements', 99, 'maximize',
+db.make_conflict('Math ACM Actuarial Sciences', 'core requirements', 3, 'boost',
     ['CS 1400', 'CS 1410',
     'MATH 1210', 'MATH 1220', 'MATH 2200', 'CS 3310',
     'MATH 2210', 'MATH 2270', 'MATH 2280', 'MATH 3400', 'MATH 3700',
     'MATH 4250', 'MATH 4800', 'MATH 4890R', 'MATH 4900',
     'CS 2420',
     'MATH 3410', 'MATH 3450', 'MATH 4400', 'MATH 4410'])
-db.make_conflict('Math ACM Actuarial Sciences', 'electives', 30, 'maximize',
+db.make_conflict('Math ACM Actuarial Sciences', 'electives', 9, 'boost',
     ['CS 1400', 'CS 1410',
     'MATH 1210', 'MATH 1220', 'MATH 2200', 'CS 3310',
     'MATH 2210', 'MATH 2270', 'MATH 2280', 'MATH 3400', 'MATH 3700',
@@ -431,7 +431,7 @@ db.make_conflict('Math ACM Actuarial Sciences', 'electives', 30, 'maximize',
     'MATH 3050', 'MATH 3120', 'MATH 3150', 'MATH 3200', 'MATH 3100',
     'MATH 3500', 'MATH 3900', 'MATH 3905', 'MATH 4000', 'MATH 4005',
     'MATH 4200', 'MATH 4010', 'MATH 4100', 'MATH 4330', 'MATH 4550'])
-db.make_conflict('Math ACM Actuarial Sciences', 'discrete math', 0, 'minimize',
+db.make_conflict('Math ACM Actuarial Sciences', 'discrete math', 0, 'reduce',
     ['MATH 2200', 'CS 3310'])
 
 print('building cset buildings and rooms')
