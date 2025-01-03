@@ -3,10 +3,7 @@ use super::input::*;
 use super::score::*;
 use itertools::Itertools;
 use rand::Rng;
-use std::fmt;
-use std::fmt::Write;
 use std::fs;
-use std::ops;
 use std::rc::Rc;
 
 // score levels:
@@ -22,161 +19,14 @@ use std::rc::Rc;
 //     9: elective, more choices (30)
 //     10-19: preferences
 
-const LEVEL_FOR_UNPLACED_SECTION: usize = 0;
-const LEVEL_FOR_HARD_CONFLICT: usize = 1;
-const MIN_LOTTERY_TICKETS_FOR_UNPLACED_SECTION: isize = 1000;
-const SCORE_LEVELS: usize = 20;
-type ScoreLevel = i16;
-
 #[derive(Clone)]
 pub struct Solver {
-    // the name of the term
-    pub name: String,
-
-    // the start and end dates (inclusive) of the term
-    pub start: time::Date,
-    pub end: time::Date,
-
-    // every 5-minute interval during the semester, with holidays blocked out
-    pub slots: Bits,
-
-    // core schedule data
-    pub rooms: Vec<Room>,
-    pub time_slots: Vec<TimeSlot>,
-    pub instructors: Vec<Instructor>,
-    pub input_sections: Vec<InputSection>,
-
-    // list of sections mentioned in conflict/scoring but not actually defined
-    // note that a section must be created before any references to it are valid
-    pub missing: Vec<String>,
-
-    // matrix of which time slots overlap which for fast lookup
-    pub time_slot_conflicts: Vec<bool>,
-
-    // scoring data
-    pub anticonflicts: Vec<(Score, usize, Vec<usize>)>,
-
-    //
-    // everything above this point becomes immutable once
-    // input is finished and post-processed
-    //
-    pub input_locked: bool,
-
     // solver data
     pub sections: Vec<SolverSection>,
     pub room_placements: Vec<RoomPlacements>,
     pub score: Score,
     pub unplaced_current: usize,
     pub unplaced_best: usize,
-}
-
-#[derive(Clone,Copy,PartialEq,Eq,PartialOrd,Ord)]
-pub struct Score {
-    pub levels: [ScoreLevel; SCORE_LEVELS],
-}
-
-impl Score {
-    pub fn new() -> Self {
-        Score {
-            levels: [0; SCORE_LEVELS],
-        }
-    }
-
-    pub fn new_hard_conflict() -> Self {
-        let mut out = Score {
-            levels: [0; SCORE_LEVELS],
-        };
-        out.levels[LEVEL_FOR_HARD_CONFLICT] = 1;
-        out
-    }
-
-    pub fn new_with_one_penalty(level: usize) -> Self {
-        let mut out = Score {
-            levels: [0; SCORE_LEVELS],
-        };
-        out.levels[level] = 1;
-        out
-    }
-
-    pub fn is_zero(&self) -> bool {
-        for i in 0..SCORE_LEVELS {
-            if self.levels[i] != 0 {
-                return false;
-            }
-        }
-        true
-    }
-
-    pub fn is_hard(&self) -> bool {
-        for (level, n) in self.levels.iter().enumerate() {
-            if level == LEVEL_FOR_HARD_CONFLICT {
-                if n != 1 {
-                    return false;
-                }
-            } else if n != 0 {
-                return false;
-            }
-        }
-        true
-    }
-}
-
-impl fmt::Display for Score {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.is_zero() {
-            write!(f, "zero")
-        } else {
-            let mut sep = "";
-            write!(f, "<")?;
-            for (level, count) in self.levels.iter().enumerate() {
-                if level != 0 {
-                    write!(f, "{sep}{level}×{count}")?;
-                    sep = ",";
-                }
-            }
-            write!(f, ">")
-        }
-    }
-}
-
-impl ops::Add for Score {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Score {
-        let mut out = Score { levels: [0; SCORE_LEVELS] };
-        for i in 0..SCORE_LEVELS {
-            out.levels[i] = self.levels[i] + rhs.levels[i];
-        }
-        out
-    }
-}
-
-impl ops::AddAssign for Score {
-    fn add_assign(&mut self, rhs: Self) {
-        for i in 0..SCORE_LEVELS {
-            self.levels[i] += rhs.levels[i];
-        }
-    }
-}
-
-impl ops::Sub for Score {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self {
-        let mut out = Score { levels: [0; SCORE_LEVELS] };
-        for i in 0..SCORE_LEVELS {
-            out.levels[i] = self.levels[i] - rhs.levels[i];
-        }
-        out
-    }
-}
-
-impl ops::SubAssign for Score {
-    fn sub_assign(&mut self, rhs: Self) {
-        for i in 0..SCORE_LEVELS {
-            self.levels[i] -= rhs.levels[i];
-        }
-    }
 }
 
 #[derive(Clone)]
@@ -195,9 +45,6 @@ pub struct SolverSection {
     // by another section moving)
     pub tickets: isize,
 
-    // scoring that will be applied specifically to this section
-    pub score_criteria: Vec<Rc<dyn ScoreCriterion>>,
-
     // scoring info for the current placement
     pub score: SectionScore,
 
@@ -209,7 +56,6 @@ pub struct SolverSection {
     pub instructors: Vec<usize>,
     pub hard_conflicts: Vec<usize>,
     pub soft_conflicts: Vec<SectionWithPenalty>,
-    pub neighbors: Vec<usize>,
 
     // map from input.section[_].room_times to the effect on the score
     // if we placed this section at that room/time

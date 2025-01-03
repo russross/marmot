@@ -101,7 +101,7 @@ class DB:
             end = ''
             while len(span) > 0 and span[0].isdigit():
                 end += span[0]
-                span = span[1:].strip()
+                span = span[1:]
             if len(start) < 3 or len(start) > 4 or len(end) < 3 or len(end) > 4:
                 raise RuntimeError(f'faculty {faculty} availability span time must be of form start-end, e.g., 0800-1030')
             start = ('0000' + start)[-4:]
@@ -111,18 +111,23 @@ class DB:
             if start_time % 5 != 0 or end_time % 5 != 0 or start_time >= end_time or end_time > 24*60:
                 raise RuntimeError(f'faculty {faculty} start must come before end time and end time must be before midnight')
 
-            priority = 20
+            span = span.strip()
             if span.startswith('with priority '):
-                span = span[len('with priority '):]
+                span = span[len('with priority '):].strip()
                 priority = int(span)
+                if priority < 10 or priority >= 20:
+                    raise RuntimeError(f'faculty {faculty} availability span priority must be between 10 and 19')
             elif span != '':
                 raise RuntimeError(f'faculty {faculty} availability span must end with no priority or "with priority xyz"')
-            if priority < 10 or priority > 20:
-                raise RuntimeError(f'faculty {faculty} availability span priority must be between 10 and 20 (20 meaning no priority)')
+            else:
+                priority = 20
 
             for day in days:
                 for interval in range(start_time//5, end_time//5):
-                    all_intervals[day][interval] = min(all_intervals[day][interval], priority)
+                    if all_intervals[day][interval] >= 0:
+                        all_intervals[day][interval] = min(all_intervals[day][interval], priority)
+                    else:
+                        all_intervals[day][interval] = priority
 
         self.db.execute('INSERT INTO faculty VALUES (?, ?)', (faculty, department))
             

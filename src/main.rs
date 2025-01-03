@@ -1,16 +1,16 @@
-pub mod bits;
-pub mod data;
+pub mod defs;
 pub mod input;
-pub mod score;
-pub mod solver;
-pub mod static_placement;
-use self::data::*;
+//pub mod score;
+//pub mod solver;
+//use self::defs::*;
 use self::input::*;
-use self::solver::*;
-use self::static_placement::*;
+//use self::solver::*;
+
+const DB_PATH: &str = "data/timetable.db";
 
 fn main() {
-    let mut solver = match setup() {
+    let departments = vec!["Computing".to_string(), "Math".to_string()];
+    let input = match setup(DB_PATH, &departments) {
         Ok(t) => t,
         Err(msg) => {
             println!("Error in the input: {}", msg);
@@ -18,137 +18,92 @@ fn main() {
         }
     };
 
-    match solver.lock_input() {
-        Err(msg) => {
-            eprintln!("{}", msg);
-            return;
-        }
-        _ => (),
-    }
-    /*
-    for (sec_i, sec) in input.input_sections.iter().enumerate() {
-        let solve = &solver.sections[sec_i];
-        print!("{}", sec.name);
-        if !sec.cross_listings.is_empty() {
-            for &other in sec.cross_listings.iter() {
-                if sec_i == other {
-                    continue;
-                }
-                print!(" x {}", input.input_sections[other].name);
-            }
-        }
-        print!(" [");
+    if departments.is_empty() {
+        print!("{} for all departments: ", input.term_name);
+    } else if departments.len() == 1 {
+        print!("{} for {}: ", input.term_name, departments[0]);
+    } else {
         let mut sep = "";
-        for &inst_i in &solve.instructors {
-            print!("{sep}{}", &input.instructors[inst_i].name);
-            sep = ", ";
-        }
-        print!("]");
-        let mut prev_room = input.rooms.len();
-        for rtp in solve.room_times.iter() {
-            if rtp.room != prev_room {
-                prev_room = rtp.room;
-                print!("\n    {}:", &input.rooms[rtp.room].name);
-            }
-            print!(" {}", &input.time_slots[rtp.time_slot].name);
-            if rtp.penalty > 0 {
-                print!(":{}", rtp.penalty);
+        print!("{} for ", input.term_name);
+        for (i, name) in departments.iter().enumerate() {
+            print!("{}{}", sep, name);
+            if i+2 == departments.len() && i >= 1 {
+                sep = ", and ";
+            } else if i+2 == departments.len() {
+                sep = " and ";
+            } else {
+                sep = ", ";
             }
         }
-        println!();
-        if !solve.hard_conflicts.is_empty() {
-            print!("    hard conflicts:");
-            for &i in solve.hard_conflicts.iter() {
-                print!(" {}", input.input_sections[i].name);
-            }
-            println!();
-        }
-        for elt in &solve.score_criteria {
-            println!("    {}", elt.debug(&input))
+        print!(": ");
+    }
+    println!("{} rooms, {} time slots", input.rooms.len(), input.time_slots.len());
+
+    print!("\nrooms: ");
+    let mut sep = "";
+    for elt in &input.rooms {
+        print!("{sep}{elt}");
+        sep = ", ";
+    }
+    println!();
+    print!("\ntime slots: ");
+
+    sep = "";
+    for elt in &input.time_slots {
+        print!("{sep}{elt}");
+        sep = ", ";
+    }
+    println!();
+
+    println!();
+    for faculty in &input.faculty {
+        println!("faculty: {faculty}");
+        for dist in &faculty.distribution {
+            println!("    {dist}");
         }
     }
-    */
 
-    /*
-    if !input.missing.is_empty() {
-        print!("unknown courses:");
-        let mut sep = " ";
-        for elt in &input.missing {
-            print!("{}{}", sep, elt);
-            sep = ", ";
-        }
-        println!();
-    }
-    */
-    println!(
-        "{} rooms, {} time slots, {} instructors, {} sections",
-        solver.rooms.len(),
-        solver.time_slots.len(),
-        solver.instructors.len(),
-        solver.input_sections.len(),
-    );
-
-    /*
-    for section in &solver.input_sections {
-        println!(
+    for section in &input.sections {
+        print!(
             "section {} with {} rooms and {} times",
             section.name,
             section.rooms.len(),
             section.time_slots.len()
         );
-    }
-    */
-
-    // change this to true to set up the static schedule
-    if false {
-        place_static(&mut solver).unwrap();
-    }
-    // change this to true to dump the schedule data for python
-    if false {
-        dump_cs(&solver);
-    }
-
-    let iterations = 0;
-    solve(&mut solver, iterations);
-
-}
-
-fn dump_cs(solver: &Solver) {
-    println!("course_data = {{");
-    for i in 0..solver.input_sections.len() {
-        let section = &solver.input_sections[i];
-        let solsec = &solver.sections[i];
-        println!("    \"{}\": {{", section.name);
-        println!("        \"room_times\": {{");
-        for &RoomTimeWithPenalty {
-            room,
-            time_slot,
-            penalty,
-        } in &solsec.room_times
-        {
-            println!(
-                "            (\"{}\", \"{}\", {}),",
-                solver.rooms[room].name, solver.time_slots[time_slot].name, penalty
-            );
+        if !section.faculty.is_empty() {
+            print!(", faculty");
+            for faculty in &section.faculty {
+                print!(" {faculty}");
+            }
         }
-        println!("        }},");
-        println!("        \"hard\": {{");
-        for &hard in &solsec.hard_conflicts {
-            let other = &solver.input_sections[hard];
-            println!("            \"{}\",", other.name);
+        println!();
+        let mut sep = "    hard conflicts: ";
+        for elt in &section.hard_conflicts {
+            print!("{sep}{elt}");
+            sep = " ";
         }
-        println!("        }},");
-        println!("        \"soft\": {{");
-        for &SectionWithPenalty {
-            section: sec,
-            penalty,
-        } in &solsec.soft_conflicts
-        {
-            let other = &solver.input_sections[sec];
-            println!("            \"{}\": {},", other.name, penalty);
+        if !section.hard_conflicts.is_empty() {
+            println!();
         }
-        println!("        }},");
-        println!("    }},");
+        sep = "    soft conflicts: ";
+        for elt in &section.soft_conflicts {
+            print!("{sep}{}:{}", elt.section, elt.priority);
+            sep = " ";
+        }
+        if !section.soft_conflicts.is_empty() {
+            println!();
+        }
     }
-    println!("}}");
+
+    for (priority, single, group) in &input.anticonflicts {
+        print!("anticonflict:{priority} {single} vs");
+        for elt in group {
+            print!(" {elt}");
+        }
+        println!();
+    }
+
+    //let iterations = 0;
+    //solve(&mut solver, iterations);
+
 }

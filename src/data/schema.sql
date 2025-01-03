@@ -534,7 +534,7 @@ CREATE VIEW sections_to_be_scheduled (department, course, section, secondary_sec
 --       * there are no assigned faculty
 CREATE VIEW time_slots_available_to_sections (department, section, time_slot, time_slot_priority) AS
     WITH per_faculty (department, section, faculty, time_slot, time_slot_priority) AS (
-        SELECT department, section, faculty, time_slot,
+        SELECT DISTINCT department, section, faculty, time_slot,
             CASE WHEN time_slot_priority IS NULL THEN faculty_time_slot_priority
                  WHEN faculty_time_slot_priority IS NULL THEN time_slot_priority
                  ELSE MIN(time_slot_priority, faculty_time_slot_priority) END
@@ -552,7 +552,7 @@ CREATE VIEW time_slots_available_to_sections (department, section, time_slot, ti
     ),
 
     faculty_count (section, total_faculty_assigned) AS (
-        SELECT section, COUNT(1) AS faculty_assigned
+        SELECT section, COUNT(1)
         FROM faculty_sections
         GROUP BY section
     ),
@@ -658,7 +658,7 @@ CREATE VIEW faculty_sections_to_be_scheduled (faculty, department, course, secti
 CREATE VIEW faculty_to_be_scheduled_preference_intervals (faculty, department,
         days_to_check, days_off, days_off_priority, evenly_spread_priority, max_gap_within_cluster,
         is_cluster, is_too_short, interval_minutes, interval_priority) AS
-    SELECT DISTINCT department, faculty,
+    SELECT DISTINCT faculty, department,
                     days_to_check, days_off, days_off_priority, evenly_spread_priority, max_gap_within_cluster,
                     is_cluster, is_too_short, interval_minutes, interval_priority
     FROM faculty_sections_to_be_scheduled
