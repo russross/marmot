@@ -65,11 +65,16 @@ def crawl_prefix(prefix):
         }
 
 depts = set()
-print('set -e')
+print('#!/usr/bin/env python3')
 print()
-print('echo building departments')
+print('import queries')
+print()
+print("DB_FILE = 'timetable.db'")
+print('db = queries.DB(DB_FILE)')
+print()
+print("print('building departments')")
 for dept in sorted(set(prefixes.values())):
-    print(f'./edit make-department {dept}')
+    print(f'db.make_department({repr(dept)})')
 
 for page in pages:
     crawl_prefix(page)
@@ -79,7 +84,7 @@ for page in pages:
 #
 
 patches = {
-    'CS 3530': { 'co': ['CS 3310'] },
+    'CS 3530': { 'co': ['CS 2100'] },
     'CS 4600': { 'pre': ['CS 2420', 'CS 2810', 'CS 3005'] },
     'IT 2400': { 'co': ['IT 1100', 'IT 1500'] },
     'IT 4600': { 'pre': ['CS 1410', 'IT 2400'] },
@@ -102,12 +107,12 @@ for (name, patch) in patches.items():
                 courses[name][kind].append(elt)
 
 print()
-print('echo building courses')
+print("print('building courses')")
 for name in sorted(courses.keys()):
     data = courses[name]
     title = data['title']
     dept = prefixes[name[:name.index(' ')]]
-    print(f'./edit make-course {dept} {repr(name)} {repr(title)}')
+    print(f'db.make_course({repr(dept)}, {repr(name)}, {repr(title)})')
 
 def filter_courses(lst, context):
     filtered = []
@@ -128,23 +133,20 @@ def filter_courses(lst, context):
     return filtered
 
 print()
-print('echo adding prereqs')
+print("print('adding prereqs')")
 for (name, data) in sorted(courses.items()):
     lst = filter_courses(data['pre'], name)
     if len(lst) == 0:
         continue
-    s = f'./edit add-prereqs {repr(name)}'
-    for elt in lst:
-        s += f' {repr(elt)}'
-    print(s)
+    print(f'db.add_prereqs({repr(name)}, {repr(lst)})')
 
 print()
-print('echo adding coreqs')
+print("print('adding coreqs')")
 for (name, data) in sorted(courses.items()):
     lst = filter_courses(data['co'], name)
     if len(lst) == 0:
         continue
-    s = f'./edit add-coreqs {repr(name)}'
-    for elt in lst:
-        s += f' {repr(elt)}'
-    print(s)
+    print(f'db.add_coreqs({repr(name)}, {repr(lst)})')
+
+print()
+print('db.db.commit()')
