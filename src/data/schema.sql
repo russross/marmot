@@ -578,6 +578,13 @@ CREATE VIEW time_slots_available_to_sections (department, section, time_slot, ti
     NATURAL LEFT OUTER JOIN faculty_sections
     WHERE faculty is NULL;
 
+CREATE TABLE time_slots_available_to_sections_materialized (
+    department                  TEXT,
+    section                     TEXT,
+    time_slot                   TEXT,
+    time_slot_priority
+);
+
 -- the rooms that a given section can be assigned to and the associated priority
 -- only primary cross listings are included
 CREATE VIEW rooms_available_to_sections (department, section, room, room_priority) AS
@@ -595,7 +602,7 @@ CREATE VIEW rooms_used_by_departments (department, room, building, room_number, 
     NATURAL JOIN section_room_tags
     NATURAL JOIN rooms_room_tags
     NATURAL JOIN rooms;
-
+    
 -- time slots that a department uses in its input data, i.e.,
 -- any time slot that a section (or cross-listing) owned by the department might use
 -- note: this is filtered by faculty availability as well
@@ -603,6 +610,15 @@ CREATE VIEW time_slots_used_by_departments (department, time_slot, days, start_t
     SELECT DISTINCT department, time_slot, days, start_time, duration, first_day
     FROM time_slots_available_to_sections
     NATURAL JOIN time_slots;
+
+CREATE TABLE time_slots_used_by_departments_materialized (
+    department                  TEXT,
+    time_slot                   TEXT,
+    days                        TEXT,
+    start_time                  INTEGER,
+    duration                    INTEGER,
+    first_day                   INTEGER
+);
 
 -- all time slots that are compatible with a faculty's availability
 CREATE VIEW time_slots_available_to_faculty (faculty, time_slot, faculty_time_slot_priority) AS
@@ -909,8 +925,16 @@ CREATE VIEW conflict_pairs (department_a, section_a, department_b, section_b, pr
     FROM merged
     GROUP BY department_a, section_a, department_b, section_b;
 
+CREATE TABLE conflict_pairs_materialized (
+    department_a                TEXT,
+    section_a                   TEXT,
+    department_b                TEXT,
+    section_b                   TEXT,
+    priority                    INTEGER
+);
+
 -- every pairing of an anti-conflict primary section with a group section
-CREATE VIEW anti_conflict_pairs (single_department, single_section, group_department, group_section, anti_conflict_priority) AS
+CREATE VIEW anti_conflict_pairs (single_department, single_section, group_department, group_section, priority) AS
     SELECT  single_sections.department AS single_department, single_sections.section AS single_section,
             group_sections.department AS group_department, group_sections.section AS group_section,
             anti_conflict_priority
@@ -934,3 +958,11 @@ CREATE VIEW anti_conflict_pairs (single_department, single_section, group_depart
         ON  anti_conflict_courses.anti_conflict_single      = anti_conflicts.anti_conflict_single
     JOIN sections_to_be_scheduled                           AS group_sections
         ON  group_sections.course                           = anti_conflict_courses.anti_conflict_course;
+
+CREATE TABLE anti_conflict_pairs_materialized (
+    single_department           TEXT,
+    single_section              TEXT,
+    group_department            TEXT,
+    group_section               TEXT,
+    priority                    INTEGER
+);

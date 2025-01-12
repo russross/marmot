@@ -1,15 +1,14 @@
-pub mod defs;
 pub mod input;
-//pub mod score;
-//pub mod solver;
-//use self::defs::*;
+pub mod score;
+pub mod solver;
 use self::input::*;
-//use self::solver::*;
+use self::solver::*;
 
-const DB_PATH: &str = "data/timetable.db";
+const DB_PATH: &str = "timetable.db";
 
 fn main() {
-    let departments = vec!["Computing".to_string(), "Math".to_string()];
+    // load input
+    let departments = Vec::new();//vec!["Computing".to_string()];
     let input = match setup(DB_PATH, &departments) {
         Ok(t) => t,
         Err(msg) => {
@@ -17,7 +16,21 @@ fn main() {
             return;
         }
     };
+    if false {
+        dump_input(&departments, &input);
+    }
 
+    let start = std::time::Instant::now();
+    let warmup_seconds = 10;
+    let solve_seconds = 10;
+
+    if let Some(mut schedule) = warmup(&input, start, warmup_seconds) {
+        println!("\nwarmup finished with score {}", schedule.score);
+        solve(&mut schedule, &input, start, solve_seconds);
+    };
+}
+
+fn dump_input(departments: &Vec<String>, input: &Input) {
     if departments.is_empty() {
         print!("{} for all departments: ", input.term_name);
     } else if departments.len() == 1 {
@@ -27,9 +40,9 @@ fn main() {
         print!("{} for ", input.term_name);
         for (i, name) in departments.iter().enumerate() {
             print!("{}{}", sep, name);
-            if i+2 == departments.len() && i >= 1 {
+            if i + 2 == departments.len() && i >= 1 {
                 sep = ", and ";
-            } else if i+2 == departments.len() {
+            } else if i + 2 == departments.len() {
                 sep = " and ";
             } else {
                 sep = ", ";
@@ -37,7 +50,11 @@ fn main() {
         }
         print!(": ");
     }
-    println!("{} rooms, {} time slots", input.rooms.len(), input.time_slots.len());
+    println!(
+        "{} rooms, {} time slots",
+        input.rooms.len(),
+        input.time_slots.len()
+    );
 
     print!("\nrooms: ");
     let mut sep = "";
@@ -57,7 +74,7 @@ fn main() {
 
     println!();
     for faculty in &input.faculty {
-        println!("faculty: {faculty}");
+        println!("faculty: {}", faculty.debug(&input));
         for dist in &faculty.distribution {
             println!("    {dist}");
         }
@@ -78,32 +95,31 @@ fn main() {
         }
         println!();
         let mut sep = "    hard conflicts: ";
-        for elt in &section.hard_conflicts {
-            print!("{sep}{elt}");
+        for &elt in &section.hard_conflicts {
+            print!("{}{}", sep, input.sections[elt].name);
             sep = " ";
         }
         if !section.hard_conflicts.is_empty() {
             println!();
         }
-        sep = "    soft conflicts: ";
-        for elt in &section.soft_conflicts {
-            print!("{sep}{}:{}", elt.section, elt.priority);
-            sep = " ";
-        }
-        if !section.soft_conflicts.is_empty() {
-            println!();
+        for elt in &section.score_criteria {
+            println!("    {}", elt.debug(&input));
         }
     }
 
     for (priority, single, group) in &input.anticonflicts {
-        print!("anticonflict:{priority} {single} vs");
-        for elt in group {
-            print!(" {elt}");
+        print!(
+            "anticonflict:{priority} {} vs",
+            input.sections[*single].name
+        );
+        let mut sep = " ";
+        for &elt in group {
+            print!("{}{}", sep, input.sections[elt].name);
+            sep = ", ";
         }
         println!();
     }
 
     //let iterations = 0;
     //solve(&mut solver, iterations);
-
 }

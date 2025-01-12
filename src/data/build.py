@@ -4,7 +4,11 @@ import queries
 import os
 import subprocess
 
-DB_FILE = 'timetable.db'
+import courses
+import computing
+import cset
+
+DB_FILE = '../timetable.db'
 
 print('deleting old database')
 try:
@@ -25,12 +29,23 @@ db.make_holiday('2024-03-12')
 db.make_holiday('2024-03-13')
 db.make_holiday('2024-03-14')
 db.make_holiday('2024-03-15')
+
+courses.build(db)
+computing.build(db)
+cset.build(db)
+
 db.db.commit()
 
-subprocess.run(['./courses.py'], check=True)
-subprocess.run(['./computing.py'], check=True)
-subprocess.run(['./cset.py'], check=True)
 
-print('running vacuum and analyze')
-subprocess.run(['sqlite3', DB_FILE, 'vacuum'], check=True)
-subprocess.run(['sqlite3', DB_FILE, 'analyze'], check=True)
+print('materializing views')
+db.db.execute('ANALYZE')
+db.db.execute('INSERT INTO conflict_pairs_materialized SELECT * FROM conflict_pairs')
+db.db.execute('INSERT INTO anti_conflict_pairs_materialized SELECT * FROM anti_conflict_pairs')
+db.db.execute('INSERT INTO time_slots_used_by_departments_materialized SELECT * FROM time_slots_used_by_departments')
+db.db.execute('INSERT INTO time_slots_available_to_sections_materialized SELECT * FROM time_slots_available_to_sections')
+db.db.commit()
+
+db.db.execute('VACUUM')
+db.db.execute('ANALYZE')
+
+subprocess.run(['rm', '-r', '__pycache__'], check=True)

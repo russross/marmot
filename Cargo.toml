@@ -9,7 +9,6 @@ opt-level = 3
 [dependencies]
 itertools = "0.14.0"
 rand = "0.8.5"
-#rusqlite = { version = "0.32.1", features = ["bundled"] }
 sqlite = "0.36.1"
 time = { version = "0.3.37", features = ["parsing"] }
 

@@ -23,7 +23,7 @@ def rollback_on_exception(method: Callable[P, T]) -> Callable[P, T]:
     wrapper.__name__ = method.__name__
     wrapper.__doc__ = method.__doc__
     wrapper.__annotations__ = method.__annotations__
-    
+
     return wrapper
 
 class DB:
@@ -57,7 +57,7 @@ class DB:
     def make_room(self, room: str, capacity: int, room_tags: list[str]) -> None:
         self.db.execute('INSERT INTO rooms VALUES (?, ?)', (room, capacity))
         for room_tag in list(room_tags) + [room]:
-            (n,) = self.db.execute('SELECT COUNT(1) FROM room_tags WHERE room_tag = ?', (room_tag,)).fetchone() 
+            (n,) = self.db.execute('SELECT COUNT(1) FROM room_tags WHERE room_tag = ?', (room_tag,)).fetchone()
             if n == 0:
                 self.db.execute('INSERT INTO room_tags VALUES (?)', (room_tag,))
             self.db.execute('INSERT INTO rooms_room_tags VALUES (?, ?)', (room_tag, room))
@@ -66,7 +66,7 @@ class DB:
     def make_time_slot(self, time_slot: str, time_slot_tags: list[str]) -> None:
         self.db.execute('INSERT INTO time_slots VALUES (?)', (time_slot,))
         for time_slot_tag in list(time_slot_tags) + [time_slot]:
-            (n,) = self.db.execute('SELECT COUNT(1) FROM time_slot_tags WHERE time_slot_tag = ?', (time_slot_tag,)).fetchone() 
+            (n,) = self.db.execute('SELECT COUNT(1) FROM time_slot_tags WHERE time_slot_tag = ?', (time_slot_tag,)).fetchone()
             if n == 0:
                 self.db.execute('INSERT INTO time_slot_tags VALUES (?)', (time_slot_tag,))
             self.db.execute('INSERT INTO time_slots_time_slot_tags VALUES (?, ?)', (time_slot_tag, time_slot))
@@ -130,7 +130,7 @@ class DB:
                         all_intervals[day][interval] = priority
 
         self.db.execute('INSERT INTO faculty VALUES (?, ?)', (faculty, department))
-            
+
         # now reformat it
         entries = []
         for (letter, intervals) in zip(week, all_intervals):
