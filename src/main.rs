@@ -2,14 +2,15 @@ pub mod input;
 pub mod score;
 pub mod solver;
 use self::input::*;
+use self::score::*;
 use self::solver::*;
 
 const DB_PATH: &str = "timetable.db";
 
 fn main() {
     // load input
-    let departments = Vec::new();//vec!["Computing".to_string()];
-    let input = match setup(DB_PATH, &departments) {
+    let departments = vec!["Computing".to_string()];
+    let input = match load_input(DB_PATH, &departments) {
         Ok(t) => t,
         Err(msg) => {
             println!("Error in the input: {}", msg);
@@ -26,11 +27,15 @@ fn main() {
 
     if let Some(mut schedule) = warmup(&input, start, warmup_seconds) {
         println!("\nwarmup finished with score {}", schedule.score);
-        solve(&mut schedule, &input, start, solve_seconds);
+        print_schedule(&input, &schedule);
+        print_problems(&input, &schedule);
+        if false {
+            solve(&mut schedule, &input, start, warmup_seconds + solve_seconds);
+        }
     };
 }
 
-fn dump_input(departments: &Vec<String>, input: &Input) {
+fn dump_input(departments: &[String], input: &Input) {
     if departments.is_empty() {
         print!("{} for all departments: ", input.term_name);
     } else if departments.len() == 1 {
@@ -74,10 +79,7 @@ fn dump_input(departments: &Vec<String>, input: &Input) {
 
     println!();
     for faculty in &input.faculty {
-        println!("faculty: {}", faculty.debug(&input));
-        for dist in &faculty.distribution {
-            println!("    {dist}");
-        }
+        println!("faculty: {}", faculty.debug(input));
     }
 
     for section in &input.sections {
@@ -103,23 +105,79 @@ fn dump_input(departments: &Vec<String>, input: &Input) {
             println!();
         }
         for elt in &section.score_criteria {
-            println!("    {}", elt.debug(&input));
+            println!("    {}", elt.debug(input));
         }
     }
+}
 
-    for (priority, single, group) in &input.anticonflicts {
-        print!(
-            "anticonflict:{priority} {} vs",
-            input.sections[*single].name
-        );
-        let mut sep = " ";
-        for &elt in group {
-            print!("{}{}", sep, input.sections[elt].name);
-            sep = ", ";
-        }
-        println!();
+fn print_schedule(input: &Input, schedule: &Schedule) {
+    let mut grid = Vec::new();
+    let mut width = 1;
+    for _ in 0..=input.time_slots.len() {
+        grid.push(vec!["".to_string(); input.rooms.len() + 1]);
     }
+    for (i, room) in input.rooms.iter().enumerate() {
+        grid[0][i + 1] = room.name.clone();
+        width = std::cmp::max(room.name.len(), width);
+    }
+    for (i, time_slot) in input.time_slots.iter().enumerate() {
+        grid[i + 1][0] = time_slot.name.clone();
+        width = std::cmp::max(time_slot.name.len(), width);
+    }
+    for (
+        section,
+        Placement {
+            time_slot, room, ..
+        },
+    ) in schedule.placements.iter().enumerate()
+    {
+        let (Some(time_slot), Some(room)) = (time_slot, room) else {
+            continue;
+        };
+        if !grid[time_slot + 1][room + 1].is_empty() {
+            panic!("two sections schedule in same room and time");
+        }
+        grid[time_slot + 1][room + 1] = input.sections[section].name.clone();
+        width = std::cmp::max(input.sections[section].name.len(), width);
+    }
+    width += 2;
 
-    //let iterations = 0;
-    //solve(&mut solver, iterations);
+    for (i, row) in grid.iter().enumerate() {
+        let mut div = "+".to_string();
+        let mut elt = "|".to_string();
+        for column in row {
+            for _ in 0..width {
+                div.push('-');
+            }
+            div.push('+');
+            elt = format!("{}{:^width$}|", elt, column, width = width);
+        }
+        if i == 0 {
+            println!("{}", div);
+        }
+        println!("{}", elt);
+        println!("{}", div);
+    }
+}
+
+fn print_problems(input: &Input, schedule: &Schedule) {
+    let mut lst = Vec::new();
+    for (section, placement) in schedule.placements.iter().enumerate() {
+        if placement.time_slot.is_none() {
+            lst.push((
+                LEVEL_FOR_UNPLACED_SECTION,
+                format!("{} is not placed", input.sections[section].name),
+            ));
+            continue;
+        }
+        for delta in &placement.score.deltas {
+            if let (_, Some(_)) = delta.get_scores(section) {
+                lst.push(delta.get_score_message(input, schedule, section));
+            }
+        }
+    }
+    lst.sort();
+    for (priority, msg) in lst {
+        println!("{priority:2}: {msg}");
+    }
 }

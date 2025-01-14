@@ -1,7 +1,7 @@
-use rand::Rng;
-use std::io::Write;
 use super::input::*;
 use super::score::*;
+use rand::Rng;
+use std::io::Write;
 
 //
 //
@@ -46,10 +46,16 @@ pub struct PlacementLog {
 // a single change to a section's placement
 pub enum PlacementLogEntry {
     // this section was placed (displacing it will undo)
-    Add { section: usize },
+    Add {
+        section: usize,
+    },
 
     // this section was displaced (placing it will undo)
-    Remove { section: usize, time_slot: usize, room: Option<usize> },
+    Remove {
+        section: usize,
+        time_slot: usize,
+        room: Option<usize>,
+    },
 }
 
 pub struct RoomPlacements {
@@ -78,7 +84,9 @@ impl Schedule {
 
         let mut room_placements = Vec::new();
         for _ in 0..input.rooms.len() {
-            room_placements.push(RoomPlacements { used_time_slots: Vec::new() });
+            room_placements.push(RoomPlacements {
+                used_time_slots: Vec::new(),
+            });
         }
 
         let mut schedule = Schedule {
@@ -108,31 +116,54 @@ impl Schedule {
     pub fn remove_placement(&mut self, section: usize, undo: &mut Vec<PlacementLogEntry>) {
         if let Some(time_slot) = std::mem::take(&mut self.placements[section].time_slot) {
             // does it have a room?
-            let room = 
-                if let Some(room) = std::mem::take(&mut self.placements[section].room) {
-                    // remove it from room_placements
-                    self.room_placements[room].used_time_slots.retain(|TimeSlotPlacement { section: elt, .. }| *elt != section);
-                    Some(room)
-                } else {
-                    None
-                };
+            let room = if let Some(room) = std::mem::take(&mut self.placements[section].room) {
+                // remove it from room_placements
+                self.room_placements[room]
+                    .used_time_slots
+                    .retain(|TimeSlotPlacement { section: elt, .. }| *elt != section);
+                Some(room)
+            } else {
+                None
+            };
 
-            undo.push(PlacementLogEntry::Remove { section, time_slot, room });
+            undo.push(PlacementLogEntry::Remove {
+                section,
+                time_slot,
+                room,
+            });
         }
     }
 
-    pub fn add_placement(&mut self, section: usize, time_slot: usize, maybe_room: &Option<usize>, undo: &mut Vec<PlacementLogEntry>) {
+    pub fn add_placement(
+        &mut self,
+        section: usize,
+        time_slot: usize,
+        maybe_room: &Option<usize>,
+        undo: &mut Vec<PlacementLogEntry>,
+    ) {
         let placement = &mut self.placements[section];
-        assert!(placement.time_slot.is_none() && placement.room.is_none(), "add_placement: already placed");
+        assert!(
+            placement.time_slot.is_none() && placement.room.is_none(),
+            "add_placement: already placed"
+        );
         placement.time_slot = Some(time_slot);
         if let &Some(room) = maybe_room {
-            self.room_placements[room].used_time_slots.push(TimeSlotPlacement { section, time_slot });
+            self.room_placements[room]
+                .used_time_slots
+                .push(TimeSlotPlacement { section, time_slot });
         }
         placement.room = maybe_room.clone();
-        undo.push(PlacementLogEntry::Add{section});
+        undo.push(PlacementLogEntry::Add { section });
     }
 
-    pub fn displace_conflicts(&mut self, input: &Input, section: usize, time_slot: usize, maybe_room: &Option<usize>, undo: &mut Vec<PlacementLogEntry>) {
+    pub fn displace_conflicts(
+        &mut self,
+        input: &Input,
+        section: usize,
+        time_slot: usize,
+        maybe_room: &Option<usize>,
+        undo: &mut Vec<PlacementLogEntry>,
+    ) {
         let mut evictees = Vec::new();
 
         // check for hard conflicts in overlapping time slots
@@ -146,7 +177,11 @@ impl Schedule {
 
         // check if the room is already occupied
         if let &Some(room) = maybe_room {
-            for &TimeSlotPlacement { time_slot: other_time_slot, section: room_conflict } in &self.room_placements[room].used_time_slots {
+            for &TimeSlotPlacement {
+                time_slot: other_time_slot,
+                section: room_conflict,
+            } in &self.room_placements[room].used_time_slots
+            {
                 if input.time_slot_conflicts[time_slot][other_time_slot] {
                     evictees.push(room_conflict);
                 }
@@ -160,7 +195,13 @@ impl Schedule {
         }
     }
 
-    pub fn has_hard_conflict(&self, input: &Input, section: usize, time_slot: usize, maybe_room: &Option<usize>) -> bool {
+    pub fn has_hard_conflict(
+        &self,
+        input: &Input,
+        section: usize,
+        time_slot: usize,
+        maybe_room: &Option<usize>,
+    ) -> bool {
         // check for hard conflicts in overlapping time slots
         for &hard_conflict in &input.sections[section].hard_conflicts {
             if let &Some(other_time_slot) = &self.placements[hard_conflict].time_slot {
@@ -172,7 +213,11 @@ impl Schedule {
 
         // check if the room is already occupied
         if let &Some(room) = maybe_room {
-            for &TimeSlotPlacement { time_slot: other_time_slot, .. } in &self.room_placements[room].used_time_slots {
+            for &TimeSlotPlacement {
+                time_slot: other_time_slot,
+                ..
+            } in &self.room_placements[room].used_time_slots
+            {
                 if input.time_slot_conflicts[time_slot][other_time_slot] {
                     return true;
                 }
@@ -181,7 +226,6 @@ impl Schedule {
 
         false
     }
-
 }
 
 impl PlacementScore {
@@ -203,7 +247,13 @@ impl PlacementLog {
     // *   update the score based on the move
     //
     // returns a log with enough information to revert the move
-    pub fn move_section(schedule: &mut Schedule, input: &Input, section: usize, time_slot: usize, maybe_room: &Option<usize>) -> Self {
+    pub fn move_section(
+        schedule: &mut Schedule,
+        input: &Input,
+        section: usize,
+        time_slot: usize,
+        maybe_room: &Option<usize>,
+    ) -> Self {
         let mut entries = Vec::new();
 
         // move the section and record displacements
@@ -215,8 +265,8 @@ impl PlacementLog {
         let mut sections_being_moved = Vec::new();
         for elt in &entries {
             match *elt {
-                PlacementLogEntry::Add{section} => sections_being_moved.push(section),
-                PlacementLogEntry::Remove{section, ..} => sections_being_moved.push(section),
+                PlacementLogEntry::Add { section } => sections_being_moved.push(section),
+                PlacementLogEntry::Remove { section, .. } => sections_being_moved.push(section),
             }
         }
         sections_being_moved.sort();
@@ -234,7 +284,10 @@ impl PlacementLog {
             }
 
             // move the old score records to the log and reset the section score
-            let old_score = std::mem::replace(&mut schedule.placements[section].score, PlacementScore::new());
+            let old_score = std::mem::replace(
+                &mut schedule.placements[section].score,
+                PlacementScore::new(),
+            );
 
             // remove the old score from the global score
             schedule.score -= old_score.global;
@@ -262,7 +315,10 @@ impl PlacementLog {
 
         for &section in &adjacent {
             // move the old score record to the log and reset the section score
-            let old_score = std::mem::replace(&mut schedule.placements[section].score, PlacementScore::new());
+            let old_score = std::mem::replace(
+                &mut schedule.placements[section].score,
+                PlacementScore::new(),
+            );
 
             // remove the old score from the global score
             schedule.score -= old_score.global;
@@ -291,10 +347,14 @@ impl PlacementLog {
         // play the log in reverse order and undo the changes
         loop {
             match self.entries.pop() {
-                Some(PlacementLogEntry::Add{section}) => {
+                Some(PlacementLogEntry::Add { section }) => {
                     schedule.remove_placement(section, &mut dev_null);
                 }
-                Some(PlacementLogEntry::Remove{section, time_slot, room}) => {
+                Some(PlacementLogEntry::Remove {
+                    section,
+                    time_slot,
+                    room,
+                }) => {
                     schedule.add_placement(section, time_slot, &room, &mut dev_null);
                 }
                 None => break,
@@ -316,7 +376,11 @@ pub fn solve(schedule: &mut Schedule, _input: &Input, start: std::time::Instant,
     loop {
         if start.elapsed().as_secs() != last_report {
             last_report = start.elapsed().as_secs();
-            println!("running for {} second{}", last_report, if last_report == 1 { "" } else { "s" });
+            println!(
+                "running for {} second{}",
+                last_report,
+                if last_report == 1 { "" } else { "s" }
+            );
             if last_report >= seconds {
                 break;
             }
@@ -328,7 +392,7 @@ pub fn solve(schedule: &mut Schedule, _input: &Input, start: std::time::Instant,
 pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<Schedule> {
     let mut best = None;
     while start.elapsed().as_secs() < seconds {
-        let mut schedule = Schedule::new(&input);
+        let mut schedule = Schedule::new(input);
         print!(".");
         std::io::stdout().flush().unwrap();
         while schedule.score.unplaced() > 0 {
@@ -343,13 +407,16 @@ pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<
 
                 // find the number of placement options for this section
                 let mut count = 0;
-                for &TimeSlotWithOptionalPriority { time_slot, .. } in &input.sections[section].time_slots {
+                for &TimeSlotWithOptionalPriority { time_slot, .. } in
+                    &input.sections[section].time_slots
+                {
                     if input.sections[section].rooms.is_empty() {
                         if !schedule.has_hard_conflict(input, section, time_slot, &None) {
                             count += 1;
                         }
                     } else {
-                        for &RoomWithOptionalPriority { room, .. } in &input.sections[section].rooms {
+                        for &RoomWithOptionalPriority { room, .. } in &input.sections[section].rooms
+                        {
                             if !schedule.has_hard_conflict(input, section, time_slot, &Some(room)) {
                                 count += 1;
                             }
@@ -364,10 +431,10 @@ pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<
 
                 // is this the most constrained section so far?
                 match most_constrained {
-                    (_, Some(n)) if count >= n => {},
-                    _ => { 
+                    (_, Some(n)) if count >= n => {}
+                    _ => {
                         most_constrained = (Some(section), Some(count));
-                    },
+                    }
                 }
             }
 
@@ -381,12 +448,20 @@ pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<
 
             // find that placement
             let mut count = 0;
-            'time_loop: for &TimeSlotWithOptionalPriority { time_slot, .. } in &input.sections[section].time_slots {
+            'time_loop: for &TimeSlotWithOptionalPriority { time_slot, .. } in
+                &input.sections[section].time_slots
+            {
                 if input.sections[section].rooms.is_empty() {
                     if !schedule.has_hard_conflict(input, section, time_slot, &None) {
                         count += 1;
                         if count == winner {
-                            let _undo = PlacementLog::move_section(&mut schedule, input, section, time_slot, &None);
+                            let _undo = PlacementLog::move_section(
+                                &mut schedule,
+                                input,
+                                section,
+                                time_slot,
+                                &None,
+                            );
                             break 'time_loop;
                         }
                     }
@@ -395,7 +470,13 @@ pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<
                         if !schedule.has_hard_conflict(input, section, time_slot, &Some(room)) {
                             count += 1;
                             if count == winner {
-                                let _undo = PlacementLog::move_section(&mut schedule, input, section, time_slot, &Some(room));
+                                let _undo = PlacementLog::move_section(
+                                    &mut schedule,
+                                    input,
+                                    section,
+                                    time_slot,
+                                    &Some(room),
+                                );
                                 break 'time_loop;
                             }
                         }
@@ -406,8 +487,7 @@ pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<
 
         // is this a new best?
         match best {
-            Some(Schedule { score, .. }) if score <= schedule.score => {
-            },
+            Some(Schedule { score, .. }) if score <= schedule.score => {}
 
             _ => {
                 let score = schedule.score;
@@ -417,7 +497,7 @@ pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<
                     println!("perfect score found, quitting warmup");
                     break;
                 }
-            },
+            }
         }
     }
 
