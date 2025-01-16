@@ -571,7 +571,7 @@ CREATE VIEW time_slots_available_to_sections (department, section, time_slot, ti
     UNION
 
     -- time slots for section with no faculty assigned
-    SELECT department, section, time_slot, 0
+    SELECT department, section, time_slot, NULL
     FROM sections_to_be_scheduled
     NATURAL JOIN section_time_slot_tags
     NATURAL JOIN time_slots_time_slot_tags

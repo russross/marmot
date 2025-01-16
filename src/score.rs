@@ -18,6 +18,23 @@ pub const LEVEL_FOR_HARD_CONFLICT: u8 = 1;
 pub const LEVEL_FOR_ROOM_COUNT: u8 = 19;
 pub const START_LEVEL_FOR_PREFERENCES: u8 = 10;
 
+// Notes on scoring:
+// *   A section can be scored independently of any other sections,
+//     instructors, etc.
+// *   For scores that affect multiple sections, the score must be
+//     symmetric, e.g., if section A discovers a penalty involving
+//     section B then section B must discover the same penalty
+//     involving section A
+// *   There is no fanout of scores, i.e., when a section is scored it
+//     never reaches into another section to add scoring data
+// *   Scores involving multiple sections are recorded for all
+//     relevant sections (a pair with a curriculum soft conflict,
+//     three classes with the same instructor that are spread out
+//     too much, etc.)
+// *   A score involving multiple sections is only applied to the
+//     overall score onse. The section with the lowest index value
+//     applies it to the global score, others only apply it to their
+//     own local score.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Score {
     pub levels: [ScoreLevel; PRIORITY_LEVELS],
@@ -27,88 +44,31 @@ pub struct Score {
 // neighbors is moved
 #[derive(Clone)]
 pub enum ScoreCriterion {
-    SoftConflict {
-        sections_with_priorities: Vec<SectionWithPriority>,
-    },
-    AntiConflict {
-        priority: u8,
-        single: usize,
-        group: Vec<usize>,
-    },
-    RoomPreference {
-        rooms_with_priorities: Vec<RoomWithPriority>,
-    },
-    TimeSlotPreference {
-        time_slots_with_priorities: Vec<TimeSlotWithPriority>,
-    },
-    FacultySpread {
-        faculty: usize,
-        sections: Vec<usize>,
-        grouped_by_days: Vec<Vec<DistributionPreference>>,
-    },
-    FacultyRoomCount {
-        priority: u8,
-        faculty: usize,
-        desired: usize,
-        sections: Vec<usize>,
-    },
+    SoftConflict { sections_with_priorities: Vec<SectionWithPriority> },
+    AntiConflict { priority: u8, single: usize, group: Vec<usize> },
+    RoomPreference { section: usize, rooms_with_priorities: Vec<RoomWithPriority> },
+    TimeSlotPreference { section: usize, time_slots_with_priorities: Vec<TimeSlotWithPriority> },
+    FacultySpread { faculty: usize, sections: Vec<usize>, grouped_by_days: Vec<Vec<DistributionPreference>> },
+    FacultyRoomCount { priority: u8, faculty: usize, sections: Vec<usize>, desired: usize },
 }
 
 // a single change to the score due to a section's placement
+#[derive(Clone)]
 pub enum ScoreDelta {
-    SoftConflict {
-        priority: u8,
-        sections: [usize; 2],
-    },
-    AntiConflict {
-        priority: u8,
-        single: usize,
-        group: Vec<usize>,
-    },
-    RoomPreference {
-        priority: u8,
-    },
-    TimeSlotPreference {
-        priority: u8,
-    },
-    Cluster {
-        priority: u8,
-        faculty: usize,
-        is_too_short: bool,
-        is_primary: bool,
-    },
-    Gap {
-        priority: u8,
-        faculty: usize,
-        is_too_short: bool,
-        is_primary: bool,
-    },
-    DaysOff {
-        priority: u8,
-        faculty: usize,
-        desired: usize,
-        actual: usize,
-        is_primary: bool,
-    },
-    DaysEvenlySpread {
-        priority: u8,
-        faculty: usize,
-        is_primary: bool,
-    },
-    RoomCount {
-        priority: u8,
-        faculty: usize,
-        desired: usize,
-        actual: usize,
-        is_primary: bool,
-    },
+    SoftConflict { priority: u8, sections: [usize; 2] },
+    AntiConflict { priority: u8, single: usize, group: Vec<usize> },
+    RoomPreference { priority: u8 },
+    TimeSlotPreference { priority: u8 },
+    Cluster { priority: u8, faculty: usize, is_too_short: bool, is_primary: bool },
+    Gap { priority: u8, faculty: usize, is_too_short: bool, is_primary: bool },
+    DaysOff { priority: u8, faculty: usize, desired: usize, actual: usize, is_primary: bool },
+    DaysEvenlySpread { priority: u8, faculty: usize, is_primary: bool },
+    RoomCount { priority: u8, faculty: usize, desired: usize, actual: usize, is_primary: bool },
 }
 
 impl Score {
     pub fn new() -> Self {
-        Score {
-            levels: [0; PRIORITY_LEVELS],
-        }
+        Score { levels: [0; PRIORITY_LEVELS] }
     }
 
     pub fn is_zero(&self) -> bool {
@@ -122,6 +82,21 @@ impl Score {
 
     pub fn unplaced(&self) -> ScoreLevel {
         self.levels[LEVEL_FOR_UNPLACED_SECTION as usize]
+    }
+
+    pub fn first_nonzero(&self) -> u8 {
+        for (i, &val) in self.levels.iter().enumerate() {
+            if val != 0 {
+                return i as u8;
+            }
+        }
+        self.levels.len() as u8
+    }
+}
+
+impl Default for Score {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -147,9 +122,7 @@ impl ops::Add for Score {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Score {
-        let mut out = Score {
-            levels: [0; PRIORITY_LEVELS],
-        };
+        let mut out = Score { levels: [0; PRIORITY_LEVELS] };
         for i in 0..PRIORITY_LEVELS {
             out.levels[i] = self.levels[i] + rhs.levels[i];
         }
@@ -185,9 +158,7 @@ impl ops::Sub for Score {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self {
-        let mut out = Score {
-            levels: [0; PRIORITY_LEVELS],
-        };
+        let mut out = Score { levels: [0; PRIORITY_LEVELS] };
         for i in 0..PRIORITY_LEVELS {
             out.levels[i] = self.levels[i] - rhs.levels[i];
         }
@@ -206,12 +177,9 @@ impl ops::SubAssign for Score {
 impl ScoreCriterion {
     pub fn get_neighbors(&self) -> Vec<usize> {
         match self {
-            ScoreCriterion::SoftConflict {
-                sections_with_priorities,
-            } => sections_with_priorities
-                .iter()
-                .map(|elt| elt.section)
-                .collect(),
+            ScoreCriterion::SoftConflict { sections_with_priorities } => {
+                sections_with_priorities.iter().map(|elt| elt.section).collect()
+            }
 
             ScoreCriterion::AntiConflict { single, group, .. } => {
                 let mut lst = group.clone();
@@ -229,27 +197,15 @@ impl ScoreCriterion {
         }
     }
 
-    pub fn check(
-        &self,
-        schedule: &Schedule,
-        input: &Input,
-        section: usize,
-        deltas: &mut Vec<ScoreDelta>,
-    ) {
+    pub fn check(&self, schedule: &Schedule, input: &Input, section: usize, deltas: &mut Vec<ScoreDelta>) {
         // get our time slot
         let Some(my_time_slot) = schedule.placements[section].time_slot else {
             panic!("ScoreCriterion check called on unplaced section");
         };
 
         match self {
-            ScoreCriterion::SoftConflict {
-                sections_with_priorities,
-            } => {
-                for &SectionWithPriority {
-                    section: other,
-                    priority,
-                } in sections_with_priorities
-                {
+            ScoreCriterion::SoftConflict { sections_with_priorities } => {
+                for &SectionWithPriority { section: other, priority } in sections_with_priorities {
                     // check for placement of the conflicting section
                     let Some(other_time_slot) = schedule.placements[other].time_slot else {
                         continue;
@@ -261,22 +217,14 @@ impl ScoreCriterion {
                     }
 
                     // if we make it this far, there is a soft conflict
-                    let sections = if section < other {
-                        [section, other]
-                    } else {
-                        [other, section]
-                    };
+                    let sections = if section < other { [section, other] } else { [other, section] };
                     deltas.push(ScoreDelta::SoftConflict { priority, sections });
 
                     // note: continue checking for other conflicts
                 }
             }
 
-            ScoreCriterion::AntiConflict {
-                priority,
-                single,
-                group,
-            } => {
+            ScoreCriterion::AntiConflict { priority, single, group } => {
                 // grab the time slot of the single section
                 let Some(single_time_slot) = schedule.placements[*single].time_slot else {
                     // single section is unplaced, move on
@@ -297,24 +245,15 @@ impl ScoreCriterion {
                 }
 
                 // if any member of the group matches, we are okay
-                if placed
-                    .iter()
-                    .any(|&i| schedule.placements[i].time_slot == Some(single_time_slot))
-                {
+                if placed.iter().any(|&i| schedule.placements[i].time_slot == Some(single_time_slot)) {
                     return;
                 }
-                deltas.push(ScoreDelta::AntiConflict {
-                    priority: *priority,
-                    single: *single,
-                    group: group.clone(),
-                });
+                deltas.push(ScoreDelta::AntiConflict { priority: *priority, single: *single, group: group.clone() });
             }
 
-            ScoreCriterion::RoomPreference {
-                rooms_with_priorities,
-            } => {
+            ScoreCriterion::RoomPreference { section, rooms_with_priorities } => {
                 // get our room
-                let Some(my_room) = schedule.placements[section].room else {
+                let Some(my_room) = schedule.placements[*section].room else {
                     panic!("ScoreCriterion::RoomPreference check called on section with no room placement");
                 };
 
@@ -327,19 +266,13 @@ impl ScoreCriterion {
                 }
             }
 
-            ScoreCriterion::TimeSlotPreference {
-                time_slots_with_priorities,
-            } => {
+            ScoreCriterion::TimeSlotPreference { section, time_slots_with_priorities } => {
                 // get our timeslot
-                let Some(my_time_slot) = schedule.placements[section].time_slot else {
+                let Some(my_time_slot) = schedule.placements[*section].time_slot else {
                     panic!("ScoreCriterion::TimeSlotPreference check called on section with no timeslot placement");
                 };
 
-                for &TimeSlotWithPriority {
-                    time_slot,
-                    priority,
-                } in time_slots_with_priorities
-                {
+                for &TimeSlotWithPriority { time_slot, priority } in time_slots_with_priorities {
                     if time_slot == my_time_slot {
                         // record the priority and stop looking
                         deltas.push(ScoreDelta::TimeSlotPreference { priority });
@@ -348,11 +281,7 @@ impl ScoreCriterion {
                 }
             }
 
-            ScoreCriterion::FacultySpread {
-                faculty,
-                sections,
-                grouped_by_days,
-            } => {
+            ScoreCriterion::FacultySpread { faculty, sections, grouped_by_days } => {
                 // note: sections are sorted, so the first one is global marker
                 // for each group of days, lay out the classes scheduled on those days in order
                 for by_days in grouped_by_days {
@@ -380,22 +309,14 @@ impl ScoreCriterion {
 
                         // check each day we are interested in
                         for (i, &day) in days.iter().enumerate() {
-                            let TimeSlot {
-                                start_time,
-                                duration,
-                                days,
-                                ..
-                            } = &input.time_slots[time_slot];
+                            let TimeSlot { start_time, duration, days, .. } = &input.time_slots[time_slot];
 
                             // if this section is not scheduled on a day of interest, ignore it
                             if !days.contains(&day) {
                                 continue;
                             }
 
-                            schedule_by_day[i].push(Interval {
-                                start_time: *start_time,
-                                duration: *duration,
-                            });
+                            schedule_by_day[i].push(Interval { start_time: *start_time, duration: *duration });
                         }
                     }
                     for day_schedule in &mut schedule_by_day {
@@ -405,12 +326,7 @@ impl ScoreCriterion {
                     // now process the individual scoring criteria
                     for pref in by_days {
                         match pref {
-                            DistributionPreference::Clustering {
-                                max_gap,
-                                cluster_limits,
-                                gap_limits,
-                                ..
-                            } => {
+                            DistributionPreference::Clustering { max_gap, cluster_limits, gap_limits, .. } => {
                                 for day in &schedule_by_day {
                                     if day.is_empty() {
                                         continue;
@@ -428,17 +344,14 @@ impl ScoreCriterion {
                                         // keep adding sections while there are more and they start
                                         // soon enough after the end of the previous section
                                         while cluster_end + 1 < day.len()
-                                            && end_time + *max_gap
-                                                >= day[cluster_end + 1].start_time
+                                            && end_time + *max_gap >= day[cluster_end + 1].start_time
                                         {
                                             cluster_end += 1;
-                                            end_time = day[cluster_end].start_time
-                                                + day[cluster_end].duration;
+                                            end_time = day[cluster_end].start_time + day[cluster_end].duration;
                                         }
 
                                         // how long is it?
-                                        let total_duration =
-                                            end_time - day[cluster_start].start_time;
+                                        let total_duration = end_time - day[cluster_start].start_time;
 
                                         let mut worst_priority = u8::MAX;
                                         let mut is_too_short = false;
@@ -446,10 +359,7 @@ impl ScoreCriterion {
                                         // test cluster size against all the limits
                                         for limit in cluster_limits {
                                             match *limit {
-                                                DurationWithPriority::TooShort {
-                                                    duration,
-                                                    priority,
-                                                } => {
+                                                DurationWithPriority::TooShort { duration, priority } => {
                                                     if total_duration < duration {
                                                         if too_short_okay {
                                                             // used up the one freebie
@@ -464,13 +374,8 @@ impl ScoreCriterion {
                                                     }
                                                 }
 
-                                                DurationWithPriority::TooLong {
-                                                    duration,
-                                                    priority,
-                                                } => {
-                                                    if total_duration > duration
-                                                        && priority < worst_priority
-                                                    {
+                                                DurationWithPriority::TooLong { duration, priority } => {
+                                                    if total_duration > duration && priority < worst_priority {
                                                         worst_priority = priority;
                                                         is_too_short = false;
                                                     }
@@ -498,25 +403,15 @@ impl ScoreCriterion {
 
                                             for limit in gap_limits {
                                                 match *limit {
-                                                    DurationWithPriority::TooShort {
-                                                        duration,
-                                                        priority,
-                                                    } => {
-                                                        if gap < duration
-                                                            && priority < worst_priority
-                                                        {
+                                                    DurationWithPriority::TooShort { duration, priority } => {
+                                                        if gap < duration && priority < worst_priority {
                                                             worst_priority = priority;
                                                             is_too_short = true;
                                                         }
                                                     }
 
-                                                    DurationWithPriority::TooLong {
-                                                        duration,
-                                                        priority,
-                                                    } => {
-                                                        if gap > duration
-                                                            && priority < worst_priority
-                                                        {
+                                                    DurationWithPriority::TooLong { duration, priority } => {
+                                                        if gap > duration && priority < worst_priority {
                                                             worst_priority = priority;
                                                             is_too_short = false;
                                                         }
@@ -540,11 +435,7 @@ impl ScoreCriterion {
                                 }
                             }
 
-                            &DistributionPreference::DaysOff {
-                                days_off: desired,
-                                priority,
-                                ..
-                            } => {
+                            &DistributionPreference::DaysOff { days_off: desired, priority, .. } => {
                                 let mut actual = 0;
                                 for day in &schedule_by_day {
                                     if day.is_empty() {
@@ -591,12 +482,7 @@ impl ScoreCriterion {
                 }
             }
 
-            ScoreCriterion::FacultyRoomCount {
-                priority,
-                faculty,
-                desired,
-                sections,
-            } => {
+            ScoreCriterion::FacultyRoomCount { priority, faculty, desired, sections } => {
                 let mut rooms = Vec::new();
                 for &sec in sections {
                     // find when the section was placed
@@ -625,20 +511,14 @@ impl ScoreCriterion {
         let mut s = String::new();
 
         match self {
-            ScoreCriterion::SoftConflict {
-                sections_with_priorities,
-            } => {
+            ScoreCriterion::SoftConflict { sections_with_priorities } => {
                 write!(&mut s, "soft conflicts:").unwrap();
                 for &SectionWithPriority { section, priority } in sections_with_priorities {
                     write!(&mut s, " {}:{}", input.sections[section].name, priority).unwrap();
                 }
             }
 
-            ScoreCriterion::AntiConflict {
-                priority,
-                single,
-                group,
-            } => {
+            ScoreCriterion::AntiConflict { priority, single, group } => {
                 write!(&mut s, "anticonflict:{} {} vs", priority, single).unwrap();
                 let mut sep = " ";
                 for &elt in group {
@@ -647,45 +527,28 @@ impl ScoreCriterion {
                 }
             }
 
-            ScoreCriterion::RoomPreference {
-                rooms_with_priorities,
-            } => {
+            ScoreCriterion::RoomPreference { rooms_with_priorities, .. } => {
                 write!(&mut s, "room preferences:").unwrap();
                 for &RoomWithPriority { room, priority } in rooms_with_priorities {
                     write!(&mut s, " {}:{}", input.rooms[room].name, priority).unwrap();
                 }
             }
 
-            ScoreCriterion::TimeSlotPreference {
-                time_slots_with_priorities,
-            } => {
+            ScoreCriterion::TimeSlotPreference { time_slots_with_priorities, .. } => {
                 write!(&mut s, "timeslot preferences:").unwrap();
-                for &TimeSlotWithPriority {
-                    time_slot,
-                    priority,
-                } in time_slots_with_priorities
-                {
+                for &TimeSlotWithPriority { time_slot, priority } in time_slots_with_priorities {
                     write!(&mut s, " {}:{}", input.time_slots[time_slot].name, priority).unwrap();
                 }
             }
 
-            ScoreCriterion::FacultySpread {
-                faculty,
-                sections,
-                grouped_by_days,
-            } => {
+            ScoreCriterion::FacultySpread { faculty, sections, grouped_by_days } => {
                 for group in grouped_by_days {
                     let days = match &group[0] {
                         DistributionPreference::Clustering { days, .. } => days,
                         DistributionPreference::DaysOff { days, .. } => days,
                         DistributionPreference::DaysEvenlySpread { days, .. } => days,
                     };
-                    write!(
-                        &mut s,
-                        "class spread for {} on (",
-                        input.faculty[*faculty].name
-                    )
-                    .unwrap();
+                    write!(&mut s, "class spread for {} on (", input.faculty[*faculty].name).unwrap();
                     let mut sep = "";
                     for day in days {
                         match day {
@@ -708,35 +571,16 @@ impl ScoreCriterion {
                     writeln!(&mut s, "]").unwrap();
                     for pref in group {
                         match pref {
-                            DistributionPreference::Clustering {
-                                max_gap,
-                                cluster_limits,
-                                gap_limits,
-                                ..
-                            } => {
+                            DistributionPreference::Clustering { max_gap, cluster_limits, gap_limits, .. } => {
                                 if !cluster_limits.is_empty() {
                                     write!(&mut s, "        cluster max:{}", max_gap).unwrap();
                                     for limit in cluster_limits {
                                         match limit {
-                                            DurationWithPriority::TooShort {
-                                                duration,
-                                                priority,
-                                            } => {
-                                                write!(
-                                                    &mut s,
-                                                    " [<{} priority {}]",
-                                                    duration, priority
-                                                )
+                                            DurationWithPriority::TooShort { duration, priority } => {
+                                                write!(&mut s, " [<{} priority {}]", duration, priority)
                                             }
-                                            DurationWithPriority::TooLong {
-                                                duration,
-                                                priority,
-                                            } => {
-                                                write!(
-                                                    &mut s,
-                                                    " [>{} priority {}]",
-                                                    duration, priority
-                                                )
+                                            DurationWithPriority::TooLong { duration, priority } => {
+                                                write!(&mut s, " [>{} priority {}]", duration, priority)
                                             }
                                         }
                                         .unwrap();
@@ -748,25 +592,11 @@ impl ScoreCriterion {
                                     write!(&mut s, "        gap").unwrap();
                                     for limit in gap_limits {
                                         match limit {
-                                            DurationWithPriority::TooShort {
-                                                duration,
-                                                priority,
-                                            } => {
-                                                write!(
-                                                    &mut s,
-                                                    " [<{} priority {}]",
-                                                    duration, priority
-                                                )
+                                            DurationWithPriority::TooShort { duration, priority } => {
+                                                write!(&mut s, " [<{} priority {}]", duration, priority)
                                             }
-                                            DurationWithPriority::TooLong {
-                                                duration,
-                                                priority,
-                                            } => {
-                                                write!(
-                                                    &mut s,
-                                                    " [>{} priority {}]",
-                                                    duration, priority
-                                                )
+                                            DurationWithPriority::TooLong { duration, priority } => {
+                                                write!(&mut s, " [>{} priority {}]", duration, priority)
                                             }
                                         }
                                         .unwrap();
@@ -775,36 +605,19 @@ impl ScoreCriterion {
                                 }
                             }
 
-                            DistributionPreference::DaysOff {
-                                days_off, priority, ..
-                            } => {
-                                writeln!(
-                                    &mut s,
-                                    "        days off:{} priority {}",
-                                    days_off, priority
-                                )
-                                .unwrap();
+                            DistributionPreference::DaysOff { days_off, priority, .. } => {
+                                writeln!(&mut s, "        days off:{} priority {}", days_off, priority).unwrap();
                             }
 
                             DistributionPreference::DaysEvenlySpread { priority, .. } => {
-                                writeln!(
-                                    &mut s,
-                                    "        days evenly spread priority {}",
-                                    priority
-                                )
-                                .unwrap();
+                                writeln!(&mut s, "        days evenly spread priority {}", priority).unwrap();
                             }
                         }
                     }
                 }
             }
 
-            ScoreCriterion::FacultyRoomCount {
-                priority,
-                faculty,
-                desired,
-                sections,
-            } => {
+            ScoreCriterion::FacultyRoomCount { priority, faculty, desired, sections } => {
                 write!(
                     &mut s,
                     "faculty room count: {} desired {} priority {} sections [",
@@ -826,76 +639,41 @@ impl ScoreCriterion {
 impl ScoreDelta {
     pub fn get_scores(&self, section: usize) -> (u8, Option<u8>) {
         match *self {
-            ScoreDelta::SoftConflict {
-                priority,
-                sections: [first, _],
-            } => (
-                priority,
-                if section == first {
-                    Some(priority)
-                } else {
-                    None
-                },
-            ),
+            ScoreDelta::SoftConflict { priority, sections: [first, _] } => {
+                (priority, if section == first { Some(priority) } else { None })
+            }
 
-            ScoreDelta::AntiConflict {
-                priority, single, ..
-            } => (
-                priority,
-                if section == single {
-                    Some(priority)
-                } else {
-                    None
-                },
-            ),
+            ScoreDelta::AntiConflict { priority, single, .. } => {
+                (priority, if section == single { Some(priority) } else { None })
+            }
 
             ScoreDelta::RoomPreference { priority, .. } => (priority, Some(priority)),
 
             ScoreDelta::TimeSlotPreference { priority, .. } => (priority, Some(priority)),
 
-            ScoreDelta::Cluster {
-                priority,
-                is_primary,
-                ..
-            } => (priority, if is_primary { Some(priority) } else { None }),
+            ScoreDelta::Cluster { priority, is_primary, .. } => {
+                (priority, if is_primary { Some(priority) } else { None })
+            }
 
-            ScoreDelta::Gap {
-                priority,
-                is_primary,
-                ..
-            } => (priority, if is_primary { Some(priority) } else { None }),
+            ScoreDelta::Gap { priority, is_primary, .. } => (priority, if is_primary { Some(priority) } else { None }),
 
-            ScoreDelta::DaysOff {
-                priority,
-                is_primary,
-                ..
-            } => (priority, if is_primary { Some(priority) } else { None }),
+            ScoreDelta::DaysOff { priority, is_primary, .. } => {
+                (priority, if is_primary { Some(priority) } else { None })
+            }
 
-            ScoreDelta::DaysEvenlySpread {
-                priority,
-                is_primary,
-                ..
-            } => (priority, if is_primary { Some(priority) } else { None }),
+            ScoreDelta::DaysEvenlySpread { priority, is_primary, .. } => {
+                (priority, if is_primary { Some(priority) } else { None })
+            }
 
-            ScoreDelta::RoomCount {
-                priority,
-                is_primary,
-                ..
-            } => (priority, if is_primary { Some(priority) } else { None }),
+            ScoreDelta::RoomCount { priority, is_primary, .. } => {
+                (priority, if is_primary { Some(priority) } else { None })
+            }
         }
     }
 
-    pub fn get_score_message(
-        &self,
-        input: &Input,
-        schedule: &Schedule,
-        section: usize,
-    ) -> (u8, String) {
+    pub fn get_score_message(&self, input: &Input, schedule: &Schedule, section: usize) -> (u8, String) {
         match self {
-            &ScoreDelta::SoftConflict {
-                priority,
-                sections: [a, b],
-            } => {
+            &ScoreDelta::SoftConflict { priority, sections: [a, b] } => {
                 let ts_a = schedule.placements[a].time_slot.unwrap();
                 let ts_b = schedule.placements[b].time_slot.unwrap();
                 if ts_a == ts_b {
@@ -903,9 +681,7 @@ impl ScoreDelta {
                         priority,
                         format!(
                             "course conflict: {} and {} both meet at {}",
-                            input.sections[a].name,
-                            input.sections[b].name,
-                            input.time_slots[ts_a].name
+                            input.sections[a].name, input.sections[b].name, input.time_slots[ts_a].name
                         ),
                     )
                 } else {
@@ -922,11 +698,7 @@ impl ScoreDelta {
                 }
             }
 
-            ScoreDelta::AntiConflict {
-                priority,
-                single,
-                group,
-            } => {
+            ScoreDelta::AntiConflict { priority, single, group } => {
                 let mut group_names = String::new();
                 let mut sep = "";
                 for elt in group {
@@ -947,10 +719,7 @@ impl ScoreDelta {
                 let room = schedule.placements[section].room.unwrap();
                 (
                     priority,
-                    format!(
-                        "room preference: {} meets in {}",
-                        input.sections[section].name, input.rooms[room].name
-                    ),
+                    format!("room preference: {} meets in {}", input.sections[section].name, input.rooms[room].name),
                 )
             }
 
@@ -965,12 +734,7 @@ impl ScoreDelta {
                 )
             }
 
-            &ScoreDelta::Cluster {
-                priority,
-                faculty,
-                is_too_short,
-                ..
-            } => (
+            &ScoreDelta::Cluster { priority, faculty, is_too_short, .. } => (
                 priority,
                 format!(
                     "class cluster preference: {} has a cluster of classes that is too {}",
@@ -979,27 +743,16 @@ impl ScoreDelta {
                 ),
             ),
 
-            &ScoreDelta::Gap {
-                priority,
-                faculty,
-                is_too_short,
-                ..
-            } => (
+            &ScoreDelta::Gap { priority, faculty, is_too_short, .. } => (
                 priority,
                 format!(
-                    "gap preference: {} has a gap between clusters of classes is too {}",
+                    "gap preference: {} has a gap between clusters of classes that is too {}",
                     input.faculty[faculty].name,
                     if is_too_short { "short" } else { "long" }
                 ),
             ),
 
-            &ScoreDelta::DaysOff {
-                priority,
-                faculty,
-                desired,
-                actual,
-                ..
-            } => (
+            &ScoreDelta::DaysOff { priority, faculty, desired, actual, .. } => (
                 priority,
                 format!(
                     "days off: {} wanted {} day{} off but got {}",
@@ -1010,23 +763,12 @@ impl ScoreDelta {
                 ),
             ),
 
-            &ScoreDelta::DaysEvenlySpread {
-                priority, faculty, ..
-            } => (
+            &ScoreDelta::DaysEvenlySpread { priority, faculty, .. } => (
                 priority,
-                format!(
-                    "uneven spread: {} has more classes some days than others",
-                    input.faculty[faculty].name
-                ),
+                format!("uneven spread: {} has more classes some days than others", input.faculty[faculty].name),
             ),
 
-            &ScoreDelta::RoomCount {
-                priority,
-                faculty,
-                desired,
-                actual,
-                ..
-            } => (
+            &ScoreDelta::RoomCount { priority, faculty, desired, actual, .. } => (
                 priority,
                 format!(
                     "room placement: {}'s classes are spread across {} room{} instead of {}",
@@ -1044,7 +786,7 @@ impl ScoreDelta {
 // the section's score is fully update, including local and global
 // totals and the detail log,
 // but the overall solver score is not modified
-pub fn compute_section_score(schedule: &mut Schedule, input: &Input, section: usize) {
+pub fn compute_section_score(input: &Input, schedule: &mut Schedule, section: usize) {
     assert!(schedule.placements[section].score.local.is_zero());
     assert!(schedule.placements[section].score.global.is_zero());
     assert!(schedule.placements[section].score.deltas.is_empty());

@@ -120,16 +120,10 @@ pub enum DistributionPreference {
 #[derive(Clone, PartialEq)]
 pub enum DurationWithPriority {
     // a duration shorter than this gets a penalty
-    TooShort {
-        priority: u8,
-        duration: time::Duration,
-    },
+    TooShort { priority: u8, duration: time::Duration },
 
     // a duration longer than this gets a penalty
-    TooLong {
-        priority: u8,
-        duration: time::Duration,
-    },
+    TooLong { priority: u8, duration: time::Duration },
 }
 
 impl fmt::Display for Room {
@@ -202,12 +196,7 @@ impl fmt::Display for DistributionPreference {
         }
         write!(f, ") ")?;
         match self {
-            DistributionPreference::Clustering {
-                max_gap,
-                cluster_limits,
-                gap_limits,
-                ..
-            } => {
+            DistributionPreference::Clustering { max_gap, cluster_limits, gap_limits, .. } => {
                 write!(f, "max gap:{}", max_gap)?;
                 if !cluster_limits.is_empty() {
                     write!(f, " ### cluster")?;
@@ -237,16 +226,8 @@ impl fmt::Display for DistributionPreference {
                 }
             }
 
-            DistributionPreference::DaysOff {
-                days_off, priority, ..
-            } => {
-                write!(
-                    f,
-                    "wants {} day{} off priority {}",
-                    days_off,
-                    if *days_off == 1 { "" } else { "s" },
-                    priority
-                )?;
+            DistributionPreference::DaysOff { days_off, priority, .. } => {
+                write!(f, "wants {} day{} off priority {}", days_off, if *days_off == 1 { "" } else { "s" }, priority)?;
             }
 
             DistributionPreference::DaysEvenlySpread { priority, .. } => {
@@ -257,17 +238,15 @@ impl fmt::Display for DistributionPreference {
     }
 }
 
-pub fn load_input(db_path: &str, departments: &Vec<String>) -> Result<Input, String> {
+pub fn load_input(db_path: &str, departments: &[String]) -> Result<Input, String> {
     print!("loading input data");
     let start = Instant::now();
 
     let db =
-        Connection::open_with_flags(db_path, OpenFlags::new().with_read_only().with_no_mutex())
-            .map_err(sql_err)?;
+        Connection::open_with_flags(db_path, OpenFlags::new().with_read_only().with_no_mutex()).map_err(sql_err)?;
     db.execute("PRAGMA foreign_keys = ON").map_err(sql_err)?;
     db.execute("PRAGMA temp_store = memory").map_err(sql_err)?;
-    db.execute("PRAGMA mmap_size = 100000000")
-        .map_err(sql_err)?;
+    db.execute("PRAGMA mmap_size = 100000000").map_err(sql_err)?;
 
     let mut term_name = "Unknown term".to_string();
     let mut stmt = db.prepare("SELECT term FROM terms").map_err(sql_err)?;
@@ -275,43 +254,25 @@ pub fn load_input(db_path: &str, departments: &Vec<String>) -> Result<Input, Str
         term_name = stmt.read(0).map_err(sql_err)?;
     }
 
-    let (rooms, room_index) = load_rooms(&db, &departments)?;
-    let (time_slots, time_slot_index) = load_time_slots(&db, &departments)?;
-    let time_slot_conflicts = load_time_slot_conflicts(&db, &time_slot_index, &departments)?;
-    let (mut faculty, faculty_index) = load_faculty(&db, &departments)?;
-    let (mut sections, section_index) =
-        load_sections(&db, &room_index, &time_slot_index, &departments)?;
-    load_conflicts(&db, &mut sections, &section_index, &departments)?;
-    load_anti_conflicts(&db, &mut sections, &section_index, &departments)?;
-    load_faculty_section_assignments(
-        &db,
-        &mut faculty,
-        &faculty_index,
-        &mut sections,
-        &section_index,
-        &departments,
-    )?;
+    let (rooms, room_index) = load_rooms(&db, departments)?;
+    let (time_slots, time_slot_index) = load_time_slots(&db, departments)?;
+    let time_slot_conflicts = load_time_slot_conflicts(&db, &time_slot_index, departments)?;
+    let (mut faculty, faculty_index) = load_faculty(&db, departments)?;
+    let (mut sections, section_index) = load_sections(&db, &room_index, &time_slot_index, departments)?;
+    load_conflicts(&db, &mut sections, &section_index, departments)?;
+    load_anti_conflicts(&db, &mut sections, &section_index, departments)?;
+    load_faculty_section_assignments(&db, &mut faculty, &faculty_index, &mut sections, &section_index, departments)?;
     compute_neighbors(&mut sections);
     println!(": {}ms", start.elapsed().as_millis());
 
-    Ok(Input {
-        term_name,
-        rooms,
-        time_slots,
-        faculty,
-        sections,
-        time_slot_conflicts,
-    })
+    Ok(Input { term_name, rooms, time_slots, faculty, sections, time_slot_conflicts })
 }
 
 // load all rooms
-pub fn load_rooms(
-    db: &Connection,
-    departments: &Vec<String>,
-) -> Result<(Vec<Room>, HashMap<String, usize>), String> {
-    let dept_in = dept_clause(departments, &vec!["department".into()], true);
+pub fn load_rooms(db: &Connection, departments: &[String]) -> Result<(Vec<Room>, HashMap<String, usize>), String> {
+    let dept_in = dept_clause(departments, &["department".into()], true);
     let mut stmt = db
-        .prepare(&format!(
+        .prepare(format!(
             "
             SELECT DISTINCT room
             FROM rooms_used_by_departments
@@ -325,9 +286,7 @@ pub fn load_rooms(
     let mut rooms = Vec::new();
     let mut room_index = HashMap::new();
     while stmt.next().map_err(sql_err)? == State::Row {
-        let room = Room {
-            name: stmt.read(0).map_err(sql_err)?,
-        };
+        let room = Room { name: stmt.read(0).map_err(sql_err)? };
         room_index.insert(room.name.clone(), rooms.len());
         rooms.push(room);
     }
@@ -338,11 +297,11 @@ pub fn load_rooms(
 // load all time slots
 pub fn load_time_slots(
     db: &Connection,
-    departments: &Vec<String>,
+    departments: &[String],
 ) -> Result<(Vec<TimeSlot>, HashMap<String, usize>), String> {
-    let dept_in = dept_clause(departments, &vec!["department".into()], true);
+    let dept_in = dept_clause(departments, &["department".into()], true);
     let mut stmt = db
-        .prepare(&format!(
+        .prepare(format!(
             "
             SELECT DISTINCT time_slot, days, start_time, duration
             FROM time_slots_used_by_departments_materialized
@@ -362,10 +321,9 @@ pub fn load_time_slots(
         let start_time = start_time_i as u32;
         let duration: i64 = stmt.read(3).map_err(sql_err)?;
         let time_slot = TimeSlot {
-            name: name,
+            name,
             days: parse_days(&days)?,
-            start_time: time::Time::from_hms((start_time / 60) as u8, (start_time % 60) as u8, 0)
-                .unwrap(),
+            start_time: time::Time::from_hms((start_time / 60) as u8, (start_time % 60) as u8, 0).unwrap(),
             duration: time::Duration::minutes(duration),
         };
         time_slot_index.insert(time_slot.name.clone(), time_slots.len());
@@ -379,15 +337,11 @@ pub fn load_time_slots(
 pub fn load_time_slot_conflicts(
     db: &Connection,
     time_slot_index: &HashMap<String, usize>,
-    departments: &Vec<String>,
+    departments: &[String],
 ) -> Result<Vec<Vec<bool>>, String> {
-    let dept_in = dept_clause(
-        departments,
-        &vec!["ts_a.department".into(), "ts_b.department".into()],
-        true,
-    );
+    let dept_in = dept_clause(departments, &["ts_a.department".into(), "ts_b.department".into()], true);
     let mut stmt = db
-        .prepare(&format!(
+        .prepare(format!(
             "
             SELECT time_slot_a, time_slot_b
             FROM conflicting_time_slots
@@ -399,20 +353,19 @@ pub fn load_time_slot_conflicts(
             dept_in
         ))
         .map_err(sql_err)?;
-    stmt.bind_iter(as_values(&double_vec(departments)))
-        .map_err(sql_err)?;
+    stmt.bind_iter(as_values(&double_vec(departments))).map_err(sql_err)?;
 
     let time_slot_len = time_slot_index.len();
     let mut conflicts = vec![vec![false; time_slot_len]; time_slot_len];
     while stmt.next().map_err(sql_err)? == State::Row {
         let a: String = stmt.read(0).map_err(sql_err)?;
         let b: String = stmt.read(1).map_err(sql_err)?;
-        let &aa = time_slot_index.get(&a).ok_or(format!(
-            "time slot {a} reported as conflict but not found in usable time slots"
-        ))?;
-        let &bb = time_slot_index.get(&b).ok_or(format!(
-            "time slot {b} reported as conflict but not found in usable time slots"
-        ))?;
+        let &aa = time_slot_index
+            .get(&a)
+            .ok_or(format!("time slot {a} reported as conflict but not found in usable time slots"))?;
+        let &bb = time_slot_index
+            .get(&b)
+            .ok_or(format!("time slot {b} reported as conflict but not found in usable time slots"))?;
 
         // conflicts go both ways
         conflicts[aa][bb] = true;
@@ -423,17 +376,14 @@ pub fn load_time_slot_conflicts(
 }
 
 // load faculty and their availability
-pub fn load_faculty(
-    db: &Connection,
-    departments: &Vec<String>,
-) -> Result<(Vec<Faculty>, HashMap<String, usize>), String> {
+pub fn load_faculty(db: &Connection, departments: &[String]) -> Result<(Vec<Faculty>, HashMap<String, usize>), String> {
     let mut faculty_list = Vec::new();
     let mut faculty_lookup = HashMap::new();
 
     {
-        let dept_in = dept_clause(departments, &vec!["department".into()], true);
+        let dept_in = dept_clause(departments, &["department".into()], true);
         let mut stmt = db
-            .prepare(&format!(
+            .prepare(format!(
                 "
                 SELECT DISTINCT faculty
                 FROM faculty_sections_to_be_scheduled
@@ -445,10 +395,7 @@ pub fn load_faculty(
         stmt.bind_iter(as_values(departments)).map_err(sql_err)?;
 
         while stmt.next().map_err(sql_err)? == State::Row {
-            let faculty = Faculty {
-                name: stmt.read(0).map_err(sql_err)?,
-                sections: Vec::new(),
-            };
+            let faculty = Faculty { name: stmt.read(0).map_err(sql_err)?, sections: Vec::new() };
             faculty_lookup.insert(faculty.name.clone(), faculty_list.len());
             faculty_list.push(faculty);
         }
@@ -462,16 +409,16 @@ pub fn load_sections(
     db: &Connection,
     room_index: &HashMap<String, usize>,
     time_slot_index: &HashMap<String, usize>,
-    departments: &Vec<String>,
+    departments: &[String],
 ) -> Result<(Vec<Section>, HashMap<String, usize>), String> {
     let mut sections = Vec::new();
     let mut section_index = HashMap::new();
 
     // load and create sections and their time slots
     {
-        let dept_in = dept_clause(departments, &vec!["department".into()], true);
+        let dept_in = dept_clause(departments, &["department".into()], true);
         let mut stmt = db
-            .prepare(&format!(
+            .prepare(format!(
                 "
                 SELECT DISTINCT section, time_slot, time_slot_priority
                 FROM time_slots_available_to_sections_materialized
@@ -512,18 +459,15 @@ pub fn load_sections(
                 .last_mut()
                 .unwrap()
                 .time_slots
-                .push(TimeSlotWithOptionalPriority {
-                    time_slot,
-                    priority: priority.map(|elt| elt as u8),
-                });
+                .push(TimeSlotWithOptionalPriority { time_slot, priority: priority.map(|elt| elt as u8) });
         }
     }
 
     // add rooms
     {
-        let dept_in = dept_clause(departments, &vec!["department".into()], true);
+        let dept_in = dept_clause(departments, &["department".into()], true);
         let mut stmt = db
-            .prepare(&format!(
+            .prepare(format!(
                 "
                 SELECT DISTINCT section, room, room_priority
                 FROM rooms_available_to_sections
@@ -544,22 +488,45 @@ pub fn load_sections(
 
             if new_section_name != section_name {
                 section_name = new_section_name.clone();
-                index = Some(section_index.get(&new_section_name).ok_or(format!(
-                    "section {} not found but has room {} assigned",
-                    section_name, room_name
-                ))?);
+                index = Some(
+                    section_index
+                        .get(&new_section_name)
+                        .ok_or(format!("section {} not found but has room {} assigned", section_name, room_name))?,
+                );
             }
 
-            let room = *room_index.get(&room_name).ok_or(format!(
-                "section {} assigned to room {} but room not found",
-                section_name, room_name
-            ))?;
+            let room = *room_index
+                .get(&room_name)
+                .ok_or(format!("section {} assigned to room {} but room not found", section_name, room_name))?;
             sections[*index.unwrap()]
                 .rooms
-                .push(RoomWithOptionalPriority {
-                    room,
-                    priority: priority.map(|elt| elt as u8),
-                });
+                .push(RoomWithOptionalPriority { room, priority: priority.map(|elt| elt as u8) });
+        }
+    }
+
+    // create the scoring criteria for time slot and room preferences
+    for (section_i, section) in sections.iter_mut().enumerate() {
+        let rooms_with_priorities: Vec<RoomWithPriority> = section
+            .rooms
+            .iter()
+            .filter_map(|RoomWithOptionalPriority { room, priority }| {
+                priority.map(|p| RoomWithPriority { room: *room, priority: p })
+            })
+            .collect();
+        if !rooms_with_priorities.is_empty() {
+            section.score_criteria.push(ScoreCriterion::RoomPreference { section: section_i, rooms_with_priorities });
+        }
+        let time_slots_with_priorities: Vec<TimeSlotWithPriority> = section
+            .time_slots
+            .iter()
+            .filter_map(|TimeSlotWithOptionalPriority { time_slot, priority }| {
+                priority.map(|p| TimeSlotWithPriority { time_slot: *time_slot, priority: p })
+            })
+            .collect();
+        if !time_slots_with_priorities.is_empty() {
+            section
+                .score_criteria
+                .push(ScoreCriterion::TimeSlotPreference { section: section_i, time_slots_with_priorities });
         }
     }
 
@@ -568,17 +535,13 @@ pub fn load_sections(
 
 pub fn load_conflicts(
     db: &Connection,
-    sections: &mut Vec<Section>,
+    sections: &mut [Section],
     section_index: &HashMap<String, usize>,
-    departments: &Vec<String>,
+    departments: &[String],
 ) -> Result<(), String> {
-    let dept_in = dept_clause(
-        departments,
-        &vec!["department_a".into(), "department_b".into()],
-        true,
-    );
+    let dept_in = dept_clause(departments, &["department_a".into(), "department_b".into()], true);
     let mut stmt = db
-        .prepare(&format!(
+        .prepare(format!(
             "
             SELECT DISTINCT section_a, section_b, priority
             FROM conflict_pairs_materialized
@@ -587,8 +550,7 @@ pub fn load_conflicts(
             dept_in
         ))
         .map_err(sql_err)?;
-    stmt.bind_iter(as_values(&double_vec(departments)))
-        .map_err(sql_err)?;
+    stmt.bind_iter(as_values(&double_vec(departments))).map_err(sql_err)?;
 
     let mut soft_conflict_lists = Vec::new();
     for _ in 0..sections.len() {
@@ -600,38 +562,25 @@ pub fn load_conflicts(
         let section_b: String = stmt.read(1).map_err(sql_err)?;
         let priority: i64 = stmt.read(2).map_err(sql_err)?;
 
-        let index_a = *section_index.get(&section_a).ok_or(format!(
-            "section_a {section_a} from conflict pair not found"
-        ))?;
-        let index_b = *section_index.get(&section_b).ok_or(format!(
-            "section_b {section_b} from conflict pair not found"
-        ))?;
-        if priority < LEVEL_FOR_HARD_CONFLICT as i64
-            || priority >= START_LEVEL_FOR_PREFERENCES as i64
-        {
-            return Err(format!(
-                "conflict pair {section_a} vs {section_b} has invalid priority of {priority}"
-            ));
+        let index_a =
+            *section_index.get(&section_a).ok_or(format!("section_a {section_a} from conflict pair not found"))?;
+        let index_b =
+            *section_index.get(&section_b).ok_or(format!("section_b {section_b} from conflict pair not found"))?;
+        if priority < LEVEL_FOR_HARD_CONFLICT as i64 || priority >= START_LEVEL_FOR_PREFERENCES as i64 {
+            return Err(format!("conflict pair {section_a} vs {section_b} has invalid priority of {priority}"));
         }
         let priority = priority as u8;
         if priority == LEVEL_FOR_HARD_CONFLICT {
             sections[index_a].hard_conflicts.push(index_b);
         } else {
-            soft_conflict_lists[index_a].push(SectionWithPriority {
-                section: index_b,
-                priority,
-            });
+            soft_conflict_lists[index_a].push(SectionWithPriority { section: index_b, priority });
         }
     }
 
     // add all non-empty soft conflict lists as score criteria
     for (section, list) in soft_conflict_lists.into_iter().enumerate() {
         if !list.is_empty() {
-            sections[section]
-                .score_criteria
-                .push(ScoreCriterion::SoftConflict {
-                    sections_with_priorities: list,
-                });
+            sections[section].score_criteria.push(ScoreCriterion::SoftConflict { sections_with_priorities: list });
         }
     }
 
@@ -640,18 +589,14 @@ pub fn load_conflicts(
 
 pub fn load_anti_conflicts(
     db: &Connection,
-    sections: &mut Vec<Section>,
+    sections: &mut [Section],
     section_index: &HashMap<String, usize>,
-    departments: &Vec<String>,
+    departments: &[String],
 ) -> Result<(), String> {
-    let dept_in = dept_clause(
-        departments,
-        &vec!["single_department".into(), "group_department".into()],
-        true,
-    );
+    let dept_in = dept_clause(departments, &["single_department".into(), "group_department".into()], true);
     // note: single_section can only have one anticonflict rule
     let mut stmt = db
-        .prepare(&format!(
+        .prepare(format!(
             "
             SELECT DISTINCT single_section, group_section, priority
             FROM anti_conflict_pairs
@@ -660,8 +605,7 @@ pub fn load_anti_conflicts(
             dept_in
         ))
         .map_err(sql_err)?;
-    stmt.bind_iter(as_values(&double_vec(departments)))
-        .map_err(sql_err)?;
+    stmt.bind_iter(as_values(&double_vec(departments))).map_err(sql_err)?;
 
     let mut single = usize::MAX;
     let mut group = Vec::new();
@@ -669,13 +613,12 @@ pub fn load_anti_conflicts(
 
     while stmt.next().map_err(sql_err)? == State::Row {
         let new_single_name: String = stmt.read(0).map_err(sql_err)?;
-        let new_single = *section_index.get(&new_single_name).ok_or(format!(
-            "anticonflict for unknown section {new_single_name}"
-        ))?;
+        let new_single = *section_index
+            .get(&new_single_name)
+            .ok_or(format!("anticonflict for unknown section {new_single_name}"))?;
         let other_name: String = stmt.read(1).map_err(sql_err)?;
-        let other = *section_index.get(&other_name).ok_or(format!(
-            "anticonflict references unknown section {other_name}"
-        ))?;
+        let other =
+            *section_index.get(&other_name).ok_or(format!("anticonflict references unknown section {other_name}"))?;
         if new_single == other {
             panic!("anticonflict: single and group names must differ");
         }
@@ -689,11 +632,7 @@ pub fn load_anti_conflicts(
                 let mut all = group.clone();
                 all.push(single);
                 for section in all {
-                    let elt = ScoreCriterion::AntiConflict {
-                        priority,
-                        single,
-                        group: group.clone(),
-                    };
+                    let elt = ScoreCriterion::AntiConflict { priority, single, group: group.clone() };
                     sections[section].score_criteria.push(elt);
                 }
             }
@@ -712,11 +651,7 @@ pub fn load_anti_conflicts(
         let mut all = group.clone();
         all.push(single);
         for section in all {
-            let elt = ScoreCriterion::AntiConflict {
-                priority,
-                single,
-                group: group.clone(),
-            };
+            let elt = ScoreCriterion::AntiConflict { priority, single, group: group.clone() };
             sections[section].score_criteria.push(elt);
         }
     }
@@ -726,21 +661,21 @@ pub fn load_anti_conflicts(
 
 pub fn load_faculty_section_assignments(
     db: &Connection,
-    faculty: &mut Vec<Faculty>,
+    faculty_list: &mut [Faculty],
     faculty_index: &HashMap<String, usize>,
-    sections: &mut Vec<Section>,
+    sections: &mut [Section],
     section_index: &HashMap<String, usize>,
-    departments: &Vec<String>,
+    departments: &[String],
 ) -> Result<(), String> {
     let mut faculty_sections = Vec::new();
-    for _ in 0..faculty.len() {
+    for _ in 0..faculty_list.len() {
         faculty_sections.push(Vec::new());
     }
     {
         // link sections to faculty
-        let dept_in = dept_clause(departments, &vec!["department".into()], true);
+        let dept_in = dept_clause(departments, &["department".into()], true);
         let mut stmt = db
-            .prepare(&format!(
+            .prepare(format!(
                 "
                 SELECT DISTINCT faculty, section
                 FROM faculty_sections_to_be_scheduled
@@ -754,12 +689,12 @@ pub fn load_faculty_section_assignments(
         while stmt.next().map_err(sql_err)? == State::Row {
             let faculty_name: String = stmt.read(0).map_err(sql_err)?;
             let section_name: String = stmt.read(1).map_err(sql_err)?;
-            let faculty_i = *faculty_index.get(&faculty_name).ok_or(format!(
-                "faculty {faculty_name} not found in mapping to section {section_name}"
-            ))?;
-            let section_i = *section_index.get(&section_name).ok_or(format!(
-                "section {section_name} not found in mapping to faculty {faculty_name}"
-            ))?;
+            let faculty_i = *faculty_index
+                .get(&faculty_name)
+                .ok_or(format!("faculty {faculty_name} not found in mapping to section {section_name}"))?;
+            let section_i = *section_index
+                .get(&section_name)
+                .ok_or(format!("section {section_name} not found in mapping to faculty {faculty_name}"))?;
 
             faculty_sections[faculty_i].push(section_i);
         }
@@ -767,16 +702,18 @@ pub fn load_faculty_section_assignments(
 
     // calculate theoretical minimum rooms possible for each faculty
     for faculty in 0..faculty_sections.len() {
+        // fill in section.faculty and faculty.sections lists
+        faculty_list[faculty].sections = faculty_sections[faculty].clone();
+        for &section in &faculty_sections[faculty] {
+            sections[section].faculty.push(faculty);
+        }
+
         // get a list of all possible rooms the faculty could use
         let mut all_possible = Vec::new();
         let mut section_list = Vec::new();
         for &section in &faculty_sections[faculty] {
             // ignore sections that do not have rooms or are not satisfied with any room
-            if !sections[section]
-                .rooms
-                .iter()
-                .any(|elt| elt.priority.is_none())
-            {
+            if !sections[section].rooms.iter().any(|elt| elt.priority.is_none()) {
                 continue;
             }
             section_list.push(section);
@@ -823,32 +760,34 @@ pub fn load_faculty_section_assignments(
         }
 
         for &sec in &section_list {
-            sections[sec]
-                .score_criteria
-                .push(ScoreCriterion::FacultyRoomCount {
-                    priority: LEVEL_FOR_ROOM_COUNT,
-                    faculty: faculty,
-                    desired: k,
-                    sections: section_list.clone(),
-                });
+            sections[sec].score_criteria.push(ScoreCriterion::FacultyRoomCount {
+                priority: LEVEL_FOR_ROOM_COUNT,
+                faculty,
+                sections: section_list.clone(),
+                desired: k,
+            });
         }
     }
 
     // load faculty spread preferences
     let mut spreads = Vec::new();
-    for _ in 0..faculty.len() {
+    for _ in 0..faculty_list.len() {
         spreads.push(Vec::new());
     }
     {
-        let dept_in = dept_clause(departments, &vec!["department".into()], true);
-        let mut stmt = db.prepare(&format!("
+        let dept_in = dept_clause(departments, &["department".into()], true);
+        let mut stmt = db
+            .prepare(format!(
+                "
                 SELECT  faculty,
                         days_to_check, days_off, days_off_priority, evenly_spread_priority, max_gap_within_cluster,
                         is_cluster, is_too_short, interval_minutes, interval_priority
                 FROM faculty_to_be_scheduled_preference_intervals
                 {}
                 ORDER BY faculty, is_cluster, interval_minutes",
-            dept_in)).map_err(sql_err)?;
+                dept_in
+            ))
+            .map_err(sql_err)?;
         stmt.bind_iter(as_values(departments)).map_err(sql_err)?;
 
         let mut name = String::new();
@@ -860,9 +799,7 @@ pub fn load_faculty_section_assignments(
             // is this the first row for this faculty?
             if new_name != name {
                 name = new_name;
-                index = *faculty_index
-                    .get(&name)
-                    .ok_or(format!("faculty not found for {name} but prefs found"))?;
+                index = *faculty_index.get(&name).ok_or(format!("faculty not found for {name} but prefs found"))?;
                 let faculty_spread = &mut spreads[index];
                 let days_to_check: String = stmt.read(1).map_err(sql_err)?;
 
@@ -923,11 +860,7 @@ pub fn load_faculty_section_assignments(
             };
 
             match &mut faculty_spread[clustering_index.unwrap()] {
-                DistributionPreference::Clustering {
-                    cluster_limits,
-                    gap_limits,
-                    ..
-                } => {
+                DistributionPreference::Clustering { cluster_limits, gap_limits, .. } => {
                     if is_cluster != 0 {
                         cluster_limits.push(dwp);
                     } else {
@@ -943,7 +876,7 @@ pub fn load_faculty_section_assignments(
 
     // create scoring criteria for faculty spread preferences
     {
-        for faculty in 0..faculty.len() {
+        for faculty in 0..faculty_list.len() {
             let mut groups = HashMap::<u8, Vec<DistributionPreference>>::new();
             for dist in std::mem::take(&mut spreads[faculty]) {
                 let days = match &dist {
@@ -971,11 +904,8 @@ pub fn load_faculty_section_assignments(
                 grouped_by_days.push(group);
             }
 
-            let ics = ScoreCriterion::FacultySpread {
-                faculty,
-                sections: faculty_sections[faculty].clone(),
-                grouped_by_days,
-            };
+            let ics =
+                ScoreCriterion::FacultySpread { faculty, sections: faculty_sections[faculty].clone(), grouped_by_days };
 
             for section in std::mem::take(&mut faculty_sections[faculty]) {
                 sections[section].score_criteria.push(ics.clone());
@@ -986,7 +916,7 @@ pub fn load_faculty_section_assignments(
     Ok(())
 }
 
-fn compute_neighbors(sections: &mut Vec<Section>) {
+fn compute_neighbors(sections: &mut [Section]) {
     for (i, section) in sections.iter_mut().enumerate() {
         let mut neighbors = Vec::new();
         for elt in &section.score_criteria {
@@ -1003,7 +933,7 @@ fn sql_err(err: Error) -> String {
     err.to_string()
 }
 
-fn as_values(list: &Vec<String>) -> Vec<(usize, Value)> {
+fn as_values(list: &[String]) -> Vec<(usize, Value)> {
     let mut out = Vec::new();
     for (i, elt) in list.iter().enumerate() {
         out.push((i + 1, Value::String(elt.clone())));
@@ -1011,7 +941,7 @@ fn as_values(list: &Vec<String>) -> Vec<(usize, Value)> {
     out
 }
 
-fn double_vec(list: &Vec<String>) -> Vec<String> {
+fn double_vec(list: &[String]) -> Vec<String> {
     let mut out = Vec::new();
     for elt in list {
         out.push(elt.clone());
@@ -1022,15 +952,11 @@ fn double_vec(list: &Vec<String>) -> Vec<String> {
     out
 }
 
-fn dept_clause(departments: &Vec<String>, columns: &Vec<String>, with_where: bool) -> String {
+fn dept_clause(departments: &[String], columns: &[String], with_where: bool) -> String {
     let mut s = "".to_string();
     if !departments.is_empty() {
         for (i, col) in columns.iter().enumerate() {
-            s = if i == 0 && with_where {
-                format!("WHERE {col} IN (")
-            } else {
-                format!("{s} AND {col} IN (")
-            };
+            s = if i == 0 && with_where { format!("WHERE {col} IN (") } else { format!("{s} AND {col} IN (") };
             let mut sep = "";
             for _ in departments {
                 s = format!("{s}{sep}?");
@@ -1053,12 +979,7 @@ pub fn parse_days(weekday_raw: &str) -> Result<Vec<time::Weekday>, String> {
             'f' | 'F' => days.push(time::Weekday::Friday),
             's' | 'S' => days.push(time::Weekday::Saturday),
             'u' | 'U' => days.push(time::Weekday::Sunday),
-            _ => {
-                return Err(format!(
-                    "Unknown day of week in {}: I only understand mtwrfsu",
-                    weekday_raw
-                ))
-            }
+            _ => return Err(format!("Unknown day of week in {}: I only understand mtwrfsu", weekday_raw)),
         }
     }
     Ok(days)

@@ -6,6 +6,9 @@ edition = "2021"
 [profile.dev]
 opt-level = 3
 
+[profile.release]
+debug = true
+
 [dependencies]
 itertools = "0.14.0"
 rand = "0.8.5"
