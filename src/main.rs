@@ -22,8 +22,8 @@ fn main() {
     }
 
     let start = std::time::Instant::now();
-    let warmup_seconds = 5;
-    let total_seconds = 100;
+    let warmup_seconds = 1;
+    let total_seconds = 31;
 
     println!("running warmup for {} seconds", warmup_seconds);
     let Some(mut schedule) = warmup(&input, start, warmup_seconds) else {
@@ -96,31 +96,42 @@ fn dump_input(departments: &[String], input: &Input) {
         if !section.hard_conflicts.is_empty() {
             println!();
         }
-        for elt in &section.score_criteria {
-            println!("    {}", elt.debug(input));
-        }
+    }
+
+    for elt in &input.criteria {
+        println!("    {}", elt.debug(input));
     }
 }
 
 fn print_schedule(input: &Input, schedule: &Schedule) {
+    let mut rooms: Vec<usize> = schedule.placements.iter().filter_map(|Placement { room, .. }| *room).collect();
+    rooms.sort_unstable();
+    rooms.dedup();
+    let mut time_slots: Vec<usize> = schedule.placements.iter().filter_map(|Placement { time_slot, ..}| *time_slot).collect();
+    time_slots.sort_unstable();
+    time_slots.dedup();
     let mut grid = Vec::new();
     let mut width = 1;
-    for _ in 0..=input.time_slots.len() {
-        grid.push(vec![("".to_string(), "".to_string()); input.rooms.len() + 1]);
+    for _ in 0..=time_slots.len() {
+        grid.push(vec![("".to_string(), "".to_string()); rooms.len() + 1]);
     }
-    for (i, room) in input.rooms.iter().enumerate() {
-        grid[0][i + 1] = (room.name.clone(), "".to_string());
-        width = std::cmp::max(room.name.len(), width);
+    for (i, &room) in rooms.iter().enumerate() {
+        let name = input.rooms[room].name.clone();
+        width = std::cmp::max(name.len(), width);
+        grid[0][i + 1] = (name, "".to_string());
     }
-    for (i, time_slot) in input.time_slots.iter().enumerate() {
-        grid[i + 1][0] = (time_slot.name.clone(), "".to_string());
-        width = std::cmp::max(time_slot.name.len(), width);
+    for (i, &time_slot) in time_slots.iter().enumerate() {
+        let name = input.time_slots[time_slot].name.clone();
+        width = std::cmp::max(name.len(), width);
+        grid[i + 1][0] = (name, "".to_string());
     }
     for (section, Placement { time_slot, room, .. }) in schedule.placements.iter().enumerate() {
         let (Some(time_slot), Some(room)) = (time_slot, room) else {
             continue;
         };
-        if grid[time_slot + 1][room + 1] != ("".to_string(), "".to_string()) {
+        let x = rooms.binary_search(room).unwrap() + 1;
+        let y = time_slots.binary_search(time_slot).unwrap() + 1;
+        if grid[y][x] != ("".to_string(), "".to_string()) {
             panic!("two sections schedule in same room and time");
         }
         let sec = &input.sections[section];
@@ -132,7 +143,7 @@ fn print_schedule(input: &Input, schedule: &Schedule) {
         };
         width = std::cmp::max(section_name.len(), width);
         width = std::cmp::max(faculty_name.len(), width);
-        grid[time_slot + 1][room + 1] = (section_name, faculty_name);
+        grid[y][x] = (section_name, faculty_name);
     }
     width += 2;
 
@@ -170,13 +181,13 @@ fn print_problems(input: &Input, schedule: &Schedule) {
             lst.push((LEVEL_FOR_UNPLACED_SECTION, format!("{} is not placed", input.sections[section].name)));
             continue;
         }
-        for delta in &placement.score.deltas {
-            if let (_, Some(_)) = delta.get_scores(section) {
-                lst.push(delta.get_score_message(input, schedule, section));
-            }
+    }
+    for penalty_list in &schedule.penalties {
+        for penalty in penalty_list {
+            lst.push(penalty.get_score_message(input, schedule));
         }
     }
-    lst.sort();
+    lst.sort_unstable();
     for (priority, msg) in lst {
         if priority >= 20 {
             continue;

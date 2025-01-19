@@ -7,7 +7,7 @@ use std::ops;
 //
 //
 // Scoring data
-// The score vector, and scoring criteria, score deltas, etc.
+// The score vector, and scoring criteria, score penalties, etc.
 //
 //
 
@@ -18,23 +18,6 @@ pub const LEVEL_FOR_HARD_CONFLICT: u8 = 1;
 pub const LEVEL_FOR_ROOM_COUNT: u8 = 19;
 pub const START_LEVEL_FOR_PREFERENCES: u8 = 10;
 
-// Notes on scoring:
-// *   A section can be scored independently of any other sections,
-//     instructors, etc.
-// *   For scores that affect multiple sections, the score must be
-//     symmetric, e.g., if section A discovers a penalty involving
-//     section B then section B must discover the same penalty
-//     involving section A
-// *   There is no fanout of scores, i.e., when a section is scored it
-//     never reaches into another section to add scoring data
-// *   Scores involving multiple sections are recorded for all
-//     relevant sections (a pair with a curriculum soft conflict,
-//     three classes with the same instructor that are spread out
-//     too much, etc.)
-// *   A score involving multiple sections is only applied to the
-//     overall score onse. The section with the lowest index value
-//     applies it to the global score, others only apply it to their
-//     own local score.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Score {
     pub levels: [ScoreLevel; PRIORITY_LEVELS],
@@ -43,8 +26,8 @@ pub struct Score {
 // a score criterion to be checked when a section or one of its
 // neighbors is moved
 #[derive(Clone)]
-pub enum ScoreCriterion {
-    SoftConflict { sections_with_priorities: Vec<SectionWithPriority> },
+pub enum Criterion {
+    SoftConflict { priority: u8, sections: [usize; 2] },
     AntiConflict { priority: u8, single: usize, group: Vec<usize> },
     RoomPreference { section: usize, rooms_with_priorities: Vec<RoomWithPriority> },
     TimeSlotPreference { section: usize, time_slots_with_priorities: Vec<TimeSlotWithPriority> },
@@ -54,16 +37,16 @@ pub enum ScoreCriterion {
 
 // a single change to the score due to a section's placement
 #[derive(Clone)]
-pub enum ScoreDelta {
+pub enum Penalty {
     SoftConflict { priority: u8, sections: [usize; 2] },
     AntiConflict { priority: u8, single: usize, group: Vec<usize> },
-    RoomPreference { priority: u8 },
-    TimeSlotPreference { priority: u8 },
-    Cluster { priority: u8, faculty: usize, is_too_short: bool, is_primary: bool },
-    Gap { priority: u8, faculty: usize, is_too_short: bool, is_primary: bool },
-    DaysOff { priority: u8, faculty: usize, desired: usize, actual: usize, is_primary: bool },
-    DaysEvenlySpread { priority: u8, faculty: usize, is_primary: bool },
-    RoomCount { priority: u8, faculty: usize, desired: usize, actual: usize, is_primary: bool },
+    RoomPreference { priority: u8, section: usize },
+    TimeSlotPreference { priority: u8, section: usize },
+    Cluster { priority: u8, faculty: usize, is_too_short: bool },
+    Gap { priority: u8, faculty: usize, is_too_short: bool },
+    DaysOff { priority: u8, faculty: usize, desired: usize, actual: usize },
+    DaysEvenlySpread { priority: u8, faculty: usize },
+    RoomCount { priority: u8, faculty: usize, desired: usize, actual: usize },
 }
 
 impl Score {
@@ -82,6 +65,10 @@ impl Score {
 
     pub fn unplaced(&self) -> ScoreLevel {
         self.levels[LEVEL_FOR_UNPLACED_SECTION as usize]
+    }
+
+    pub fn is_placed(&self) -> bool {
+        self.levels[LEVEL_FOR_UNPLACED_SECTION as usize] == 0
     }
 
     pub fn first_nonzero(&self) -> u8 {
@@ -174,61 +161,59 @@ impl ops::SubAssign for Score {
     }
 }
 
-impl ScoreCriterion {
-    pub fn get_neighbors(&self) -> Vec<usize> {
-        match self {
-            ScoreCriterion::SoftConflict { sections_with_priorities } => {
-                sections_with_priorities.iter().map(|elt| elt.section).collect()
-            }
+impl ops::SubAssign<u8> for Score {
+    fn sub_assign(&mut self, rhs: u8) {
+        self.levels[rhs as usize] -= 1;
+    }
+}
 
-            ScoreCriterion::AntiConflict { single, group, .. } => {
+impl Criterion {
+    pub fn get_culpable_sections(&self) -> Vec<usize> {
+        match self {
+            Criterion::SoftConflict { sections, .. } => sections.to_vec(),
+
+            Criterion::AntiConflict { single, group, .. } => {
                 let mut lst = group.clone();
                 lst.push(*single);
                 lst
             }
 
-            ScoreCriterion::RoomPreference { .. } => Vec::new(),
+            Criterion::RoomPreference { section, .. } => vec![*section],
 
-            ScoreCriterion::TimeSlotPreference { .. } => Vec::new(),
+            Criterion::TimeSlotPreference { section, .. } => vec![*section],
 
-            ScoreCriterion::FacultySpread { sections, .. } => sections.clone(),
+            Criterion::FacultySpread { sections, .. } => sections.clone(),
 
-            ScoreCriterion::FacultyRoomCount { sections, .. } => sections.clone(),
+            Criterion::FacultyRoomCount { sections, .. } => sections.clone(),
         }
     }
 
-    pub fn check(&self, schedule: &Schedule, input: &Input, section: usize, deltas: &mut Vec<ScoreDelta>) {
-        // get our time slot
-        let Some(my_time_slot) = schedule.placements[section].time_slot else {
-            panic!("ScoreCriterion check called on unplaced section");
-        };
-
+    pub fn check(&self, input: &Input, schedule: &Schedule) -> Vec<Penalty> {
         match self {
-            ScoreCriterion::SoftConflict { sections_with_priorities } => {
-                for &SectionWithPriority { section: other, priority } in sections_with_priorities {
-                    // check for placement of the conflicting section
-                    let Some(other_time_slot) = schedule.placements[other].time_slot else {
-                        continue;
-                    };
+            &Criterion::SoftConflict { priority, sections: [section, other] } => {
+                let Some(my_time_slot) = schedule.placements[section].time_slot else {
+                    return Vec::new();
+                };
 
-                    // we only care if there is an overlap
-                    if !input.time_slot_conflicts[my_time_slot][other_time_slot] {
-                        continue;
-                    }
+                // check for placement of the conflicting section
+                let Some(other_time_slot) = schedule.placements[other].time_slot else {
+                    return Vec::new();
+                };
 
-                    // if we make it this far, there is a soft conflict
-                    let sections = if section < other { [section, other] } else { [other, section] };
-                    deltas.push(ScoreDelta::SoftConflict { priority, sections });
-
-                    // note: continue checking for other conflicts
+                // we only care if there is an overlap
+                if !input.time_slot_conflicts[my_time_slot][other_time_slot] {
+                    return Vec::new();
                 }
+
+                // if we make it this far, there is a soft conflict
+                vec![Penalty::SoftConflict { priority, sections: [section, other] }]
             }
 
-            ScoreCriterion::AntiConflict { priority, single, group } => {
+            Criterion::AntiConflict { priority, single, group } => {
                 // grab the time slot of the single section
                 let Some(single_time_slot) = schedule.placements[*single].time_slot else {
                     // single section is unplaced, move on
-                    return;
+                    return Vec::new();
                 };
 
                 // only consider placed sections from the group
@@ -241,48 +226,45 @@ impl ScoreCriterion {
 
                 // no complaint if no members of the group are placed
                 if placed.is_empty() {
-                    return;
+                    return Vec::new();
                 }
 
                 // if any member of the group matches, we are okay
                 if placed.iter().any(|&i| schedule.placements[i].time_slot == Some(single_time_slot)) {
-                    return;
+                    return Vec::new();
                 }
-                deltas.push(ScoreDelta::AntiConflict { priority: *priority, single: *single, group: group.clone() });
+                vec![Penalty::AntiConflict { priority: *priority, single: *single, group: group.clone() }]
             }
 
-            ScoreCriterion::RoomPreference { section, rooms_with_priorities } => {
+            Criterion::RoomPreference { section, rooms_with_priorities } => {
                 // get our room
-                let Some(my_room) = schedule.placements[*section].room else {
-                    panic!("ScoreCriterion::RoomPreference check called on section with no room placement");
-                };
-
-                for &RoomWithPriority { room, priority } in rooms_with_priorities {
-                    if room == my_room {
-                        // record the priority and stop looking
-                        deltas.push(ScoreDelta::RoomPreference { priority });
-                        break;
+                if let Some(my_room) = schedule.placements[*section].room {
+                    for &RoomWithPriority { room, priority } in rooms_with_priorities {
+                        if room == my_room {
+                            // record the priority and stop looking
+                            return vec![Penalty::RoomPreference { priority, section: *section }];
+                        }
                     }
                 }
+                Vec::new()
             }
 
-            ScoreCriterion::TimeSlotPreference { section, time_slots_with_priorities } => {
+            Criterion::TimeSlotPreference { section, time_slots_with_priorities } => {
                 // get our timeslot
-                let Some(my_time_slot) = schedule.placements[*section].time_slot else {
-                    panic!("ScoreCriterion::TimeSlotPreference check called on section with no timeslot placement");
-                };
-
-                for &TimeSlotWithPriority { time_slot, priority } in time_slots_with_priorities {
-                    if time_slot == my_time_slot {
-                        // record the priority and stop looking
-                        deltas.push(ScoreDelta::TimeSlotPreference { priority });
-                        break;
+                if let Some(my_time_slot) = schedule.placements[*section].time_slot {
+                    for &TimeSlotWithPriority { time_slot, priority } in time_slots_with_priorities {
+                        if time_slot == my_time_slot {
+                            // record the priority and stop looking
+                            return vec![Penalty::TimeSlotPreference { priority, section: *section }];
+                        }
                     }
                 }
+                Vec::new()
             }
 
-            ScoreCriterion::FacultySpread { faculty, sections, grouped_by_days } => {
-                // note: sections are sorted, so the first one is global marker
+            Criterion::FacultySpread { faculty, sections, grouped_by_days } => {
+                let mut penalties = Vec::new();
+
                 // for each group of days, lay out the classes scheduled on those days in order
                 for by_days in grouped_by_days {
                     // get the list of days
@@ -320,7 +302,7 @@ impl ScoreCriterion {
                         }
                     }
                     for day_schedule in &mut schedule_by_day {
-                        day_schedule.sort();
+                        day_schedule.sort_unstable();
                     }
 
                     // now process the individual scoring criteria
@@ -384,11 +366,10 @@ impl ScoreCriterion {
                                         }
 
                                         if worst_priority < u8::MAX {
-                                            deltas.push(ScoreDelta::Cluster {
+                                            penalties.push(Penalty::Cluster {
                                                 priority: worst_priority,
                                                 faculty: *faculty,
                                                 is_too_short,
-                                                is_primary: section == sections[0],
                                             });
                                         }
 
@@ -420,11 +401,10 @@ impl ScoreCriterion {
                                             }
 
                                             if worst_priority < u8::MAX {
-                                                deltas.push(ScoreDelta::Gap {
+                                                penalties.push(Penalty::Gap {
                                                     priority: worst_priority,
                                                     faculty: *faculty,
                                                     is_too_short,
-                                                    is_primary: section == sections[0],
                                                 });
                                             }
                                         }
@@ -443,12 +423,11 @@ impl ScoreCriterion {
                                     }
                                 }
                                 if actual != desired {
-                                    deltas.push(ScoreDelta::DaysOff {
+                                    penalties.push(Penalty::DaysOff {
                                         priority,
                                         faculty: *faculty,
                                         desired,
                                         actual,
-                                        is_primary: section == sections[0],
                                     });
                                 }
                             }
@@ -470,19 +449,20 @@ impl ScoreCriterion {
 
                                 // comparing usize values, so avoid negatives
                                 if most > fewest && most - fewest > 1 {
-                                    deltas.push(ScoreDelta::DaysEvenlySpread {
+                                    penalties.push(Penalty::DaysEvenlySpread {
                                         priority,
                                         faculty: *faculty,
-                                        is_primary: section == sections[0],
                                     });
                                 }
                             }
                         }
                     }
                 }
+
+                penalties
             }
 
-            ScoreCriterion::FacultyRoomCount { priority, faculty, desired, sections } => {
+            Criterion::FacultyRoomCount { priority, faculty, desired, sections } => {
                 let mut rooms = Vec::new();
                 for &sec in sections {
                     // find when the section was placed
@@ -491,18 +471,19 @@ impl ScoreCriterion {
                     };
                     rooms.push(room);
                 }
-                rooms.sort();
+                rooms.sort_unstable();
                 rooms.dedup();
 
                 if rooms.len() > *desired {
-                    deltas.push(ScoreDelta::RoomCount {
+                    return vec![Penalty::RoomCount {
                         priority: *priority,
                         faculty: *faculty,
                         desired: *desired,
                         actual: rooms.len(),
-                        is_primary: section == sections[0],
-                    });
+                    }];
                 }
+
+                Vec::new()
             }
         }
     }
@@ -511,14 +492,12 @@ impl ScoreCriterion {
         let mut s = String::new();
 
         match self {
-            ScoreCriterion::SoftConflict { sections_with_priorities } => {
-                write!(&mut s, "soft conflicts:").unwrap();
-                for &SectionWithPriority { section, priority } in sections_with_priorities {
-                    write!(&mut s, " {}:{}", input.sections[section].name, priority).unwrap();
-                }
+            &Criterion::SoftConflict { priority, sections: [_, section] } => {
+                write!(&mut s, "soft conflict:").unwrap();
+                write!(&mut s, " {}:{}", input.sections[section].name, priority).unwrap();
             }
 
-            ScoreCriterion::AntiConflict { priority, single, group } => {
+            Criterion::AntiConflict { priority, single, group } => {
                 write!(&mut s, "anticonflict:{} {} vs", priority, single).unwrap();
                 let mut sep = " ";
                 for &elt in group {
@@ -527,21 +506,21 @@ impl ScoreCriterion {
                 }
             }
 
-            ScoreCriterion::RoomPreference { rooms_with_priorities, .. } => {
+            Criterion::RoomPreference { rooms_with_priorities, .. } => {
                 write!(&mut s, "room preferences:").unwrap();
                 for &RoomWithPriority { room, priority } in rooms_with_priorities {
                     write!(&mut s, " {}:{}", input.rooms[room].name, priority).unwrap();
                 }
             }
 
-            ScoreCriterion::TimeSlotPreference { time_slots_with_priorities, .. } => {
+            Criterion::TimeSlotPreference { time_slots_with_priorities, .. } => {
                 write!(&mut s, "timeslot preferences:").unwrap();
                 for &TimeSlotWithPriority { time_slot, priority } in time_slots_with_priorities {
                     write!(&mut s, " {}:{}", input.time_slots[time_slot].name, priority).unwrap();
                 }
             }
 
-            ScoreCriterion::FacultySpread { faculty, sections, grouped_by_days } => {
+            Criterion::FacultySpread { faculty, sections, grouped_by_days } => {
                 for group in grouped_by_days {
                     let days = match &group[0] {
                         DistributionPreference::Clustering { days, .. } => days,
@@ -617,7 +596,7 @@ impl ScoreCriterion {
                 }
             }
 
-            ScoreCriterion::FacultyRoomCount { priority, faculty, desired, sections } => {
+            Criterion::FacultyRoomCount { priority, faculty, desired, sections } => {
                 write!(
                     &mut s,
                     "faculty room count: {} desired {} priority {} sections [",
@@ -636,44 +615,32 @@ impl ScoreCriterion {
     }
 }
 
-impl ScoreDelta {
-    pub fn get_scores(&self, section: usize) -> (u8, Option<u8>) {
+impl Penalty {
+    pub fn get_priority(&self) -> u8 {
         match *self {
-            ScoreDelta::SoftConflict { priority, sections: [first, _] } => {
-                (priority, if section == first { Some(priority) } else { None })
-            }
+            Penalty::SoftConflict { priority, .. } => priority,
 
-            ScoreDelta::AntiConflict { priority, single, .. } => {
-                (priority, if section == single { Some(priority) } else { None })
-            }
+            Penalty::AntiConflict { priority, .. } => priority,
 
-            ScoreDelta::RoomPreference { priority, .. } => (priority, Some(priority)),
+            Penalty::RoomPreference { priority, .. } => priority,
 
-            ScoreDelta::TimeSlotPreference { priority, .. } => (priority, Some(priority)),
+            Penalty::TimeSlotPreference { priority, .. } => priority,
 
-            ScoreDelta::Cluster { priority, is_primary, .. } => {
-                (priority, if is_primary { Some(priority) } else { None })
-            }
+            Penalty::Cluster { priority, .. } => priority,
 
-            ScoreDelta::Gap { priority, is_primary, .. } => (priority, if is_primary { Some(priority) } else { None }),
+            Penalty::Gap { priority, .. } => priority,
 
-            ScoreDelta::DaysOff { priority, is_primary, .. } => {
-                (priority, if is_primary { Some(priority) } else { None })
-            }
+            Penalty::DaysOff { priority, .. } => priority,
 
-            ScoreDelta::DaysEvenlySpread { priority, is_primary, .. } => {
-                (priority, if is_primary { Some(priority) } else { None })
-            }
+            Penalty::DaysEvenlySpread { priority, .. } => priority,
 
-            ScoreDelta::RoomCount { priority, is_primary, .. } => {
-                (priority, if is_primary { Some(priority) } else { None })
-            }
+            Penalty::RoomCount { priority, .. } => priority,
         }
     }
 
-    pub fn get_score_message(&self, input: &Input, schedule: &Schedule, section: usize) -> (u8, String) {
+    pub fn get_score_message(&self, input: &Input, schedule: &Schedule) -> (u8, String) {
         match self {
-            &ScoreDelta::SoftConflict { priority, sections: [a, b] } => {
+            &Penalty::SoftConflict { priority, sections: [a, b] } => {
                 let ts_a = schedule.placements[a].time_slot.unwrap();
                 let ts_b = schedule.placements[b].time_slot.unwrap();
                 if ts_a == ts_b {
@@ -698,7 +665,7 @@ impl ScoreDelta {
                 }
             }
 
-            ScoreDelta::AntiConflict { priority, single, group } => {
+            Penalty::AntiConflict { priority, single, group } => {
                 let mut group_names = String::new();
                 let mut sep = "";
                 for elt in group {
@@ -715,7 +682,7 @@ impl ScoreDelta {
                 )
             }
 
-            &ScoreDelta::RoomPreference { priority } => {
+            &Penalty::RoomPreference { priority, section } => {
                 let room = schedule.placements[section].room.unwrap();
                 (
                     priority,
@@ -723,7 +690,7 @@ impl ScoreDelta {
                 )
             }
 
-            &ScoreDelta::TimeSlotPreference { priority } => {
+            &Penalty::TimeSlotPreference { priority, section } => {
                 let time_slot = schedule.placements[section].time_slot.unwrap();
                 (
                     priority,
@@ -734,7 +701,7 @@ impl ScoreDelta {
                 )
             }
 
-            &ScoreDelta::Cluster { priority, faculty, is_too_short, .. } => (
+            &Penalty::Cluster { priority, faculty, is_too_short, .. } => (
                 priority,
                 format!(
                     "class cluster preference: {} has a cluster of classes that is too {}",
@@ -743,7 +710,7 @@ impl ScoreDelta {
                 ),
             ),
 
-            &ScoreDelta::Gap { priority, faculty, is_too_short, .. } => (
+            &Penalty::Gap { priority, faculty, is_too_short, .. } => (
                 priority,
                 format!(
                     "gap preference: {} has a gap between clusters of classes that is too {}",
@@ -752,7 +719,7 @@ impl ScoreDelta {
                 ),
             ),
 
-            &ScoreDelta::DaysOff { priority, faculty, desired, actual, .. } => (
+            &Penalty::DaysOff { priority, faculty, desired, actual, .. } => (
                 priority,
                 format!(
                     "days off: {} wanted {} day{} off but got {}",
@@ -763,12 +730,12 @@ impl ScoreDelta {
                 ),
             ),
 
-            &ScoreDelta::DaysEvenlySpread { priority, faculty, .. } => (
+            &Penalty::DaysEvenlySpread { priority, faculty, .. } => (
                 priority,
                 format!("uneven spread: {} has more classes some days than others", input.faculty[faculty].name),
             ),
 
-            &ScoreDelta::RoomCount { priority, faculty, desired, actual, .. } => (
+            &Penalty::RoomCount { priority, faculty, desired, actual, .. } => (
                 priority,
                 format!(
                     "room placement: {}'s classes are spread across {} room{} instead of {}",
@@ -780,37 +747,4 @@ impl ScoreDelta {
             ),
         }
     }
-}
-
-// compute all scores for a section in its curent placement
-// the section's score is fully update, including local and global
-// totals and the detail log,
-// but the overall solver score is not modified
-pub fn compute_section_score(input: &Input, schedule: &mut Schedule, section: usize) {
-    assert!(schedule.placements[section].score.local.is_zero());
-    assert!(schedule.placements[section].score.global.is_zero());
-    assert!(schedule.placements[section].score.deltas.is_empty());
-
-    if schedule.placements[section].time_slot.is_none() {
-        // unplaced section
-        schedule.placements[section].score.local = Score::new() + LEVEL_FOR_UNPLACED_SECTION;
-        schedule.placements[section].score.global = Score::new() + LEVEL_FOR_UNPLACED_SECTION;
-        return;
-    };
-
-    // loop over the scoring criteria
-    let mut deltas = Vec::new();
-    for criterion in &input.sections[section].score_criteria {
-        criterion.check(schedule, input, section, &mut deltas);
-    }
-
-    // compute the totals and apply to the main section score record
-    for delta in &deltas {
-        let (local, maybe_global) = delta.get_scores(section);
-        schedule.placements[section].score.local += local;
-        if let Some(global) = maybe_global {
-            schedule.placements[section].score.global += global;
-        }
-    }
-    schedule.placements[section].score.deltas = deltas;
 }

@@ -14,6 +14,7 @@ use std::time::Instant;
 //
 //
 
+#[derive(Clone)]
 pub struct Input {
     // the name of the term
     pub term_name: String,
@@ -23,15 +24,18 @@ pub struct Input {
     pub time_slots: Vec<TimeSlot>,
     pub faculty: Vec<Faculty>,
     pub sections: Vec<Section>,
+    pub criteria: Vec<Criterion>,
 
     // matrix of which time slots overlap which for fast lookup
     pub time_slot_conflicts: Vec<Vec<bool>>,
 }
 
+#[derive(Clone)]
 pub struct Room {
     pub name: String,
 }
 
+#[derive(Clone)]
 pub struct TimeSlot {
     pub name: String,
     pub days: Vec<time::Weekday>,
@@ -39,11 +43,13 @@ pub struct TimeSlot {
     pub duration: time::Duration,
 }
 
+#[derive(Clone)]
 pub struct Faculty {
     pub name: String,
     pub sections: Vec<usize>,
 }
 
+#[derive(Clone)]
 pub struct Section {
     // e.g.,: "CS 1410-02"
     pub name: String,
@@ -58,18 +64,20 @@ pub struct Section {
     // hard conflicts
     pub hard_conflicts: Vec<usize>,
 
-    // scoring that will be applied specifically to this section
-    pub score_criteria: Vec<ScoreCriterion>,
+    // scoring criteria that apply to this section
+    pub criteria: Vec<usize>,
 
     // any section that might have a scoring interaction with this section
     pub neighbors: Vec<usize>,
 }
 
+#[derive(Clone)]
 pub struct RoomWithOptionalPriority {
     pub room: usize,
     pub priority: Option<u8>,
 }
 
+#[derive(Clone)]
 pub struct TimeSlotWithOptionalPriority {
     pub time_slot: usize,
     pub priority: Option<u8>,
@@ -258,14 +266,14 @@ pub fn load_input(db_path: &str, departments: &[String]) -> Result<Input, String
     let (time_slots, time_slot_index) = load_time_slots(&db, departments)?;
     let time_slot_conflicts = load_time_slot_conflicts(&db, &time_slot_index, departments)?;
     let (mut faculty, faculty_index) = load_faculty(&db, departments)?;
-    let (mut sections, section_index) = load_sections(&db, &room_index, &time_slot_index, departments)?;
-    load_conflicts(&db, &mut sections, &section_index, departments)?;
-    load_anti_conflicts(&db, &mut sections, &section_index, departments)?;
-    load_faculty_section_assignments(&db, &mut faculty, &faculty_index, &mut sections, &section_index, departments)?;
-    compute_neighbors(&mut sections);
+    let (mut sections, section_index, mut criteria) = load_sections(&db, &room_index, &time_slot_index, departments)?;
+    load_conflicts(&db, &mut sections, &section_index, &mut criteria, departments)?;
+    load_anti_conflicts(&db, &mut sections, &section_index, &mut criteria, departments)?;
+    load_faculty_section_assignments(&db, &mut faculty, &faculty_index, &mut sections, &section_index, &mut criteria, departments)?;
+    compute_neighbors(&mut sections, &criteria);
     println!(": {}ms", start.elapsed().as_millis());
 
-    Ok(Input { term_name, rooms, time_slots, faculty, sections, time_slot_conflicts })
+    Ok(Input { term_name, rooms, time_slots, faculty, sections, criteria, time_slot_conflicts })
 }
 
 // load all rooms
@@ -375,7 +383,7 @@ pub fn load_time_slot_conflicts(
     Ok(conflicts)
 }
 
-// load faculty and their availability
+// load faculty
 pub fn load_faculty(db: &Connection, departments: &[String]) -> Result<(Vec<Faculty>, HashMap<String, usize>), String> {
     let mut faculty_list = Vec::new();
     let mut faculty_lookup = HashMap::new();
@@ -410,9 +418,10 @@ pub fn load_sections(
     room_index: &HashMap<String, usize>,
     time_slot_index: &HashMap<String, usize>,
     departments: &[String],
-) -> Result<(Vec<Section>, HashMap<String, usize>), String> {
+) -> Result<(Vec<Section>, HashMap<String, usize>, Vec<Criterion>), String> {
     let mut sections = Vec::new();
     let mut section_index = HashMap::new();
+    let mut criteria = Vec::new();
 
     // load and create sections and their time slots
     {
@@ -444,7 +453,7 @@ pub fn load_sections(
                     time_slots: Vec::new(),
                     faculty: Vec::new(),
                     hard_conflicts: Vec::new(),
-                    score_criteria: Vec::new(),
+                    criteria: Vec::new(),
                     neighbors: Vec::new(),
                 };
                 section_index.insert(new_section_name.clone(), sections.len());
@@ -505,6 +514,7 @@ pub fn load_sections(
     }
 
     // create the scoring criteria for time slot and room preferences
+    // and create unplaced criteria
     for (section_i, section) in sections.iter_mut().enumerate() {
         let rooms_with_priorities: Vec<RoomWithPriority> = section
             .rooms
@@ -514,7 +524,7 @@ pub fn load_sections(
             })
             .collect();
         if !rooms_with_priorities.is_empty() {
-            section.score_criteria.push(ScoreCriterion::RoomPreference { section: section_i, rooms_with_priorities });
+            criteria.push(Criterion::RoomPreference { section: section_i, rooms_with_priorities });
         }
         let time_slots_with_priorities: Vec<TimeSlotWithPriority> = section
             .time_slots
@@ -524,38 +534,33 @@ pub fn load_sections(
             })
             .collect();
         if !time_slots_with_priorities.is_empty() {
-            section
-                .score_criteria
-                .push(ScoreCriterion::TimeSlotPreference { section: section_i, time_slots_with_priorities });
+            criteria.push(Criterion::TimeSlotPreference { section: section_i, time_slots_with_priorities });
         }
     }
 
-    Ok((sections, section_index))
+    Ok((sections, section_index, criteria))
 }
 
 pub fn load_conflicts(
     db: &Connection,
     sections: &mut [Section],
     section_index: &HashMap<String, usize>,
+    criteria: &mut Vec<Criterion>,
     departments: &[String],
 ) -> Result<(), String> {
-    let dept_in = dept_clause(departments, &["department_a".into(), "department_b".into()], true);
+    let dept_in = dept_clause(departments, &["department_a".into(), "department_b".into()], false);
     let mut stmt = db
         .prepare(format!(
             "
             SELECT DISTINCT section_a, section_b, priority
             FROM conflict_pairs_materialized
+            WHERE section_a < section_b
             {}
             ORDER BY section_a, section_b",
             dept_in
         ))
         .map_err(sql_err)?;
     stmt.bind_iter(as_values(&double_vec(departments))).map_err(sql_err)?;
-
-    let mut soft_conflict_lists = Vec::new();
-    for _ in 0..sections.len() {
-        soft_conflict_lists.push(Vec::new());
-    }
 
     while stmt.next().map_err(sql_err)? == State::Row {
         let section_a: String = stmt.read(0).map_err(sql_err)?;
@@ -572,15 +577,9 @@ pub fn load_conflicts(
         let priority = priority as u8;
         if priority == LEVEL_FOR_HARD_CONFLICT {
             sections[index_a].hard_conflicts.push(index_b);
+            sections[index_b].hard_conflicts.push(index_a);
         } else {
-            soft_conflict_lists[index_a].push(SectionWithPriority { section: index_b, priority });
-        }
-    }
-
-    // add all non-empty soft conflict lists as score criteria
-    for (section, list) in soft_conflict_lists.into_iter().enumerate() {
-        if !list.is_empty() {
-            sections[section].score_criteria.push(ScoreCriterion::SoftConflict { sections_with_priorities: list });
+            criteria.push(Criterion::SoftConflict{ priority, sections: [index_a, index_b] });
         }
     }
 
@@ -589,8 +588,9 @@ pub fn load_conflicts(
 
 pub fn load_anti_conflicts(
     db: &Connection,
-    sections: &mut [Section],
+    _sections: &mut [Section],
     section_index: &HashMap<String, usize>,
+    criteria: &mut Vec<Criterion>,
     departments: &[String],
 ) -> Result<(), String> {
     let dept_in = dept_clause(departments, &["single_department".into(), "group_department".into()], true);
@@ -607,53 +607,36 @@ pub fn load_anti_conflicts(
         .map_err(sql_err)?;
     stmt.bind_iter(as_values(&double_vec(departments))).map_err(sql_err)?;
 
-    let mut single = usize::MAX;
-    let mut group = Vec::new();
-    let mut priority = 0;
+    let mut criterion = None;
 
     while stmt.next().map_err(sql_err)? == State::Row {
         let new_single_name: String = stmt.read(0).map_err(sql_err)?;
-        let new_single = *section_index
-            .get(&new_single_name)
-            .ok_or(format!("anticonflict for unknown section {new_single_name}"))?;
+        let new_single = *section_index.get(&new_single_name).ok_or(format!("anticonflict for unknown section {new_single_name}"))?;
         let other_name: String = stmt.read(1).map_err(sql_err)?;
-        let other =
-            *section_index.get(&other_name).ok_or(format!("anticonflict references unknown section {other_name}"))?;
+        let other = *section_index.get(&other_name).ok_or(format!("anticonflict references unknown section {other_name}"))?;
         if new_single == other {
             panic!("anticonflict: single and group names must differ");
         }
         let pri: i64 = stmt.read(2).map_err(sql_err)?;
 
-        // start a new anti conflict
-        if new_single != single {
-            // close the previous one out
-            if !group.is_empty() {
-                group.sort();
-                let mut all = group.clone();
-                all.push(single);
-                for section in all {
-                    let elt = ScoreCriterion::AntiConflict { priority, single, group: group.clone() };
-                    sections[section].score_criteria.push(elt);
+        // existing anti conflict?
+        match &mut criterion {
+            Some(Criterion::AntiConflict { single, group, .. }) if *single == new_single => {
+                group.push(other);
+            },
+            _ => {
+                // start a new one
+                if let Some(elt) = criterion {
+                    criteria.push(elt);
                 }
-            }
-
-            // start a new one
-            single = new_single;
-            group.clear();
-            priority = pri as u8;
+                criterion = Some(Criterion::AntiConflict { priority: pri as u8, single: new_single, group: vec![other] });
+            },
         }
-        group.push(other);
     }
 
     // close the final one out
-    if !group.is_empty() {
-        group.sort();
-        let mut all = group.clone();
-        all.push(single);
-        for section in all {
-            let elt = ScoreCriterion::AntiConflict { priority, single, group: group.clone() };
-            sections[section].score_criteria.push(elt);
-        }
+    if let Some(elt) = criterion {
+        criteria.push(elt);
     }
 
     Ok(())
@@ -665,6 +648,7 @@ pub fn load_faculty_section_assignments(
     faculty_index: &HashMap<String, usize>,
     sections: &mut [Section],
     section_index: &HashMap<String, usize>,
+    criteria: &mut Vec<Criterion>,
     departments: &[String],
 ) -> Result<(), String> {
     let mut faculty_sections = Vec::new();
@@ -724,7 +708,7 @@ pub fn load_faculty_section_assignments(
                 }
             }
         }
-        all_possible.sort();
+        all_possible.sort_unstable();
         all_possible.dedup();
 
         if section_list.len() <= 1 || all_possible.len() <= 1 {
@@ -759,14 +743,12 @@ pub fn load_faculty_section_assignments(
             continue;
         }
 
-        for &sec in &section_list {
-            sections[sec].score_criteria.push(ScoreCriterion::FacultyRoomCount {
-                priority: LEVEL_FOR_ROOM_COUNT,
-                faculty,
-                sections: section_list.clone(),
-                desired: k,
-            });
-        }
+        criteria.push(Criterion::FacultyRoomCount {
+            priority: LEVEL_FOR_ROOM_COUNT,
+            faculty,
+            sections: section_list,
+            desired: k,
+        });
     }
 
     // load faculty spread preferences
@@ -904,28 +886,25 @@ pub fn load_faculty_section_assignments(
                 grouped_by_days.push(group);
             }
 
-            let ics =
-                ScoreCriterion::FacultySpread { faculty, sections: faculty_sections[faculty].clone(), grouped_by_days };
-
-            for section in std::mem::take(&mut faculty_sections[faculty]) {
-                sections[section].score_criteria.push(ics.clone());
-            }
+            criteria.push(Criterion::FacultySpread { faculty, sections: std::mem::take(&mut faculty_sections[faculty]), grouped_by_days });
         }
     }
 
     Ok(())
 }
 
-fn compute_neighbors(sections: &mut [Section]) {
-    for (i, section) in sections.iter_mut().enumerate() {
-        let mut neighbors = Vec::new();
-        for elt in &section.score_criteria {
-            neighbors.append(&mut elt.get_neighbors());
+fn compute_neighbors(sections: &mut [Section], criteria: &[Criterion]) {
+    for (i, criterion) in criteria.iter().enumerate() {
+        let neighbors = criterion.get_culpable_sections();
+        for &section in &neighbors {
+            sections[section].criteria.push(i);
+            sections[section].neighbors.append(&mut neighbors.clone());
         }
-        neighbors.retain(|&elt| elt != i);
-        neighbors.sort();
-        neighbors.dedup();
-        section.neighbors = neighbors;
+    }
+    for (i, section) in sections.iter_mut().enumerate() {
+        section.neighbors.retain(|&elt| elt != i);
+        section.neighbors.sort_unstable();
+        section.neighbors.dedup();
     }
 }
 

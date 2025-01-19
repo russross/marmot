@@ -1,5 +1,98 @@
+from dataclasses import dataclass
 import sqlite3
 from typing import Any, Callable, TypeVar, ParamSpec, Protocol, Self
+
+class Available:
+    def __init__(self, days: str, start_time: str, end_time: str, priority: int = 20):
+        assert(len(days) > 0)
+        assert(len(start_time) == 4)
+        assert(len(end_time) == 4)
+        assert(start_time.isdigit())
+        assert(end_time.isdigit())
+        start = int(start_time[:2]) * 60 + int(start_time[2:])
+        end = int(end_time[:2]) * 60 + int(end_time[2:])
+        assert(f'{start//60:02}{start%60:02}') == start_time
+        assert(f'{end//60:02}{end%60:02}') == end_time
+        assert(start < end)
+        assert(end <= 24*60 and end%5 == 0)
+
+        intervals = []
+        days = days.lower()
+        prev = -1
+        for day in days.upper():
+            i = 'MTWRFSU'.index(day, prev+1)
+            intervals.append( (day, start, end, priority) )
+        self.intervals = intervals
+
+@dataclass
+class FacultyPreferences:
+    pass
+
+@dataclass
+class DaysOff(FacultyPreferences):
+    days_off: int
+    priority: int
+
+    def __post_init__(self) -> None:
+        assert(self.days_off >= 0 and self.days_off < 7)
+        assert(self.priority >= 10 and self.priority < 20)
+
+@dataclass
+class EvenlySpread(FacultyPreferences):
+    priority: int
+
+    def __post_init__(self) -> None:
+        assert(self.priority >= 10 and self.priority < 20)
+
+@dataclass
+class NoRoomSwitch(FacultyPreferences):
+    priority: int
+
+    def __post_init__(self) -> None:
+        assert(self.priority >= 10 and self.priority < 20)
+
+@dataclass
+class TooManyRooms(FacultyPreferences):
+    priority: int
+
+    def __post_init__(self) -> None:
+        assert(self.priority >= 10 and self.priority < 20)
+
+@dataclass
+class GapTooShort(FacultyPreferences):
+    minutes: int
+    priority: int
+
+    def __post_init__(self) -> None:
+        assert(self.minutes > 50 and self.minutes < 720)
+        assert(self.priority >= 10 and self.priority < 20)
+
+@dataclass
+class GapTooLong(FacultyPreferences):
+    minutes: int
+    priority: int
+
+    def __post_init__(self) -> None:
+        assert(self.minutes > 50 and self.minutes < 720)
+        assert(self.priority >= 10 and self.priority < 20)
+
+@dataclass
+class ClusterTooShort(FacultyPreferences):
+    minutes: int
+    priority: int
+
+    def __post_init__(self) -> None:
+        assert(self.minutes > 50 and self.minutes < 720)
+        assert(self.priority >= 10 and self.priority < 20)
+
+@dataclass
+class ClusterTooLong(FacultyPreferences):
+    minutes: int
+    priority: int
+
+    def __post_init__(self) -> None:
+        assert(self.minutes > 50 and self.minutes < 720)
+        assert(self.priority >= 10 and self.priority < 20)
 
 T = TypeVar('T')
 P = ParamSpec('P')
@@ -76,58 +169,18 @@ class DB:
         self.db.execute('INSERT INTO departments VALUES (?)', (department,))
 
     @rollback_on_exception
-    def make_faculty(self, faculty: str, department: str, availability: str) -> None:
+    def make_faculty(self, faculty: str, department: str, available: list[Available]) -> None:
         week = 'MTWRFSU'
 
-        # parse the availability string: "MWF 0900-1200 with priority 10, ..."
         all_intervals = [ [ -1 for interval in range(24*60//5) ] for day in range(7) ]
-        for span in availability.split(','):
-            days = []
-            span = span.strip()
-            while len(span) > 0 and span[0].upper() in week:
-                days.append(week.index(span[0].upper()))
-                span = span[1:]
-            if len(days) == 0:
-                raise RuntimeError(f'faculty {faculty} availability span must start with days of week, e.g., MWF')
-            span = span.strip()
-
-            start = ''
-            while len(span) > 0 and span[0].isdigit():
-                start += span[0]
-                span = span[1:]
-            if span[0] != '-':
-                raise RuntimeError(f'faculty {faculty} availability span time must be of form start-end, e.g., 0800-1030')
-            span = span[1:]
-            end = ''
-            while len(span) > 0 and span[0].isdigit():
-                end += span[0]
-                span = span[1:]
-            if len(start) < 3 or len(start) > 4 or len(end) < 3 or len(end) > 4:
-                raise RuntimeError(f'faculty {faculty} availability span time must be of form start-end, e.g., 0800-1030')
-            start = ('0000' + start)[-4:]
-            end = ('0000' + end)[-4:]
-            start_time = int(start[:2]) * 60 + int(start[2:])
-            end_time = int(end[:2]) * 60 + int(end[2:])
-            if start_time % 5 != 0 or end_time % 5 != 0 or start_time >= end_time or end_time > 24*60:
-                raise RuntimeError(f'faculty {faculty} start must come before end time and end time must be before midnight')
-
-            span = span.strip()
-            if span.startswith('with priority '):
-                span = span[len('with priority '):].strip()
-                priority = int(span)
-                if priority < 10 or priority >= 20:
-                    raise RuntimeError(f'faculty {faculty} availability span priority must be between 10 and 19')
-            elif span != '':
-                raise RuntimeError(f'faculty {faculty} availability span must end with no priority or "with priority xyz"')
-            else:
-                priority = 20
-
-            for day in days:
+        for avail in available:
+            for (day_letter, start_time, end_time, priority) in avail.intervals:
+                day_n = week.index(day_letter)
                 for interval in range(start_time//5, end_time//5):
-                    if all_intervals[day][interval] >= 0:
-                        all_intervals[day][interval] = min(all_intervals[day][interval], priority)
+                    if all_intervals[day_n][interval] >= 0:
+                        all_intervals[day_n][interval] = min(all_intervals[day_n][interval], priority)
                     else:
-                        all_intervals[day][interval] = priority
+                        all_intervals[day_n][interval] = priority
 
         self.db.execute('INSERT INTO faculty VALUES (?, ?)', (faculty, department))
 
@@ -153,19 +206,45 @@ class DB:
             self.db.execute('INSERT INTO faculty_availability VALUES (?, ?, ?, ?, ?)', (faculty, letter, start_minute, duration, None if priority == 20 else priority))
 
     @rollback_on_exception
-    def faculty_default_clustering(self, faculty: str, days_to_check: str, days_off: int) -> None:
-        self.db.execute('INSERT INTO faculty_preferences VALUES (?, ?, ?, ?, ?, ?)',
-                (faculty, days_to_check, None if days_off < 0 else days_off, None if days_off < 0 else 11, 11, 15))
-        intervals = (
-            (True, True, 110, 15),
-            (True, False, 165, 11),
-            (False, True, 60, 11),
-            (False, False, 105, 15),
-            (False, False, 195, 11),
-        )
-        for (is_cluster, is_too_short, interval_minutes, interval_priority) in intervals:
+    def faculty_preferences(self, faculty: str, days_to_check: str, *prefs: FacultyPreferences) -> None:
+        days_off, days_off_priority = (None, None)
+        evenly_spread_priority = None
+        no_room_switch_priority = None
+        too_many_rooms_priority = None
+        max_gap_within_cluster = 50
+        cluster = []
+        for elt in prefs:
+            match elt:
+                case DaysOff(days, n):
+                    days_off = days
+                    days_off_priority = n
+                case EvenlySpread(n):
+                    evenly_spread_priority = n
+                case NoRoomSwitch(n):
+                    no_room_switch_priority = n
+                case TooManyRooms(n):
+                    too_many_rooms_priority = n
+                case GapTooShort(minutes, n):
+                    cluster.append( (faculty, False, True, minutes, n) )
+                case GapTooLong(minutes, n):
+                    cluster.append( (faculty, False, False, minutes, n) )
+                case ClusterTooShort(minutes, n):
+                    cluster.append( (faculty, True, True, minutes, n) )
+                case ClusterTooLong(minutes, n):
+                    cluster.append( (faculty, True, False, minutes, n) )
+
+        self.db.execute('INSERT INTO faculty_preferences VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            (faculty,
+            days_to_check,
+            days_off,
+            days_off_priority,
+            evenly_spread_priority,
+            no_room_switch_priority,
+            too_many_rooms_priority,
+            max_gap_within_cluster))
+        for payload in cluster:
             self.db.execute('INSERT INTO faculty_preference_intervals VALUES (?, ?, ?, ?, ?)',
-                (faculty, is_cluster, is_too_short, interval_minutes, None if interval_priority == 0 else interval_priority))
+                payload)
 
     @rollback_on_exception
     def make_course(self, department: str, course: str, course_name: str) -> None:
@@ -182,7 +261,7 @@ class DB:
             self.db.execute('INSERT INTO coreqs VALUES (?, ?)', (course, elt))
 
     @rollback_on_exception
-    def make_section(self, section: str, tags: list[str]) -> None:
+    def make_section(self, section: str, *tags: str) -> None:
         self.db.execute('INSERT INTO sections VALUES (?)', (section, ))
         for tag in tags:
             colon = tag.find(':')
@@ -203,7 +282,7 @@ class DB:
                 self.db.execute('INSERT INTO section_time_slot_tags VALUES (?, ?, ?)', (section, tag, None if priority == 0 else priority))
 
     @rollback_on_exception
-    def assign_faculty_sections(self, faculty: str, sections: list[str]) -> None:
+    def assign_faculty_sections(self, faculty: str, *sections: str) -> None:
         for section in sections:
             self.db.execute('INSERT INTO faculty_sections VALUES (?, ?)', (faculty, section))
 

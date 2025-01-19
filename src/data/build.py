@@ -6,7 +6,6 @@ import subprocess
 
 import courses
 import computing
-import cset
 
 DB_FILE = '../timetable.db'
 
@@ -21,18 +20,16 @@ subprocess.run(['sqlite3', DB_FILE], stdin=open('schema.sql'), check=True)
 
 print('building term and holidays')
 db = queries.DB(DB_FILE)
-db.make_term('Spring 2024', '2024-01-08', '2024-04-25')
-db.make_holiday('2024-01-15')
-db.make_holiday('2024-02-19')
-db.make_holiday('2024-03-11')
-db.make_holiday('2024-03-12')
-db.make_holiday('2024-03-13')
-db.make_holiday('2024-03-14')
-db.make_holiday('2024-03-15')
+db.make_term('Fall 2025', '2025-08-18', '2025-12-05')
+db.make_holiday('2025-09-01')
+db.make_holiday('2025-10-10')
+db.make_holiday('2025-10-13')
+db.make_holiday('2025-11-26')
+db.make_holiday('2025-11-27')
+db.make_holiday('2025-11-28')
 
 courses.build(db)
 computing.build(db)
-cset.build(db)
 
 db.db.commit()
 

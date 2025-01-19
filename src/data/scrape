@@ -3,29 +3,15 @@
 from pyquery import PyQuery as pq
 
 prefixes = {
-    'BIOL':     'Biology',
-    'BTEC':     'Biology',
-    'CHEM':     'Chemistry',
     'CS':       'Computing',
-    'DES':      'Design',
-    'ECE':      'Engineering',
-    'ENER':     'Earth',
-    'ENGR':     'Engineering',
-    'ENVS':     'Earth',
-    'GEOG':     'Earth',
-    'GEO':      'Earth',
     'IT':       'Computing',
-    'IXD':      'Design',
     'MATH':     'Math',
-    'MECH':     'Engineering',
-    'MTRN':     'Engineering',
-    'PHYS':     'Engineering',
-    'SCI':      'Biology',
+    'SD':       'Computing',
     'SE':       'Computing',
+    'SET':      'Computing',
 } 
 
-pages = [ 'biol', 'btech', 'chem', 'cs', 'des', 'ece', 'ener', 'engr', 'envs',
-    'geog', 'geo', 'it', 'ixd', 'math', 'mech', 'mtrn', 'phys', 'sci', 'se' ]
+pages = [ 'cs', 'it', 'math', 'sd', 'se', 'set' ]
 
 courses = {}
 
@@ -65,16 +51,12 @@ def crawl_prefix(prefix):
         }
 
 depts = set()
-print('#!/usr/bin/env python3')
-print()
 print('import queries')
 print()
-print("DB_FILE = 'timetable.db'")
-print('db = queries.DB(DB_FILE)')
-print()
-print("print('building departments')")
+print('def build(db: queries.DB) -> None:')
+print("    print('building departments')")
 for dept in sorted(set(prefixes.values())):
-    print(f'db.make_department({repr(dept)})')
+    print(f'    db.make_department({repr(dept)})')
 
 for page in pages:
     crawl_prefix(page)
@@ -84,18 +66,11 @@ for page in pages:
 #
 
 patches = {
-    'CS 3530': { 'co': ['CS 2100'] },
+    'CS 2810': { 'co' : ['CS 1410'] },
     'CS 4600': { 'pre': ['CS 2420', 'CS 2810', 'CS 3005'] },
     'IT 2400': { 'co': ['IT 1100', 'IT 1500'] },
     'IT 4600': { 'pre': ['CS 1410', 'IT 2400'] },
-    'SE 3200': { 'pre': ['CS 2810'] },
     'SE 4600': { 'pre': ['CS 2420', 'CS 2450', 'CS 2810', 'CS 3005', 'SE 1400', 'SE 3200'] },
-    'BIOL 4400': { 'pre': ['BIOL 2325', 'BIOL 2425'] },
-    'BTEC 2010': { 'co': ['BIOL 1620'] },
-    'BTEC 2020': { 'co': ['BIOL 1620'] },
-    'BTEC 2030': { 'co': ['BIOL 1620'] },
-    'GEO 3400': { 'pre': ['GEO 1115', 'CHEM 1215'] },
-    'GEO 3600': { 'pre': ['MATH 1050', 'CHEM 1210', 'CHEM 1215'] },
     'MATH 2250': { 'pre': ['MATH 1220'] },
     'MATH 3020': { 'pre': ['MATH 1210'] },
 }
@@ -107,12 +82,12 @@ for (name, patch) in patches.items():
                 courses[name][kind].append(elt)
 
 print()
-print("print('building courses')")
+print("    print('building courses')")
 for name in sorted(courses.keys()):
     data = courses[name]
     title = data['title']
     dept = prefixes[name[:name.index(' ')]]
-    print(f'db.make_course({repr(dept)}, {repr(name)}, {repr(title)})')
+    print(f'    db.make_course({repr(dept)}, {repr(name)}, {repr(title)})')
 
 def filter_courses(lst, context):
     filtered = []
@@ -128,25 +103,22 @@ def filter_courses(lst, context):
             filtered.append(f'{prefix} {elt}')
         else:
             if prefix in prefixes:
-                print(f'course {repr(elt)} not found for course {context}')
+                print(f'    course {repr(elt)} not found for course {context}')
 
     return filtered
 
 print()
-print("print('adding prereqs')")
+print("    print('adding prereqs')")
 for (name, data) in sorted(courses.items()):
     lst = filter_courses(data['pre'], name)
     if len(lst) == 0:
         continue
-    print(f'db.add_prereqs({repr(name)}, {repr(lst)})')
+    print(f'    db.add_prereqs({repr(name)}, {repr(lst)})')
 
 print()
-print("print('adding coreqs')")
+print("    print('adding coreqs')")
 for (name, data) in sorted(courses.items()):
     lst = filter_courses(data['co'], name)
     if len(lst) == 0:
         continue
-    print(f'db.add_coreqs({repr(name)}, {repr(lst)})')
-
-print()
-print('db.db.commit()')
+    print(f'    db.add_coreqs({repr(name)}, {repr(lst)})')

@@ -115,6 +115,8 @@ CREATE TABLE faculty_preferences (
     days_off                    INTEGER,
     days_off_priority           INTEGER,
     evenly_spread_priority      INTEGER,
+    no_room_switch_priority     INTEGER,
+    too_many_rooms_priority     INTEGER,
     max_gap_within_cluster      INTEGER NOT NULL,
 
     CHECK (INSTR(days_to_check, '$') = 0 AND
@@ -126,6 +128,8 @@ CREATE TABLE faculty_preferences (
     CHECK (days_off_priority IS NULL OR LENGTH(days_to_check) > 1),
     CHECK (evenly_spread_priority IS NULL OR evenly_spread_priority >= 10 AND evenly_spread_priority < 20),
     CHECK (evenly_spread_priority IS NULL OR LENGTH(days_to_check) > 1),
+    CHECK (no_room_switch_priority IS NULL OR no_room_switch_priority >= 10 AND no_room_switch_priority < 20),
+    CHECK (too_many_rooms_priority IS NULL OR too_many_rooms_priority >= 10 AND too_many_rooms_priority < 20),
     CHECK (max_gap_within_cluster >= 0 AND max_gap_within_cluster < 120),
 
     FOREIGN KEY (faculty) REFERENCES faculty (faculty) ON DELETE CASCADE ON UPDATE CASCADE
@@ -302,7 +306,49 @@ CREATE TABLE multiple_section_overrides (
     course                      TEXT PRIMARY KEY,
     section_count               INTEGER NOT NULL,
 
-    FOREIGN KEY (course) REFERENCES courses (course) ON DELETE CASCADE ON UPDATE CASCADE) WITHOUT ROWID;
+    FOREIGN KEY (course) REFERENCES courses (course) ON DELETE CASCADE ON UPDATE CASCADE
+) WITHOUT ROWID;
+
+CREATE TABLE placements (
+    placement_id                INTEGER PRIMARY KEY,
+    score                       TEXT NOT NULL,
+    comment                     TEXT NOT NULL,
+    created_at                  TEXT NOT NULL
+);
+
+CREATE TABLE placement_sections (
+    placement_id                INTEGER NOT NULL,
+    section                     TEXT NOT NULL,
+    time_slot                   TEXT NOT NULL,
+    room                        TEXT,
+
+    PRIMARY KEY (placement_id, section),
+    FOREIGN KEY (placement_id) REFERENCES placements (placement_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (section) REFERENCES sections (section) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (time_slot) REFERENCES time_slots (time_slot) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (room) REFERENCES rooms (room) ON DELETE CASCADE ON UPDATE CASCADE
+) WITHOUT ROWID;
+
+CREATE TABLE placement_penalties (
+    placement_id                INTEGER NOT NULL,
+    placement_penalty_id        INTEGER NOT NULL,
+    priority                    INTEGER NOT NULL,
+    message                     TEXT NOT NULL,
+
+    CHECK (priority >= 0 AND priority < 20),
+    PRIMARY KEY (placement_id, placement_penalty_id),
+    FOREIGN KEY (placement_id) REFERENCES placements (placement_id) ON DELETE CASCADE ON UPDATE CASCADE
+) WITHOUT ROWID;
+
+CREATE TABLE placement_penalty_sections (
+    placement_id                INTEGER NOT NULL,
+    placement_penalty_id        INTEGER NOT NULL,
+    section                     TEXT NOT NULL,
+
+    PRIMARY KEY (placement_id, placement_penalty_id, section),
+    FOREIGN KEY (placement_id, placement_penalty_id) REFERENCES placement_penalties (placement_id, placement_penalty_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (section) REFERENCES sections (section) ON DELETE CASCADE ON UPDATE CASCADE
+) WITHOUT ROWID;
 
 
 --
@@ -672,10 +718,12 @@ CREATE VIEW faculty_sections_to_be_scheduled (faculty, department, course, secti
 --       not the department that houses the faculty, so the same data
 --       may appear multiple times for faculty teaching across departments
 CREATE VIEW faculty_to_be_scheduled_preference_intervals (faculty, department,
-        days_to_check, days_off, days_off_priority, evenly_spread_priority, max_gap_within_cluster,
+        days_to_check, days_off, days_off_priority, evenly_spread_priority,
+        no_room_switch_priority, too_many_rooms_priority, max_gap_within_cluster,
         is_cluster, is_too_short, interval_minutes, interval_priority) AS
     SELECT DISTINCT faculty, department,
-                    days_to_check, days_off, days_off_priority, evenly_spread_priority, max_gap_within_cluster,
+                    days_to_check, days_off, days_off_priority, evenly_spread_priority,
+                    no_room_switch_priority, too_many_rooms_priority, max_gap_within_cluster,
                     is_cluster, is_too_short, interval_minutes, interval_priority
     FROM faculty_sections_to_be_scheduled
     NATURAL JOIN faculty_preferences
