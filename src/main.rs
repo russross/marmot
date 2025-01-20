@@ -107,7 +107,8 @@ fn print_schedule(input: &Input, schedule: &Schedule) {
     let mut rooms: Vec<usize> = schedule.placements.iter().filter_map(|Placement { room, .. }| *room).collect();
     rooms.sort_unstable();
     rooms.dedup();
-    let mut time_slots: Vec<usize> = schedule.placements.iter().filter_map(|Placement { time_slot, ..}| *time_slot).collect();
+    let mut time_slots: Vec<usize> =
+        schedule.placements.iter().filter_map(|Placement { time_slot, .. }| *time_slot).collect();
     time_slots.sort_unstable();
     time_slots.dedup();
     let mut grid = Vec::new();

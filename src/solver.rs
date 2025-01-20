@@ -66,11 +66,7 @@ impl Schedule {
         let mut score = Score::new();
         let unplaced_score = Score::new() + LEVEL_FOR_UNPLACED_SECTION;
         for _ in 0..input.sections.len() {
-            placements.push(Placement {
-                time_slot: None,
-                room: None,
-                score: unplaced_score,
-            });
+            placements.push(Placement { time_slot: None, room: None, score: unplaced_score });
             score += LEVEL_FOR_UNPLACED_SECTION;
         }
 
@@ -202,7 +198,13 @@ impl Schedule {
 // *   update the score based on the move
 //
 // returns a log with enough information to revert the move
-fn move_section(schedule: &mut Schedule, input: &Input, section: usize, time_slot: usize, maybe_room: &Option<usize>) -> PlacementLog {
+fn move_section(
+    schedule: &mut Schedule,
+    input: &Input,
+    section: usize,
+    time_slot: usize,
+    maybe_room: &Option<usize>,
+) -> PlacementLog {
     // note: we leave unplaced section penalties in place and use them
     // to track which sections were placed before we started moving
 
@@ -239,7 +241,7 @@ fn revert_move(input: &Input, schedule: &mut Schedule, log: &PlacementLog) {
 
     // gather list of sections moved
     //let sections_moved = get_sections_from_log_entry_list(&log.moves);
-    
+
     // perform the moves without any scoring updates
     for entry in log.moves.iter().rev() {
         match entry {
@@ -376,7 +378,7 @@ pub fn concucrrent_solve(input: &Input, schedule: &Schedule, start: std::time::I
 }
 */
 
-const TABOO_LIMIT: usize = 10;
+const TABOO_LIMIT: usize = 20;
 
 pub fn solve(input: &Input, schedule: &mut Schedule, start: std::time::Instant, seconds: u64) -> Schedule {
     let mut best = schedule.clone();
@@ -434,7 +436,11 @@ pub fn solve(input: &Input, schedule: &mut Schedule, start: std::time::Instant, 
             little_steps += steps;
 
             if schedule.score < best.score {
-                println!("new best found {:3} big steps and {:3} small steps from previous best", big_step_size.len(), taboo.len());
+                println!(
+                    "new best found {:3} big steps and {:3} small steps from previous best",
+                    big_step_size.len(),
+                    taboo.len()
+                );
 
                 // reset so this is now the starting point
                 log.clear();
@@ -520,8 +526,7 @@ pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<
                     if !schedule.has_hard_conflict(input, section, time_slot, maybe_room) {
                         count += 1;
                         if count == winner {
-                            let _undo =
-                                move_section(&mut schedule, input, section, time_slot, maybe_room);
+                            let _undo = move_section(&mut schedule, input, section, time_slot, maybe_room);
                             break 'time_loop;
                         }
                     }

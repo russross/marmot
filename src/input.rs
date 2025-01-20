@@ -71,7 +71,7 @@ pub struct Section {
     pub neighbors: Vec<usize>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct RoomWithOptionalPriority {
     pub room: usize,
     pub priority: Option<u8>,
@@ -99,39 +99,6 @@ pub struct TimeSlotWithPriority {
 pub struct SectionWithPriority {
     pub section: usize,
     pub priority: u8,
-}
-
-#[derive(Clone)]
-pub enum DistributionPreference {
-    // classes on the same day should occur in clusters with tidy gaps between them
-    Clustering {
-        days: Vec<time::Weekday>,
-        max_gap: time::Duration,
-        cluster_limits: Vec<DurationWithPriority>,
-        gap_limits: Vec<DurationWithPriority>,
-    },
-
-    // zero or more days from the list should be free of classes
-    DaysOff {
-        priority: u8,
-        days: Vec<time::Weekday>,
-        days_off: usize,
-    },
-
-    // days that have classes should have the same number of classes
-    DaysEvenlySpread {
-        priority: u8,
-        days: Vec<time::Weekday>,
-    },
-}
-
-#[derive(Clone, PartialEq)]
-pub enum DurationWithPriority {
-    // a duration shorter than this gets a penalty
-    TooShort { priority: u8, duration: time::Duration },
-
-    // a duration longer than this gets a penalty
-    TooLong { priority: u8, duration: time::Duration },
 }
 
 impl fmt::Display for Room {
@@ -181,71 +148,6 @@ impl Faculty {
     }
 }
 
-impl fmt::Display for DistributionPreference {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (name, days) = match self {
-            DistributionPreference::Clustering { days, .. } => ("clustering", days),
-            DistributionPreference::DaysOff { days, .. } => ("days off", days),
-            DistributionPreference::DaysEvenlySpread { days, .. } => ("evenly spread", days),
-        };
-        write!(f, "{} using days (", name)?;
-        let mut sep = "";
-        for day in days {
-            match day {
-                time::Weekday::Sunday => write!(f, "{sep}Sun"),
-                time::Weekday::Monday => write!(f, "{sep}Mon"),
-                time::Weekday::Tuesday => write!(f, "{sep}Tues"),
-                time::Weekday::Wednesday => write!(f, "{sep}Wed"),
-                time::Weekday::Thursday => write!(f, "{sep}Thurs"),
-                time::Weekday::Friday => write!(f, "{sep}Fri"),
-                time::Weekday::Saturday => write!(f, "{sep}Sat"),
-            }?;
-            sep = ",";
-        }
-        write!(f, ") ")?;
-        match self {
-            DistributionPreference::Clustering { max_gap, cluster_limits, gap_limits, .. } => {
-                write!(f, "max gap:{}", max_gap)?;
-                if !cluster_limits.is_empty() {
-                    write!(f, " ### cluster")?;
-                    for limit in cluster_limits {
-                        match limit {
-                            DurationWithPriority::TooShort { duration, priority } => {
-                                write!(f, " [<{} priority {}]", duration, priority)?;
-                            }
-                            DurationWithPriority::TooLong { duration, priority } => {
-                                write!(f, " [>{} priority {}]", duration, priority)?;
-                            }
-                        }
-                    }
-                }
-                if !gap_limits.is_empty() {
-                    write!(f, " ### gap")?;
-                    for limit in gap_limits {
-                        match limit {
-                            DurationWithPriority::TooShort { duration, priority } => {
-                                write!(f, " [<{} priority {}]", duration, priority)?;
-                            }
-                            DurationWithPriority::TooLong { duration, priority } => {
-                                write!(f, " [>{} priority {}]", duration, priority)?;
-                            }
-                        }
-                    }
-                }
-            }
-
-            DistributionPreference::DaysOff { days_off, priority, .. } => {
-                write!(f, "wants {} day{} off priority {}", days_off, if *days_off == 1 { "" } else { "s" }, priority)?;
-            }
-
-            DistributionPreference::DaysEvenlySpread { priority, .. } => {
-                write!(f, "priority {}", priority)?;
-            }
-        }
-        Ok(())
-    }
-}
-
 pub fn load_input(db_path: &str, departments: &[String]) -> Result<Input, String> {
     print!("loading input data");
     let start = Instant::now();
@@ -269,7 +171,15 @@ pub fn load_input(db_path: &str, departments: &[String]) -> Result<Input, String
     let (mut sections, section_index, mut criteria) = load_sections(&db, &room_index, &time_slot_index, departments)?;
     load_conflicts(&db, &mut sections, &section_index, &mut criteria, departments)?;
     load_anti_conflicts(&db, &mut sections, &section_index, &mut criteria, departments)?;
-    load_faculty_section_assignments(&db, &mut faculty, &faculty_index, &mut sections, &section_index, &mut criteria, departments)?;
+    load_faculty_section_assignments(
+        &db,
+        &mut faculty,
+        &faculty_index,
+        &mut sections,
+        &section_index,
+        &mut criteria,
+        departments,
+    )?;
     compute_neighbors(&mut sections, &criteria);
     println!(": {}ms", start.elapsed().as_millis());
 
@@ -413,6 +323,7 @@ pub fn load_faculty(db: &Connection, departments: &[String]) -> Result<(Vec<Facu
 }
 
 // load sections and the room/time combinations (plus penalties) associated with them
+#[allow(clippy::type_complexity)]
 pub fn load_sections(
     db: &Connection,
     room_index: &HashMap<String, usize>,
@@ -579,7 +490,7 @@ pub fn load_conflicts(
             sections[index_a].hard_conflicts.push(index_b);
             sections[index_b].hard_conflicts.push(index_a);
         } else {
-            criteria.push(Criterion::SoftConflict{ priority, sections: [index_a, index_b] });
+            criteria.push(Criterion::SoftConflict { priority, sections: [index_a, index_b] });
         }
     }
 
@@ -611,9 +522,12 @@ pub fn load_anti_conflicts(
 
     while stmt.next().map_err(sql_err)? == State::Row {
         let new_single_name: String = stmt.read(0).map_err(sql_err)?;
-        let new_single = *section_index.get(&new_single_name).ok_or(format!("anticonflict for unknown section {new_single_name}"))?;
+        let new_single = *section_index
+            .get(&new_single_name)
+            .ok_or(format!("anticonflict for unknown section {new_single_name}"))?;
         let other_name: String = stmt.read(1).map_err(sql_err)?;
-        let other = *section_index.get(&other_name).ok_or(format!("anticonflict references unknown section {other_name}"))?;
+        let other =
+            *section_index.get(&other_name).ok_or(format!("anticonflict references unknown section {other_name}"))?;
         if new_single == other {
             panic!("anticonflict: single and group names must differ");
         }
@@ -623,14 +537,15 @@ pub fn load_anti_conflicts(
         match &mut criterion {
             Some(Criterion::AntiConflict { single, group, .. }) if *single == new_single => {
                 group.push(other);
-            },
+            }
             _ => {
                 // start a new one
                 if let Some(elt) = criterion {
                     criteria.push(elt);
                 }
-                criterion = Some(Criterion::AntiConflict { priority: pri as u8, single: new_single, group: vec![other] });
-            },
+                criterion =
+                    Some(Criterion::AntiConflict { priority: pri as u8, single: new_single, group: vec![other] });
+            }
         }
     }
 
@@ -685,6 +600,7 @@ pub fn load_faculty_section_assignments(
     }
 
     // calculate theoretical minimum rooms possible for each faculty
+    let mut min_rooms = vec![None; faculty_list.len()];
     for faculty in 0..faculty_sections.len() {
         // fill in section.faculty and faculty.sections lists
         faculty_list[faculty].sections = faculty_sections[faculty].clone();
@@ -743,150 +659,123 @@ pub fn load_faculty_section_assignments(
             continue;
         }
 
-        criteria.push(Criterion::FacultyRoomCount {
-            priority: LEVEL_FOR_ROOM_COUNT,
-            faculty,
-            sections: section_list,
-            desired: k,
-        });
+        min_rooms[faculty] = Some(k);
     }
 
     // load faculty spread preferences
-    let mut spreads = Vec::new();
-    for _ in 0..faculty_list.len() {
-        spreads.push(Vec::new());
-    }
+    let mut prefs = vec![None; faculty_list.len()];
     {
         let dept_in = dept_clause(departments, &["department".into()], true);
         let mut stmt = db
             .prepare(format!(
                 "
-                SELECT  faculty,
-                        days_to_check, days_off, days_off_priority, evenly_spread_priority, max_gap_within_cluster,
+                SELECT  faculty, days_to_check,
+                        days_off, days_off_priority, evenly_spread_priority,
+                        no_room_switch_priority, too_many_rooms_priority,
+                        max_gap_within_cluster,
                         is_cluster, is_too_short, interval_minutes, interval_priority
                 FROM faculty_to_be_scheduled_preference_intervals
                 {}
-                ORDER BY faculty, is_cluster, interval_minutes",
+                ORDER BY faculty, is_cluster, is_too_short, interval_minutes",
                 dept_in
             ))
             .map_err(sql_err)?;
         stmt.bind_iter(as_values(departments)).map_err(sql_err)?;
 
-        let mut name = String::new();
-        let mut index = 0;
-        let mut clustering_index = None;
         while stmt.next().map_err(sql_err)? == State::Row {
-            let new_name: String = stmt.read(0).map_err(sql_err)?;
+            let name: String = stmt.read(0).map_err(sql_err)?;
+            let index = *faculty_index.get(&name).ok_or(format!("faculty not found for {name} but prefs found"))?;
 
             // is this the first row for this faculty?
-            if new_name != name {
-                name = new_name;
-                index = *faculty_index.get(&name).ok_or(format!("faculty not found for {name} but prefs found"))?;
-                let faculty_spread = &mut spreads[index];
+            if prefs[index].is_none() {
                 let days_to_check: String = stmt.read(1).map_err(sql_err)?;
+                let days_to_check = parse_days(&days_to_check)?;
 
                 // days off penalty?
                 let days_off_opt: Option<i64> = stmt.read(2).map_err(sql_err)?;
                 let days_off_priority_opt: Option<i64> = stmt.read(3).map_err(sql_err)?;
-                if let (Some(days_off), Some(priority)) = (days_off_opt, days_off_priority_opt) {
-                    faculty_spread.push(DistributionPreference::DaysOff {
-                        days: parse_days(&days_to_check)?,
-                        days_off: days_off as usize,
-                        priority: priority as u8,
-                    });
-                }
+                let days_off = if let (Some(days_off), Some(priority)) = (days_off_opt, days_off_priority_opt) {
+                    Some((priority as u8, days_off as usize))
+                } else {
+                    None
+                };
 
                 // evenly spread penalty?
                 let evenly_spread_priority: Option<i64> = stmt.read(4).map_err(sql_err)?;
-                if let Some(priority) = evenly_spread_priority {
-                    faculty_spread.push(DistributionPreference::DaysEvenlySpread {
-                        days: parse_days(&days_to_check)?,
-                        priority: priority as u8,
-                    });
-                }
+                let evenly_spread = if let Some(priority) = evenly_spread_priority {
+                    Some(priority as u8)
+                } else {
+                    None
+                };
 
-                // if there is no clustering interval than move on to the next faculty
-                let is_cluster: Option<i64> = stmt.read(6).map_err(sql_err)?;
-                if is_cluster.is_none() {
-                    continue;
-                }
+                // no room switch penalty?
+                let no_room_switch_priority: Option<i64> = stmt.read(5).map_err(sql_err)?;
+                let no_room_switch = if let Some(priority) = no_room_switch_priority {
+                    Some(priority as u8)
+                } else {
+                    None
+                };
 
-                // create the base clustering record
-                let max_gap_within_cluster: i64 = stmt.read(5).map_err(sql_err)?;
-                clustering_index = Some(faculty_spread.len());
-                faculty_spread.push(DistributionPreference::Clustering {
-                    days: parse_days(&days_to_check)?,
-                    max_gap: time::Duration::minutes(max_gap_within_cluster),
-                    cluster_limits: Vec::new(),
-                    gap_limits: Vec::new(),
+                // too many rooms penalty?
+                let too_many_rooms_priority: Option<i64> = stmt.read(6).map_err(sql_err)?;
+                let too_many_rooms = if let Some(priority) = too_many_rooms_priority {
+                    if let Some(k) = min_rooms[index] {
+                        Some((priority as u8, k))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                let max_gap_within_cluster: i64 = stmt.read(7).map_err(sql_err)?;
+                let max_gap_within_cluster = time::Duration::minutes(max_gap_within_cluster);
+
+                // create the base record
+                prefs[index] = Some(Criterion::FacultyPreference {
+                    faculty: index,
+                    sections: faculty_sections[index].clone(),
+                    days_to_check,
+                    days_off,
+                    evenly_spread,
+                    no_room_switch,
+                    too_many_rooms,
+                    max_gap_within_cluster,
+                    distribution_intervals: Vec::new(),
                 });
             }
 
-            let faculty_spread = &mut spreads[index];
+            // if there is no clustering interval than move on to the next faculty
+            let is_cluster: Option<i64> = stmt.read(8).map_err(sql_err)?;
+            if is_cluster.is_none() {
+                continue;
+            }
 
-            let is_cluster: i64 = stmt.read(6).map_err(sql_err)?;
-            let is_too_short: i64 = stmt.read(7).map_err(sql_err)?;
-            let interval_minutes: i64 = stmt.read(8).map_err(sql_err)?;
-            let interval_priority: i64 = stmt.read(9).map_err(sql_err)?;
+            let is_too_short: i64 = stmt.read(9).map_err(sql_err)?;
+            let interval_minutes: i64 = stmt.read(10).map_err(sql_err)?;
+            let duration = time::Duration::minutes(interval_minutes);
+            let interval_priority: i64 = stmt.read(11).map_err(sql_err)?;
+            let priority = interval_priority as u8;
 
-            let dwp = if is_too_short != 0 {
-                DurationWithPriority::TooShort {
-                    duration: time::Duration::minutes(interval_minutes),
-                    priority: interval_priority as u8,
-                }
-            } else {
-                DurationWithPriority::TooLong {
-                    duration: time::Duration::minutes(interval_minutes),
-                    priority: interval_priority as u8,
-                }
+            let interval = match (is_cluster.unwrap() != 0, is_too_short != 0) {
+                (true, true) => DistributionInterval::ClusterTooShort { priority, duration },
+                (true, false) => DistributionInterval::ClusterTooLong { priority, duration },
+                (false, true) => DistributionInterval::GapTooShort { priority, duration },
+                (false, false) => DistributionInterval::GapTooLong { priority, duration },
             };
 
-            match &mut faculty_spread[clustering_index.unwrap()] {
-                DistributionPreference::Clustering { cluster_limits, gap_limits, .. } => {
-                    if is_cluster != 0 {
-                        cluster_limits.push(dwp);
-                    } else {
-                        gap_limits.push(dwp);
-                    }
-                }
-                _ => {
-                    panic!("I swear it was here a minute ago");
-                }
-            }
+            let Some(Criterion::FacultyPreference { distribution_intervals, .. }) = &mut prefs[index] else {
+                panic!("I swear it was here a minute ago!");
+            };
+
+            distribution_intervals.push(interval);
         }
     }
 
     // create scoring criteria for faculty spread preferences
-    {
-        for faculty in 0..faculty_list.len() {
-            let mut groups = HashMap::<u8, Vec<DistributionPreference>>::new();
-            for dist in std::mem::take(&mut spreads[faculty]) {
-                let days = match &dist {
-                    DistributionPreference::Clustering { days, .. } => days,
-                    DistributionPreference::DaysOff { days, .. } => days,
-                    DistributionPreference::DaysEvenlySpread { days, .. } => days,
-                };
-
-                let mut key = 0;
-                for &day in days {
-                    match day {
-                        time::Weekday::Sunday => key |= 0b1000000,
-                        time::Weekday::Monday => key |= 0b0100000,
-                        time::Weekday::Tuesday => key |= 0b0010000,
-                        time::Weekday::Wednesday => key |= 0b0001000,
-                        time::Weekday::Thursday => key |= 0b0000100,
-                        time::Weekday::Friday => key |= 0b0000010,
-                        time::Weekday::Saturday => key |= 0b0000001,
-                    }
-                }
-                groups.entry(key).or_default().push(dist);
-            }
-            let mut grouped_by_days = Vec::new();
-            for (_, group) in groups.drain() {
-                grouped_by_days.push(group);
-            }
-
-            criteria.push(Criterion::FacultySpread { faculty, sections: std::mem::take(&mut faculty_sections[faculty]), grouped_by_days });
+    for prefs in prefs {
+        if let Some(criterion) = prefs {
+            criteria.push(criterion);
         }
     }
 
