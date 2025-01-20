@@ -702,28 +702,16 @@ pub fn load_faculty_section_assignments(
 
                 // evenly spread penalty?
                 let evenly_spread_priority: Option<i64> = stmt.read(4).map_err(sql_err)?;
-                let evenly_spread = if let Some(priority) = evenly_spread_priority {
-                    Some(priority as u8)
-                } else {
-                    None
-                };
+                let evenly_spread = evenly_spread_priority.map(|priority| priority as u8);
 
                 // no room switch penalty?
                 let no_room_switch_priority: Option<i64> = stmt.read(5).map_err(sql_err)?;
-                let no_room_switch = if let Some(priority) = no_room_switch_priority {
-                    Some(priority as u8)
-                } else {
-                    None
-                };
+                let no_room_switch = no_room_switch_priority.map(|priority| priority as u8);
 
                 // too many rooms penalty?
                 let too_many_rooms_priority: Option<i64> = stmt.read(6).map_err(sql_err)?;
                 let too_many_rooms = if let Some(priority) = too_many_rooms_priority {
-                    if let Some(k) = min_rooms[index] {
-                        Some((priority as u8, k))
-                    } else {
-                        None
-                    }
+                    min_rooms[index].map(|k| (priority as u8, k))
                 } else {
                     None
                 };
@@ -773,11 +761,7 @@ pub fn load_faculty_section_assignments(
     }
 
     // create scoring criteria for faculty spread preferences
-    for prefs in prefs {
-        if let Some(criterion) = prefs {
-            criteria.push(criterion);
-        }
-    }
+    prefs.into_iter().flatten().for_each(|elt| criteria.push(elt));
 
     Ok(())
 }

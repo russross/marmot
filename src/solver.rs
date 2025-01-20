@@ -378,7 +378,8 @@ pub fn concucrrent_solve(input: &Input, schedule: &Schedule, start: std::time::I
 }
 */
 
-const TABOO_LIMIT: usize = 20;
+const TABOO_LIMIT: usize = 50;
+const BIAS: i64 = -5;
 
 pub fn solve(input: &Input, schedule: &mut Schedule, start: std::time::Instant, seconds: u64) -> Schedule {
     let mut best = schedule.clone();
@@ -415,7 +416,7 @@ pub fn solve(input: &Input, schedule: &mut Schedule, start: std::time::Instant, 
         // random walk: back up or move forward one big step
         // add bias to stepping backward if we have unplaced sections
         let roll = rand::thread_rng().gen_range(1..=100);
-        let cutoff = 50 - std::cmp::min(10, schedule.score.unplaced());
+        let cutoff = 50 + BIAS - std::cmp::min(10, schedule.score.unplaced() as i64);
         if big_step_size.is_empty() || roll <= cutoff {
             // make one big step forward
             let pre_steps = taboo.len();

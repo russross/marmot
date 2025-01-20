@@ -27,10 +27,23 @@ pub struct Score {
 // neighbors is moved
 #[derive(Clone)]
 pub enum Criterion {
-    SoftConflict { priority: u8, sections: [usize; 2] },
-    AntiConflict { priority: u8, single: usize, group: Vec<usize> },
-    RoomPreference { section: usize, rooms_with_priorities: Vec<RoomWithPriority> },
-    TimeSlotPreference { section: usize, time_slots_with_priorities: Vec<TimeSlotWithPriority> },
+    SoftConflict {
+        priority: u8,
+        sections: [usize; 2],
+    },
+    AntiConflict {
+        priority: u8,
+        single: usize,
+        group: Vec<usize>,
+    },
+    RoomPreference {
+        section: usize,
+        rooms_with_priorities: Vec<RoomWithPriority>,
+    },
+    TimeSlotPreference {
+        section: usize,
+        time_slots_with_priorities: Vec<TimeSlotWithPriority>,
+    },
     FacultyPreference {
         faculty: usize,
         sections: Vec<usize>,
@@ -39,7 +52,7 @@ pub enum Criterion {
         evenly_spread: Option<u8>,
         no_room_switch: Option<u8>,
         too_many_rooms: Option<(u8, usize)>,
-        max_gap_within_cluster: time::Duration, 
+        max_gap_within_cluster: time::Duration,
         distribution_intervals: Vec<DistributionInterval>,
     },
 }
@@ -280,7 +293,17 @@ impl Criterion {
                 Vec::new()
             }
 
-            Criterion::FacultyPreference { faculty, sections, days_to_check, days_off, evenly_spread, no_room_switch, too_many_rooms, max_gap_within_cluster, distribution_intervals } => {
+            Criterion::FacultyPreference {
+                faculty,
+                sections,
+                days_to_check,
+                days_off,
+                evenly_spread,
+                no_room_switch,
+                too_many_rooms,
+                max_gap_within_cluster,
+                distribution_intervals,
+            } => {
                 let mut penalties = Vec::new();
 
                 // for each day in days_to_check, a list of (start time, duration, maybe_room)
@@ -315,7 +338,7 @@ impl Criterion {
                             start_time: *start_time,
                             duration: *duration,
                             end_time: *start_time + *duration,
-                            maybe_room: schedule.placements[section].room.clone(),
+                            maybe_room: schedule.placements[section].room,
                         });
                     }
                 }
@@ -375,7 +398,11 @@ impl Criterion {
                                 }
 
                                 // is it possible for them to be in the same room without penalty?
-                                if input.sections[a.section].rooms.iter().any(|rwp| rwp.priority.is_none() && input.sections[b.section].rooms.contains(rwp)) {
+                                if input.sections[a.section]
+                                    .rooms
+                                    .iter()
+                                    .any(|rwp| rwp.priority.is_none() && input.sections[b.section].rooms.contains(rwp))
+                                {
                                     penalties.push(Penalty::RoomSwitch {
                                         priority: *priority,
                                         faculty: *faculty,
@@ -389,7 +416,8 @@ impl Criterion {
                 }
 
                 if let &Some((priority, desired)) = too_many_rooms {
-                    let mut rooms: Vec<usize> = sections.iter().filter_map(|&section| schedule.placements[section].room).collect();
+                    let mut rooms: Vec<usize> =
+                        sections.iter().filter_map(|&section| schedule.placements[section].room).collect();
                     rooms.sort_unstable();
                     rooms.dedup();
                     if rooms.len() != desired {
@@ -411,10 +439,7 @@ impl Criterion {
                             .chunk_by(|a, b| b.start_time - a.end_time <= *max_gap_within_cluster)
                             .map(|chunk| (chunk.first().unwrap().start_time, chunk.last().unwrap().end_time))
                             .collect();
-                        let gaps: Vec<time::Duration> = clusters
-                            .windows(2)
-                            .map(|pair| pair[1].0 - pair[0].1)
-                            .collect();
+                        let gaps: Vec<time::Duration> = clusters.windows(2).map(|pair| pair[1].0 - pair[0].1).collect();
 
                         // ignore one too-short cluster per day
                         let mut too_short_okay = true;
@@ -423,14 +448,14 @@ impl Criterion {
                             let mut too_long_priority = u8::MAX;
                             let actual = end_time - start_time;
                             for interval in distribution_intervals {
-                                match interval {
-                                    &DistributionInterval::ClusterTooShort { priority, duration } => {
-                                        if actual <= duration {
+                                match *interval {
+                                    DistributionInterval::ClusterTooShort { priority, duration } => {
+                                        if actual < duration {
                                             too_short_priority = std::cmp::min(priority, too_short_priority);
                                         }
                                     }
-                                    &DistributionInterval::ClusterTooLong { priority, duration } => {
-                                        if actual >= duration {
+                                    DistributionInterval::ClusterTooLong { priority, duration } => {
+                                        if actual > duration {
                                             too_long_priority = std::cmp::min(priority, too_long_priority);
                                         }
                                     }
@@ -461,18 +486,18 @@ impl Criterion {
                             let mut too_short_priority = u8::MAX;
                             let mut too_long_priority = u8::MAX;
                             for interval in distribution_intervals {
-                                match interval {
-                                    &DistributionInterval::GapTooShort { priority, duration } => {
-                                        if actual <= duration {
+                                match *interval {
+                                    DistributionInterval::GapTooShort { priority, duration } => {
+                                        if actual < duration {
                                             too_short_priority = std::cmp::min(priority, too_short_priority);
                                         }
                                     }
-                                    &DistributionInterval::GapTooLong { priority, duration } => {
-                                        if actual >= duration {
+                                    DistributionInterval::GapTooLong { priority, duration } => {
+                                        if actual > duration {
                                             too_long_priority = std::cmp::min(priority, too_long_priority);
                                         }
                                     }
-                                    _ => {},
+                                    _ => {}
                                 }
                             }
                             if too_short_priority < u8::MAX {
@@ -530,7 +555,17 @@ impl Criterion {
                 }
             }
 
-            Criterion::FacultyPreference { faculty, sections, days_to_check, days_off, evenly_spread, no_room_switch, too_many_rooms, max_gap_within_cluster: _max_gap_within_cluster, distribution_intervals } => {
+            Criterion::FacultyPreference {
+                faculty,
+                sections,
+                days_to_check,
+                days_off,
+                evenly_spread,
+                no_room_switch,
+                too_many_rooms,
+                max_gap_within_cluster: _max_gap_within_cluster,
+                distribution_intervals,
+            } => {
                 write!(&mut s, "faculty preference: {} with [", input.faculty[*faculty].name).unwrap();
                 let mut sep = "";
                 for &section in sections {
@@ -541,51 +576,60 @@ impl Criterion {
                 sep = "";
                 for &day in days_to_check {
                     match day {
-                        time::Weekday::Sunday => write!(&mut s, "{sep}Sun"),
                         time::Weekday::Monday => write!(&mut s, "{sep}Mon"),
                         time::Weekday::Tuesday => write!(&mut s, "{sep}Tues"),
                         time::Weekday::Wednesday => write!(&mut s, "{sep}Wed"),
                         time::Weekday::Thursday => write!(&mut s, "{sep}Thurs"),
                         time::Weekday::Friday => write!(&mut s, "{sep}Fri"),
                         time::Weekday::Saturday => write!(&mut s, "{sep}Sat"),
-                    }.unwrap();
+                        time::Weekday::Sunday => write!(&mut s, "{sep}Sun"),
+                    }
+                    .unwrap();
                     sep = ",";
                 }
                 writeln!(&mut s, ")").unwrap();
 
                 if let &Some((priority, days)) = days_off {
-                    writeln!(&mut s, "    {}: wants {} day{} off",
-                        priority, days, if days == 1 { "" } else {"s"}).unwrap();
+                    writeln!(&mut s, "    {}: wants {} day{} off", priority, days, if days == 1 { "" } else { "s" })
+                        .unwrap();
                 }
 
                 if let &Some(priority) = evenly_spread {
-                    writeln!(&mut s, "    {}: wants classes evenly spread across days",
-                        priority).unwrap();
+                    writeln!(&mut s, "    {}: wants classes evenly spread across days", priority).unwrap();
                 }
 
                 if let &Some(priority) = no_room_switch {
-                    writeln!(&mut s, "    {}: wants no back-to-back room switches",
-                        priority).unwrap();
+                    writeln!(&mut s, "    {}: wants no back-to-back room switches", priority).unwrap();
                 }
 
                 if let &Some((priority, desired)) = too_many_rooms {
-                    writeln!(&mut s, "    {}: wants to only use {} room{}",
-                        priority, desired, if desired == 1 { ""} else {"s"}).unwrap();
+                    writeln!(
+                        &mut s,
+                        "    {}: wants to only use {} room{}",
+                        priority,
+                        desired,
+                        if desired == 1 { "" } else { "s" }
+                    )
+                    .unwrap();
                 }
 
                 for interval in distribution_intervals {
                     let (priority, kind, shortlong, duration) = match *interval {
-                        DistributionInterval::GapTooShort { priority, duration } =>
-                            (priority, "gap", "shorter", duration),
-                        DistributionInterval::GapTooLong { priority, duration } =>
-                            (priority, "gap", "longer", duration),
-                        DistributionInterval::ClusterTooShort { priority, duration } =>
-                            (priority, "cluster", "shorter", duration),
-                        DistributionInterval::ClusterTooLong { priority, duration } =>
-                            (priority, "cluster", "longer", duration),
+                        DistributionInterval::GapTooShort { priority, duration } => {
+                            (priority, "gap", "shorter", duration)
+                        }
+                        DistributionInterval::GapTooLong { priority, duration } => {
+                            (priority, "gap", "longer", duration)
+                        }
+                        DistributionInterval::ClusterTooShort { priority, duration } => {
+                            (priority, "cluster", "shorter", duration)
+                        }
+                        DistributionInterval::ClusterTooLong { priority, duration } => {
+                            (priority, "cluster", "longer", duration)
+                        }
                     };
-                    writeln!(&mut s, "    {}: {} should not be {} than {}",
-                        priority, kind, shortlong, duration).unwrap();
+                    writeln!(&mut s, "    {}: {} should not be {} than {}", priority, kind, shortlong, duration)
+                        .unwrap();
                 }
             }
         }
@@ -631,7 +675,7 @@ impl Penalty {
                     (
                         priority,
                         format!(
-                            "course conflict: {} and {} both meet at {}",
+                            "{} and {} both meet at {}",
                             input.sections[a].name, input.sections[b].name, input.time_slots[ts_a].name
                         ),
                     )
@@ -639,7 +683,7 @@ impl Penalty {
                     (
                         priority,
                         format!(
-                            "course conflict: {} at {} overlaps {} at {}",
+                            "{} at {} overlaps {} at {}",
                             input.sections[a].name,
                             input.time_slots[ts_a],
                             input.sections[b].name,
@@ -657,85 +701,70 @@ impl Penalty {
                     sep = " or ";
                     group_names.push_str(&input.sections[*elt].name);
                 }
-                (
-                    *priority,
-                    format!(
-                        "anticonflict: {} is not at the same time as {}",
-                        input.sections[*single].name, group_names
-                    ),
-                )
+                (*priority, format!("{} should be at the same time as {}", input.sections[*single].name, group_names))
             }
 
-            &Penalty::RoomPreference { priority, section, room } => (
-                    priority,
-                    format!("room preference: {} meets in {}", input.sections[section].name, input.rooms[room].name),
-                ),
+            &Penalty::RoomPreference { priority, section, room } => {
+                (priority, format!("{} is assigned to {}", input.sections[section].name, input.rooms[room].name))
+            }
 
             &Penalty::TimeSlotPreference { priority, section, time_slot } => (
-                    priority,
-                    format!(
-                        "time slot preference: {} meets at {}",
-                        input.sections[section].name, input.time_slots[time_slot].name
-                    ),
-                ),
+                priority,
+                format!("{} is scheduled at {}", input.sections[section].name, input.time_slots[time_slot].name),
+            ),
 
-            &Penalty::ClusterTooShort { priority, faculty, .. } => (
+            &Penalty::ClusterTooShort { priority, faculty, duration } => (
+                priority,
+                format!("{} has a cluster of classes that is only {} long", input.faculty[faculty].name, duration,),
+            ),
+
+            &Penalty::ClusterTooLong { priority, faculty, duration } => (
+                priority,
+                format!("{} has a run of back-to-back classes that lasts {}", input.faculty[faculty].name, duration,),
+            ),
+
+            &Penalty::GapTooShort { priority, faculty, duration } => (
                 priority,
                 format!(
-                    "short class cluster: {} has a cluster of classes that is too short",
-                    input.faculty[faculty].name,
+                    "{} has a break between clusters of classes that is only {} long",
+                    input.faculty[faculty].name, duration,
                 ),
             ),
 
-            &Penalty::ClusterTooLong { priority, faculty, .. } => (
+            &Penalty::GapTooLong { priority, faculty, duration } => (
                 priority,
-                format!(
-                    "long cluster preference: {} has a cluster of classes that is too long",
-                    input.faculty[faculty].name,
-                ),
+                format!("{} has to wait {} between clusters of classes", input.faculty[faculty].name, duration,),
             ),
 
-            &Penalty::GapTooShort { priority, faculty, .. } => (
+            &Penalty::DaysOff { priority, faculty, desired, actual: _actual } => (
                 priority,
-                format!(
-                    "short gap: {} has a gap between clusters of classes that is too short",
-                    input.faculty[faculty].name,
-                ),
+                if desired == 0 {
+                    format!("{} has a day off but does not want one", input.faculty[faculty].name)
+                } else {
+                    format!("{} wants a day off but did not get one", input.faculty[faculty].name)
+                },
             ),
 
-            &Penalty::GapTooLong { priority, faculty, .. } => (
-                priority,
-                format!(
-                    "long gap: {} has a gap between clusters of classes that is too long",
-                    input.faculty[faculty].name,
-                ),
-            ),
-
-            &Penalty::DaysOff { priority, faculty, desired, actual, .. } => (
-                priority,
-                format!(
-                    "days off: {} wanted {} day{} off but got {}",
-                    input.faculty[faculty].name,
-                    desired,
-                    if desired == 1 { "" } else { "s" },
-                    actual
-                ),
-            ),
-
-            &Penalty::DaysEvenlySpread { priority, faculty, .. } => (
-                priority,
-                format!("uneven spread: {} has more classes some days than others", input.faculty[faculty].name),
-            ),
+            &Penalty::DaysEvenlySpread { priority, faculty } => {
+                (priority, format!("{} has more classes some days than others", input.faculty[faculty].name))
+            }
 
             &Penalty::RoomSwitch { priority, faculty, sections: [section_a, section_b], rooms: [room_a, room_b] } => (
                 priority,
-                format!("room switching: {} has to move from {} for {} to {} for {}", input.faculty[faculty].name, input.rooms[room_a].name, input.sections[section_a].name, input.rooms[room_b].name, input.sections[section_b].name)
+                format!(
+                    "{} has {} and {} back-to-back and has to move from {} to {}",
+                    input.faculty[faculty].name,
+                    input.sections[section_a].name,
+                    input.sections[section_b].name,
+                    input.rooms[room_a].name,
+                    input.rooms[room_b].name,
+                ),
             ),
 
-            &Penalty::RoomCount { priority, faculty, desired, actual, .. } => (
+            &Penalty::RoomCount { priority, faculty, desired, actual } => (
                 priority,
                 format!(
-                    "room placement: {}'s classes are spread across {} room{} instead of {}",
+                    "{}'s classes are spread across {} room{} instead of being packed into {}",
                     input.faculty[faculty].name,
                     actual,
                     if actual == 1 { "" } else { "s" },

@@ -22,8 +22,8 @@ fn main() {
     }
 
     let start = std::time::Instant::now();
-    let warmup_seconds = 1;
-    let total_seconds = 31;
+    let warmup_seconds = 3;
+    let total_seconds = 33;
 
     println!("running warmup for {} seconds", warmup_seconds);
     let Some(mut schedule) = warmup(&input, start, warmup_seconds) else {
