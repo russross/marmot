@@ -391,10 +391,10 @@ def build(db: DB) -> None:
     db.faculty_preferences('Russ Ross', 'MT', *default_prefs_twoday)
     db.make_section('CS 2810-01', 'Smith 109', '3 credit bell schedule')
     db.make_section('CS 2810-02', 'Smith 109', '3 credit bell schedule')
-    db.make_section('CS 3410-01', 'Smith 109', '3 credit bell schedule')
-    db.make_section('CS 4307-01', 'Smith 109', '3 credit bell schedule')
+    db.make_section('CS 3400-01', 'Smith 109', '3 credit bell schedule')
+    db.make_section('CS 3520-01', 'Smith 109', '3 credit bell schedule')
     db.make_section('CS 4800R-02')
-    db.assign_faculty_sections('Russ Ross', 'CS 2810-01', 'CS 2810-02', 'CS 3410-01', 'CS 4307-01', 'CS 4800R-02')
+    db.assign_faculty_sections('Russ Ross', 'CS 2810-01', 'CS 2810-02', 'CS 3400-01', 'CS 3520-01', 'CS 4800R-02')
 
     db.make_faculty('Syed Ali', 'Computing', default_availability)
     db.faculty_preferences('Syed Ali', 'MT', *default_prefs_twoday)

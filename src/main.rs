@@ -7,7 +7,7 @@ use self::solver::*;
 
 const DB_PATH: &str = "timetable.db";
 const WARMUP_SECONDS: u64 = 5;
-const TOTAL_SECONDS: u64 = 3600;
+const TOTAL_SECONDS: u64 = 28800;
 const REPORT_SECONDS: u64 = 5;
 const REBASE_SECONDS: u64 = 300;
 const MIN_BIAS: i64 = -10;

@@ -46,8 +46,8 @@ window.addEventListener('load', function () {
         for (prefix of allPrefixes) {
             let list = penaltiesByPrefix[prefix];
             list.sort(function (a, b) {
-                if (a.score > b.score) return -1;
-                if (a.score < b.score) return 1;
+                if (a.score < b.score) return -1;
+                if (a.score > b.score) return 1;
                 if (a.message < b.message) return -1;
                 if (a.message > b.message) return 1;
                 return 0;
@@ -234,7 +234,7 @@ window.addEventListener('load', function () {
                 title += br + '' + p.score + ': ' + p.message;
                 br = '\n';
             }
-            problems.innerText = 'score: ' + score;
+            //problems.innerText = 'score: ' + score;
             box.title = title;
         }
 
@@ -261,14 +261,18 @@ window.addEventListener('load', function () {
     // report all the penalties in a list at the bottom
     let penalty_div = document.getElementById('penalties');
     for (prefix of allPrefixes.toSorted()) {
+        if (penaltiesByPrefix[prefix].length == 0) continue;
         let h2 = document.createElement('h2');
         penalty_div.appendChild(h2);
-        h2.innerText = 'Penalties for ' + prefix + ' (total ' + totalScoreByPrefix[prefix] + ')';
+        h2.innerText = 'Penalties related to ' + prefix;
         let penalties = [];
         let ul = document.createElement('ul');
         penalty_div.appendChild(ul);
         let prev_score = -1;
+        let prev = '';
         for (problem of penaltiesByPrefix[prefix]) {
+            if (problem.message == prev) continue;
+            prev = problem.message;
             let li = document.createElement('li');
             ul.appendChild(li);
             let padded = '' + problem.score;
@@ -282,7 +286,7 @@ window.addEventListener('load', function () {
             }
             penalties[penalties.length-1][1]++;
         }
-
+        /*
         let h3 = document.createElement('h3');
         penalty_div.appendChild(h3);
         h3.innerText = 'Penalty counts by score for ' + prefix;
@@ -298,5 +302,6 @@ window.addEventListener('load', function () {
             let msg = '[' + padded + '] ' + score[1] + ' ' + pen;
             li.innerText = msg;
         }
+        */
     }
 });;
