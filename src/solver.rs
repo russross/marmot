@@ -1,8 +1,6 @@
-//use std::sync::{Arc, Mutex};
-//use std::sync::mpsc;
-//use std::thread;
 use super::input::*;
 use super::score::*;
+use super::*;
 use rand::Rng;
 
 //
@@ -361,29 +359,10 @@ fn compute_penalties_for_criteria(input: &Input, schedule: &mut Schedule, criter
     }
 }
 
-/*
-pub fn concucrrent_solve(input: &Input, schedule: &Schedule, start: std::time::Instance, seconds: u64) -> Schedule {
-    let best = Arc::new(Mutex::new(schedule.clone()));
-    let (tx, rx) = mpsc::channel();
-    let cpus = thread::available_parallelism().unwrap().get();
-
-    // fan out
-    for i in 0..cpus {
-        let tx = tx.clone();
-        let best = Arc::clone(best);
-        let input = input.clone();
-        thread::spawn(move || {
-        });
-    }
-}
-*/
-
-const TABOO_LIMIT: usize = 50;
-const BIAS: i64 = -5;
-
-pub fn solve(input: &Input, schedule: &mut Schedule, start: std::time::Instant, seconds: u64) -> Schedule {
+pub fn solve(input: &Input, schedule: &mut Schedule, start: std::time::Instant, seconds: u64, save_id: i64) -> Schedule {
     let mut best = schedule.clone();
     let mut last_report = start.elapsed().as_secs();
+    let mut best_seconds = last_report;
     let mut big_steps = 0;
     let mut little_steps = 0;
 
@@ -392,20 +371,40 @@ pub fn solve(input: &Input, schedule: &mut Schedule, start: std::time::Instant, 
     let mut big_step_size = Vec::new();
     let mut failed_forward = false;
 
+    let mut best_score_this_interval = schedule.score;
+    let mut best_since_rebase = schedule.score;
+    let mut bias_delta = BIAS_STEP;
+    let mut bias = MIN_BIAS;
+
     loop {
-        assert!(log.len() == taboo.len());
-        if start.elapsed().as_secs() != last_report {
-            last_report = start.elapsed().as_secs();
+        let now = start.elapsed().as_secs();
+        if now != last_report && now % REPORT_SECONDS == 0 {
+            last_report = now;
             println!(
-                "{:3} second{}: best {}, current is {:3} steps away with score {}",
+                "{} seconds: best {}, bias {}, {} steps away, best of last {} seconds is {}",
                 last_report,
-                if last_report == 1 { "" } else { "s" },
                 best.score,
+                bias,
                 big_step_size.len(),
-                schedule.score,
+                REPORT_SECONDS,
+                best_score_this_interval,
             );
+            best_score_this_interval = schedule.score;
             if last_report >= seconds {
                 break;
+            }
+            bias += bias_delta;
+            if bias <= MIN_BIAS || bias >= MAX_BIAS {
+                bias_delta = -bias_delta;
+            }
+            if last_report - best_seconds >= REBASE_SECONDS {
+                println!("no improvement for {} seconds, rebasing", REBASE_SECONDS);
+                log.clear();
+                big_step_size.clear();
+                best_seconds = last_report;
+                best_since_rebase = schedule.score;
+                bias = MIN_BIAS;
+                bias_delta = BIAS_STEP;
             }
         }
         if failed_forward && big_step_size.is_empty() {
@@ -416,10 +415,9 @@ pub fn solve(input: &Input, schedule: &mut Schedule, start: std::time::Instant, 
         // random walk: back up or move forward one big step
         // add bias to stepping backward if we have unplaced sections
         let roll = rand::thread_rng().gen_range(1..=100);
-        let cutoff = 50 + BIAS - std::cmp::min(10, schedule.score.unplaced() as i64);
-        if big_step_size.is_empty() || roll <= cutoff {
+        if big_step_size.is_empty() || roll <= 50 + bias {
             // make one big step forward
-            let pre_steps = taboo.len();
+            let pre_steps = log.len();
             failed_forward = !step_down(input, schedule, &mut log, &mut taboo);
             if failed_forward {
                 if schedule.score.is_zero() {
@@ -430,33 +428,48 @@ pub fn solve(input: &Input, schedule: &mut Schedule, start: std::time::Instant, 
                 continue;
             }
             climb(input, schedule, &mut log, &mut taboo);
-            let steps = taboo.len() - pre_steps;
+            let steps = log.len() - pre_steps;
             big_step_size.push(steps);
 
             big_steps += 1;
             little_steps += steps;
 
+            if schedule.score < best_score_this_interval {
+                best_score_this_interval = schedule.score;
+            }
             if schedule.score < best.score {
-                println!(
-                    "new best found {:3} big steps and {:3} small steps from previous best",
-                    big_step_size.len(),
-                    taboo.len()
-                );
+                println!("new best found {} steps from previous best", big_step_size.len());
 
                 // reset so this is now the starting point
                 log.clear();
-                taboo.clear();
                 big_step_size.clear();
+                best_since_rebase = schedule.score;
+                best_seconds = start.elapsed().as_secs();
+                bias = MIN_BIAS;
+                bias_delta = BIAS_STEP;
                 best = schedule.clone();
+                let msg = format!("random walk found after {} seconds, {} big steps, and {} little steps", start.elapsed().as_secs(), big_steps, little_steps);
+                if let Err(e) = save_schedule(super::DB_PATH, input, schedule, &msg, Some(save_id)) {
+                    println!("quitting due to save error: {}", e);
+                    return best;
+                }
+            } else if schedule.score < best_since_rebase {
+                log.clear();
+                big_step_size.clear();
+                best_since_rebase = schedule.score;
+                best_seconds = start.elapsed().as_secs();
+                bias = MIN_BIAS;
+                bias_delta = BIAS_STEP;
+                println!("new local best, rebasing");
             }
         } else {
             // step backward
             let steps = big_step_size.pop().unwrap();
             for _ in 0..steps {
-                let _ = taboo.pop().unwrap();
                 let undo = log.pop().unwrap();
                 revert_move(input, schedule, &undo);
             }
+            taboo.clear();
         }
     }
     println!("took {} big steps and {} little steps", big_steps, little_steps);
@@ -474,6 +487,7 @@ fn rooms_adapter(rooms: &[RoomWithOptionalPriority]) -> Vec<Option<usize>> {
 
 pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<Schedule> {
     let mut best = None;
+    let mut best_pre_climb_score = None;
     let mut count = 0;
     while start.elapsed().as_secs() < seconds {
         count += 1;
@@ -535,23 +549,34 @@ pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<
             }
         }
 
-        // is this a new best?
-        match best {
-            Some(Schedule { score, .. }) if score <= schedule.score => {}
+        // best pre-climb score we've seen?
+        match best_pre_climb_score {
+            Some(best_pre_climb_score) if best_pre_climb_score < schedule.score => {}
 
             _ => {
+                best_pre_climb_score = Some(schedule.score);
+
                 // do a climb
                 let mut log = Vec::new();
                 let mut taboo = Vec::new();
                 climb(input, &mut schedule, &mut log, &mut taboo);
-                let score = schedule.score;
-                best = Some(schedule);
-                if score.is_zero() {
-                    println!("perfect score found, quitting warmup");
-                    break;
+
+                // is this a new best?
+                match best {
+                    Some(Schedule { score, .. }) if score <= schedule.score => {}
+
+                    _ => {
+                        let score = schedule.score;
+                        best = Some(schedule);
+                        if score.is_zero() {
+                            println!("perfect score found, quitting warmup");
+                            break;
+                        }
+                    }
                 }
             }
         }
+
     }
 
     println!("warmup tried {} schedules", count);
@@ -594,8 +619,7 @@ pub fn climb(input: &Input, schedule: &mut Schedule, log: &mut Vec<PlacementLog>
                     let candidate = Move { section, time_slot: Some(time_slot), room };
 
                     // skip taboo moves
-                    let taboo_last = std::cmp::min(std::cmp::max(taboo.len() / 2, TABOO_LIMIT), taboo.len());
-                    if taboo[taboo.len() - taboo_last..].contains(&candidate) {
+                    if taboo.contains(&candidate) {
                         continue;
                     }
 
@@ -666,8 +690,7 @@ pub fn step_down(input: &Input, schedule: &mut Schedule, log: &mut Vec<Placement
                 let candidate = Move { section, time_slot: Some(time_slot), room };
 
                 // skip taboo moves
-                let taboo_last = std::cmp::min(std::cmp::max(taboo.len() / 2, TABOO_LIMIT), taboo.len());
-                if taboo[taboo.len() - taboo_last..].contains(&candidate) {
+                if taboo.contains(&candidate) {
                     continue;
                 }
 

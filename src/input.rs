@@ -1,10 +1,12 @@
 use super::score::*;
+use super::solver::*;
 use itertools::Itertools;
 use sqlite::{Connection, Error, OpenFlags, State, Value};
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Write;
 use std::time::Instant;
+use time::OffsetDateTime;
 
 //
 //
@@ -160,7 +162,7 @@ pub fn load_input(db_path: &str, departments: &[String]) -> Result<Input, String
 
     let mut term_name = "Unknown term".to_string();
     let mut stmt = db.prepare("SELECT term FROM terms").map_err(sql_err)?;
-    while let Ok(State::Row) = stmt.next() {
+    while stmt.next().map_err(sql_err)? == State::Row {
         term_name = stmt.read(0).map_err(sql_err)?;
     }
 
@@ -785,6 +787,10 @@ fn sql_err(err: Error) -> String {
     err.to_string()
 }
 
+fn time_err(err: time::error::Format) -> String {
+    format!("{}", err)
+}
+
 fn as_values(list: &[String]) -> Vec<(usize, Value)> {
     let mut out = Vec::new();
     for (i, elt) in list.iter().enumerate() {
@@ -836,3 +842,105 @@ pub fn parse_days(weekday_raw: &str) -> Result<Vec<time::Weekday>, String> {
     }
     Ok(days)
 }
+
+pub fn save_schedule(db_path: &str, input: &Input, schedule: &Schedule, comment: &str, existing_id: Option<i64>) -> Result<i64, String> {
+    let db =
+        Connection::open_with_flags(db_path, OpenFlags::new().with_read_write().with_full_mutex()).map_err(sql_err)?;
+    db.execute("PRAGMA foreign_keys = ON").map_err(sql_err)?;
+    db.execute("PRAGMA busy_timeout = 10000").map_err(sql_err)?;
+    db.execute("BEGIN").map_err(sql_err)?;
+    let root_id = if let Some(id) = existing_id {
+        // delete old schedule with this id and update base record
+        let mut stmt = db.prepare("DELETE FROM placement_sections WHERE placement_id = ?").map_err(sql_err)?;
+        stmt.bind((1, id)).map_err(sql_err)?;
+        while stmt.next().map_err(sql_err)? != State::Done {
+            // no return rows expected
+        }
+        stmt = db.prepare("DELETE FROM placement_penalties WHERE placement_id = ?").map_err(sql_err)?;
+        stmt.bind((1, id)).map_err(sql_err)?;
+        while stmt.next().map_err(sql_err)? != State::Done {
+            // no return rows expected
+        }
+        stmt = db.prepare("UPDATE placements SET score = ?, comment = ?, modified_at = ? WHERE placement_id = ?").map_err(sql_err)?;
+        stmt.bind((1, format!("{}", schedule.score).as_str())).map_err(sql_err)?;
+        stmt.bind((2, comment)).map_err(sql_err)?;
+        let now = OffsetDateTime::now_local().unwrap();
+        let stamp = now.format(&time::format_description::well_known::Iso8601::DEFAULT).map_err(time_err)?;
+        stmt.bind((3, stamp.as_str())).map_err(sql_err)?;
+        stmt.bind((4, id)).map_err(sql_err)?;
+        while stmt.next().map_err(sql_err)? != State::Done {
+            // no return rows expected
+        }
+        id
+    } else {
+        // create new base record and capture id
+        let mut stmt = db.prepare("INSERT INTO placements (score, comment, created_at, modified_at) VALUES (?, ?, ?, ?) RETURNING placement_id").map_err(sql_err)?;
+        stmt.bind((1, format!("{}", schedule.score).as_str())).map_err(sql_err)?;
+        stmt.bind((2, comment)).map_err(sql_err)?;
+        let now = OffsetDateTime::now_local().unwrap();
+        let stamp = now.format(&time::format_description::well_known::Iso8601::DEFAULT).map_err(time_err)?;
+        stmt.bind((3, stamp.as_str())).map_err(sql_err)?;
+        stmt.bind((4, stamp.as_str())).map_err(sql_err)?;
+        let mut id = -1;
+        while stmt.next().map_err(sql_err)? == State::Row {
+            id = stmt.read(0).map_err(sql_err)?;
+        }
+        id
+    };
+
+    // insert all the placements
+    for (section, placement) in schedule.placements.iter().enumerate() {
+        let Some(time_slot) = placement.time_slot else {
+            // skip unplaced sections
+            continue;
+        };
+        let mut stmt = db.prepare("INSERT INTO placement_sections (placement_id, section, time_slot, room) VALUES (?, ?, ?, ?)").map_err(sql_err)?;
+        stmt.bind((1, root_id)).map_err(sql_err)?;
+        stmt.bind((2, input.sections[section].name.as_str())).map_err(sql_err)?;
+        stmt.bind((3, input.time_slots[time_slot].name.as_str())).map_err(sql_err)?;
+        stmt.bind((4, placement.room.map(|room| input.rooms[room].name.as_str()))).map_err(sql_err)?;
+        while stmt.next().map_err(sql_err)? != State::Done {
+            // no return rows expected
+        }
+    }
+
+    // gather the penalties
+    let mut penalties = Vec::new();
+    for (section, placement) in schedule.placements.iter().enumerate() {
+        if placement.time_slot.is_none() {
+            penalties.push((LEVEL_FOR_UNPLACED_SECTION, format!("{} is not placed", input.sections[section].name), vec![section]));
+        }
+    }
+    for penalty_list in &schedule.penalties {
+        for penalty in penalty_list {
+            let (priority, msg) = penalty.get_score_message(input, schedule);
+            let sections = penalty.get_sections(input);
+            penalties.push((priority, msg, sections));
+        }
+    }
+
+    // insert them
+    for (priority, msg, sections) in penalties {
+        let mut stmt = db.prepare("INSERT INTO placement_penalties (placement_id, priority, message) VALUES (?, ?, ?) RETURNING placement_penalty_id").map_err(sql_err)?;
+        stmt.bind((1, root_id)).map_err(sql_err)?;
+        stmt.bind((2, priority as i64)).map_err(sql_err)?;
+        stmt.bind((3, msg.as_str())).map_err(sql_err)?;
+        let mut id = -1;
+        while stmt.next().map_err(sql_err)? == State::Row {
+            id = stmt.read(0).map_err(sql_err)?;
+        }
+
+        for section in sections {
+            let mut stmt = db.prepare("INSERT INTO placement_penalty_sections (placement_penalty_id, section) VALUES (?, ?)").map_err(sql_err)?;
+            stmt.bind((1, id)).map_err(sql_err)?;
+            stmt.bind((2, input.sections[section].name.as_str())).map_err(sql_err)?;
+            while stmt.next().map_err(sql_err)? != State::Done {
+                // no return rows expected
+            }
+        }
+    }
+    db.execute("COMMIT").map_err(sql_err)?;
+
+    Ok(root_id)
+}
+

@@ -313,7 +313,8 @@ CREATE TABLE placements (
     placement_id                INTEGER PRIMARY KEY,
     score                       TEXT NOT NULL,
     comment                     TEXT NOT NULL,
-    created_at                  TEXT NOT NULL
+    created_at                  TEXT NOT NULL,
+    modified_at                 TEXT NOT NULL
 );
 
 CREATE TABLE placement_sections (
@@ -330,23 +331,21 @@ CREATE TABLE placement_sections (
 ) WITHOUT ROWID;
 
 CREATE TABLE placement_penalties (
+    placement_penalty_id        INTEGER PRIMARY KEY,
     placement_id                INTEGER NOT NULL,
-    placement_penalty_id        INTEGER NOT NULL,
     priority                    INTEGER NOT NULL,
     message                     TEXT NOT NULL,
 
     CHECK (priority >= 0 AND priority < 20),
-    PRIMARY KEY (placement_id, placement_penalty_id),
     FOREIGN KEY (placement_id) REFERENCES placements (placement_id) ON DELETE CASCADE ON UPDATE CASCADE
-) WITHOUT ROWID;
+);
 
 CREATE TABLE placement_penalty_sections (
-    placement_id                INTEGER NOT NULL,
     placement_penalty_id        INTEGER NOT NULL,
     section                     TEXT NOT NULL,
 
-    PRIMARY KEY (placement_id, placement_penalty_id, section),
-    FOREIGN KEY (placement_id, placement_penalty_id) REFERENCES placement_penalties (placement_id, placement_penalty_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    PRIMARY KEY (placement_penalty_id, section),
+    FOREIGN KEY (placement_penalty_id) REFERENCES placement_penalties (placement_penalty_id) ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (section) REFERENCES sections (section) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
 

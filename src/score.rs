@@ -666,6 +666,38 @@ impl Penalty {
         }
     }
 
+    pub fn get_sections(&self, input: &Input) -> Vec<usize> {
+        match self {
+            Penalty::SoftConflict { sections, .. } => sections.to_vec(),
+
+            Penalty::AntiConflict { single, group, .. } => {
+                let mut lst = group.clone();
+                lst.push(*single);
+                lst
+            }
+
+            &Penalty::RoomPreference { section, .. } => vec![section],
+
+            &Penalty::TimeSlotPreference { section, .. } => vec![section],
+
+            &Penalty::ClusterTooShort { faculty, .. } => input.faculty[faculty].sections.clone(),
+
+            &Penalty::ClusterTooLong { faculty, .. } => input.faculty[faculty].sections.clone(),
+
+            &Penalty::GapTooShort { faculty, .. } => input.faculty[faculty].sections.clone(),
+
+            &Penalty::GapTooLong { faculty, .. } => input.faculty[faculty].sections.clone(),
+
+            &Penalty::DaysOff { faculty, .. } => input.faculty[faculty].sections.clone(),
+
+            &Penalty::DaysEvenlySpread { faculty, .. } => input.faculty[faculty].sections.clone(),
+
+            Penalty::RoomSwitch { sections, .. } => sections.to_vec(),
+
+            &Penalty::RoomCount { faculty, .. } => input.faculty[faculty].sections.clone(),
+        }
+    }
+
     pub fn get_score_message(&self, input: &Input, schedule: &Schedule) -> (u8, String) {
         match self {
             &Penalty::SoftConflict { priority, sections: [a, b] } => {

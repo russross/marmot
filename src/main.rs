@@ -6,6 +6,13 @@ use self::score::*;
 use self::solver::*;
 
 const DB_PATH: &str = "timetable.db";
+const WARMUP_SECONDS: u64 = 5;
+const TOTAL_SECONDS: u64 = 3600;
+const REPORT_SECONDS: u64 = 5;
+const REBASE_SECONDS: u64 = 300;
+const MIN_BIAS: i64 = -10;
+const MAX_BIAS: i64 = 10;
+const BIAS_STEP: i64 = 1;
 
 fn main() {
     // load input
@@ -22,16 +29,22 @@ fn main() {
     }
 
     let start = std::time::Instant::now();
-    let warmup_seconds = 3;
-    let total_seconds = 33;
 
-    println!("running warmup for {} seconds", warmup_seconds);
-    let Some(mut schedule) = warmup(&input, start, warmup_seconds) else {
+    println!("running warmup for {} seconds", WARMUP_SECONDS);
+    let Some(mut schedule) = warmup(&input, start, WARMUP_SECONDS) else {
         println!("failed to generate a schedule in the warmup stage");
         return;
     };
 
-    let best = solve(&input, &mut schedule, start, total_seconds);
+    let id = match save_schedule(DB_PATH, &input, &schedule, "warmup schedule", None) {
+        Ok(id) => id,
+        Err(msg) => {
+            println!("Error saving schedule: {}", msg);
+            return;
+        }
+    };
+
+    let best = solve(&input, &mut schedule, start, TOTAL_SECONDS, id);
     print_schedule(&input, &best);
     print_problems(&input, &best);
 }
