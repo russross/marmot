@@ -30,13 +30,23 @@ fn main() {
 
     let start = std::time::Instant::now();
 
-    println!("running warmup for {} seconds", WARMUP_SECONDS);
-    let Some(mut schedule) = warmup(&input, start, WARMUP_SECONDS) else {
-        println!("failed to generate a schedule in the warmup stage");
-        return;
+    let mut schedule = if true {
+        println!("running warmup for {} seconds", WARMUP_SECONDS);
+        let Some(schedule) = warmup(&input, start, WARMUP_SECONDS) else {
+            println!("failed to generate a schedule in the warmup stage");
+            return;
+        };
+        schedule
+    } else {
+        let mut schedule = Schedule::new(&input);
+        if let Err(msg) = load_schedule(DB_PATH, &input, &mut schedule, 10) {
+            println!("{}", msg);
+            return;
+        }
+        schedule
     };
-
-    let id = match save_schedule(DB_PATH, &input, &schedule, "warmup schedule", None) {
+    
+    let id = match save_schedule(DB_PATH, &input, &schedule, "loaded schedule", None) {
         Ok(id) => id,
         Err(msg) => {
             println!("Error saving schedule: {}", msg);

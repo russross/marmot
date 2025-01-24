@@ -182,6 +182,13 @@ pub fn load_input(db_path: &str, departments: &[String]) -> Result<Input, String
         &mut criteria,
         departments,
     )?;
+
+    // give Jeff a SectionsWithDifferentTimePatterns conflit on CS 2450 sections
+    let jeff = faculty_index["Jeff Compas"];
+    let a = section_index["CS 2450-01"];
+    let b = section_index["CS 2450-01"];
+    criteria.push(Criterion::SectionsWithDifferentTimePatterns { priority: 13, faculty: jeff, sections: vec![a, b] });
+
     compute_neighbors(&mut sections, &criteria);
     println!(": {}ms", start.elapsed().as_millis());
 
@@ -944,3 +951,40 @@ pub fn save_schedule(db_path: &str, input: &Input, schedule: &Schedule, comment:
     Ok(root_id)
 }
 
+pub fn load_schedule(db_path: &str, input: &Input, schedule: &mut Schedule, placement_id: i64) -> Result<(), String> {
+    println!("loading placement {}", placement_id);
+
+    let db =
+        Connection::open_with_flags(db_path, OpenFlags::new().with_read_only().with_no_mutex()).map_err(sql_err)?;
+    db.execute("PRAGMA foreign_keys = ON").map_err(sql_err)?;
+    db.execute("PRAGMA temp_store = memory").map_err(sql_err)?;
+    db.execute("PRAGMA mmap_size = 100000000").map_err(sql_err)?;
+
+    let mut stmt = db.prepare("SELECT section, time_slot, room FROM placement_sections WHERE placement_id = ?").map_err(sql_err)?;
+    stmt.bind((1, placement_id)).map_err(sql_err)?;
+
+    while stmt.next().map_err(sql_err)? == State::Row {
+        let section_name: String = stmt.read(0).map_err(sql_err)?;
+        let time_slot_name: String = stmt.read(1).map_err(sql_err)?;
+        let maybe_room_name: Option<String> = stmt.read(2).map_err(sql_err)?;
+
+        let Some((section, _)) = input.sections.iter().enumerate().find(|(_, elt)| elt.name == section_name) else {
+            return Err(format!("load_schedule cannot find section {} referenced in placement", section_name));
+        };
+        let Some((time_slot, _)) = input.time_slots.iter().enumerate().find(|(_, elt)| elt.name == time_slot_name) else {
+            return Err(format!("load_schedule cannot find time slot {} referenced in placement", time_slot_name));
+        };
+        let maybe_room = if let Some(room_name) = maybe_room_name {
+            let Some((room, _)) = input.rooms.iter().enumerate().find(|(_, elt)| elt.name == room_name) else {
+                return Err(format!("load_schedule cannot find room {} referenced in placement", room_name));
+            };
+            Some(room)
+        } else {
+            None
+        };
+
+        let _undo = move_section(schedule, input, section, time_slot, &maybe_room);
+    }
+
+    Ok(())
+}

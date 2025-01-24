@@ -189,11 +189,19 @@ def build(db: DB) -> None:
     db.make_section('CS 4995-01', 'TR1200+75', 'TR1330+75', 'TR1500+75', 'pcs')
     db.assign_faculty_sections('Bart Stander', 'CS 2100-01', 'CS 2420-01', 'CS 2420-02', 'CS 3500-01', 'CS 4995-01')
 
-    db.make_faculty('Brayden Connole', 'Computing', default_availability)
-    db.faculty_preferences('Brayden Connole', 'MT', *default_prefs_twoday)
+    db.make_faculty('Brayden Connole', 'Computing', default_availability + [
+        Available('MWF', '0900', '1000', 10),
+        Available('TR', '0900', '1030', 10),
+        Available('MWF', '1000', '1100', 11),
+        Available('MWF', '1100', '1200', 11),
+        Available('TR', '1030', '1200', 12),
+    ])
+    db.faculty_preferences('Brayden Connole', 'MT',
+        DaysOff(1, 13),
+    )
     db.make_section('IT 4200-01', '3 credit bell schedule', 'flex')
-    db.make_section('SE 1400-01', '3 credit bell schedule', 'macs')
-    db.make_section('SE 1400-02', '3 credit bell schedule', 'macs')
+    db.make_section('SE 1400-01', '3 credit bell schedule', 'flex')
+    db.make_section('SE 1400-02', '3 credit bell schedule', 'flex')
     db.make_section('SE 3020-01', '3 credit bell schedule', 'macs')
     db.assign_faculty_sections('Brayden Connole', 'IT 4200-01', 'SE 1400-01', 'SE 1400-02', 'SE 3020-01')
 
@@ -218,14 +226,13 @@ def build(db: DB) -> None:
     db.make_section('CS 1030-02', 'MW1200+75', 'TR1200+75', 'flex')
 
     db.make_faculty('Curtis Larsen', 'Computing', default_availability + [
-        Available('W', '1630', '1900'),
         Available('R', '1630', '1900'),
     ])
     db.faculty_preferences('Curtis Larsen', 'MT', *default_prefs_oneday)
     db.make_section('CS 3530-01', '3 credit bell schedule', 'Smith 116')
     db.make_section('CS 4300-01', '3 credit bell schedule', 'Smith 116')
     db.make_section('CS 4920R-01')
-    db.make_section('CS 6300-01','3 credit early evening', 'Smith 116')
+    db.make_section('CS 6300-01', 'R1630+150', 'Smith 116')
     db.make_section('CS 6350-01')
     db.assign_faculty_sections('Curtis Larsen', 'CS 3530-01', 'CS 4300-01', 'CS 4920R-01', 'CS 6300-01', 'CS 6350-01')
 
@@ -248,9 +255,9 @@ def build(db: DB) -> None:
     db.faculty_preferences('Eric Pedersen', 'MT')
     db.make_section('SE 3500-01', 'TR1030+75', 'TR1200+75', 'flex')
     db.make_section('SE 4990-01', 'T1600+75')
-    db.make_section('SE 4990-02', 'W1200+50', 'flex')
+    db.make_section('SE 4990-02', 'W1200+50', 'flex', 'Smith 116')
     # SD 6450-01 co-taught with DJ
-    db.assign_faculty_sections('Eric Pedersen', 'SE 3500-01', 'SE 4990-01', 'SD 6450-01')
+    db.assign_faculty_sections('Eric Pedersen', 'SE 3500-01', 'SE 4990-01', 'SE 4990-02', 'SD 6450-01')
 
     db.make_faculty('Jay Sneddon', 'Computing', default_availability + [
         Available('MWF', '0900', '1000', 10),
@@ -374,21 +381,27 @@ def build(db: DB) -> None:
     db.make_section('CS 1400-03', '3 credit bell schedule', 'flex')
     db.make_section('CS 1410-01', '3 credit bell schedule', 'flex')
     db.make_section('CS 2500-01', '3 credit bell schedule', 'flex')
+    db.make_section('CS 3150-01', '3 credit bell schedule', 'flex', 'Smith 116:10')
     db.make_section('CS 4800R-01')
     db.make_section('CS 4991R-50', 'R1900+50', 'Smith 116')
     db.make_section('CS 4992R-01', 'F1300+50', 'Smith 109')
-    db.assign_faculty_sections('Ren Quinn', 'CS 1400-03', 'CS 1410-01', 'CS 2500-01', 'CS 4800R-01', 'CS 4991R-50', 'CS 4992R-01')
+    db.assign_faculty_sections('Ren Quinn', 'CS 1400-03', 'CS 1410-01', 'CS 2500-01', 'CS 3150-01', 'CS 4800R-01', 'CS 4991R-50', 'CS 4992R-01')
 
     db.make_faculty('Russ Ross', 'Computing', default_availability + [
         Available('MWF', '0900', '1000', 10),
         Available('MWF', '1000', '1100', 10),
         Available('MWF', '1100', '1200', 10),
-        Available('MW',  '1500', '1630', 10),
+        Available('MW',  '1500', '1630', 12),
         Available('TR',  '0900', '1030', 10),
         Available('TR',  '1030', '1200', 10),
-        Available('TR',  '1500', '1630', 10),
+        Available('TR',  '1500', '1630', 12),
     ])
-    db.faculty_preferences('Russ Ross', 'MT', *default_prefs_twoday)
+    db.faculty_preferences('Russ Ross', 'MT',
+        DaysOff(0, 11),
+        EvenlySpread(11),
+        ClusterTooLong(165, 13),
+        ClusterTooLong(110, 13),
+    )
     db.make_section('CS 2810-01', 'Smith 109', '3 credit bell schedule')
     db.make_section('CS 2810-02', 'Smith 109', '3 credit bell schedule')
     db.make_section('CS 3400-01', 'Smith 109', '3 credit bell schedule')

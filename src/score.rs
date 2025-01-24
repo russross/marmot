@@ -55,6 +55,11 @@ pub enum Criterion {
         max_gap_within_cluster: time::Duration,
         distribution_intervals: Vec<DistributionInterval>,
     },
+    SectionsWithDifferentTimePatterns {
+        priority: u8,
+        faculty: usize,
+        sections: Vec<usize>,
+    },
 }
 
 #[derive(Clone)]
@@ -80,6 +85,7 @@ pub enum Penalty {
     DaysEvenlySpread { priority: u8, faculty: usize },
     RoomSwitch { priority: u8, faculty: usize, sections: [usize; 2], rooms: [usize; 2] },
     RoomCount { priority: u8, faculty: usize, desired: usize, actual: usize },
+    SectionsWithDifferentTimePatterns { priority: u8, faculty: usize, sections: Vec<usize>, time_slots: Vec<usize> },
 }
 
 impl Score {
@@ -216,6 +222,8 @@ impl Criterion {
             Criterion::TimeSlotPreference { section, .. } => vec![*section],
 
             Criterion::FacultyPreference { sections, .. } => sections.clone(),
+
+            Criterion::SectionsWithDifferentTimePatterns { sections, .. } => sections.clone(),
         }
     }
 
@@ -520,6 +528,30 @@ impl Criterion {
 
                 penalties
             }
+
+            Criterion::SectionsWithDifferentTimePatterns {
+                priority,
+                faculty,
+                sections,
+            } => {
+                let mut patterns = Vec::new();
+                let mut scheduled_sections = Vec::new();
+                let mut time_slots = Vec::new();
+                for &section in sections {
+                    if let Some(time_slot) = schedule.placements[section].time_slot {
+                        patterns.push((input.time_slots[time_slot].days.len(), input.time_slots[time_slot].duration));
+                        scheduled_sections.push(section);
+                        time_slots.push(time_slot);
+                    }
+                }
+                patterns.sort();
+                patterns.dedup();
+                if patterns.len() > 1 {
+                    vec![Penalty::SectionsWithDifferentTimePatterns { priority: *priority, faculty: *faculty, sections: scheduled_sections, time_slots }]
+                } else {
+                    Vec::new()
+                }
+            }
         }
     }
 
@@ -632,6 +664,16 @@ impl Criterion {
                         .unwrap();
                 }
             }
+
+            Criterion::SectionsWithDifferentTimePatterns { priority, faculty, sections } => {
+                write!(&mut s, "    {}: {} wants ", priority, input.faculty[*faculty].name).unwrap();
+                let mut sep = "";
+                for &section in sections {
+                    write!(&mut s, "{}{}", sep, input.sections[section].name).unwrap();
+                    sep = " and ";
+                }
+                write!(&mut s, " to have the same time pattern").unwrap();
+            }
         }
         s
     }
@@ -663,6 +705,8 @@ impl Penalty {
             Penalty::RoomSwitch { priority, .. } => priority,
 
             Penalty::RoomCount { priority, .. } => priority,
+
+            Penalty::SectionsWithDifferentTimePatterns { priority, .. } => priority,
         }
     }
 
@@ -695,6 +739,8 @@ impl Penalty {
             Penalty::RoomSwitch { sections, .. } => sections.to_vec(),
 
             &Penalty::RoomCount { faculty, .. } => input.faculty[faculty].sections.clone(),
+
+            Penalty::SectionsWithDifferentTimePatterns { sections, .. } => sections.to_vec(),
         }
     }
 
@@ -802,6 +848,20 @@ impl Penalty {
                     if actual == 1 { "" } else { "s" },
                     desired
                 ),
+            ),
+
+            Penalty::SectionsWithDifferentTimePatterns { priority, faculty, sections, time_slots } => (
+                *priority,
+                {
+                    let mut s = format!("{} teaches ", input.faculty[*faculty].name);
+                    let mut sep = "";
+                    for (section, time_slot) in std::iter::zip(sections, time_slots) {
+                        write!(&mut s, "{}{} at {}", sep, input.sections[*section].name, input.time_slots[*time_slot].name).unwrap();
+                        sep = " and ";
+                    }
+                    write!(&mut s, " but they have different time patterns").unwrap();
+                    s
+                }
             ),
         }
     }

@@ -196,7 +196,7 @@ impl Schedule {
 // *   update the score based on the move
 //
 // returns a log with enough information to revert the move
-fn move_section(
+pub fn move_section(
     schedule: &mut Schedule,
     input: &Input,
     section: usize,

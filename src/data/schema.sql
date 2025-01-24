@@ -933,6 +933,9 @@ CREATE VIEW conflict_pairs (department_a, section_a, department_b, section_b, pr
             CASE WHEN undiscounted.priority = 1
                     -- hard conflicts are never reduced
                     THEN undiscounted.priority
+                 WHEN counts_a.section_count IS NOT NULL AND counts_b.section_count IS NOT NULL AND counts_a.course = counts_b.course
+                    -- no discount for spreads
+                    THEN undiscounted.priority
                  WHEN counts_a.section_count IS NOT NULL AND counts_b.section_count IS NOT NULL
                     THEN undiscounted.priority + 4 * ((counts_a.section_count-1) + (counts_b.section_count-1))
                  WHEN counts_a.section_count IS NOT NULL
