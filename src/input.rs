@@ -186,8 +186,8 @@ pub fn load_input(db_path: &str, departments: &[String]) -> Result<Input, String
     // give Jeff a SectionsWithDifferentTimePatterns conflit on CS 2450 sections
     let jeff = faculty_index["Jeff Compas"];
     let a = section_index["CS 2450-01"];
-    let b = section_index["CS 2450-01"];
-    criteria.push(Criterion::SectionsWithDifferentTimePatterns { priority: 13, faculty: jeff, sections: vec![a, b] });
+    let b = section_index["CS 2450-02"];
+    criteria.push(Criterion::SectionsWithDifferentTimePatterns { priority: 12, faculty: jeff, sections: vec![a, b] });
 
     compute_neighbors(&mut sections, &criteria);
     println!(": {}ms", start.elapsed().as_millis());

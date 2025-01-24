@@ -400,7 +400,7 @@ def build(db: DB) -> None:
         DaysOff(0, 11),
         EvenlySpread(11),
         ClusterTooLong(165, 13),
-        ClusterTooLong(110, 13),
+        ClusterTooShort(110, 13),
     )
     db.make_section('CS 2810-01', 'Smith 109', '3 credit bell schedule')
     db.make_section('CS 2810-02', 'Smith 109', '3 credit bell schedule')
