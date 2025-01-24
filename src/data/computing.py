@@ -375,7 +375,7 @@ def build(db: DB) -> None:
         Available('MW', '1200', '1330', 11),
     ])
     db.faculty_preferences('Ren Quinn', 'MT',
-        DaysOff(0, 12),
+        DaysOff(0, 10),
         NoRoomSwitch(12),
     )
     db.make_section('CS 1400-03', '3 credit bell schedule', 'flex')
@@ -391,16 +391,16 @@ def build(db: DB) -> None:
         Available('MWF', '0900', '1000', 10),
         Available('MWF', '1000', '1100', 10),
         Available('MWF', '1100', '1200', 10),
-        Available('MW',  '1500', '1630', 12),
+        Available('MW',  '1500', '1630', 13),
         Available('TR',  '0900', '1030', 10),
         Available('TR',  '1030', '1200', 10),
-        Available('TR',  '1500', '1630', 12),
+        Available('TR',  '1500', '1630', 13),
     ])
     db.faculty_preferences('Russ Ross', 'MT',
-        DaysOff(0, 11),
-        EvenlySpread(11),
-        ClusterTooLong(165, 13),
-        ClusterTooShort(110, 13),
+        DaysOff(0, 10),
+        EvenlySpread(10),
+        ClusterTooLong(165, 10),
+        ClusterTooShort(110, 12),
     )
     db.make_section('CS 2810-01', 'Smith 109', '3 credit bell schedule')
     db.make_section('CS 2810-02', 'Smith 109', '3 credit bell schedule')
