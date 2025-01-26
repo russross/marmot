@@ -9,7 +9,7 @@ use std::time::Instant;
 
 const DB_PATH: &str = "timetable.db";
 const WARMUP_SECONDS: u64 = 5;
-const TOTAL_SECONDS: u64 = 28800;
+const TOTAL_SECONDS: u64 = 65;
 const REPORT_SECONDS: u64 = 5;
 const REBASE_SECONDS: u64 = 300;
 const MIN_BIAS: i64 = -10;
@@ -133,8 +133,11 @@ fn print_schedule(input: &Input, schedule: &Schedule) {
     let mut rooms: Vec<usize> = schedule.placements.iter().filter_map(|Placement { room, .. }| *room).collect();
     rooms.sort_unstable();
     rooms.dedup();
-    let mut time_slots: Vec<usize> =
-        schedule.placements.iter().filter_map(|Placement { time_slot, .. }| *time_slot).collect();
+    let mut time_slots: Vec<usize> = schedule
+        .placements
+        .iter()
+        .filter_map(|Placement { time_slot, room, .. }| if room.is_some() { *time_slot } else { None })
+        .collect();
     time_slots.sort_unstable();
     time_slots.dedup();
     let mut grid = Vec::new();

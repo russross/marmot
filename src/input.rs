@@ -5,6 +5,7 @@ use sqlite::{Connection, Error, OpenFlags, State, Value};
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Write;
+use std::ops;
 use std::time::Instant;
 
 //
@@ -40,8 +41,8 @@ pub struct Room {
 pub struct TimeSlot {
     pub name: String,
     pub days: Days,
-    pub start_time: u16,
-    pub duration: u16,
+    pub start_time: Time,
+    pub duration: Duration,
 }
 
 #[derive(Clone)]
@@ -102,6 +103,63 @@ pub struct SectionWithPriority {
     pub priority: u8,
 }
 
+#[derive(Clone, Copy, Ord, PartialOrd, PartialEq, Eq)]
+pub struct Time {
+    pub minutes: u16,
+}
+
+impl Time {
+    pub fn new(minutes: u16) -> Self {
+        Time { minutes }
+    }
+}
+
+impl ops::Add<Duration> for Time {
+    type Output = Self;
+
+    fn add(self, rhs: Duration) -> Self {
+        Time { minutes: self.minutes + rhs.minutes }
+    }
+}
+
+impl ops::Sub for Time {
+    type Output = Duration;
+
+    fn sub(self, rhs: Self) -> Duration {
+        assert!(self.minutes >= rhs.minutes);
+        Duration { minutes: self.minutes - rhs.minutes }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Duration {
+    pub minutes: u16,
+}
+
+impl Duration {
+    pub fn new(minutes: u16) -> Self {
+        Duration { minutes }
+    }
+}
+
+impl fmt::Display for Duration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut n = self.minutes;
+        if n == 0 {
+            write!(f, "0m")?;
+        } else {
+            if n >= 60 {
+                write!(f, "{}h", n / 60)?;
+                n %= 60;
+            }
+            if n > 0 {
+                write!(f, "{}m", n)?;
+            }
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct Days {
     pub days: u8,
@@ -133,7 +191,7 @@ impl Days {
     pub fn len(&self) -> usize {
         let mut count = 0;
         for day in 0..7 {
-            if self.days & day != 0 {
+            if self.days & (1 << day) != 0 {
                 count += 1;
             }
         }
@@ -145,11 +203,23 @@ impl Days {
     }
 
     pub fn contains(&self, day: u8) -> bool {
-        self.days & day != 0
+        self.days & (1 << day) != 0
     }
 
     pub fn intersect(&self, other: &Self) -> Self {
         Days { days: self.days & other.days }
+    }
+}
+
+impl fmt::Display for Days {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let letters = ['M', 'T', 'W', 'R', 'F', 'S', 'U'];
+        for day in 0..7 {
+            if self.days & (1 << day) != 0 {
+                write!(f, "{}", letters[day as usize])?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -160,7 +230,7 @@ impl IntoIterator for Days {
     fn into_iter(self) -> Self::IntoIter {
         let mut v = Vec::new();
         for day in 0..7 {
-            if self.days & day != 0 {
+            if self.days & (1 << day) != 0 {
                 v.push(day);
             }
         }
@@ -309,11 +379,12 @@ pub fn load_time_slots(
     while stmt.next().map_err(sql_err)? == State::Row {
         let name: String = stmt.read(0).map_err(sql_err)?;
         let days: String = stmt.read(1).map_err(sql_err)?;
-        let start_time_i: i64 = stmt.read(2).map_err(sql_err)?;
-        let start_time = start_time_i as u32;
+        let days = Days::parse(&days)?;
+        let start_time: i64 = stmt.read(2).map_err(sql_err)?;
+        let start_time = Time::new(start_time as u16);
         let duration: i64 = stmt.read(3).map_err(sql_err)?;
-        let time_slot =
-            TimeSlot { name, days: Days::parse(&days)?, start_time: start_time as u16, duration: duration as u16 };
+        let duration = Duration::new(duration as u16);
+        let time_slot = TimeSlot { name, days, start_time, duration };
         time_slot_index.insert(time_slot.name.clone(), time_slots.len());
         time_slots.push(time_slot);
     }
@@ -787,7 +858,7 @@ pub fn load_faculty_section_assignments(
                 };
 
                 let max_gap_within_cluster: i64 = stmt.read(7).map_err(sql_err)?;
-                let max_gap_within_cluster = max_gap_within_cluster as u16;
+                let max_gap_within_cluster = Duration::new(max_gap_within_cluster as u16);
 
                 // create the base record
                 prefs[index] = Some(Criterion::FacultyPreference {
@@ -808,14 +879,16 @@ pub fn load_faculty_section_assignments(
             if is_cluster.is_none() {
                 continue;
             }
+            let is_cluster = is_cluster.unwrap() != 0;
 
             let is_too_short: i64 = stmt.read(9).map_err(sql_err)?;
-            let interval_minutes: i64 = stmt.read(10).map_err(sql_err)?;
-            let duration = interval_minutes as u16;
+            let is_too_short = is_too_short != 0;
+            let duration: i64 = stmt.read(10).map_err(sql_err)?;
+            let duration = Duration::new(duration as u16);
             let interval_priority: i64 = stmt.read(11).map_err(sql_err)?;
             let priority = interval_priority as u8;
 
-            let interval = match (is_cluster.unwrap() != 0, is_too_short != 0) {
+            let interval = match (is_cluster, is_too_short) {
                 (true, true) => DistributionInterval::ClusterTooShort { priority, duration },
                 (true, false) => DistributionInterval::ClusterTooLong { priority, duration },
                 (false, true) => DistributionInterval::GapTooShort { priority, duration },

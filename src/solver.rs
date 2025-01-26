@@ -34,7 +34,6 @@ pub struct Placement {
 pub struct PlacementLog {
     // all of the sections that were moved
     pub moves: Vec<PlacementLogEntry>,
-    pub neighborhood: Vec<usize>,
     pub criteria: Vec<usize>,
 }
 
@@ -215,21 +214,18 @@ pub fn move_section(
     // gather list of sections moved
     let sections_moved = get_sections_from_log_entry_list(&moves);
 
-    // gather the scoring neighborhood around the moved sections
-    let neighborhood = get_neigborhood_of_sections_list(input, &sections_moved);
-
     // find all criteria affecting the neighborhood
-    let criteria = get_criteria_affecting_sections(input, &neighborhood);
+    let criteria = get_criteria_affecting_sections(input, &sections_moved);
 
     // clear penalty records for the the affected criteria
     // and the affected sections
-    clear_penalties_for_criteria(schedule, &criteria);
-    reset_scores_for_sections(schedule, &neighborhood);
+    clear_penalties_for_criteria(input, schedule, &criteria);
+    reset_scores_for_sections(schedule, &sections_moved);
 
     // compute the new penalties and update all affected sections
     compute_penalties_for_criteria(input, schedule, &criteria);
 
-    PlacementLog { moves, neighborhood, criteria }
+    PlacementLog { moves, criteria }
 }
 
 fn revert_move(input: &Input, schedule: &mut Schedule, log: &PlacementLog) {
@@ -238,7 +234,7 @@ fn revert_move(input: &Input, schedule: &mut Schedule, log: &PlacementLog) {
     let mut dev_null = Vec::new();
 
     // gather list of sections moved
-    //let sections_moved = get_sections_from_log_entry_list(&log.moves);
+    let sections_moved = get_sections_from_log_entry_list(&log.moves);
 
     // perform the moves without any scoring updates
     for entry in log.moves.iter().rev() {
@@ -252,16 +248,13 @@ fn revert_move(input: &Input, schedule: &mut Schedule, log: &PlacementLog) {
         }
     }
 
-    // gether the scoring neighborhood around the moved sections
-    //let neighborhood = get_neigborhood_of_sections_list(input, &sections_moved);
-
     // find all criteria affecting the neighborhood
-    //let criteria = get_criteria_affecting_sections(input, &neighborhood);
+    //let criteria = get_criteria_affecting_sections(input, &sections_moved);
 
     // clear penalty records for the the affected criteria
     // and the affected sections
-    clear_penalties_for_criteria(schedule, &log.criteria);
-    reset_scores_for_sections(schedule, &log.neighborhood);
+    clear_penalties_for_criteria(input, schedule, &log.criteria);
+    reset_scores_for_sections(schedule, &sections_moved);
 
     // compute the new penalties and update all affected sections
     compute_penalties_for_criteria(input, schedule, &log.criteria);
@@ -280,19 +273,6 @@ fn get_sections_from_log_entry_list(list: &Vec<PlacementLogEntry>) -> Vec<usize>
     sections
 }
 
-fn get_neigborhood_of_sections_list(input: &Input, sections: &[usize]) -> Vec<usize> {
-    let mut neighborhood = Vec::new();
-    for &section in sections {
-        neighborhood.push(section);
-        for &neighbor in &input.sections[section].neighbors {
-            neighborhood.push(neighbor);
-        }
-    }
-    neighborhood.sort_unstable();
-    neighborhood.dedup();
-    neighborhood
-}
-
 fn get_criteria_affecting_sections(input: &Input, sections: &[usize]) -> Vec<usize> {
     let mut criteria = Vec::new();
     for &section in sections {
@@ -303,24 +283,40 @@ fn get_criteria_affecting_sections(input: &Input, sections: &[usize]) -> Vec<usi
     criteria
 }
 
-fn clear_penalties_for_criteria(schedule: &mut Schedule, criteria: &[usize]) {
+fn clear_penalties_for_criteria(input: &Input, schedule: &mut Schedule, criteria: &[usize]) {
     for &criterion in criteria {
-        // clear the impact of these scores on the global score
-        for penalty in take(&mut schedule.penalties[criterion]) {
-            schedule.score -= penalty.get_priority();
+        let penalties = take(&mut schedule.penalties[criterion]);
+        if penalties.is_empty() {
+            continue;
+        }
+
+        // merge the scores
+        let mut delta = Score::new();
+        for penalty in penalties {
+            delta += penalty.get_priority();
+        }
+
+        // withdraw it from the global score
+        schedule.score -= delta;
+
+        // and from all affected sections
+        // (including unplaced sections)
+        for section in input.criteria[criterion].get_culpable_sections() {
+            schedule.placements[section].score -= delta;
         }
     }
 }
 
 fn reset_scores_for_sections(schedule: &mut Schedule, sections: &[usize]) {
     for &section in sections {
-        // if it was unplaced before, clear that from the global score
+        // if it was unplaced before, clear that from global and local score
         if !schedule.placements[section].score.is_placed() {
             schedule.score -= LEVEL_FOR_UNPLACED_SECTION;
+            schedule.placements[section].score -= LEVEL_FOR_UNPLACED_SECTION;
         }
 
-        // clear the score
-        schedule.placements[section].score = Score::new();
+        // section scores should now be zero
+        assert!(schedule.placements[section].score.is_zero());
 
         // if it is unplaced now, add that to both scores
         if !schedule.is_placed(section) {
@@ -341,18 +337,17 @@ fn compute_penalties_for_criteria(input: &Input, schedule: &mut Schedule, criter
 
         // merge the scores
         let mut delta = Score::new();
-        for elt in &penalties {
-            delta += elt.get_priority();
+        for penalty in &penalties {
+            delta += penalty.get_priority();
         }
 
         // apply to the global score
         schedule.score += delta;
 
-        // apply to any culpable sections that are placed
+        // apply to any culpable sections
+        // (including unplaced sections)
         for section in input.criteria[criterion].get_culpable_sections() {
-            if schedule.is_placed(section) {
-                schedule.placements[section].score += delta;
-            }
+            schedule.placements[section].score += delta;
         }
 
         schedule.penalties[criterion] = penalties;
@@ -381,6 +376,10 @@ pub fn solve(
     let mut best_since_rebase = schedule.score;
     let mut bias_delta = BIAS_STEP;
     let mut bias = MIN_BIAS;
+
+    let mut moves = 0;
+    let mut reverts = 0;
+    let warmup_seconds = start.elapsed().as_secs();
 
     loop {
         let now = start.elapsed().as_secs();
@@ -433,7 +432,8 @@ pub fn solve(
                 println!("failed to make step down move");
                 continue;
             }
-            climb(input, schedule, &mut log, &mut taboo);
+            moves += 1;
+            climb(input, schedule, &mut log, &mut taboo, &mut moves, &mut reverts);
             let steps = log.len() - pre_steps;
             big_step_size.push(steps);
 
@@ -479,11 +479,20 @@ pub fn solve(
             for _ in 0..steps {
                 let undo = log.pop().unwrap();
                 revert_move(input, schedule, &undo);
+                reverts += 1;
             }
             taboo.clear();
         }
     }
     println!("took {} big steps and {} little steps", big_steps, little_steps);
+    let solve_seconds = (seconds - warmup_seconds) as usize;
+    println!(
+        "total of {} section moves ({}/s) and {} reverts ({}/s)",
+        moves,
+        moves / solve_seconds,
+        reverts,
+        reverts / solve_seconds
+    );
 
     best
 }
@@ -570,7 +579,9 @@ pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<
                 // do a climb
                 let mut log = Vec::new();
                 let mut taboo = Vec::new();
-                climb(input, &mut schedule, &mut log, &mut taboo);
+                let mut moves = 0;
+                let mut reverse = 0;
+                climb(input, &mut schedule, &mut log, &mut taboo, &mut moves, &mut reverse);
 
                 // is this a new best?
                 match best {
@@ -600,7 +611,14 @@ pub struct Move {
     pub room: Option<usize>,
 }
 
-pub fn climb(input: &Input, schedule: &mut Schedule, log: &mut Vec<PlacementLog>, taboo: &mut Vec<Move>) {
+pub fn climb(
+    input: &Input,
+    schedule: &mut Schedule,
+    log: &mut Vec<PlacementLog>,
+    taboo: &mut Vec<Move>,
+    moves: &mut usize,
+    reverts: &mut usize,
+) {
     let zero = Score::new();
     let mut by_score = Vec::new();
     for i in 0..input.sections.len() {
@@ -641,6 +659,8 @@ pub fn climb(input: &Input, schedule: &mut Schedule, log: &mut Vec<PlacementLog>
                     }
 
                     let delta = try_one_move(input, schedule, &candidate);
+                    *moves += 1;
+                    *reverts += 1;
 
                     // only consider moves that were improvements
                     if delta < zero && best_delta.map_or(true, |best| delta < best) {
@@ -664,6 +684,7 @@ pub fn climb(input: &Input, schedule: &mut Schedule, log: &mut Vec<PlacementLog>
             room: schedule.placements[section].room,
         });
         let log_entry = move_section(schedule, input, section, ts, &room);
+        *moves += 1;
         log.push(log_entry);
     }
 }

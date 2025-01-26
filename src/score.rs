@@ -15,7 +15,6 @@ pub type ScoreLevel = i16;
 pub const PRIORITY_LEVELS: usize = 20;
 pub const LEVEL_FOR_UNPLACED_SECTION: u8 = 0;
 pub const LEVEL_FOR_HARD_CONFLICT: u8 = 0;
-pub const LEVEL_FOR_ROOM_COUNT: u8 = 19;
 pub const START_LEVEL_FOR_PREFERENCES: u8 = 10;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -52,7 +51,7 @@ pub enum Criterion {
         evenly_spread: Option<u8>,
         no_room_switch: Option<u8>,
         too_many_rooms: Option<(u8, usize)>,
-        max_gap_within_cluster: u16,
+        max_gap_within_cluster: Duration,
         distribution_intervals: Vec<DistributionInterval>,
     },
     SectionsWithDifferentTimePatterns {
@@ -64,10 +63,10 @@ pub enum Criterion {
 
 #[derive(Clone)]
 pub enum DistributionInterval {
-    GapTooShort { priority: u8, duration: u16 },
-    GapTooLong { priority: u8, duration: u16 },
-    ClusterTooShort { priority: u8, duration: u16 },
-    ClusterTooLong { priority: u8, duration: u16 },
+    GapTooShort { priority: u8, duration: Duration },
+    GapTooLong { priority: u8, duration: Duration },
+    ClusterTooShort { priority: u8, duration: Duration },
+    ClusterTooLong { priority: u8, duration: Duration },
 }
 
 // a single change to the score due to a section's placement
@@ -77,10 +76,10 @@ pub enum Penalty {
     AntiConflict { priority: u8, single: usize, group: Vec<usize> },
     RoomPreference { priority: u8, section: usize, room: usize },
     TimeSlotPreference { priority: u8, section: usize, time_slot: usize },
-    ClusterTooShort { priority: u8, faculty: usize, duration: u16 },
-    ClusterTooLong { priority: u8, faculty: usize, duration: u16 },
-    GapTooShort { priority: u8, faculty: usize, duration: u16 },
-    GapTooLong { priority: u8, faculty: usize, duration: u16 },
+    ClusterTooShort { priority: u8, faculty: usize, duration: Duration },
+    ClusterTooLong { priority: u8, faculty: usize, duration: Duration },
+    GapTooShort { priority: u8, faculty: usize, duration: Duration },
+    GapTooLong { priority: u8, faculty: usize, duration: Duration },
     DaysOff { priority: u8, faculty: usize, desired: usize, actual: usize },
     DaysEvenlySpread { priority: u8, faculty: usize },
     RoomSwitch { priority: u8, faculty: usize, sections: [usize; 2], rooms: [usize; 2] },
@@ -147,7 +146,7 @@ impl fmt::Display for Score {
 impl ops::Add for Score {
     type Output = Self;
 
-    fn add(self, rhs: Self) -> Score {
+    fn add(self, rhs: Self) -> Self {
         let mut out = Score { levels: [0; PRIORITY_LEVELS] };
         for i in 0..PRIORITY_LEVELS {
             out.levels[i] = self.levels[i] + rhs.levels[i];
@@ -159,7 +158,7 @@ impl ops::Add for Score {
 impl ops::Add<u8> for Score {
     type Output = Self;
 
-    fn add(self, rhs: u8) -> Score {
+    fn add(self, rhs: u8) -> Self {
         let mut out = self;
         out.levels[rhs as usize] += 1;
         out
@@ -316,48 +315,47 @@ impl Criterion {
 
                 // for each day in days_to_check, a list of (start time, duration, maybe_room)
                 // of sections scheduled on that day
-                #[derive(Clone, PartialOrd, Ord, PartialEq, Eq)]
                 struct Interval {
-                    start_time: u16,
-                    duration: u16,
-                    end_time: u16,
+                    start_time: Time,
+                    end_time: Time,
                     section: usize,
                     maybe_room: Option<usize>,
                 }
-                let mut schedule_by_day: Vec<Vec<Interval>> = vec![Vec::new(); days_to_check.len()];
+                let mut schedule_by_day = Vec::new();
 
-                for &section in sections {
-                    // find when the section was placed
-                    let Some(time_slot) = schedule.placements[section].time_slot else {
-                        continue;
-                    };
-                    let &TimeSlot { start_time, duration, days, .. } = &input.time_slots[time_slot];
+                for day in 0..7 {
+                    if days_to_check.contains(day) {
+                        let mut day_schedule = Vec::new();
+                        for &section in sections {
+                            // find when the section was placed
+                            let Some(time_slot) = schedule.placements[section].time_slot else {
+                                continue;
+                            };
+                            let &TimeSlot { start_time, duration, days, .. } = &input.time_slots[time_slot];
 
-                    // check each day we are interested in
-                    for (i, day) in days_to_check.into_iter().enumerate() {
-                        // if this section is not scheduled on a day of interest, ignore it
-                        if !days.contains(day) {
-                            continue;
+                            // only consider sections scheduled on a day of interest
+                            if !days.contains(day) {
+                                continue;
+                            }
+
+                            day_schedule.push(Interval {
+                                start_time,
+                                end_time: start_time + duration,
+                                section,
+                                maybe_room: schedule.placements[section].room,
+                            });
                         }
 
-                        schedule_by_day[i].push(Interval {
-                            section,
-                            start_time,
-                            duration,
-                            end_time: start_time + duration,
-                            maybe_room: schedule.placements[section].room,
-                        });
+                        day_schedule.sort_unstable_by_key(|elt| elt.start_time);
+                        schedule_by_day.push(day_schedule);
                     }
-                }
-                for day_schedule in &mut schedule_by_day {
-                    day_schedule.sort_unstable();
                 }
 
                 // now process the individual scoring criteria
                 if let &Some((priority, desired)) = days_off {
                     let mut actual = 0;
-                    for day in &schedule_by_day {
-                        if day.is_empty() {
+                    for day_schedule in &schedule_by_day {
+                        if day_schedule.is_empty() {
                             actual += 1;
                         }
                     }
@@ -369,8 +367,8 @@ impl Criterion {
                 if let &Some(priority) = evenly_spread {
                     let mut most = 0;
                     let mut fewest = usize::MAX;
-                    for day in &schedule_by_day {
-                        let count = day.len();
+                    for day_schedule in &schedule_by_day {
+                        let count = day_schedule.len();
 
                         // ignore days with no classes
                         if count == 0 {
@@ -388,8 +386,8 @@ impl Criterion {
                 }
 
                 if let Some(priority) = no_room_switch {
-                    for day in &schedule_by_day {
-                        for pair in day.windows(2) {
+                    for day_schedule in &schedule_by_day {
+                        for pair in day_schedule.windows(2) {
                             let (a, b) = (&pair[0], &pair[1]);
 
                             // are these back-to-back?
@@ -438,15 +436,19 @@ impl Criterion {
                 }
 
                 if !distribution_intervals.is_empty() {
-                    for day in &schedule_by_day {
-                        if day.is_empty() {
+                    for day_schedule in &schedule_by_day {
+                        if day_schedule.is_empty() {
                             continue;
                         }
-                        let clusters: Vec<(u16, u16)> = day
+                        let mut clusters: Vec<(Time, Time)> = day_schedule
                             .chunk_by(|a, b| b.start_time - a.end_time <= *max_gap_within_cluster)
                             .map(|chunk| (chunk.first().unwrap().start_time, chunk.last().unwrap().end_time))
                             .collect();
-                        let gaps: Vec<u16> = clusters.windows(2).map(|pair| pair[1].0 - pair[0].1).collect();
+                        let gaps: Vec<Duration> = clusters.windows(2).map(|pair| pair[1].0 - pair[0].1).collect();
+
+                        // sort clusters shortest to longest so too_short_okay will skip the
+                        // singleton and not a legit problem
+                        clusters.sort_unstable_by_key(|elt| elt.1 - elt.0);
 
                         // ignore one too-short cluster per day
                         let mut too_short_okay = true;
