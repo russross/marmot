@@ -6,7 +6,6 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Write;
 use std::time::Instant;
-use time::OffsetDateTime;
 
 //
 //
@@ -40,9 +39,9 @@ pub struct Room {
 #[derive(Clone)]
 pub struct TimeSlot {
     pub name: String,
-    pub days: Vec<time::Weekday>,
-    pub start_time: time::Time,
-    pub duration: time::Duration,
+    pub days: Days,
+    pub start_time: u16,
+    pub duration: u16,
 }
 
 #[derive(Clone)]
@@ -101,6 +100,72 @@ pub struct TimeSlotWithPriority {
 pub struct SectionWithPriority {
     pub section: usize,
     pub priority: u8,
+}
+
+#[derive(Clone, Copy)]
+pub struct Days {
+    pub days: u8,
+}
+
+impl Days {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        Days { days: 0 }
+    }
+
+    pub fn parse(weekday_raw: &str) -> Result<Self, String> {
+        let mut days = 0;
+        for day in weekday_raw.chars() {
+            match day {
+                'm' | 'M' => days |= 0b0000001,
+                't' | 'T' => days |= 0b0000010,
+                'w' | 'W' => days |= 0b0000100,
+                'r' | 'R' => days |= 0b0001000,
+                'f' | 'F' => days |= 0b0010000,
+                's' | 'S' => days |= 0b0100000,
+                'u' | 'U' => days |= 0b1000000,
+                _ => return Err(format!("Unknown day of week in {}: I only understand mtwrfsu", weekday_raw)),
+            }
+        }
+        Ok(Days { days })
+    }
+
+    pub fn len(&self) -> usize {
+        let mut count = 0;
+        for day in 0..7 {
+            if self.days & day != 0 {
+                count += 1;
+            }
+        }
+        count
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.days == 0
+    }
+
+    pub fn contains(&self, day: u8) -> bool {
+        self.days & day != 0
+    }
+
+    pub fn intersect(&self, other: &Self) -> Self {
+        Days { days: self.days & other.days }
+    }
+}
+
+impl IntoIterator for Days {
+    type Item = u8;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let mut v = Vec::new();
+        for day in 0..7 {
+            if self.days & day != 0 {
+                v.push(day);
+            }
+        }
+        v.into_iter()
+    }
 }
 
 impl fmt::Display for Room {
@@ -187,7 +252,7 @@ pub fn load_input(db_path: &str, departments: &[String]) -> Result<Input, String
     let jeff = faculty_index["Jeff Compas"];
     let a = section_index["CS 2450-01"];
     let b = section_index["CS 2450-02"];
-    criteria.push(Criterion::SectionsWithDifferentTimePatterns { priority: 12, faculty: jeff, sections: vec![a, b] });
+    criteria.push(Criterion::SectionsWithDifferentTimePatterns { priority: 10, faculty: jeff, sections: vec![a, b] });
 
     compute_neighbors(&mut sections, &criteria);
     println!(": {}ms", start.elapsed().as_millis());
@@ -247,12 +312,8 @@ pub fn load_time_slots(
         let start_time_i: i64 = stmt.read(2).map_err(sql_err)?;
         let start_time = start_time_i as u32;
         let duration: i64 = stmt.read(3).map_err(sql_err)?;
-        let time_slot = TimeSlot {
-            name,
-            days: parse_days(&days)?,
-            start_time: time::Time::from_hms((start_time / 60) as u8, (start_time % 60) as u8, 0).unwrap(),
-            duration: time::Duration::minutes(duration),
-        };
+        let time_slot =
+            TimeSlot { name, days: Days::parse(&days)?, start_time: start_time as u16, duration: duration as u16 };
         time_slot_index.insert(time_slot.name.clone(), time_slots.len());
         time_slots.push(time_slot);
     }
@@ -698,7 +759,7 @@ pub fn load_faculty_section_assignments(
             // is this the first row for this faculty?
             if prefs[index].is_none() {
                 let days_to_check: String = stmt.read(1).map_err(sql_err)?;
-                let days_to_check = parse_days(&days_to_check)?;
+                let days_to_check = Days::parse(&days_to_check)?;
 
                 // days off penalty?
                 let days_off_opt: Option<i64> = stmt.read(2).map_err(sql_err)?;
@@ -726,7 +787,7 @@ pub fn load_faculty_section_assignments(
                 };
 
                 let max_gap_within_cluster: i64 = stmt.read(7).map_err(sql_err)?;
-                let max_gap_within_cluster = time::Duration::minutes(max_gap_within_cluster);
+                let max_gap_within_cluster = max_gap_within_cluster as u16;
 
                 // create the base record
                 prefs[index] = Some(Criterion::FacultyPreference {
@@ -750,7 +811,7 @@ pub fn load_faculty_section_assignments(
 
             let is_too_short: i64 = stmt.read(9).map_err(sql_err)?;
             let interval_minutes: i64 = stmt.read(10).map_err(sql_err)?;
-            let duration = time::Duration::minutes(interval_minutes);
+            let duration = interval_minutes as u16;
             let interval_priority: i64 = stmt.read(11).map_err(sql_err)?;
             let priority = interval_priority as u8;
 
@@ -794,10 +855,6 @@ fn sql_err(err: Error) -> String {
     err.to_string()
 }
 
-fn time_err(err: time::error::Format) -> String {
-    format!("{}", err)
-}
-
 fn as_values(list: &[String]) -> Vec<(usize, Value)> {
     let mut out = Vec::new();
     for (i, elt) in list.iter().enumerate() {
@@ -833,24 +890,13 @@ fn dept_clause(departments: &[String], columns: &[String], with_where: bool) -> 
     s
 }
 
-pub fn parse_days(weekday_raw: &str) -> Result<Vec<time::Weekday>, String> {
-    let mut days = Vec::with_capacity(weekday_raw.len());
-    for day in weekday_raw.chars() {
-        match day {
-            'm' | 'M' => days.push(time::Weekday::Monday),
-            't' | 'T' => days.push(time::Weekday::Tuesday),
-            'w' | 'W' => days.push(time::Weekday::Wednesday),
-            'r' | 'R' => days.push(time::Weekday::Thursday),
-            'f' | 'F' => days.push(time::Weekday::Friday),
-            's' | 'S' => days.push(time::Weekday::Saturday),
-            'u' | 'U' => days.push(time::Weekday::Sunday),
-            _ => return Err(format!("Unknown day of week in {}: I only understand mtwrfsu", weekday_raw)),
-        }
-    }
-    Ok(days)
-}
-
-pub fn save_schedule(db_path: &str, input: &Input, schedule: &Schedule, comment: &str, existing_id: Option<i64>) -> Result<i64, String> {
+pub fn save_schedule(
+    db_path: &str,
+    input: &Input,
+    schedule: &Schedule,
+    comment: &str,
+    existing_id: Option<i64>,
+) -> Result<i64, String> {
     let db =
         Connection::open_with_flags(db_path, OpenFlags::new().with_read_write().with_full_mutex()).map_err(sql_err)?;
     db.execute("PRAGMA foreign_keys = ON").map_err(sql_err)?;
@@ -858,36 +904,53 @@ pub fn save_schedule(db_path: &str, input: &Input, schedule: &Schedule, comment:
     db.execute("BEGIN").map_err(sql_err)?;
     let root_id = if let Some(id) = existing_id {
         // delete old schedule with this id and update base record
-        let mut stmt = db.prepare("DELETE FROM placement_sections WHERE placement_id = ?").map_err(sql_err)?;
+        let mut stmt = db
+            .prepare(
+                "DELETE FROM placement_sections
+            WHERE placement_id = ?",
+            )
+            .map_err(sql_err)?;
         stmt.bind((1, id)).map_err(sql_err)?;
         while stmt.next().map_err(sql_err)? != State::Done {
             // no return rows expected
         }
-        stmt = db.prepare("DELETE FROM placement_penalties WHERE placement_id = ?").map_err(sql_err)?;
+        stmt = db
+            .prepare(
+                "DELETE FROM placement_penalties
+            WHERE placement_id = ?",
+            )
+            .map_err(sql_err)?;
         stmt.bind((1, id)).map_err(sql_err)?;
         while stmt.next().map_err(sql_err)? != State::Done {
             // no return rows expected
         }
-        stmt = db.prepare("UPDATE placements SET score = ?, comment = ?, modified_at = ? WHERE placement_id = ?").map_err(sql_err)?;
+        stmt = db
+            .prepare(
+                "UPDATE placements
+            SET score = ?,
+            comment = ?,
+            modified_at = DATETIME('now', 'localtime')
+            WHERE placement_id = ?",
+            )
+            .map_err(sql_err)?;
         stmt.bind((1, format!("{}", schedule.score).as_str())).map_err(sql_err)?;
         stmt.bind((2, comment)).map_err(sql_err)?;
-        let now = OffsetDateTime::now_local().unwrap();
-        let stamp = now.format(&time::format_description::well_known::Iso8601::DEFAULT).map_err(time_err)?;
-        stmt.bind((3, stamp.as_str())).map_err(sql_err)?;
-        stmt.bind((4, id)).map_err(sql_err)?;
+        stmt.bind((3, id)).map_err(sql_err)?;
         while stmt.next().map_err(sql_err)? != State::Done {
             // no return rows expected
         }
         id
     } else {
         // create new base record and capture id
-        let mut stmt = db.prepare("INSERT INTO placements (score, comment, created_at, modified_at) VALUES (?, ?, ?, ?) RETURNING placement_id").map_err(sql_err)?;
+        let mut stmt = db
+            .prepare(
+                "INSERT INTO placements (score, comment, created_at, modified_at)
+            VALUES (?, ?, DATETIME('now', 'localtime'), DATETIME('now', 'localtime'))
+            RETURNING placement_id",
+            )
+            .map_err(sql_err)?;
         stmt.bind((1, format!("{}", schedule.score).as_str())).map_err(sql_err)?;
         stmt.bind((2, comment)).map_err(sql_err)?;
-        let now = OffsetDateTime::now_local().unwrap();
-        let stamp = now.format(&time::format_description::well_known::Iso8601::DEFAULT).map_err(time_err)?;
-        stmt.bind((3, stamp.as_str())).map_err(sql_err)?;
-        stmt.bind((4, stamp.as_str())).map_err(sql_err)?;
         let mut id = -1;
         while stmt.next().map_err(sql_err)? == State::Row {
             id = stmt.read(0).map_err(sql_err)?;
@@ -901,7 +964,12 @@ pub fn save_schedule(db_path: &str, input: &Input, schedule: &Schedule, comment:
             // skip unplaced sections
             continue;
         };
-        let mut stmt = db.prepare("INSERT INTO placement_sections (placement_id, section, time_slot, room) VALUES (?, ?, ?, ?)").map_err(sql_err)?;
+        let mut stmt = db
+            .prepare(
+                "INSERT INTO placement_sections (placement_id, section, time_slot, room)
+            VALUES (?, ?, ?, ?)",
+            )
+            .map_err(sql_err)?;
         stmt.bind((1, root_id)).map_err(sql_err)?;
         stmt.bind((2, input.sections[section].name.as_str())).map_err(sql_err)?;
         stmt.bind((3, input.time_slots[time_slot].name.as_str())).map_err(sql_err)?;
@@ -915,7 +983,11 @@ pub fn save_schedule(db_path: &str, input: &Input, schedule: &Schedule, comment:
     let mut penalties = Vec::new();
     for (section, placement) in schedule.placements.iter().enumerate() {
         if placement.time_slot.is_none() {
-            penalties.push((LEVEL_FOR_UNPLACED_SECTION, format!("{} is not placed", input.sections[section].name), vec![section]));
+            penalties.push((
+                LEVEL_FOR_UNPLACED_SECTION,
+                format!("{} is not placed", input.sections[section].name),
+                vec![section],
+            ));
         }
     }
     for penalty_list in &schedule.penalties {
@@ -928,7 +1000,12 @@ pub fn save_schedule(db_path: &str, input: &Input, schedule: &Schedule, comment:
 
     // insert them
     for (priority, msg, sections) in penalties {
-        let mut stmt = db.prepare("INSERT INTO placement_penalties (placement_id, priority, message) VALUES (?, ?, ?) RETURNING placement_penalty_id").map_err(sql_err)?;
+        let mut stmt = db
+            .prepare(
+                "INSERT INTO placement_penalties (placement_id, priority, message)
+            VALUES (?, ?, ?) RETURNING placement_penalty_id",
+            )
+            .map_err(sql_err)?;
         stmt.bind((1, root_id)).map_err(sql_err)?;
         stmt.bind((2, priority as i64)).map_err(sql_err)?;
         stmt.bind((3, msg.as_str())).map_err(sql_err)?;
@@ -938,7 +1015,12 @@ pub fn save_schedule(db_path: &str, input: &Input, schedule: &Schedule, comment:
         }
 
         for section in sections {
-            let mut stmt = db.prepare("INSERT INTO placement_penalty_sections (placement_penalty_id, section) VALUES (?, ?)").map_err(sql_err)?;
+            let mut stmt = db
+                .prepare(
+                    "INSERT INTO placement_penalty_sections (placement_penalty_id, section)
+                VALUES (?, ?)",
+                )
+                .map_err(sql_err)?;
             stmt.bind((1, id)).map_err(sql_err)?;
             stmt.bind((2, input.sections[section].name.as_str())).map_err(sql_err)?;
             while stmt.next().map_err(sql_err)? != State::Done {
@@ -960,7 +1042,31 @@ pub fn load_schedule(db_path: &str, input: &Input, schedule: &mut Schedule, plac
     db.execute("PRAGMA temp_store = memory").map_err(sql_err)?;
     db.execute("PRAGMA mmap_size = 100000000").map_err(sql_err)?;
 
-    let mut stmt = db.prepare("SELECT section, time_slot, room FROM placement_sections WHERE placement_id = ?").map_err(sql_err)?;
+    let mut stmt = db
+        .prepare(
+            "SELECT modified_at
+        FROM placements
+        WHERE placement_id = ?",
+        )
+        .map_err(sql_err)?;
+    stmt.bind((1, placement_id)).map_err(sql_err)?;
+    let mut found = false;
+    while stmt.next().map_err(sql_err)? == State::Row {
+        let modified_at: String = stmt.read(0).map_err(sql_err)?;
+        println!("Loading schedule {}, which was last updated at {}", placement_id, modified_at);
+        found = true;
+    }
+    if !found {
+        return Err(format!("schedule {} not found", placement_id));
+    }
+
+    let mut stmt = db
+        .prepare(
+            "SELECT section, time_slot, room
+        FROM placement_sections
+        WHERE placement_id = ?",
+        )
+        .map_err(sql_err)?;
     stmt.bind((1, placement_id)).map_err(sql_err)?;
 
     while stmt.next().map_err(sql_err)? == State::Row {
@@ -971,7 +1077,8 @@ pub fn load_schedule(db_path: &str, input: &Input, schedule: &mut Schedule, plac
         let Some((section, _)) = input.sections.iter().enumerate().find(|(_, elt)| elt.name == section_name) else {
             return Err(format!("load_schedule cannot find section {} referenced in placement", section_name));
         };
-        let Some((time_slot, _)) = input.time_slots.iter().enumerate().find(|(_, elt)| elt.name == time_slot_name) else {
+        let Some((time_slot, _)) = input.time_slots.iter().enumerate().find(|(_, elt)| elt.name == time_slot_name)
+        else {
             return Err(format!("load_schedule cannot find time slot {} referenced in placement", time_slot_name));
         };
         let maybe_room = if let Some(room_name) = maybe_room_name {

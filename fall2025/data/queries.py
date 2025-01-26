@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import sqlite3
-from typing import Any, Callable, TypeVar, Optional, ParamSpec, Protocol, Self
+from typing import Any, Callable, TypeVar, ParamSpec, Protocol, Self
 
 class Available:
     def __init__(self, days: str, start_time: str, end_time: str, priority: int = 20):
@@ -251,10 +251,6 @@ class DB:
         self.db.execute('INSERT INTO courses VALUES (?, ?, ?)', (course, department, course_name))
 
     @rollback_on_exception
-    def add_course_rotation(self, course: str, term: str) -> None:
-        self.db.execute('INSERT INTO course_rotations VALUES (?, ?)', (course, term))
-
-    @rollback_on_exception
     def add_prereqs(self, course: str, prereqs: list[str]) -> None:
         for elt in prereqs:
             self.db.execute('INSERT INTO prereqs VALUES (?, ?)', (course, elt))
@@ -314,15 +310,18 @@ class DB:
         self.db.execute('INSERT INTO programs VALUES (?, ?)', (program, department))
 
     @rollback_on_exception
-    def make_conflict(self, program: str, conflict_name: str, conflict_priority: Optional[int], boost: str, courses: list[str]) -> None:
-        if boost not in ('boost', 'reduce'):
+    def make_conflict(self, program: str, conflict_name: str, conflict_priority: int, boost_s: str, courses: list[str]) -> None:
+        if boost_s == 'boost':
+            boost = True
+        elif boost_s == 'reduce':
+            boost = False
+        else:
             raise RuntimeError(f'make_conflict: {program} {conflict_name}: boost option must be "boost" or "reduce"')
-        if boost == 'boost' and conflict_priority is None:
-            raise RuntimeError(f'make_conflict: {program} {conflict_name}: cannot "boost" with priority None')
-        if conflict_priority is not None and (conflict_priority < 0 or conflict_priority >= 10):
-            raise RuntimeError(f'make_conflict: {program} {conflict_name}: conflict priority option must be None or between 0 and 9')
+        conflict_priority = int(conflict_priority)
+        if conflict_priority < 0 or conflict_priority >= 10:
+            raise RuntimeError(f'make_conflict: {program} {conflict_name}: conflict priority option must be between 0 and 10')
 
-        self.db.execute('INSERT INTO conflicts VALUES (?, ?, ?, ?)', (program, conflict_name, conflict_priority, boost == 'boost'))
+        self.db.execute('INSERT INTO conflicts VALUES (?, ?, ?, ?)', (program, conflict_name, None if conflict_priority == 0 else conflict_priority, boost))
 
         for elt in courses:
             if '-' not in elt:

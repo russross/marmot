@@ -1,0 +1,33 @@
+Sub Main
+	KeyCol = 28
+    Sheet = ThisComponent.Sheets(0)
+    For Row = 1 to 100
+        KeyCell = Sheet.getCellByPosition(KeyCol, Row)
+        Key = KeyCell.String
+
+        If Key = "SKIP" Then
+            KeyCell.String = ""
+
+        ElseIf Key = "DELETE" Then
+            For Col = 0 to KeyCol-2
+                Sheet.getCellByPosition(Col, Row).CellBackColor = RGB(171, 48, 18)
+            Next Col
+            KeyCell.String = ""
+
+        ElseIf Key = "INSERT" Then
+            For Col = 0 to KeyCol-2
+                Sheet.getCellByPosition(Col, Row).CellBackColor = RGB(99, 187, 54)
+            Next Col
+            KeyCell.String = ""
+
+        ElseIf Len(Key) = KeyCol Then
+            For Col = 0 to KeyCol-2
+                If Mid(Key, Col+1, 1) = "*" Then
+                    Sheet.getCellByPosition(Col, Row).CellBackColor = RGB(255, 255, 80)
+                End If
+            Next Col
+            KeyCell.String = ""
+        End If
+    Next Row
+End Sub
+

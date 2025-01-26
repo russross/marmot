@@ -1,7 +1,7 @@
 use super::input::*;
 use super::score::*;
 use super::*;
-use rand::Rng;
+use std::mem::take;
 
 //
 //
@@ -88,9 +88,9 @@ impl Schedule {
     // remove a section from its current room/time placement (if any)
     // this does not update scoring
     pub fn remove_placement(&mut self, section: usize, undo: &mut Vec<PlacementLogEntry>) {
-        if let Some(time_slot) = std::mem::take(&mut self.placements[section].time_slot) {
+        if let Some(time_slot) = take(&mut self.placements[section].time_slot) {
             // does it have a room?
-            let room = if let Some(room) = std::mem::take(&mut self.placements[section].room) {
+            let room = if let Some(room) = take(&mut self.placements[section].room) {
                 // remove it from room_placements
                 self.room_placements[room]
                     .used_time_slots
@@ -306,7 +306,7 @@ fn get_criteria_affecting_sections(input: &Input, sections: &[usize]) -> Vec<usi
 fn clear_penalties_for_criteria(schedule: &mut Schedule, criteria: &[usize]) {
     for &criterion in criteria {
         // clear the impact of these scores on the global score
-        for penalty in std::mem::take(&mut schedule.penalties[criterion]) {
+        for penalty in take(&mut schedule.penalties[criterion]) {
             schedule.score -= penalty.get_priority();
         }
     }
@@ -359,7 +359,13 @@ fn compute_penalties_for_criteria(input: &Input, schedule: &mut Schedule, criter
     }
 }
 
-pub fn solve(input: &Input, schedule: &mut Schedule, start: std::time::Instant, seconds: u64, save_id: i64) -> Schedule {
+pub fn solve(
+    input: &Input,
+    schedule: &mut Schedule,
+    start: std::time::Instant,
+    seconds: u64,
+    save_id: i64,
+) -> Schedule {
     let mut best = schedule.clone();
     let mut last_report = start.elapsed().as_secs();
     let mut best_seconds = last_report;
@@ -414,7 +420,7 @@ pub fn solve(input: &Input, schedule: &mut Schedule, start: std::time::Instant, 
 
         // random walk: back up or move forward one big step
         // add bias to stepping backward if we have unplaced sections
-        let roll = rand::thread_rng().gen_range(1..=100);
+        let roll = fastrand::i64(1..=100);
         if big_step_size.is_empty() || roll <= 50 + bias {
             // make one big step forward
             let pre_steps = log.len();
@@ -448,7 +454,12 @@ pub fn solve(input: &Input, schedule: &mut Schedule, start: std::time::Instant, 
                 bias = MIN_BIAS;
                 bias_delta = BIAS_STEP;
                 best = schedule.clone();
-                let msg = format!("random walk found after {} seconds, {} big steps, and {} little steps", start.elapsed().as_secs(), big_steps, little_steps);
+                let msg = format!(
+                    "random walk found after {} seconds, {} big steps, and {} little steps",
+                    start.elapsed().as_secs(),
+                    big_steps,
+                    little_steps
+                );
                 if let Err(e) = save_schedule(super::DB_PATH, input, schedule, &msg, Some(save_id)) {
                     println!("quitting due to save error: {}", e);
                     return best;
@@ -532,7 +543,7 @@ pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<
             };
 
             // randomly choose one of the available placements
-            let winner = rand::thread_rng().gen_range(1..=options);
+            let winner = fastrand::usize(1..=options);
 
             // find that placement
             let mut count = 0;
@@ -576,7 +587,6 @@ pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<
                 }
             }
         }
-
     }
 
     println!("warmup tried {} schedules", count);
@@ -718,23 +728,23 @@ pub fn step_down(input: &Input, schedule: &mut Schedule, log: &mut Vec<Placement
     let mut candidate = None;
     for chunk in candidates.chunk_by(|(a, _), (b, _)| a == b) {
         // toss a coin at each priority level to use it or move on
-        if rand::thread_rng().gen_range(0..=1) == 0 {
+        if fastrand::bool() {
             // group this priority level by section
             let by_section: Vec<&[(u8, Move)]> =
                 chunk.chunk_by(|(_, Move { section: a, .. }), (_, Move { section: b, .. })| a == b).collect();
 
             // pick a section
-            let by_section_index = rand::thread_rng().gen_range(0..by_section.len());
+            let by_section_index = fastrand::usize(0..by_section.len());
             let one_section = &by_section[by_section_index];
 
             // pick a placement for that section
-            let index = rand::thread_rng().gen_range(0..one_section.len());
+            let index = fastrand::usize(0..one_section.len());
             candidate = Some(one_section[index].1.clone());
             break;
         }
     }
     if candidate.is_none() {
-        let index = rand::thread_rng().gen_range(0..candidates.len());
+        let index = fastrand::usize(0..candidates.len());
         candidate = Some(candidates[index].1.clone());
     }
     let Some(Move { section, time_slot: Some(ts), room }) = candidate else {

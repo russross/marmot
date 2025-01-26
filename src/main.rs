@@ -4,6 +4,8 @@ pub mod solver;
 use self::input::*;
 use self::score::*;
 use self::solver::*;
+use std::cmp::max;
+use std::time::Instant;
 
 const DB_PATH: &str = "timetable.db";
 const WARMUP_SECONDS: u64 = 5;
@@ -28,7 +30,7 @@ fn main() {
         dump_input(&departments, &input);
     }
 
-    let start = std::time::Instant::now();
+    let start = Instant::now();
 
     let mut schedule = if true {
         println!("running warmup for {} seconds", WARMUP_SECONDS);
@@ -39,13 +41,14 @@ fn main() {
         schedule
     } else {
         let mut schedule = Schedule::new(&input);
-        if let Err(msg) = load_schedule(DB_PATH, &input, &mut schedule, 10) {
+        if let Err(msg) = load_schedule(DB_PATH, &input, &mut schedule, 25) {
             println!("{}", msg);
             return;
         }
+        print_problems(&input, &schedule);
         schedule
     };
-    
+
     let id = match save_schedule(DB_PATH, &input, &schedule, "loaded schedule", None) {
         Ok(id) => id,
         Err(msg) => {
@@ -141,12 +144,12 @@ fn print_schedule(input: &Input, schedule: &Schedule) {
     }
     for (i, &room) in rooms.iter().enumerate() {
         let name = input.rooms[room].name.clone();
-        width = std::cmp::max(name.len(), width);
+        width = max(name.len(), width);
         grid[0][i + 1] = (name, "".to_string());
     }
     for (i, &time_slot) in time_slots.iter().enumerate() {
         let name = input.time_slots[time_slot].name.clone();
-        width = std::cmp::max(name.len(), width);
+        width = max(name.len(), width);
         grid[i + 1][0] = (name, "".to_string());
     }
     for (section, Placement { time_slot, room, .. }) in schedule.placements.iter().enumerate() {
@@ -165,8 +168,8 @@ fn print_schedule(input: &Input, schedule: &Schedule) {
             1 => input.faculty[sec.faculty[0]].name.clone(),
             _ => format!("{}+", input.faculty[sec.faculty[0]].name.clone()),
         };
-        width = std::cmp::max(section_name.len(), width);
-        width = std::cmp::max(faculty_name.len(), width);
+        width = max(section_name.len(), width);
+        width = max(faculty_name.len(), width);
         grid[y][x] = (section_name, faculty_name);
     }
     width += 2;

@@ -164,16 +164,6 @@ CREATE TABLE courses (
     FOREIGN KEY (department) REFERENCES departments (department) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
 
-CREATE TABLE course_rotations (
-    course                      TEXT NOT NULL,
-    term                        TEXT NOT NULL,
-
-    CHECK (term IN ('fall', 'spring', 'summer')),
-
-    PRIMARY KEY (course, term),
-    FOREIGN KEY (course) REFERENCES courses (course)
-) WITHOUT ROWID;
-
 CREATE TABLE prereqs (
     course                      TEXT NOT NULL,
     prereq                      TEXT NOT NULL,
@@ -254,7 +244,7 @@ CREATE TABLE anti_conflicts (
     anti_conflict_single        TEXT PRIMARY KEY,
     anti_conflict_priority      INTEGER NOT NULL,
 
-    CHECK (anti_conflict_priority >= 0 AND anti_conflict_priority < 10),
+    CHECK (anti_conflict_priority > 0 AND anti_conflict_priority < 10),
 
     FOREIGN KEY (anti_conflict_single) REFERENCES sections (section) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
@@ -285,7 +275,7 @@ CREATE TABLE conflicts (
     conflict_priority           INTEGER,
     boost_priority              BOOLEAN NOT NULL,
 
-    CHECK (conflict_priority IS NULL OR conflict_priority >= 0 AND conflict_priority < 10),
+    CHECK (conflict_priority IS NULL OR conflict_priority > 0 AND conflict_priority < 10),
     CHECK (conflict_priority IS NOT NULL OR NOT boost_priority),
 
     PRIMARY KEY (program, conflict_name),
@@ -824,7 +814,7 @@ CREATE VIEW undiscounted_conflict_pairs (department_a, course_a, section_a, depa
             -- highest priority is lowest number
             MIN(conflict_priority) FILTER (WHERE boost_priority) AS highest_priority,
             -- lowest priority is highest number, but NULL means the conflict should be canceled
-            -- so we change NULL to 10 (normal range is [0,9]) so MAX will not ignore it
+            -- so we change NULL to 10 (normal range is [1,9]) so MAX will not ignore it
             MAX(CASE WHEN conflict_priority IS NULL THEN 10 ELSE conflict_priority END) FILTER (WHERE NOT boost_priority) AS lowest_priority
         FROM paired_conflicts
         GROUP BY program, section_a, section_b
@@ -835,7 +825,7 @@ CREATE VIEW undiscounted_conflict_pairs (department_a, course_a, section_a, depa
         SELECT program, section_a, section_b,
             CASE
                 -- never reduce a hard conflict
-                WHEN highest_priority = 0 then 0
+                WHEN highest_priority = 1 then 1
                 -- lowest_priority = 10 => the conflict should be canceled
                 WHEN lowest_priority = 10 then NULL
                 -- lowest_priority wins when both are set, but only if it actually lowers the priority (increases number)
@@ -933,25 +923,25 @@ CREATE VIEW section_counts (department, course, section_count) AS
 -- accounts for conflits across programs, prereqs/coreqs, and multiple section discounts
 --
 -- note: discounting formula is hard-coded, as is minimum conflict value
---       we discount by adding 5 to priority for each extra section
---       and drop conflict altogether when it hits 10 (conflict priorities are [0,9])
+--       we discount by adding 4 to priority for each extra section
+--       and drop conflict altogether when it hits 10 (conflict priorities are [1,9])
 CREATE VIEW conflict_pairs (department_a, section_a, department_b, section_b, priority) AS
     -- remove conflicts when there is a prereq relationship
     -- and discount multiple sections
     WITH merged (department_a, section_a, department_b, section_b, priority) AS (
         SELECT department_a, section_a, department_b, section_b,
-            CASE WHEN undiscounted.priority = 0
+            CASE WHEN undiscounted.priority = 1
                     -- hard conflicts are never reduced
                     THEN undiscounted.priority
                  WHEN counts_a.section_count IS NOT NULL AND counts_b.section_count IS NOT NULL AND counts_a.course = counts_b.course
                     -- no discount for spreads
                     THEN undiscounted.priority
                  WHEN counts_a.section_count IS NOT NULL AND counts_b.section_count IS NOT NULL
-                    THEN undiscounted.priority + 5 * ((counts_a.section_count-1) + (counts_b.section_count-1))
+                    THEN undiscounted.priority + 4 * ((counts_a.section_count-1) + (counts_b.section_count-1))
                  WHEN counts_a.section_count IS NOT NULL
-                    THEN undiscounted.priority + 5 *  (counts_a.section_count-1)
+                    THEN undiscounted.priority + 4 *  (counts_a.section_count-1)
                  WHEN counts_b.section_count IS NOT NULL
-                    THEN undiscounted.priority + 5 *  (counts_b.section_count-1)
+                    THEN undiscounted.priority + 4 *  (counts_b.section_count-1)
                  ELSE
                     undiscounted.priority
             END AS discounted_priority
@@ -974,7 +964,7 @@ CREATE VIEW conflict_pairs (department_a, section_a, department_b, section_b, pr
         UNION
 
         -- merge with hard conflict for courses with the same instructor
-        SELECT  sec_a.department, sec_a.section, sec_b.department, sec_b.section, 0
+        SELECT  sec_a.department, sec_a.section, sec_b.department, sec_b.section, 1
         FROM faculty_sections_to_be_scheduled AS sec_a
         JOIN faculty_sections_to_be_scheduled AS sec_b
             ON  sec_a.faculty                                   =  sec_b.faculty

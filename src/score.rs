@@ -14,7 +14,7 @@ use std::ops;
 pub type ScoreLevel = i16;
 pub const PRIORITY_LEVELS: usize = 20;
 pub const LEVEL_FOR_UNPLACED_SECTION: u8 = 0;
-pub const LEVEL_FOR_HARD_CONFLICT: u8 = 1;
+pub const LEVEL_FOR_HARD_CONFLICT: u8 = 0;
 pub const LEVEL_FOR_ROOM_COUNT: u8 = 19;
 pub const START_LEVEL_FOR_PREFERENCES: u8 = 10;
 
@@ -47,12 +47,12 @@ pub enum Criterion {
     FacultyPreference {
         faculty: usize,
         sections: Vec<usize>,
-        days_to_check: Vec<time::Weekday>,
+        days_to_check: Days,
         days_off: Option<(u8, usize)>,
         evenly_spread: Option<u8>,
         no_room_switch: Option<u8>,
         too_many_rooms: Option<(u8, usize)>,
-        max_gap_within_cluster: time::Duration,
+        max_gap_within_cluster: u16,
         distribution_intervals: Vec<DistributionInterval>,
     },
     SectionsWithDifferentTimePatterns {
@@ -64,10 +64,10 @@ pub enum Criterion {
 
 #[derive(Clone)]
 pub enum DistributionInterval {
-    GapTooShort { priority: u8, duration: time::Duration },
-    GapTooLong { priority: u8, duration: time::Duration },
-    ClusterTooShort { priority: u8, duration: time::Duration },
-    ClusterTooLong { priority: u8, duration: time::Duration },
+    GapTooShort { priority: u8, duration: u16 },
+    GapTooLong { priority: u8, duration: u16 },
+    ClusterTooShort { priority: u8, duration: u16 },
+    ClusterTooLong { priority: u8, duration: u16 },
 }
 
 // a single change to the score due to a section's placement
@@ -77,10 +77,10 @@ pub enum Penalty {
     AntiConflict { priority: u8, single: usize, group: Vec<usize> },
     RoomPreference { priority: u8, section: usize, room: usize },
     TimeSlotPreference { priority: u8, section: usize, time_slot: usize },
-    ClusterTooShort { priority: u8, faculty: usize, duration: time::Duration },
-    ClusterTooLong { priority: u8, faculty: usize, duration: time::Duration },
-    GapTooShort { priority: u8, faculty: usize, duration: time::Duration },
-    GapTooLong { priority: u8, faculty: usize, duration: time::Duration },
+    ClusterTooShort { priority: u8, faculty: usize, duration: u16 },
+    ClusterTooLong { priority: u8, faculty: usize, duration: u16 },
+    GapTooShort { priority: u8, faculty: usize, duration: u16 },
+    GapTooLong { priority: u8, faculty: usize, duration: u16 },
     DaysOff { priority: u8, faculty: usize, desired: usize, actual: usize },
     DaysEvenlySpread { priority: u8, faculty: usize },
     RoomSwitch { priority: u8, faculty: usize, sections: [usize; 2], rooms: [usize; 2] },
@@ -318,9 +318,9 @@ impl Criterion {
                 // of sections scheduled on that day
                 #[derive(Clone, PartialOrd, Ord, PartialEq, Eq)]
                 struct Interval {
-                    start_time: time::Time,
-                    duration: time::Duration,
-                    end_time: time::Time,
+                    start_time: u16,
+                    duration: u16,
+                    end_time: u16,
                     section: usize,
                     maybe_room: Option<usize>,
                 }
@@ -331,21 +331,20 @@ impl Criterion {
                     let Some(time_slot) = schedule.placements[section].time_slot else {
                         continue;
                     };
+                    let &TimeSlot { start_time, duration, days, .. } = &input.time_slots[time_slot];
 
                     // check each day we are interested in
-                    for (i, &day) in days_to_check.iter().enumerate() {
-                        let TimeSlot { start_time, duration, days, .. } = &input.time_slots[time_slot];
-
+                    for (i, day) in days_to_check.into_iter().enumerate() {
                         // if this section is not scheduled on a day of interest, ignore it
-                        if !days.contains(&day) {
+                        if !days.contains(day) {
                             continue;
                         }
 
                         schedule_by_day[i].push(Interval {
                             section,
-                            start_time: *start_time,
-                            duration: *duration,
-                            end_time: *start_time + *duration,
+                            start_time,
+                            duration,
+                            end_time: start_time + duration,
                             maybe_room: schedule.placements[section].room,
                         });
                     }
@@ -443,11 +442,11 @@ impl Criterion {
                         if day.is_empty() {
                             continue;
                         }
-                        let clusters: Vec<(time::Time, time::Time)> = day
+                        let clusters: Vec<(u16, u16)> = day
                             .chunk_by(|a, b| b.start_time - a.end_time <= *max_gap_within_cluster)
                             .map(|chunk| (chunk.first().unwrap().start_time, chunk.last().unwrap().end_time))
                             .collect();
-                        let gaps: Vec<time::Duration> = clusters.windows(2).map(|pair| pair[1].0 - pair[0].1).collect();
+                        let gaps: Vec<u16> = clusters.windows(2).map(|pair| pair[1].0 - pair[0].1).collect();
 
                         // ignore one too-short cluster per day
                         let mut too_short_okay = true;
@@ -529,11 +528,7 @@ impl Criterion {
                 penalties
             }
 
-            Criterion::SectionsWithDifferentTimePatterns {
-                priority,
-                faculty,
-                sections,
-            } => {
+            Criterion::SectionsWithDifferentTimePatterns { priority, faculty, sections } => {
                 let mut patterns = Vec::new();
                 let mut scheduled_sections = Vec::new();
                 let mut time_slots = Vec::new();
@@ -547,7 +542,12 @@ impl Criterion {
                 patterns.sort();
                 patterns.dedup();
                 if patterns.len() > 1 {
-                    vec![Penalty::SectionsWithDifferentTimePatterns { priority: *priority, faculty: *faculty, sections: scheduled_sections, time_slots }]
+                    vec![Penalty::SectionsWithDifferentTimePatterns {
+                        priority: *priority,
+                        faculty: *faculty,
+                        sections: scheduled_sections,
+                        time_slots,
+                    }]
                 } else {
                     Vec::new()
                 }
@@ -606,15 +606,16 @@ impl Criterion {
                 }
                 write!(&mut s, "] using days [").unwrap();
                 sep = "";
-                for &day in days_to_check {
+                for day in days_to_check.into_iter() {
                     match day {
-                        time::Weekday::Monday => write!(&mut s, "{sep}Mon"),
-                        time::Weekday::Tuesday => write!(&mut s, "{sep}Tues"),
-                        time::Weekday::Wednesday => write!(&mut s, "{sep}Wed"),
-                        time::Weekday::Thursday => write!(&mut s, "{sep}Thurs"),
-                        time::Weekday::Friday => write!(&mut s, "{sep}Fri"),
-                        time::Weekday::Saturday => write!(&mut s, "{sep}Sat"),
-                        time::Weekday::Sunday => write!(&mut s, "{sep}Sun"),
+                        0 => write!(&mut s, "{sep}Mon"),
+                        1 => write!(&mut s, "{sep}Tues"),
+                        2 => write!(&mut s, "{sep}Wed"),
+                        3 => write!(&mut s, "{sep}Thurs"),
+                        4 => write!(&mut s, "{sep}Fri"),
+                        5 => write!(&mut s, "{sep}Sat"),
+                        6 => write!(&mut s, "{sep}Sun"),
+                        _ => panic!("only 7 days in a week"),
                     }
                     .unwrap();
                     sep = ",";
@@ -850,19 +851,17 @@ impl Penalty {
                 ),
             ),
 
-            Penalty::SectionsWithDifferentTimePatterns { priority, faculty, sections, time_slots } => (
-                *priority,
-                {
-                    let mut s = format!("{} teaches ", input.faculty[*faculty].name);
-                    let mut sep = "";
-                    for (section, time_slot) in std::iter::zip(sections, time_slots) {
-                        write!(&mut s, "{}{} at {}", sep, input.sections[*section].name, input.time_slots[*time_slot].name).unwrap();
-                        sep = " and ";
-                    }
-                    write!(&mut s, " but they have different time patterns").unwrap();
-                    s
+            Penalty::SectionsWithDifferentTimePatterns { priority, faculty, sections, time_slots } => (*priority, {
+                let mut s = format!("{} teaches ", input.faculty[*faculty].name);
+                let mut sep = "";
+                for (section, time_slot) in std::iter::zip(sections, time_slots) {
+                    write!(&mut s, "{}{} at {}", sep, input.sections[*section].name, input.time_slots[*time_slot].name)
+                        .unwrap();
+                    sep = " and ";
                 }
-            ),
+                write!(&mut s, " but they have different time patterns").unwrap();
+                s
+            }),
         }
     }
 }
