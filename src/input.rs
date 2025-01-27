@@ -1,12 +1,12 @@
 use super::score::*;
 use super::solver::*;
-use itertools::Itertools;
 use sqlite::{Connection, Error, OpenFlags, State, Value};
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Write;
 use std::ops;
 use std::time::Instant;
+use std::cmp::min;
 
 //
 //
@@ -772,35 +772,48 @@ pub fn load_faculty_section_assignments(
             continue;
         }
 
-        // note if the loop ends without finding a solution with
-        // fewer than the max number of rooms, it will leave the
-        // result at the max number without bothering to prove it
-        let mut k = 1;
-        'min_rooms_loop: while k < section_list.len() {
-            'set_loop: for room_set in all_possible.iter().combinations(k) {
-                'section_loop: for &section in &section_list {
-                    // is this section satisfied by one of the rooms in the set?
-                    for &room in &room_set {
-                        if sections[section].rooms.iter().any(|elt| elt.room == *room) {
+        let mut min_k = usize::MAX;
+        'set_loop: for key in 1..(1<<all_possible.len()) {
+            // count the bits
+            let mut bit_count = 0;
+            for i in 0..all_possible.len() {
+                if key & (1<<i) != 0 {
+                    bit_count += 1;
+                }
+            }
+
+            // we only care about values of k < section count
+            if bit_count >= section_list.len() {
+                continue;
+            }
+
+            // check every section
+            'section_loop: for &section in &section_list {
+                // is this section satisfied by one of the rooms in the set?
+                for i in 0..all_possible.len() {
+                    // only consider rooms in the set
+                    if key & (1<<i) != 0 {
+                        let room = all_possible[i];
+                        if sections[section].rooms.iter().any(|elt| elt.room == room) {
                             continue 'section_loop;
                         }
                     }
-                    continue 'set_loop;
                 }
 
-                // success!
-                break 'min_rooms_loop;
+                // failed to find a suitable room
+                continue 'set_loop;
             }
 
-            k += 1;
+            // success
+            min_k = min(min_k, bit_count);
         }
 
         // do not bother if the best we can do is a distinct room per section
-        if k >= section_list.len() {
+        if min_k >= section_list.len() {
             continue;
         }
 
-        min_rooms[faculty] = Some(k);
+        min_rooms[faculty] = Some(min_k);
     }
 
     // load faculty spread preferences
