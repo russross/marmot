@@ -196,8 +196,8 @@ impl Schedule {
 //
 // returns a log with enough information to revert the move
 pub fn move_section(
-    schedule: &mut Schedule,
     input: &Input,
+    schedule: &mut Schedule,
     section: usize,
     time_slot: usize,
     maybe_room: &Option<usize>,
@@ -258,6 +258,69 @@ fn revert_move(input: &Input, schedule: &mut Schedule, log: &PlacementLog) {
 
     // compute the new penalties and update all affected sections
     compute_penalties_for_criteria(input, schedule, &log.criteria);
+}
+
+// calculate the score delta that would happen if this move was applied
+fn speculative_move_section(
+    input: &Input,
+    schedule: &mut Schedule,
+    section: usize,
+    time_slot: usize,
+    maybe_room: &Option<usize>,
+) -> Score {
+    // move the sections, which does not update scoring
+    let mut moves = Vec::new();
+    schedule.remove_placement(section, &mut moves);
+    schedule.displace_conflicts(input, section, time_slot, maybe_room, &mut moves);
+    schedule.add_placement(section, time_slot, maybe_room, &mut moves);
+
+    // gather list of sections moved
+    let sections_moved = get_sections_from_log_entry_list(&moves);
+
+    // find all criteria affecting the neighborhood
+    let criteria = get_criteria_affecting_sections(input, &sections_moved);
+
+    // calculate the score delta
+    let mut delta = Score::new();
+    for criterion in criteria {
+        // subtract the old penalties
+        for penalty in &schedule.penalties[criterion] {
+            delta -= penalty.get_priority();
+        }
+
+        // add the new penalties
+        for penalty in input.criteria[criterion].check(input, schedule) {
+            delta += penalty.get_priority();
+        }
+    }
+
+    // update unplaced section score
+    for section in sections_moved {
+        // if it was unplaced before, clear that from delta
+        if !schedule.placements[section].score.is_placed() {
+            delta -= LEVEL_FOR_UNPLACED_SECTION;
+        }
+
+        // if it is unplaced now, add that to the delta
+        if !schedule.is_placed(section) {
+            delta += LEVEL_FOR_UNPLACED_SECTION;
+        }
+    }
+
+    // move the sections back
+    let mut dev_null = Vec::new();
+    for entry in moves.iter().rev() {
+        match entry {
+            PlacementLogEntry::Add { section } => {
+                schedule.remove_placement(*section, &mut dev_null);
+            }
+            PlacementLogEntry::Remove { section, time_slot, room } => {
+                schedule.add_placement(*section, *time_slot, room, &mut dev_null);
+            }
+        }
+    }
+
+    delta
 }
 
 fn get_sections_from_log_entry_list(list: &Vec<PlacementLogEntry>) -> Vec<usize> {
@@ -379,6 +442,8 @@ pub fn solve(
 
     let mut moves = 0;
     let mut reverts = 0;
+    let mut spec_moves = 0;
+    let mut spec_reverts = 0;
     let warmup_seconds = start.elapsed().as_secs();
 
     loop {
@@ -433,7 +498,7 @@ pub fn solve(
                 continue;
             }
             moves += 1;
-            climb(input, schedule, &mut log, &mut taboo, &mut moves, &mut reverts);
+            climb(input, schedule, &mut log, &mut taboo, &mut moves, &mut reverts, &mut spec_moves, &mut spec_reverts);
             let steps = log.len() - pre_steps;
             big_step_size.push(steps);
 
@@ -487,11 +552,15 @@ pub fn solve(
     println!("took {} big steps and {} little steps", big_steps, little_steps);
     let solve_seconds = (seconds - warmup_seconds) as usize;
     println!(
-        "total of {} section moves ({}/s) and {} reverts ({}/s)",
+        "total of {} section moves ({}/s) and {} reverts ({}/s), {} speculative moves ({}/s) and {} spec reverts ({}/s)",
         moves,
         moves / solve_seconds,
         reverts,
-        reverts / solve_seconds
+        reverts / solve_seconds,
+        spec_moves,
+        spec_moves / solve_seconds,
+        spec_reverts,
+        spec_reverts / solve_seconds
     );
 
     best
@@ -561,7 +630,7 @@ pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<
                     if !schedule.has_hard_conflict(input, section, time_slot, maybe_room) {
                         count += 1;
                         if count == winner {
-                            let _undo = move_section(&mut schedule, input, section, time_slot, maybe_room);
+                            let _undo = move_section(input, &mut schedule, section, time_slot, maybe_room);
                             break 'time_loop;
                         }
                     }
@@ -580,8 +649,19 @@ pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<
                 let mut log = Vec::new();
                 let mut taboo = Vec::new();
                 let mut moves = 0;
-                let mut reverse = 0;
-                climb(input, &mut schedule, &mut log, &mut taboo, &mut moves, &mut reverse);
+                let mut reverts = 0;
+                let mut spec_moves = 0;
+                let mut spec_reverts = 0;
+                climb(
+                    input,
+                    &mut schedule,
+                    &mut log,
+                    &mut taboo,
+                    &mut moves,
+                    &mut reverts,
+                    &mut spec_moves,
+                    &mut spec_reverts,
+                );
 
                 // is this a new best?
                 match best {
@@ -617,7 +697,9 @@ pub fn climb(
     log: &mut Vec<PlacementLog>,
     taboo: &mut Vec<Move>,
     moves: &mut usize,
-    reverts: &mut usize,
+    _reverts: &mut usize,
+    spec_moves: &mut usize,
+    spec_reverts: &mut usize,
 ) {
     let zero = Score::new();
     let mut by_score = Vec::new();
@@ -659,8 +741,8 @@ pub fn climb(
                     }
 
                     let delta = try_one_move(input, schedule, &candidate);
-                    *moves += 1;
-                    *reverts += 1;
+                    *spec_moves += 1;
+                    *spec_reverts += 1;
 
                     // only consider moves that were improvements
                     if delta < zero && best_delta.map_or(true, |best| delta < best) {
@@ -683,7 +765,7 @@ pub fn climb(
             time_slot: schedule.placements[section].time_slot,
             room: schedule.placements[section].room,
         });
-        let log_entry = move_section(schedule, input, section, ts, &room);
+        let log_entry = move_section(input, schedule, section, ts, &room);
         *moves += 1;
         log.push(log_entry);
     }
@@ -694,11 +776,7 @@ pub fn try_one_move(input: &Input, schedule: &mut Schedule, candidate_move: &Mov
     let &Move { section, time_slot: Some(ts), room } = candidate_move else {
         panic!("try_one_move called with no time slot");
     };
-    let old_score = schedule.score;
-    let undo = move_section(schedule, input, section, ts, &room);
-    let new_score = schedule.score;
-    revert_move(input, schedule, &undo);
-    new_score - old_score
+    speculative_move_section(input, schedule, section, ts, &room)
 }
 
 pub fn step_down(input: &Input, schedule: &mut Schedule, log: &mut Vec<PlacementLog>, taboo: &mut Vec<Move>) -> bool {
@@ -778,7 +856,7 @@ pub fn step_down(input: &Input, schedule: &mut Schedule, log: &mut Vec<Placement
         time_slot: schedule.placements[section].time_slot,
         room: schedule.placements[section].room,
     });
-    let log_entry = move_section(schedule, input, section, ts, &room);
+    let log_entry = move_section(input, schedule, section, ts, &room);
     log.push(log_entry);
 
     true

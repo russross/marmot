@@ -87,9 +87,9 @@ CREATE TABLE programs (
 
 CREATE TABLE faculty (
     faculty                     TEXT PRIMARY KEY,
-    department                  TEXT NOT NULL,
+    affiliation                 TEXT NOT NULL,
 
-    FOREIGN KEY (department) REFERENCES departments (department) ON DELETE CASCADE ON UPDATE CASCADE
+    FOREIGN KEY (affiliation) REFERENCES departments (department) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
 
 CREATE TABLE faculty_availability (
@@ -917,7 +917,7 @@ CREATE VIEW section_counts (department, course, section_count) AS
     with_overrides AS (
         SELECT department, all_sections.course AS course,
             -- use the override if present, but otherwise the all_sections count
-            iif(multiple_section_overrides.section_count IS NULL,
+            IIF(multiple_section_overrides.section_count IS NULL,
                 all_sections.section_count,
                 multiple_section_overrides.section_count) AS final_count
         FROM all_sections

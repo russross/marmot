@@ -1,12 +1,12 @@
 use super::score::*;
 use super::solver::*;
 use sqlite::{Connection, Error, OpenFlags, State, Value};
+use std::cmp::min;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Write;
 use std::ops;
 use std::time::Instant;
-use std::cmp::min;
 
 //
 //
@@ -773,11 +773,11 @@ pub fn load_faculty_section_assignments(
         }
 
         let mut min_k = usize::MAX;
-        'set_loop: for key in 1..(1<<all_possible.len()) {
+        'set_loop: for key in 1..(1 << all_possible.len()) {
             // count the bits
             let mut bit_count = 0;
             for i in 0..all_possible.len() {
-                if key & (1<<i) != 0 {
+                if key & (1 << i) != 0 {
                     bit_count += 1;
                 }
             }
@@ -790,13 +790,10 @@ pub fn load_faculty_section_assignments(
             // check every section
             'section_loop: for &section in &section_list {
                 // is this section satisfied by one of the rooms in the set?
-                for i in 0..all_possible.len() {
+                for (i, &room) in all_possible.iter().enumerate() {
                     // only consider rooms in the set
-                    if key & (1<<i) != 0 {
-                        let room = all_possible[i];
-                        if sections[section].rooms.iter().any(|elt| elt.room == room) {
-                            continue 'section_loop;
-                        }
+                    if key & (1 << i) != 0 && sections[section].rooms.iter().any(|elt| elt.room == room) {
+                        continue 'section_loop;
                     }
                 }
 
@@ -1176,7 +1173,7 @@ pub fn load_schedule(db_path: &str, input: &Input, schedule: &mut Schedule, plac
             None
         };
 
-        let _undo = move_section(schedule, input, section, time_slot, &maybe_room);
+        let _undo = move_section(input, schedule, section, time_slot, &maybe_room);
     }
 
     Ok(())
