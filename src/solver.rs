@@ -2,6 +2,7 @@ use super::input::*;
 use super::score::*;
 use super::*;
 use std::mem::take;
+use std::cmp::{min,max};
 
 //
 //
@@ -433,6 +434,8 @@ pub fn solve(
     let mut log = Vec::new();
     let mut taboo = Vec::new();
     let mut big_step_size = Vec::new();
+    let mut big_steps_min = 0;
+    let mut big_steps_max = 0;
     let mut failed_forward = false;
 
     let mut best_score_this_interval = schedule.score;
@@ -441,9 +444,6 @@ pub fn solve(
     let mut bias = MIN_BIAS;
 
     let mut moves = 0;
-    let mut reverts = 0;
-    let mut spec_moves = 0;
-    let mut spec_reverts = 0;
     let warmup_seconds = start.elapsed().as_secs();
 
     loop {
@@ -451,15 +451,18 @@ pub fn solve(
         if now != last_report && now % REPORT_SECONDS == 0 {
             last_report = now;
             println!(
-                "{} seconds: best {}, bias {}, {} steps away, best of last {} seconds is {}",
-                last_report,
+                "{} seconds: best {}, bias {}, [{},{}] steps away, best of last {} seconds is {}",
+                commas(last_report),
                 best.score,
                 bias,
-                big_step_size.len(),
+                commas(big_steps_min),
+                commas(big_steps_max),
                 REPORT_SECONDS,
                 best_score_this_interval,
             );
             best_score_this_interval = schedule.score;
+            big_steps_min = big_step_size.len();
+            big_steps_max = big_step_size.len();
             if last_report >= seconds {
                 break;
             }
@@ -468,9 +471,11 @@ pub fn solve(
                 bias_delta = -bias_delta;
             }
             if last_report - best_seconds >= REBASE_SECONDS {
-                println!("no improvement for {} seconds, rebasing", REBASE_SECONDS);
+                println!("no improvement for {} seconds, rebasing", commas(REBASE_SECONDS));
                 log.clear();
                 big_step_size.clear();
+                big_steps_min = 0;
+                big_steps_max = 0;
                 best_seconds = last_report;
                 best_since_rebase = schedule.score;
                 bias = MIN_BIAS;
@@ -498,9 +503,10 @@ pub fn solve(
                 continue;
             }
             moves += 1;
-            climb(input, schedule, &mut log, &mut taboo, &mut moves, &mut reverts, &mut spec_moves, &mut spec_reverts);
+            climb(input, schedule, &mut log, &mut taboo, &mut moves);
             let steps = log.len() - pre_steps;
             big_step_size.push(steps);
+            big_steps_max = max(big_steps_max, big_step_size.len());
 
             big_steps += 1;
             little_steps += steps;
@@ -509,11 +515,13 @@ pub fn solve(
                 best_score_this_interval = schedule.score;
             }
             if schedule.score < best.score {
-                println!("new best found {} steps from previous best", big_step_size.len());
+                println!("new best found {} steps from previous best", commas(big_step_size.len()));
 
                 // reset so this is now the starting point
                 log.clear();
                 big_step_size.clear();
+                big_steps_min = 0;
+                big_steps_max = 0;
                 best_since_rebase = schedule.score;
                 best_seconds = start.elapsed().as_secs();
                 bias = MIN_BIAS;
@@ -521,9 +529,9 @@ pub fn solve(
                 best = schedule.clone();
                 let msg = format!(
                     "random walk found after {} seconds, {} big steps, and {} little steps",
-                    start.elapsed().as_secs(),
-                    big_steps,
-                    little_steps
+                    commas(start.elapsed().as_secs()),
+                    commas(big_steps),
+                    commas(little_steps)
                 );
                 if let Err(e) = save_schedule(super::DB_PATH, input, schedule, &msg, Some(save_id)) {
                     println!("quitting due to save error: {}", e);
@@ -532,6 +540,8 @@ pub fn solve(
             } else if schedule.score < best_since_rebase {
                 log.clear();
                 big_step_size.clear();
+                big_steps_min = 0;
+                big_steps_max = 0;
                 best_since_rebase = schedule.score;
                 best_seconds = start.elapsed().as_secs();
                 bias = MIN_BIAS;
@@ -541,29 +551,38 @@ pub fn solve(
         } else {
             // step backward
             let steps = big_step_size.pop().unwrap();
+            big_steps_min = min(big_steps_min, big_step_size.len());
             for _ in 0..steps {
                 let undo = log.pop().unwrap();
                 revert_move(input, schedule, &undo);
-                reverts += 1;
             }
             taboo.clear();
         }
     }
-    println!("took {} big steps and {} little steps", big_steps, little_steps);
+    println!("took {} big steps, average of {:.1} little steps each", commas(big_steps), little_steps as f64 / big_steps as f64);
     let solve_seconds = (seconds - warmup_seconds) as usize;
-    println!(
-        "total of {} section moves ({}/s) and {} reverts ({}/s), {} speculative moves ({}/s) and {} spec reverts ({}/s)",
-        moves,
-        moves / solve_seconds,
-        reverts,
-        reverts / solve_seconds,
-        spec_moves,
-        spec_moves / solve_seconds,
-        spec_reverts,
-        spec_reverts / solve_seconds
-    );
+    println!("total of {} section moves ({}/s)", commas(moves), commas(moves / solve_seconds));
 
     best
+}
+
+fn commas<T: TryInto<i64>>(n: T) -> String {
+    let mut n = n.try_into().unwrap_or(0);
+    let mut minus = "";
+    if n < 0 {
+        n = -n;
+        minus = "-";
+    }
+    let mut s = String::new();
+    loop {
+        if n < 1000 {
+            s = format!("{}{}", n, s);
+            break;
+        }
+        s = format!(",{:03}{}", n%1000, s);
+        n /= 1000;
+    }
+    format!("{minus}{s}")
 }
 
 fn rooms_adapter(rooms: &[RoomWithOptionalPriority]) -> Vec<Option<usize>> {
@@ -649,19 +668,7 @@ pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<
                 let mut log = Vec::new();
                 let mut taboo = Vec::new();
                 let mut moves = 0;
-                let mut reverts = 0;
-                let mut spec_moves = 0;
-                let mut spec_reverts = 0;
-                climb(
-                    input,
-                    &mut schedule,
-                    &mut log,
-                    &mut taboo,
-                    &mut moves,
-                    &mut reverts,
-                    &mut spec_moves,
-                    &mut spec_reverts,
-                );
+                climb(input, &mut schedule, &mut log, &mut taboo, &mut moves);
 
                 // is this a new best?
                 match best {
@@ -697,9 +704,6 @@ pub fn climb(
     log: &mut Vec<PlacementLog>,
     taboo: &mut Vec<Move>,
     moves: &mut usize,
-    _reverts: &mut usize,
-    spec_moves: &mut usize,
-    spec_reverts: &mut usize,
 ) {
     let zero = Score::new();
     let mut by_score = Vec::new();
@@ -715,6 +719,11 @@ pub fn climb(
         // examine sections from highest current score to lowest
         by_score.sort_unstable_by_key(|section| zero - schedule.placements[*section].score);
         for &section in &by_score {
+            // moving a section with zero score can only make things worse
+            if schedule.placements[section].score.is_zero() {
+                break;
+            }
+
             // the best we can hope for is dropping this section's score to zero,
             // so if we already have a move better than that then stop searching
             if let Some(best) = best_delta {
@@ -741,8 +750,7 @@ pub fn climb(
                     }
 
                     let delta = try_one_move(input, schedule, &candidate);
-                    *spec_moves += 1;
-                    *spec_reverts += 1;
+                    *moves += 1;
 
                     // only consider moves that were improvements
                     if delta < zero && best_delta.map_or(true, |best| delta < best) {
