@@ -12,7 +12,7 @@ use std::ops;
 //
 
 pub type ScoreLevel = i16;
-pub const PRIORITY_LEVELS: usize = 20;
+pub const PRIORITY_LEVELS: usize = 25;
 pub const LEVEL_FOR_UNPLACED_SECTION: u8 = 0;
 pub const LEVEL_FOR_HARD_CONFLICT: u8 = 0;
 pub const START_LEVEL_FOR_PREFERENCES: u8 = 10;
@@ -56,7 +56,6 @@ pub enum Criterion {
     },
     SectionsWithDifferentTimePatterns {
         priority: u8,
-        faculty: usize,
         sections: Vec<usize>,
     },
 }
@@ -84,7 +83,7 @@ pub enum Penalty {
     DaysEvenlySpread { priority: u8, faculty: usize },
     RoomSwitch { priority: u8, faculty: usize, sections: [usize; 2], rooms: [usize; 2] },
     RoomCount { priority: u8, faculty: usize, desired: usize, actual: usize },
-    SectionsWithDifferentTimePatterns { priority: u8, faculty: usize, sections: Vec<usize>, time_slots: Vec<usize> },
+    SectionsWithDifferentTimePatterns { priority: u8, sections: Vec<usize>, time_slots: Vec<usize> },
 }
 
 impl Score {
@@ -453,41 +452,33 @@ impl Criterion {
                         // ignore one too-short cluster per day
                         let mut too_short_okay = true;
                         for &(start_time, end_time) in &clusters {
-                            let mut too_short_priority = u8::MAX;
-                            let mut too_long_priority = u8::MAX;
                             let actual = end_time - start_time;
                             for interval in distribution_intervals {
                                 match *interval {
                                     DistributionInterval::ClusterTooShort { priority, duration } => {
                                         if actual < duration {
-                                            too_short_priority = std::cmp::min(priority, too_short_priority);
+                                            if too_short_okay {
+                                                too_short_okay = false;
+                                            } else {
+                                                penalties.push(Penalty::ClusterTooShort {
+                                                    priority,
+                                                    faculty: *faculty,
+                                                    duration: actual,
+                                                });
+                                            }
                                         }
                                     }
                                     DistributionInterval::ClusterTooLong { priority, duration } => {
                                         if actual > duration {
-                                            too_long_priority = std::cmp::min(priority, too_long_priority);
+                                            penalties.push(Penalty::ClusterTooLong {
+                                                priority,
+                                                faculty: *faculty,
+                                                duration: actual,
+                                            });
                                         }
                                     }
                                     _ => {}
                                 }
-                            }
-                            if too_short_priority < u8::MAX {
-                                if too_short_okay {
-                                    too_short_okay = false;
-                                } else {
-                                    penalties.push(Penalty::ClusterTooShort {
-                                        priority: too_short_priority,
-                                        faculty: *faculty,
-                                        duration: actual,
-                                    });
-                                }
-                            }
-                            if too_long_priority < u8::MAX {
-                                penalties.push(Penalty::ClusterTooLong {
-                                    priority: too_long_priority,
-                                    faculty: *faculty,
-                                    duration: actual,
-                                });
                             }
                         }
 
@@ -530,7 +521,7 @@ impl Criterion {
                 penalties
             }
 
-            Criterion::SectionsWithDifferentTimePatterns { priority, faculty, sections } => {
+            Criterion::SectionsWithDifferentTimePatterns { priority, sections } => {
                 let mut patterns = Vec::new();
                 let mut scheduled_sections = Vec::new();
                 let mut time_slots = Vec::new();
@@ -546,7 +537,6 @@ impl Criterion {
                 if patterns.len() > 1 {
                     vec![Penalty::SectionsWithDifferentTimePatterns {
                         priority: *priority,
-                        faculty: *faculty,
                         sections: scheduled_sections,
                         time_slots,
                     }]
@@ -561,9 +551,13 @@ impl Criterion {
         let mut s = String::new();
 
         match self {
-            &Criterion::SoftConflict { priority, sections: [_, section] } => {
-                write!(&mut s, "soft conflict:").unwrap();
-                write!(&mut s, " {}:{}", input.sections[section].name, priority).unwrap();
+            &Criterion::SoftConflict { priority, sections: [a, b] } => {
+                write!(
+                    &mut s,
+                    "soft conflict: {} and {} with priority {}",
+                    input.sections[a].name, input.sections[b].name, priority
+                )
+                .unwrap();
             }
 
             Criterion::AntiConflict { priority, single, group } => {
@@ -575,15 +569,15 @@ impl Criterion {
                 }
             }
 
-            Criterion::RoomPreference { rooms_with_priorities, .. } => {
-                write!(&mut s, "room preferences:").unwrap();
+            Criterion::RoomPreference { section, rooms_with_priorities } => {
+                write!(&mut s, "rooms to avoid for {}:", input.sections[*section].name).unwrap();
                 for &RoomWithPriority { room, priority } in rooms_with_priorities {
                     write!(&mut s, " {}:{}", input.rooms[room].name, priority).unwrap();
                 }
             }
 
-            Criterion::TimeSlotPreference { time_slots_with_priorities, .. } => {
-                write!(&mut s, "time slot preferences:").unwrap();
+            Criterion::TimeSlotPreference { section, time_slots_with_priorities } => {
+                write!(&mut s, "time slots to avoid for {}:", input.sections[*section].name).unwrap();
                 for &TimeSlotWithPriority { time_slot, priority } in time_slots_with_priorities {
                     write!(&mut s, " {}:{}", input.time_slots[time_slot].name, priority).unwrap();
                 }
@@ -668,8 +662,8 @@ impl Criterion {
                 }
             }
 
-            Criterion::SectionsWithDifferentTimePatterns { priority, faculty, sections } => {
-                write!(&mut s, "    {}: {} wants ", priority, input.faculty[*faculty].name).unwrap();
+            Criterion::SectionsWithDifferentTimePatterns { priority, sections } => {
+                write!(&mut s, "{}: want ", priority).unwrap();
                 let mut sep = "";
                 for &section in sections {
                     write!(&mut s, "{}{}", sep, input.sections[section].name).unwrap();
@@ -853,8 +847,8 @@ impl Penalty {
                 ),
             ),
 
-            Penalty::SectionsWithDifferentTimePatterns { priority, faculty, sections, time_slots } => (*priority, {
-                let mut s = format!("{} teaches ", input.faculty[*faculty].name);
+            Penalty::SectionsWithDifferentTimePatterns { priority, sections, time_slots } => (*priority, {
+                let mut s = "scheduled ".to_string();
                 let mut sep = "";
                 for (section, time_slot) in std::iter::zip(sections, time_slots) {
                     write!(&mut s, "{}{} at {}", sep, input.sections[*section].name, input.time_slots[*time_slot].name)

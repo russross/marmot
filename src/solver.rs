@@ -1,8 +1,8 @@
 use super::input::*;
 use super::score::*;
 use super::*;
+use std::cmp::{max, min};
 use std::mem::take;
-use std::cmp::{min,max};
 
 //
 //
@@ -559,7 +559,11 @@ pub fn solve(
             taboo.clear();
         }
     }
-    println!("took {} big steps, average of {:.1} little steps each", commas(big_steps), little_steps as f64 / big_steps as f64);
+    println!(
+        "took {} big steps, average of {:.1} little steps each",
+        commas(big_steps),
+        little_steps as f64 / big_steps as f64
+    );
     let solve_seconds = (seconds - warmup_seconds) as usize;
     println!("total of {} section moves ({}/s)", commas(moves), commas(moves / solve_seconds));
 
@@ -579,7 +583,7 @@ fn commas<T: TryInto<i64>>(n: T) -> String {
             s = format!("{}{}", n, s);
             break;
         }
-        s = format!(",{:03}{}", n%1000, s);
+        s = format!(",{:03}{}", n % 1000, s);
         n /= 1000;
     }
     format!("{minus}{s}")

@@ -272,7 +272,7 @@ impl Faculty {
 
         write!(&mut s, "{}", self.name).unwrap();
         if !self.sections.is_empty() {
-            write!(&mut s, " assigned[").unwrap();
+            write!(&mut s, " assigned: ").unwrap();
             let mut sep = "";
             for &elt in &self.sections {
                 write!(&mut s, "{}{}", sep, input.sections[elt].name).unwrap();
@@ -307,7 +307,8 @@ pub fn load_input(db_path: &str, departments: &[String]) -> Result<Input, String
     let (mut faculty, faculty_index) = load_faculty(&db, departments)?;
     let (mut sections, section_index, mut criteria) = load_sections(&db, &room_index, &time_slot_index, departments)?;
     load_conflicts(&db, &mut sections, &section_index, &mut criteria, departments)?;
-    load_anti_conflicts(&db, &mut sections, &section_index, &mut criteria, departments)?;
+    load_anti_conflicts(&db, &sections, &section_index, &mut criteria, departments)?;
+    load_time_pattern_matches(&db, &sections, &section_index, &mut criteria, departments)?;
     load_faculty_section_assignments(
         &db,
         &mut faculty,
@@ -317,12 +318,6 @@ pub fn load_input(db_path: &str, departments: &[String]) -> Result<Input, String
         &mut criteria,
         departments,
     )?;
-
-    // give Jeff a SectionsWithDifferentTimePatterns conflit on CS 2450 sections
-    let jeff = faculty_index["Jeff Compas"];
-    let a = section_index["CS 2450-01"];
-    let b = section_index["CS 2450-02"];
-    criteria.push(Criterion::SectionsWithDifferentTimePatterns { priority: 10, faculty: jeff, sections: vec![a, b] });
 
     compute_neighbors(&mut sections, &criteria);
     println!(": {}ms", start.elapsed().as_millis());
@@ -640,7 +635,7 @@ pub fn load_conflicts(
 
 pub fn load_anti_conflicts(
     db: &Connection,
-    _sections: &mut [Section],
+    _sections: &[Section],
     section_index: &HashMap<String, usize>,
     criteria: &mut Vec<Criterion>,
     departments: &[String],
@@ -692,6 +687,64 @@ pub fn load_anti_conflicts(
 
     // close the final one out
     if let Some(elt) = criterion {
+        criteria.push(elt);
+    }
+
+    Ok(())
+}
+
+pub fn load_time_pattern_matches(
+    db: &Connection,
+    _sections: &[Section],
+    section_index: &HashMap<String, usize>,
+    criteria: &mut Vec<Criterion>,
+    departments: &[String],
+) -> Result<(), String> {
+    let dept_in = dept_clause(departments, &["department".into()], true);
+    let mut stmt = db
+        .prepare(format!(
+            "
+            SELECT DISTINCT time_pattern_match_name, time_pattern_match_priority, time_pattern_match_section
+            FROM time_pattern_matches
+            NATURAL JOIN time_pattern_match_sections
+            JOIN sections_to_be_scheduled
+                ON time_pattern_match_section = section
+            {}
+            ORDER BY time_pattern_match_name, time_pattern_match_priority, time_pattern_match_section",
+            dept_in
+        ))
+        .map_err(sql_err)?;
+    stmt.bind_iter(as_values(departments)).map_err(sql_err)?;
+
+    let mut criterion = None;
+    while stmt.next().map_err(sql_err)? == State::Row {
+        let new_group_name: String = stmt.read(0).map_err(sql_err)?;
+        let pri: i64 = stmt.read(1).map_err(sql_err)?;
+        let section_name: String = stmt.read(2).map_err(sql_err)?;
+        let section = *section_index
+            .get(&section_name)
+            .ok_or(format!("time pattern match {new_group_name} references unknown section {section_name}"))?;
+
+        // existing group?
+        match &mut criterion {
+            Some((name, Criterion::SectionsWithDifferentTimePatterns { sections, .. })) if *name == *new_group_name => {
+                sections.push(section);
+            }
+            _ => {
+                // close out the last one and start a new one
+                if let Some((_, elt)) = criterion {
+                    criteria.push(elt);
+                }
+                criterion = Some((
+                    new_group_name,
+                    Criterion::SectionsWithDifferentTimePatterns { priority: pri as u8, sections: vec![section] },
+                ));
+            }
+        }
+    }
+
+    // close the final one out
+    if let Some((_, elt)) = criterion {
         criteria.push(elt);
     }
 

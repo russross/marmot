@@ -84,15 +84,14 @@ fn dump_input(departments: &[String], input: &Input) {
     }
     println!("{} rooms, {} time slots", input.rooms.len(), input.time_slots.len());
 
-    print!("\nrooms: ");
+    print!("\nRooms: ");
     let mut sep = "";
     for elt in &input.rooms {
         print!("{sep}{elt}");
         sep = ", ";
     }
     println!();
-    print!("\ntime slots: ");
-
+    print!("\nTime slots: ");
     sep = "";
     for elt in &input.time_slots {
         print!("{sep}{elt}");
@@ -100,11 +99,12 @@ fn dump_input(departments: &[String], input: &Input) {
     }
     println!();
 
-    println!();
+    println!("\nFaculty:");
     for faculty in &input.faculty {
-        println!("faculty: {}", faculty.debug(input));
+        println!("{}", faculty.debug(input));
     }
 
+    println!("\nSections:");
     for section in &input.sections {
         print!("section {} with {} rooms and {} times", section.name, section.rooms.len(), section.time_slots.len());
         if !section.faculty.is_empty() {
@@ -124,8 +124,9 @@ fn dump_input(departments: &[String], input: &Input) {
         }
     }
 
+    println!("\nScoring criteria:");
     for elt in &input.criteria {
-        println!("    {}", elt.debug(input));
+        println!("{}", elt.debug(input));
     }
 }
 
@@ -219,9 +220,6 @@ fn print_problems(input: &Input, schedule: &Schedule) {
     }
     lst.sort_unstable();
     for (priority, msg) in lst {
-        if priority >= 20 {
-            continue;
-        }
         println!("{priority:2}: {msg}");
     }
 }
