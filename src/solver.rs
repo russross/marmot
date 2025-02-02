@@ -516,8 +516,12 @@ pub fn solve(
                     break;
                 }
                 println!("failed to make step down move");
-                bias = MIN_BIAS;
-                bias_delta = BIAS_STEP;
+                if bias_delta > 0 {
+                    bias_delta = -bias_delta;
+                }
+                if bias > MIN_BIAS {
+                    bias += bias_delta;
+                }
                 continue;
             }
             moves += 1;
