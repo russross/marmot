@@ -59,7 +59,7 @@ def crawl_prefix(prefix):
 depts = set()
 print('import queries')
 print()
-print('def build(db: queries.DB) -> None:')
+print('def build_courses(db: queries.DB) -> None:')
 print("    print('building departments')")
 for dept in sorted(set(prefixes.values())):
     print(f'    db.make_department({repr(dept)})')

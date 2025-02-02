@@ -1,6 +1,6 @@
 import queries
 
-def build(db: queries.DB) -> None:
+def build_courses(db: queries.DB) -> None:
     print('building departments')
     db.make_department('Computing')
     db.make_department('Math')

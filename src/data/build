@@ -6,6 +6,7 @@ import subprocess
 
 import courses
 import computing
+import computingfaculty
 
 DB_FILE = '../timetable.db'
 
@@ -28,8 +29,10 @@ db.make_holiday('2025-11-26')
 db.make_holiday('2025-11-27')
 db.make_holiday('2025-11-28')
 
-courses.build(db)
-computing.build(db)
+courses.build_courses(db)
+computing.build_pre(db)
+computingfaculty.build_faculty(db)
+computing.build_post(db)
 
 db.db.commit()
 
