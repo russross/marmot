@@ -9,9 +9,9 @@ use std::time::Instant;
 
 const DB_PATH: &str = "timetable.db";
 const WARMUP_SECONDS: u64 = 5;
-const TOTAL_SECONDS: u64 = 605;
+const TOTAL_SECONDS: u64 = 305;
 const REPORT_SECONDS: u64 = 5;
-const REBASE_SECONDS: u64 = 100;
+const REBASE_SECONDS: u64 = 60;
 const MIN_BIAS: i64 = -10;
 const MAX_BIAS: i64 = -4;
 const BIAS_STEP: i64 = 1;

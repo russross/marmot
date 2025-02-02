@@ -486,7 +486,7 @@ pub fn solve(
                 bias_delta = -bias_delta;
             }
             if last_report - best_seconds >= REBASE_SECONDS {
-                println!("no improvement for {} seconds, rebasing", commas(REBASE_SECONDS));
+                println!("no improvement for {} seconds, rebasing from {} steps away", commas(REBASE_SECONDS), commas(big_step_size.len()));
                 log.clear();
                 taboo.clear();
                 big_step_size.clear();
