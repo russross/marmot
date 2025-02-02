@@ -159,32 +159,47 @@ impl Schedule {
         }
     }
 
-    pub fn has_hard_conflict(
-        &self,
-        input: &Input,
-        section: usize,
-        time_slot: usize,
-        maybe_room: &Option<usize>,
-    ) -> bool {
+    // returns values
+    //   Some((time_based, taboo)):
+    //   - time_based is true if the conflict would hold regardless of room
+    //   - taboo indicates one or more of the conflicts were sections in the taboo list
+    //   None:
+    //   - no hard conflicts
+    pub fn has_hard_conflict(&self, input: &Input, section: usize, time_slot: usize, maybe_room: &Option<usize>, taboo: &[usize]) -> Option<(bool, bool)> {
+        let mut found = false;
+        let mut time_based = false;
+        let mut with_taboo = false;
+
         // check for hard conflicts in overlapping time slots
         for &hard_conflict in &input.sections[section].hard_conflicts {
             if let &Some(other_time_slot) = &self.placements[hard_conflict].time_slot {
                 if input.time_slot_conflicts[time_slot][other_time_slot] {
-                    return true;
+                    found = true;
+                    time_based = true;
+                    if taboo.contains(&hard_conflict) {
+                        with_taboo = true;
+                    }
                 }
             }
         }
 
         // check if the room is already occupied
         if let &Some(room) = maybe_room {
-            for &TimeSlotPlacement { time_slot: other_time_slot, .. } in &self.room_placements[room].used_time_slots {
+            for &TimeSlotPlacement { time_slot: other_time_slot, section: hard_conflict } in &self.room_placements[room].used_time_slots {
                 if input.time_slot_conflicts[time_slot][other_time_slot] {
-                    return true;
+                    found = true;
+                    if taboo.contains(&hard_conflict) {
+                        with_taboo = true;
+                    }
                 }
             }
         }
 
-        false
+        if found {
+            Some((time_based, with_taboo))
+        } else {
+            None
+        }
     }
 }
 
@@ -473,6 +488,7 @@ pub fn solve(
             if last_report - best_seconds >= REBASE_SECONDS {
                 println!("no improvement for {} seconds, rebasing", commas(REBASE_SECONDS));
                 log.clear();
+                taboo.clear();
                 big_step_size.clear();
                 big_steps_min = 0;
                 big_steps_max = 0;
@@ -500,10 +516,12 @@ pub fn solve(
                     break;
                 }
                 println!("failed to make step down move");
+                bias = MIN_BIAS;
+                bias_delta = BIAS_STEP;
                 continue;
             }
             moves += 1;
-            climb(input, schedule, &mut log, &mut taboo, &mut moves);
+            climb(input, schedule, &mut log, &taboo, &mut moves);
             let steps = log.len() - pre_steps;
             big_step_size.push(steps);
             big_steps_max = max(big_steps_max, big_step_size.len());
@@ -519,6 +537,7 @@ pub fn solve(
 
                 // reset so this is now the starting point
                 log.clear();
+                taboo.clear();
                 big_step_size.clear();
                 big_steps_min = 0;
                 big_steps_max = 0;
@@ -539,6 +558,7 @@ pub fn solve(
                 }
             } else if schedule.score < best_since_rebase {
                 log.clear();
+                taboo.clear();
                 big_step_size.clear();
                 big_steps_min = 0;
                 big_steps_max = 0;
@@ -556,7 +576,7 @@ pub fn solve(
                 let undo = log.pop().unwrap();
                 revert_move(input, schedule, &undo);
             }
-            taboo.clear();
+            taboo.pop();
         }
     }
     println!(
@@ -601,6 +621,7 @@ pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<
     let mut best = None;
     let mut best_pre_climb_score = None;
     let mut count = 0;
+    let taboo = Vec::new();
     while start.elapsed().as_secs() < seconds {
         count += 1;
         let mut schedule = Schedule::new(input);
@@ -616,10 +637,12 @@ pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<
 
                 // find the number of placement options for this section
                 let mut count = 0;
-                for &TimeSlotWithOptionalPriority { time_slot, .. } in &input.sections[section].time_slots {
+                'time_loop: for &TimeSlotWithOptionalPriority { time_slot, .. } in &input.sections[section].time_slots {
                     for maybe_room in &rooms_adapter(&input.sections[section].rooms) {
-                        if !schedule.has_hard_conflict(input, section, time_slot, maybe_room) {
-                            count += 1;
+                        match schedule.has_hard_conflict(input, section, time_slot, maybe_room, &taboo) {
+                            Some((true, _)) => continue 'time_loop,
+                            Some(_) => continue,
+                            None => count += 1,
                         }
                     }
                 }
@@ -650,11 +673,15 @@ pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<
             let mut count = 0;
             'time_loop: for &TimeSlotWithOptionalPriority { time_slot, .. } in &input.sections[section].time_slots {
                 for maybe_room in &rooms_adapter(&input.sections[section].rooms) {
-                    if !schedule.has_hard_conflict(input, section, time_slot, maybe_room) {
-                        count += 1;
-                        if count == winner {
-                            let _undo = move_section(input, &mut schedule, section, time_slot, maybe_room);
-                            break 'time_loop;
+                    match schedule.has_hard_conflict(input, section, time_slot, maybe_room, &taboo) {
+                        Some((true, _)) => continue 'time_loop,
+                        Some(_) => continue,
+                        None => {
+                            count += 1;
+                            if count == winner {
+                                let _undo = move_section(input, &mut schedule, section, time_slot, maybe_room);
+                                break 'time_loop;
+                            }
                         }
                     }
                 }
@@ -670,9 +697,8 @@ pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<
 
                 // do a climb
                 let mut log = Vec::new();
-                let mut taboo = Vec::new();
                 let mut moves = 0;
-                climb(input, &mut schedule, &mut log, &mut taboo, &mut moves);
+                climb(input, &mut schedule, &mut log, &taboo, &mut moves);
 
                 // is this a new best?
                 match best {
@@ -706,7 +732,7 @@ pub fn climb(
     input: &Input,
     schedule: &mut Schedule,
     log: &mut Vec<PlacementLog>,
-    taboo: &mut Vec<Move>,
+    taboo: &[usize],
     moves: &mut usize,
 ) {
     let zero = Score::new();
@@ -736,22 +762,32 @@ pub fn climb(
                 }
             }
 
+            // skip taboo moves
+            if taboo.contains(&section) {
+                continue;
+            }
+
             // try each time slot
-            for &TimeSlotWithOptionalPriority { time_slot, .. } in &input.sections[section].time_slots {
+            'time_loop: for &TimeSlotWithOptionalPriority { time_slot, .. } in &input.sections[section].time_slots {
                 for room in rooms_adapter(&input.sections[section].rooms) {
                     let candidate = Move { section, time_slot: Some(time_slot), room };
 
-                    // skip taboo moves
-                    if taboo.contains(&candidate) {
-                        continue;
-                    }
-
-                    // the current location is off limits, too
+                    // the current location is off limits, i.e., no moves that do not move anything
                     if schedule.placements[section].time_slot == candidate.time_slot
                         && schedule.placements[section].room == candidate.room
                     {
                         continue;
                     }
+
+                    // not allowed to displace anything from the taboo list
+                    if let Some((time_based, taboo)) = schedule.has_hard_conflict(input, section, time_slot, &room, taboo) {
+                        if taboo {
+                            if time_based {
+                                continue 'time_loop;
+                            }
+                            continue;
+                        }
+                    };
 
                     let delta = try_one_move(input, schedule, &candidate);
                     *moves += 1;
@@ -771,12 +807,7 @@ pub fn climb(
             break;
         };
 
-        // apply the move and add the configuration it displaced to the taboo list
-        taboo.push(Move {
-            section,
-            time_slot: schedule.placements[section].time_slot,
-            room: schedule.placements[section].room,
-        });
+        // apply the move, but do not add it to the taboo list
         let log_entry = move_section(input, schedule, section, ts, &room);
         *moves += 1;
         log.push(log_entry);
@@ -791,8 +822,8 @@ pub fn try_one_move(input: &Input, schedule: &mut Schedule, candidate_move: &Mov
     speculative_move_section(input, schedule, section, ts, &room)
 }
 
-pub fn step_down(input: &Input, schedule: &mut Schedule, log: &mut Vec<PlacementLog>, taboo: &mut Vec<Move>) -> bool {
-    let zero = Score::new();
+pub fn step_down(input: &Input, schedule: &mut Schedule, log: &mut Vec<PlacementLog>, taboo: &mut Vec<usize>) -> bool {
+    //let zero = Score::new();
 
     // gather a list of potential moves with their local scores
     // but only those with a non-zero potential for improvement
@@ -800,27 +831,37 @@ pub fn step_down(input: &Input, schedule: &mut Schedule, log: &mut Vec<Placement
     // for each section
     let mut candidates = Vec::new();
     for section in 0..input.sections.len() {
-        // skip sections with no bad scores
-        if schedule.placements[section].score == zero {
+        // skip taboo moves
+        if taboo.contains(&section) {
             continue;
         }
 
+        // skip sections with no bad scores ???
+        //if schedule.placements[section].score == zero {
+        //    continue;
+        //}
+
         // try each time slot
-        for &TimeSlotWithOptionalPriority { time_slot, .. } in &input.sections[section].time_slots {
+        'time_loop: for &TimeSlotWithOptionalPriority { time_slot, .. } in &input.sections[section].time_slots {
             for room in rooms_adapter(&input.sections[section].rooms) {
                 let candidate = Move { section, time_slot: Some(time_slot), room };
 
-                // skip taboo moves
-                if taboo.contains(&candidate) {
-                    continue;
-                }
-
-                // the current location is off limits, too
+                // the current location is off limits, i.e., no moves that do not move anything
                 if schedule.placements[section].time_slot == candidate.time_slot
                     && schedule.placements[section].room == candidate.room
                 {
                     continue;
                 }
+
+                // not allowed to displace anything from the taboo list
+                if let Some((time_based, taboo)) = schedule.has_hard_conflict(input, section, time_slot, &room, taboo) {
+                    if taboo {
+                        if time_based {
+                            continue 'time_loop;
+                        }
+                        continue;
+                    }
+                };
 
                 candidates.push((schedule.placements[section].score.first_nonzero(), candidate));
             }
@@ -862,12 +903,8 @@ pub fn step_down(input: &Input, schedule: &mut Schedule, log: &mut Vec<Placement
         return false;
     };
 
-    // apply the move and add the configuration it displaced to the taboo list
-    taboo.push(Move {
-        section,
-        time_slot: schedule.placements[section].time_slot,
-        room: schedule.placements[section].room,
-    });
+    // apply the move and add the section that was moved to the taboo list
+    taboo.push(section);
     let log_entry = move_section(input, schedule, section, ts, &room);
     log.push(log_entry);
 

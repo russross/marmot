@@ -732,8 +732,12 @@ pub fn load_time_pattern_matches(
             }
             _ => {
                 // close out the last one and start a new one
-                if let Some((_, elt)) = criterion {
-                    criteria.push(elt);
+                if let Some((_, mut elt)) = criterion {
+                    if let Criterion::SectionsWithDifferentTimePatterns { sections, .. } = &mut elt {
+                        if sections.len() > 1 {
+                            criteria.push(elt);
+                        }
+                    }
                 }
                 criterion = Some((
                     new_group_name,
@@ -744,8 +748,12 @@ pub fn load_time_pattern_matches(
     }
 
     // close the final one out
-    if let Some((_, elt)) = criterion {
-        criteria.push(elt);
+    if let Some((_, mut elt)) = criterion {
+        if let Criterion::SectionsWithDifferentTimePatterns { sections, .. } = &mut elt {
+            if sections.len() > 1 {
+                criteria.push(elt);
+            }
+        }
     }
 
     Ok(())

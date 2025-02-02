@@ -9,11 +9,11 @@ use std::time::Instant;
 
 const DB_PATH: &str = "timetable.db";
 const WARMUP_SECONDS: u64 = 5;
-const TOTAL_SECONDS: u64 = 65;
+const TOTAL_SECONDS: u64 = 605;
 const REPORT_SECONDS: u64 = 5;
 const REBASE_SECONDS: u64 = 300;
 const MIN_BIAS: i64 = -10;
-const MAX_BIAS: i64 = 10;
+const MAX_BIAS: i64 = 1;
 const BIAS_STEP: i64 = 1;
 
 fn main() {
@@ -218,8 +218,17 @@ fn print_problems(input: &Input, schedule: &Schedule) {
             lst.push(penalty.get_score_message(input, schedule));
         }
     }
-    lst.sort_unstable();
+    lst.sort_unstable_by(|a, b|
+        if a.0 != b.0 && (a.0 < START_LEVEL_FOR_PREFERENCES || b.0 < START_LEVEL_FOR_PREFERENCES) {
+            a.0.cmp(&b.0)
+        } else {
+            a.1.cmp(&b.1)
+        });
     for (priority, msg) in lst {
-        println!("{priority:2}: {msg}");
+        if priority < START_LEVEL_FOR_PREFERENCES {
+            println!("{priority:2}: {msg}");
+        } else {
+            println!("{msg}");
+        }
     }
 }

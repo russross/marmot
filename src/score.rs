@@ -780,13 +780,36 @@ impl Penalty {
             }
 
             &Penalty::RoomPreference { priority, section, room } => {
-                (priority, format!("{} is assigned to {}", input.sections[section].name, input.rooms[room].name))
+                match input.sections[section].faculty.len() {
+                    0 => (priority, format!("{} is assigned to {}", input.sections[section].name, input.rooms[room].name)),
+                    1 => (priority, format!("{} is assigned to teach {} in {}", input.faculty[input.sections[section].faculty[0]].name, input.sections[section].name, input.rooms[room].name)),
+                    _ => {
+                        let mut names = String::new();
+                        let mut sep = "";
+                        for &faculty in &input.sections[section].faculty {
+                            write!(&mut names, "{}{}", sep, input.faculty[faculty].name).unwrap();
+                            sep = " and ";
+                        }
+                        (priority, format!("{} are assigned to teach {} in {}", names, input.sections[section].name, input.rooms[room].name))
+                    } 
+                }
             }
 
-            &Penalty::TimeSlotPreference { priority, section, time_slot } => (
-                priority,
-                format!("{} is scheduled at {}", input.sections[section].name, input.time_slots[time_slot].name),
-            ),
+            &Penalty::TimeSlotPreference { priority, section, time_slot } => {
+                match input.sections[section].faculty.len() {
+                    0 => (priority, format!("{} is scheduled at {}", input.sections[section].name, input.time_slots[time_slot].name)),
+                    1 => (priority, format!("{} is scheduled to teach {} at {}", input.faculty[input.sections[section].faculty[0]].name, input.sections[section].name, input.time_slots[time_slot].name)),
+                    _ => {
+                        let mut names = String::new();
+                        let mut sep = "";
+                        for &faculty in &input.sections[section].faculty {
+                            write!(&mut names, "{}{}", sep, input.faculty[faculty].name).unwrap();
+                            sep = " and ";
+                        }
+                        (priority, format!("{} are scheduled to teach {} at {}", names, input.sections[section].name, input.time_slots[time_slot].name))
+                    } 
+                }
+            }
 
             &Penalty::ClusterTooShort { priority, faculty, duration } => (
                 priority,
@@ -848,12 +871,35 @@ impl Penalty {
             ),
 
             Penalty::SectionsWithDifferentTimePatterns { priority, sections, time_slots } => (*priority, {
-                let mut s = "scheduled ".to_string();
-                let mut sep = "";
+                let mut faculty = Vec::new();
+                for &section in sections {
+                    faculty.extend_from_slice(&input.sections[section].faculty);
+                }
+                faculty.sort();
+                faculty.dedup();
+
+                let first_section = &input.sections[sections[0]].name;
+                let first_time_slot = &input.time_slots[time_slots[0]].name;
+                let sections = &sections[1..];
+                let time_slots = &time_slots[1..];
+
+                let mut s = match faculty.len() {
+                    0 => format!("{} is scheduled at {}", first_section, first_time_slot),
+                    1 => format!("{} is scheduled to teach {} at {}", input.faculty[faculty[0]].name, first_section, first_time_slot),
+                    _ => {
+                        let mut names = String::new();
+                        let mut sep = "";
+                        for &i in &faculty {
+                            write!(&mut names, "{}{}", sep, input.faculty[i].name).unwrap();
+                            sep = " and ";
+                        }
+                        format!("{} are scheduled to teach {} at {}", names, first_section, first_time_slot)
+                    } 
+                };
+
                 for (section, time_slot) in std::iter::zip(sections, time_slots) {
-                    write!(&mut s, "{}{} at {}", sep, input.sections[*section].name, input.time_slots[*time_slot].name)
+                    write!(&mut s, " and {} at {}", input.sections[*section].name, input.time_slots[*time_slot].name)
                         .unwrap();
-                    sep = " and ";
                 }
                 write!(&mut s, " but they have different time patterns").unwrap();
                 s
