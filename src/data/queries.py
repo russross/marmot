@@ -5,57 +5,6 @@ from typing import Any, Callable, TypeVar, Optional, ParamSpec, Protocol, Self
 MIN_PREF_PRIORITY = 10
 PRIORITY_LEVELS = 25
 
-class TimeInterval:
-    def __init__(self, days: str, start_time: str|int, end_time: str|int, priority: int = PRIORITY_LEVELS):
-        assert(len(days) > 0)
-        if type(start_time) == str:
-            assert(len(start_time) == 4)
-            assert(start_time.isdigit())
-            start = int(start_time[:2]) * 60 + int(start_time[2:])
-            assert(f'{start//60:02}{start%60:02}') == start_time
-        else:
-            assert(type(start_time) == int)
-            start = start_time
-        if type(end_time) == str:
-            assert(len(end_time) == 4)
-            assert(end_time.isdigit())
-            end = int(end_time[:2]) * 60 + int(end_time[2:])
-            assert(f'{end//60:02}{end%60:02}') == end_time
-        else:
-            assert(type(end_time) == int)
-            end = end_time
-        assert(start >= 0 and start%5 == 0)
-        assert(start < end)
-        assert(end <= 24*60 and end%5 == 0)
-
-        intervals = []
-        prev = -1
-        for day in days.upper():
-            i = 'MTWRFSU'.index(day, prev+1)
-            intervals.append( (day, start, end, priority) )
-        self.intervals = intervals
-
-def parse_minutes(duration: str|int) -> int:
-    if type(duration) == int:
-        return duration
-    assert(type(duration) == str)
-    n = 0
-    digits = ''
-    for ch in duration:
-        match ch:
-            case digit if digit.isdigit():
-                digits += digit
-            case 'h' if len(digits) > 0:
-                n += int(digits) * 60
-                digits = ''
-            case 'm' if len(digits) > 0:
-                n += int(digits)
-                digits = ''
-            case _:
-                raise RuntimeError(f'malformed duration: {duration} should be of form 2h45m')
-    assert(len(digits) == 0)
-    return n
-
 @dataclass
 class FacultyPreferences:
     pass
@@ -172,6 +121,58 @@ class UseSameTimePattern(FacultyPreferences):
 
     def __post_init__(self) -> None:
         assert(self.priority is None or self.priority >= MIN_PREF_PRIORITY and self.priority < PRIORITY_LEVELS)
+
+
+class TimeInterval:
+    def __init__(self, days: str, start_time: str|int, end_time: str|int, priority: int = PRIORITY_LEVELS):
+        assert(len(days) > 0)
+        if type(start_time) == str:
+            assert(len(start_time) == 4)
+            assert(start_time.isdigit())
+            start = int(start_time[:2]) * 60 + int(start_time[2:])
+            assert(f'{start//60:02}{start%60:02}') == start_time
+        else:
+            assert(type(start_time) == int)
+            start = start_time
+        if type(end_time) == str:
+            assert(len(end_time) == 4)
+            assert(end_time.isdigit())
+            end = int(end_time[:2]) * 60 + int(end_time[2:])
+            assert(f'{end//60:02}{end%60:02}') == end_time
+        else:
+            assert(type(end_time) == int)
+            end = end_time
+        assert(start >= 0 and start%5 == 0)
+        assert(start < end)
+        assert(end <= 24*60 and end%5 == 0)
+
+        intervals = []
+        prev = -1
+        for day in days.upper():
+            i = 'MTWRFSU'.index(day, prev+1)
+            intervals.append( (day, start, end, priority) )
+        self.intervals = intervals
+
+def parse_minutes(duration: str|int) -> int:
+    if type(duration) == int:
+        return duration
+    assert(type(duration) == str)
+    n = 0
+    digits = ''
+    for ch in duration:
+        match ch:
+            case digit if digit.isdigit():
+                digits += digit
+            case 'h' if len(digits) > 0:
+                n += int(digits) * 60
+                digits = ''
+            case 'm' if len(digits) > 0:
+                n += int(digits)
+                digits = ''
+            case _:
+                raise RuntimeError(f'malformed duration: {duration} should be of form 2h45m')
+    assert(len(digits) == 0)
+    return n
 
 T = TypeVar('T')
 P = ParamSpec('P')
@@ -436,7 +437,9 @@ class DB:
             (room_tags,) = self.db.execute('SELECT COUNT(1) FROM room_tags WHERE room_tag = ?', (tag,)).fetchone()
             (time_slot_tags,) = self.db.execute('SELECT COUNT(1) FROM time_slot_tags WHERE time_slot_tag = ?', (tag,)).fetchone()
             if room_tags == 0 and time_slot_tags == 0:
-                raise RuntimeError(f'section {section} tag "{tag}" not found as room_tag or time_slot_tag')
+                # try creating a new time slot to match (this will validate the name)
+                self.make_time_slot(tag, [])
+                #print(f'created new time slot: {tag}')
             elif room_tags > 0 and time_slot_tags > 0:
                 raise RuntimeError(f'section {section} tag "{tag}" found as both room_tag and time_slot_tag, unable to proceed')
             elif room_tags > 0:

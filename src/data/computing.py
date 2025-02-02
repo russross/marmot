@@ -36,18 +36,12 @@ def build(db: DB) -> None:
     db.make_time_slot('T1630+150', ['3 credit early evening'])
     db.make_time_slot('W1630+150', ['3 credit early evening'])
     db.make_time_slot('R1630+150', ['3 credit early evening'])
-    db.make_time_slot('R1900+50', [])
-    db.make_time_slot('F1300+50', [])
 
     db.make_course('Computing', 'CS 6300', 'Principles of Artificial Intelligence')
     db.make_course('Computing', 'CS 6310', 'Foundations of Machine Learning')
     db.make_course('Computing', 'CS 6350', 'Artificial Intelligence and Machine Learning Project 1')
     db.make_course('Computing', 'IT 3700', 'Cybersecurity Analytics')
     db.make_course('Computing', 'SA 1400', 'Fundamentals of Programming (Success)')
-    db.make_time_slot('TR0930+80', ['Success'])
-    db.make_time_slot('TR1200+80', ['Success'])
-    db.make_time_slot('T1600+75', [])
-    db.make_time_slot('W1200+50', [])
     db.make_section_with_no_faculty('MATH 2050-01', 'MW1330+75')
     db.make_section_with_no_faculty('MATH 3400-01', 'TR1030+75')
 
@@ -212,8 +206,8 @@ def build(db: DB) -> None:
     db.make_faculty('Carol Stander', 'Computing', default_availability)
     db.make_faculty_section('Carol Stander', 'CS 1030-01', '3 credit bell schedule', 'flex')
     db.make_faculty_section('Carol Stander', 'CS 1400-40')
-    db.make_faculty_section('Carol Stander', 'IT 1100-01', '3 credit bell schedule', 'pcs', 'Smith 116', 'flex')
-    db.make_faculty_section('Carol Stander', 'IT 2300-01', '3 credit bell schedule', 'pcs', 'Smith 116', 'flex')
+    db.make_faculty_section('Carol Stander', 'IT 1100-01', '3 credit bell schedule', 'pcs', 'flex', 'Smith 116')
+    db.make_faculty_section('Carol Stander', 'IT 2300-01', '3 credit bell schedule', 'flex', 'pcs', 'Smith 116')
     db.make_faculty_section('Carol Stander', 'IT 2300-40')
     db.faculty_preferences('Carol Stander', 'MT',
         AvoidTimeSlot('TR0900+75'),
@@ -378,13 +372,13 @@ def build(db: DB) -> None:
     db.make_faculty_section('Russ Ross', 'CS 3520-01', 'Smith 109', '3 credit bell schedule')
     db.make_faculty_section('Russ Ross', 'CS 4800R-02')
     db.faculty_preferences('Russ Ross', 'MT',
+        UnavailableTimeSlot('MWF0900+50'),
+        UnavailableTimeSlot('MWF1000+50'),
+        UnavailableTimeSlot('MWF1100+50'),
+        UnavailableTimeSlot('TR0900+75'),
+        UnavailableTimeSlot('TR1030+75'),
         WantClassesEvenlySpreadAcrossDays(10),
         AvoidClassClusterShorterThan('2h45m', 10),
-        AvoidTimeSlot('MWF0900+50', 10),
-        AvoidTimeSlot('MWF1000+50', 10),
-        AvoidTimeSlot('MWF1100+50', 10),
-        AvoidTimeSlot('TR0900+75', 10),
-        AvoidTimeSlot('TR1030+75', 10),
     )
 
     db.make_faculty('Syed Ali', 'Computing', default_availability)
