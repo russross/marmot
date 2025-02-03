@@ -3,6 +3,7 @@ use super::score::*;
 use super::*;
 use std::cmp::{max, min};
 use std::mem::take;
+use std::time::Instant;
 
 //
 //
@@ -165,7 +166,14 @@ impl Schedule {
     //   - taboo indicates one or more of the conflicts were sections in the taboo list
     //   None:
     //   - no hard conflicts
-    pub fn has_hard_conflict(&self, input: &Input, section: usize, time_slot: usize, maybe_room: &Option<usize>, taboo: &[usize]) -> Option<(bool, bool)> {
+    pub fn has_hard_conflict(
+        &self,
+        input: &Input,
+        section: usize,
+        time_slot: usize,
+        maybe_room: &Option<usize>,
+        taboo: &[usize],
+    ) -> Option<(bool, bool)> {
         let mut found = false;
         let mut time_based = false;
         let mut with_taboo = false;
@@ -185,7 +193,9 @@ impl Schedule {
 
         // check if the room is already occupied
         if let &Some(room) = maybe_room {
-            for &TimeSlotPlacement { time_slot: other_time_slot, section: hard_conflict } in &self.room_placements[room].used_time_slots {
+            for &TimeSlotPlacement { time_slot: other_time_slot, section: hard_conflict } in
+                &self.room_placements[room].used_time_slots
+            {
                 if input.time_slot_conflicts[time_slot][other_time_slot] {
                     found = true;
                     if taboo.contains(&hard_conflict) {
@@ -433,154 +443,113 @@ fn compute_penalties_for_criteria(input: &Input, schedule: &mut Schedule, criter
     }
 }
 
-pub fn solve(
-    input: &Input,
-    schedule: &mut Schedule,
-    start: std::time::Instant,
-    seconds: u64,
-    save_id: i64,
-) -> Schedule {
+pub fn solve(input: &Input, schedule: &mut Schedule, seconds: u64, save_id: i64) -> Schedule {
     let mut best = schedule.clone();
-    let mut last_report = start.elapsed().as_secs();
-    let mut best_seconds = last_report;
+    let mut walk = Walk::new(best.score);
+
+    let start = Instant::now();
+    let mut last_report_seconds = 0;
     let mut big_steps = 0;
     let mut little_steps = 0;
+    let mut moves = 0;
 
-    let mut log = Vec::new();
-    let mut taboo = Vec::new();
-    let mut big_step_size = Vec::new();
-    let mut big_steps_min = 0;
-    let mut big_steps_max = 0;
-    let mut failed_forward = false;
-
-    let mut best_score_this_interval = schedule.score;
-    let mut best_since_rebase = schedule.score;
     let mut bias_delta = BIAS_STEP;
     let mut bias = MIN_BIAS;
 
-    let mut moves = 0;
-    let warmup_seconds = start.elapsed().as_secs();
-
     loop {
         let now = start.elapsed().as_secs();
-        if now != last_report && now % REPORT_SECONDS == 0 {
-            last_report = now;
+        if now != last_report_seconds && now % REPORT_SECONDS == 0 {
+            last_report_seconds = now;
             println!(
                 "{} seconds: best {}, bias {}, [{},{}] steps away, best of last {} seconds is {}",
-                commas(last_report),
+                commas(last_report_seconds),
                 best.score,
                 bias,
-                commas(big_steps_min),
-                commas(big_steps_max),
+                commas(walk.min_distance_this_interval),
+                commas(walk.max_distance_this_interval),
                 REPORT_SECONDS,
-                best_score_this_interval,
+                walk.best_score_this_interval,
             );
-            best_score_this_interval = schedule.score;
-            big_steps_min = big_step_size.len();
-            big_steps_max = big_step_size.len();
-            if last_report >= seconds {
+            if last_report_seconds >= seconds {
                 break;
             }
             bias += bias_delta;
             if bias <= MIN_BIAS || bias >= MAX_BIAS {
                 bias_delta = -bias_delta;
             }
-            if last_report - best_seconds >= REBASE_SECONDS {
-                println!("no improvement for {} seconds, rebasing from {} steps away", commas(REBASE_SECONDS), commas(big_step_size.len()));
-                log.clear();
-                taboo.clear();
-                big_step_size.clear();
-                big_steps_min = 0;
-                big_steps_max = 0;
-                best_seconds = last_report;
-                best_since_rebase = schedule.score;
-                bias = MIN_BIAS;
-                bias_delta = BIAS_STEP;
-            }
-        }
-        if failed_forward && big_step_size.is_empty() {
-            println!("cannot go forward or backward, giving up");
-            break;
         }
 
         // random walk: back up or move forward one big step
         // add bias to stepping backward if we have unplaced sections
         let roll = fastrand::i64(1..=100);
-        if big_step_size.is_empty() || roll <= 50 + bias {
+        if walk.distance() == 0 || roll <= 50 + bias {
             // make one big step forward
-            let pre_steps = log.len();
-            failed_forward = !step_down(input, schedule, &mut log, &mut taboo);
-            if failed_forward {
+            if !walk.step_forward(input, schedule, &mut moves) {
+                // unrecoverable failure?
                 if schedule.score.is_zero() {
                     println!("perfect score found, quitting search");
                     break;
+                } else if walk.distance() == 0 {
+                    println!("cannot go forward or backward, giving up");
+                    break;
                 }
-                println!("failed to make step down move");
-                if bias_delta > 0 {
+
+                // fall back
+                let pre_distance = walk.distance();
+                walk.fall_back(input, schedule);
+                let post_distance = walk.distance();
+                println!(
+                    "random walk hit a wall, falling back from {} to {} steps from home",
+                    commas(pre_distance),
+                    commas(post_distance)
+                );
+
+                // time to rehome?
+                let since_rehome = walk.time_of_rehome.elapsed().as_secs();
+                if since_rehome >= REHOME_SECONDS {
+                    println!("no improvement for {} seconds, rehoming", commas(since_rehome));
+                    walk.rehome(schedule.score);
+                    bias = MIN_BIAS;
+                    bias_delta = BIAS_STEP;
+                    continue;
+                }
+
+                if bias_delta > 0 && bias > MIN_BIAS {
                     bias_delta = -bias_delta;
-                }
-                if bias > MIN_BIAS {
-                    bias += bias_delta;
                 }
                 continue;
             }
-            moves += 1;
-            climb(input, schedule, &mut log, &taboo, &mut moves);
-            let steps = log.len() - pre_steps;
-            big_step_size.push(steps);
-            big_steps_max = max(big_steps_max, big_step_size.len());
 
             big_steps += 1;
-            little_steps += steps;
+            little_steps += walk.big_step_size.last().unwrap();
 
-            if schedule.score < best_score_this_interval {
-                best_score_this_interval = schedule.score;
+            if schedule.score < walk.best_score_this_interval {
+                walk.best_score_this_interval = schedule.score;
             }
             if schedule.score < best.score {
-                println!("new best found {} steps from previous best", commas(big_step_size.len()));
-
-                // reset so this is now the starting point
-                log.clear();
-                taboo.clear();
-                big_step_size.clear();
-                big_steps_min = 0;
-                big_steps_max = 0;
-                best_since_rebase = schedule.score;
-                best_seconds = start.elapsed().as_secs();
+                println!("new best found {} steps from home", commas(walk.distance()));
+                best = schedule.clone();
+                walk.rehome(schedule.score);
                 bias = MIN_BIAS;
                 bias_delta = BIAS_STEP;
-                best = schedule.clone();
                 let msg = format!(
-                    "random walk found after {} seconds, {} big steps, and {} little steps",
+                    "found with random walk after {} seconds, {} big steps, and {} little steps",
                     commas(start.elapsed().as_secs()),
                     commas(big_steps),
                     commas(little_steps)
                 );
-                if let Err(e) = save_schedule(super::DB_PATH, input, schedule, &msg, Some(save_id)) {
+                if let Err(e) = save_schedule(DB_PATH, input, schedule, &msg, Some(save_id)) {
                     println!("quitting due to save error: {}", e);
                     return best;
                 }
-            } else if schedule.score < best_since_rebase {
-                log.clear();
-                taboo.clear();
-                big_step_size.clear();
-                big_steps_min = 0;
-                big_steps_max = 0;
-                best_since_rebase = schedule.score;
-                best_seconds = start.elapsed().as_secs();
+            } else if schedule.score < walk.best_score_since_rehome {
+                println!("new local best found {} steps from home", walk.distance());
+                walk.rehome(schedule.score);
                 bias = MIN_BIAS;
                 bias_delta = BIAS_STEP;
-                println!("new local best, rebasing");
             }
         } else {
-            // step backward
-            let steps = big_step_size.pop().unwrap();
-            big_steps_min = min(big_steps_min, big_step_size.len());
-            for _ in 0..steps {
-                let undo = log.pop().unwrap();
-                revert_move(input, schedule, &undo);
-            }
-            taboo.pop();
+            walk.step_back(input, schedule);
         }
     }
     println!(
@@ -588,10 +557,87 @@ pub fn solve(
         commas(big_steps),
         little_steps as f64 / big_steps as f64
     );
-    let solve_seconds = (seconds - warmup_seconds) as usize;
+    let solve_seconds = start.elapsed().as_secs() as usize;
     println!("total of {} section moves ({}/s)", commas(moves), commas(moves / solve_seconds));
 
     best
+}
+
+struct Walk {
+    taboo: Vec<usize>,
+    step_log: Vec<PlacementLog>,
+    big_step_size: Vec<usize>,
+
+    best_score_this_interval: Score,
+    max_distance_this_interval: usize,
+    min_distance_this_interval: usize,
+
+    best_score_since_rehome: Score,
+    time_of_rehome: Instant,
+}
+
+impl Walk {
+    fn new(score: Score) -> Self {
+        Walk {
+            taboo: Vec::new(),
+            step_log: Vec::new(),
+            big_step_size: Vec::new(),
+
+            best_score_this_interval: score,
+            max_distance_this_interval: 0,
+            min_distance_this_interval: 0,
+
+            best_score_since_rehome: score,
+            time_of_rehome: Instant::now(),
+        }
+    }
+
+    fn distance(&self) -> usize {
+        self.big_step_size.len()
+    }
+
+    fn rehome(&mut self, score: Score) {
+        self.taboo.clear();
+        self.step_log.clear();
+        self.big_step_size.clear();
+
+        self.best_score_this_interval = score;
+        self.max_distance_this_interval = 0;
+        self.min_distance_this_interval = 0;
+
+        self.best_score_since_rehome = score;
+        self.time_of_rehome = Instant::now();
+    }
+
+    fn step_forward(&mut self, input: &Input, schedule: &mut Schedule, move_count: &mut usize) -> bool {
+        let pre_steps = self.step_log.len();
+
+        if !step_down(input, schedule, &mut self.step_log, &mut self.taboo) {
+            return false;
+        }
+        *move_count += 1;
+        climb(input, schedule, &mut self.step_log, &self.taboo, move_count);
+
+        let new_steps = self.step_log.len() - pre_steps;
+        self.big_step_size.push(new_steps);
+        self.max_distance_this_interval = max(self.max_distance_this_interval, self.distance());
+
+        true
+    }
+
+    fn step_back(&mut self, input: &Input, schedule: &mut Schedule) {
+        for _ in 0..self.big_step_size.pop().unwrap() {
+            revert_move(input, schedule, &self.step_log.pop().unwrap());
+        }
+        self.taboo.pop();
+        self.min_distance_this_interval = min(self.min_distance_this_interval, self.distance());
+    }
+
+    fn fall_back(&mut self, input: &Input, schedule: &mut Schedule) {
+        for _ in self.big_step_size.len() / 4..self.big_step_size.len() {
+            self.step_back(input, schedule);
+        }
+    }
 }
 
 fn commas<T: TryInto<i64>>(n: T) -> String {
@@ -621,7 +667,8 @@ fn rooms_adapter(rooms: &[RoomWithOptionalPriority]) -> Vec<Option<usize>> {
     }
 }
 
-pub fn warmup(input: &Input, start: std::time::Instant, seconds: u64) -> Option<Schedule> {
+pub fn warmup(input: &Input, seconds: u64) -> Option<Schedule> {
+    let start = Instant::now();
     let mut best = None;
     let mut best_pre_climb_score = None;
     let mut count = 0;
@@ -732,13 +779,7 @@ pub struct Move {
     pub room: Option<usize>,
 }
 
-pub fn climb(
-    input: &Input,
-    schedule: &mut Schedule,
-    log: &mut Vec<PlacementLog>,
-    taboo: &[usize],
-    moves: &mut usize,
-) {
+pub fn climb(input: &Input, schedule: &mut Schedule, log: &mut Vec<PlacementLog>, taboo: &[usize], moves: &mut usize) {
     let zero = Score::new();
     let mut by_score = Vec::new();
     for i in 0..input.sections.len() {
@@ -784,7 +825,9 @@ pub fn climb(
                     }
 
                     // not allowed to displace anything from the taboo list
-                    if let Some((time_based, taboo)) = schedule.has_hard_conflict(input, section, time_slot, &room, taboo) {
+                    if let Some((time_based, taboo)) =
+                        schedule.has_hard_conflict(input, section, time_slot, &room, taboo)
+                    {
                         if taboo {
                             if time_based {
                                 continue 'time_loop;

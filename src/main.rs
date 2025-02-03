@@ -5,15 +5,14 @@ use self::input::*;
 use self::score::*;
 use self::solver::*;
 use std::cmp::max;
-use std::time::Instant;
 
 const DB_PATH: &str = "timetable.db";
 const WARMUP_SECONDS: u64 = 5;
-const TOTAL_SECONDS: u64 = 305;
+const SOLVE_SECONDS: u64 = 600;
 const REPORT_SECONDS: u64 = 5;
-const REBASE_SECONDS: u64 = 90;
+const REHOME_SECONDS: u64 = 60;
 const MIN_BIAS: i64 = -10;
-const MAX_BIAS: i64 = -4;
+const MAX_BIAS: i64 = 10;
 const BIAS_STEP: i64 = 1;
 
 fn main() {
@@ -30,11 +29,9 @@ fn main() {
         dump_input(&departments, &input);
     }
 
-    let start = Instant::now();
-
     let mut schedule = if true {
         println!("running warmup for {} seconds", WARMUP_SECONDS);
-        let Some(schedule) = warmup(&input, start, WARMUP_SECONDS) else {
+        let Some(schedule) = warmup(&input, WARMUP_SECONDS) else {
             println!("failed to generate a schedule in the warmup stage");
             return;
         };
@@ -57,7 +54,7 @@ fn main() {
         }
     };
 
-    let best = solve(&input, &mut schedule, start, TOTAL_SECONDS, id);
+    let best = solve(&input, &mut schedule, SOLVE_SECONDS, id);
     print_schedule(&input, &best);
     print_problems(&input, &best);
 }
@@ -218,12 +215,13 @@ fn print_problems(input: &Input, schedule: &Schedule) {
             lst.push(penalty.get_score_message(input, schedule));
         }
     }
-    lst.sort_unstable_by(|a, b|
+    lst.sort_unstable_by(|a, b| {
         if a.0 != b.0 && (a.0 < START_LEVEL_FOR_PREFERENCES || b.0 < START_LEVEL_FOR_PREFERENCES) {
             a.0.cmp(&b.0)
         } else {
             a.1.cmp(&b.1)
-        });
+        }
+    });
     for (priority, msg) in lst {
         if priority < START_LEVEL_FOR_PREFERENCES {
             println!("{priority:2}: {msg}");

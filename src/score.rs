@@ -779,26 +779,52 @@ impl Penalty {
                 (*priority, format!("{} should be at the same time as {}", input.sections[*single].name, group_names))
             }
 
-            &Penalty::RoomPreference { priority, section, room } => {
-                match input.sections[section].faculty.len() {
-                    0 => (priority, format!("{} is assigned to {}", input.sections[section].name, input.rooms[room].name)),
-                    1 => (priority, format!("{} is assigned to teach {} in {}", input.faculty[input.sections[section].faculty[0]].name, input.sections[section].name, input.rooms[room].name)),
-                    _ => {
-                        let mut names = String::new();
-                        let mut sep = "";
-                        for &faculty in &input.sections[section].faculty {
-                            write!(&mut names, "{}{}", sep, input.faculty[faculty].name).unwrap();
-                            sep = " and ";
-                        }
-                        (priority, format!("{} are assigned to teach {} in {}", names, input.sections[section].name, input.rooms[room].name))
-                    } 
+            &Penalty::RoomPreference { priority, section, room } => match input.sections[section].faculty.len() {
+                0 => (priority, format!("{} is assigned to {}", input.sections[section].name, input.rooms[room].name)),
+                1 => (
+                    priority,
+                    format!(
+                        "{} is assigned to teach {} in {}",
+                        input.faculty[input.sections[section].faculty[0]].name,
+                        input.sections[section].name,
+                        input.rooms[room].name
+                    ),
+                ),
+                _ => {
+                    let mut names = String::new();
+                    let mut sep = "";
+                    for &faculty in &input.sections[section].faculty {
+                        write!(&mut names, "{}{}", sep, input.faculty[faculty].name).unwrap();
+                        sep = " and ";
+                    }
+                    (
+                        priority,
+                        format!(
+                            "{} are assigned to teach {} in {}",
+                            names, input.sections[section].name, input.rooms[room].name
+                        ),
+                    )
                 }
-            }
+            },
 
             &Penalty::TimeSlotPreference { priority, section, time_slot } => {
                 match input.sections[section].faculty.len() {
-                    0 => (priority, format!("{} is scheduled at {}", input.sections[section].name, input.time_slots[time_slot].name)),
-                    1 => (priority, format!("{} is scheduled to teach {} at {}", input.faculty[input.sections[section].faculty[0]].name, input.sections[section].name, input.time_slots[time_slot].name)),
+                    0 => (
+                        priority,
+                        format!(
+                            "{} is scheduled at {}",
+                            input.sections[section].name, input.time_slots[time_slot].name
+                        ),
+                    ),
+                    1 => (
+                        priority,
+                        format!(
+                            "{} is scheduled to teach {} at {}",
+                            input.faculty[input.sections[section].faculty[0]].name,
+                            input.sections[section].name,
+                            input.time_slots[time_slot].name
+                        ),
+                    ),
                     _ => {
                         let mut names = String::new();
                         let mut sep = "";
@@ -806,8 +832,14 @@ impl Penalty {
                             write!(&mut names, "{}{}", sep, input.faculty[faculty].name).unwrap();
                             sep = " and ";
                         }
-                        (priority, format!("{} are scheduled to teach {} at {}", names, input.sections[section].name, input.time_slots[time_slot].name))
-                    } 
+                        (
+                            priority,
+                            format!(
+                                "{} are scheduled to teach {} at {}",
+                                names, input.sections[section].name, input.time_slots[time_slot].name
+                            ),
+                        )
+                    }
                 }
             }
 
@@ -885,7 +917,10 @@ impl Penalty {
 
                 let mut s = match faculty.len() {
                     0 => format!("{} is scheduled at {}", first_section, first_time_slot),
-                    1 => format!("{} is scheduled to teach {} at {}", input.faculty[faculty[0]].name, first_section, first_time_slot),
+                    1 => format!(
+                        "{} is scheduled to teach {} at {}",
+                        input.faculty[faculty[0]].name, first_section, first_time_slot
+                    ),
                     _ => {
                         let mut names = String::new();
                         let mut sep = "";
@@ -894,7 +929,7 @@ impl Penalty {
                             sep = " and ";
                         }
                         format!("{} are scheduled to teach {} at {}", names, first_section, first_time_slot)
-                    } 
+                    }
                 };
 
                 for (section, time_slot) in std::iter::zip(sections, time_slots) {
