@@ -446,20 +446,18 @@ fn compute_penalties_for_criteria(input: &Input, schedule: &mut Schedule, criter
 pub fn solve(input: &Input, schedule: &mut Schedule, seconds: u64, save_id: i64) -> Schedule {
     let mut best = schedule.clone();
     let mut walk = Walk::new(best.score);
+    let mut bias = MIN_BIAS;
+    let mut bias_delta = BIAS_STEP;
 
     let start = Instant::now();
     let mut last_report_seconds = 0;
-    let mut big_steps = 0;
-    let mut little_steps = 0;
-    let mut moves = 0;
 
-    let mut bias_delta = BIAS_STEP;
-    let mut bias = MIN_BIAS;
-
+    // one big step per iteration
     loop {
-        let now = start.elapsed().as_secs();
-        if now != last_report_seconds && now % REPORT_SECONDS == 0 {
-            last_report_seconds = now;
+        // check if we need to report and adjust the bias
+        let elapsed = start.elapsed().as_secs();
+        if elapsed != last_report_seconds && elapsed % REPORT_SECONDS == 0 {
+            last_report_seconds = elapsed;
             println!(
                 "{} seconds: best {}, bias {}, [{},{}] steps away, best of last {} seconds is {}",
                 commas(last_report_seconds),
@@ -484,7 +482,7 @@ pub fn solve(input: &Input, schedule: &mut Schedule, seconds: u64, save_id: i64)
         let roll = fastrand::i64(1..=100);
         if walk.distance() == 0 || roll <= 50 + bias {
             // make one big step forward
-            if !walk.step_forward(input, schedule, &mut moves) {
+            if !walk.step_forward(input, schedule) {
                 // unrecoverable failure?
                 if schedule.score.is_zero() {
                     println!("perfect score found, quitting search");
@@ -511,21 +509,12 @@ pub fn solve(input: &Input, schedule: &mut Schedule, seconds: u64, save_id: i64)
                     walk.rehome(schedule.score);
                     bias = MIN_BIAS;
                     bias_delta = BIAS_STEP;
-                    continue;
-                }
-
-                if bias_delta > 0 && bias > MIN_BIAS {
+                } else if bias_delta > 0 && bias > MIN_BIAS {
                     bias_delta = -bias_delta;
                 }
                 continue;
             }
 
-            big_steps += 1;
-            little_steps += walk.big_step_size.last().unwrap();
-
-            if schedule.score < walk.best_score_this_interval {
-                walk.best_score_this_interval = schedule.score;
-            }
             if schedule.score < best.score {
                 println!("new best found {} steps from home", commas(walk.distance()));
                 best = schedule.clone();
@@ -535,8 +524,8 @@ pub fn solve(input: &Input, schedule: &mut Schedule, seconds: u64, save_id: i64)
                 let msg = format!(
                     "found with random walk after {} seconds, {} big steps, and {} little steps",
                     commas(start.elapsed().as_secs()),
-                    commas(big_steps),
-                    commas(little_steps)
+                    commas(walk.big_step_count),
+                    commas(walk.little_step_count)
                 );
                 if let Err(e) = save_schedule(DB_PATH, input, schedule, &msg, Some(save_id)) {
                     println!("quitting due to save error: {}", e);
@@ -547,6 +536,8 @@ pub fn solve(input: &Input, schedule: &mut Schedule, seconds: u64, save_id: i64)
                 walk.rehome(schedule.score);
                 bias = MIN_BIAS;
                 bias_delta = BIAS_STEP;
+            } else if schedule.score < walk.best_score_this_interval {
+                walk.best_score_this_interval = schedule.score;
             }
         } else {
             walk.step_back(input, schedule);
@@ -554,11 +545,11 @@ pub fn solve(input: &Input, schedule: &mut Schedule, seconds: u64, save_id: i64)
     }
     println!(
         "took {} big steps, average of {:.1} little steps each",
-        commas(big_steps),
-        little_steps as f64 / big_steps as f64
+        commas(walk.big_step_count),
+        walk.little_step_count as f64 / walk.big_step_count as f64
     );
     let solve_seconds = start.elapsed().as_secs() as usize;
-    println!("total of {} section moves ({}/s)", commas(moves), commas(moves / solve_seconds));
+    println!("total of {} section moves ({}/s)", commas(walk.move_count), commas(walk.move_count / solve_seconds));
 
     best
 }
@@ -574,6 +565,10 @@ struct Walk {
 
     best_score_since_rehome: Score,
     time_of_rehome: Instant,
+
+    big_step_count: usize,
+    little_step_count: usize,
+    move_count: usize,
 }
 
 impl Walk {
@@ -589,6 +584,10 @@ impl Walk {
 
             best_score_since_rehome: score,
             time_of_rehome: Instant::now(),
+
+            big_step_count: 0,
+            little_step_count: 0,
+            move_count: 0,
         }
     }
 
@@ -609,18 +608,22 @@ impl Walk {
         self.time_of_rehome = Instant::now();
     }
 
-    fn step_forward(&mut self, input: &Input, schedule: &mut Schedule, move_count: &mut usize) -> bool {
+    fn step_forward(&mut self, input: &Input, schedule: &mut Schedule) -> bool {
         let pre_steps = self.step_log.len();
 
         if !step_down(input, schedule, &mut self.step_log, &mut self.taboo) {
             return false;
         }
-        *move_count += 1;
-        climb(input, schedule, &mut self.step_log, &self.taboo, move_count);
+        self.move_count += 1;
 
+        climb(input, schedule, &mut self.step_log, &self.taboo, &mut self.move_count);
         let new_steps = self.step_log.len() - pre_steps;
+
         self.big_step_size.push(new_steps);
         self.max_distance_this_interval = max(self.max_distance_this_interval, self.distance());
+
+        self.little_step_count += new_steps;
+        self.big_step_count += 1;
 
         true
     }
