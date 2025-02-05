@@ -14,6 +14,7 @@ const REHOME_SECONDS: u64 = 60;
 const MIN_BIAS: i64 = -10;
 const MAX_BIAS: i64 = 10;
 const BIAS_STEP: i64 = 1;
+const MAX_DFS_DEPTH: usize = 3;
 
 fn main() {
     // load input

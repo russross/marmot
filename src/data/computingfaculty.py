@@ -38,6 +38,7 @@ def build_faculty(db: DB) -> None:
     db.faculty_preferences('Bart Stander', 'MT',
         AvoidTimeSlot('TR0900+75'),
         AvoidTimeSlot('TR1030+75'),
+        UseSameTimePattern(['CS 2420-01', 'CS 2420-02']),
         AvoidTimeSlot('MW1200+75'),
         AvoidClassClusterShorterThan('1h50m'),
     )

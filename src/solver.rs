@@ -627,16 +627,28 @@ impl Walk {
         true
     }
 
-    pub fn try_dfs(&mut self, input: &Input, schedule: &mut Schedule) -> bool {
+    pub fn try_dfs(&mut self, input: &Input, schedule: &mut Schedule) {
+        let start = Instant::now();
         let pre_steps = self.step_log.len();
-        if depth_first_search(input, schedule, self, 2) {
-            // consider this part of the previous big step
-            let new_steps = self.step_log.len() - pre_steps;
+        let mut post_steps = pre_steps;
+        loop {
+            depth_first_search(input, schedule, self, MAX_DFS_DEPTH);
+            let latest = self.step_log.len();
+            if latest == post_steps {
+                break;
+            }
+            post_steps = latest;
+        }
+        let elapsed = start.elapsed().as_millis();
+        let new_steps = post_steps - pre_steps;
+
+        if new_steps > 0 {
+            // consider any steps taken as part of the previous big step
             *self.big_step_size.last_mut().unwrap() += new_steps;
             self.little_step_count += new_steps;
-            true
+            println!("dfs improved in {} steps in {}ms", new_steps, commas(elapsed));
         } else {
-            false
+            println!("dfs attempt took {}ms", commas(elapsed));
         }
     }
 
@@ -976,33 +988,22 @@ pub fn step_down(input: &Input, schedule: &mut Schedule, walk: &mut Walk) -> boo
     true
 }
 
-pub fn depth_first_search(input: &Input, schedule: &mut Schedule, walk: &mut Walk, depth: usize) -> bool {
-    // the best sequence of steps we have found so far
+pub fn depth_first_search(input: &Input, schedule: &mut Schedule, walk: &mut Walk, depth: usize) {
+    // the best sequence of steps we have found so far and its score
     let mut best_moves = Vec::new();
-
-    // ... and its score
     let mut best_score = schedule.score;
 
     // the current sequence
     let mut current = Vec::new();
 
     // kick off the search
-    let start = Instant::now();
     dfs_helper(input, schedule, walk, depth - 1, &mut best_moves, &mut best_score, &mut current);
-    let elapsed = start.elapsed().as_millis();
 
-    if best_moves.is_empty() {
-        println!("dfs attempt took {}ms", commas(elapsed));
-        return false;
-    }
-
-    // apply the moves and report
-    println!("dfs improved in {} steps in {}ms", best_moves.len(), commas(elapsed));
+    // apply the moves if any
     for elt in best_moves {
         let Move { section, time_slot, room } = elt;
         walk.step_log.push(move_section(input, schedule, section, time_slot.unwrap(), &room));
     }
-    true
 }
 
 fn dfs_helper(
@@ -1021,6 +1022,12 @@ fn dfs_helper(
             continue;
         }
 
+        // at a leaf in the search? see if moving this section even has a possiblity
+        // of improving on the best score so far
+        if depth == 0 && schedule.score - schedule.placements[section].score >= *best_score {
+            continue;
+        }
+
         // try each time slot/room combination
         'time_loop: for &TimeSlotWithOptionalPriority { time_slot, .. } in &input.sections[section].time_slots {
             for room in rooms_adapter(&input.sections[section].rooms) {
@@ -1031,11 +1038,13 @@ fn dfs_helper(
                     continue;
                 }
 
-                // not allowed to displace anything from the taboo list
                 if let Some((time_based, taboo)) =
                     schedule.has_hard_conflict(input, section, time_slot, &room, &walk.taboo)
                 {
-                    if taboo {
+                    // not allowed to displace anything from the taboo list
+                    // and if we are at a leaf in the search, displacing anything
+                    // is unlikely to help matters
+                    if taboo || depth == 0 {
                         if time_based {
                             continue 'time_loop;
                         }
