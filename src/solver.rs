@@ -459,14 +459,14 @@ pub fn solve(input: &Input, schedule: &mut Schedule, seconds: u64, save_id: i64)
         if elapsed != last_report_seconds && elapsed % REPORT_SECONDS == 0 {
             last_report_seconds = elapsed;
             println!(
-                "{} seconds: best {}, bias {}, [{},{}] steps away, best of last {} seconds is {}",
-                commas(last_report_seconds),
+                "{}: best {}, home {}, bias {}, walked [{},{}] steps away from home in {}",
+                sec_to_string(last_report_seconds),
                 best.score,
+                walk.best_score_since_rehome,
                 bias,
                 commas(walk.min_distance_this_interval),
                 commas(walk.max_distance_this_interval),
-                REPORT_SECONDS,
-                walk.best_score_this_interval,
+                sec_to_string(REPORT_SECONDS),
             );
             if last_report_seconds >= seconds {
                 break;
@@ -475,6 +475,8 @@ pub fn solve(input: &Input, schedule: &mut Schedule, seconds: u64, save_id: i64)
             if bias <= MIN_BIAS || bias >= MAX_BIAS {
                 bias_delta = -bias_delta;
             }
+            walk.max_distance_this_interval = walk.distance();
+            walk.min_distance_this_interval = walk.distance();
         }
 
         // random walk: back up or move forward one big step
@@ -516,7 +518,8 @@ pub fn solve(input: &Input, schedule: &mut Schedule, seconds: u64, save_id: i64)
             }
 
             if schedule.score < best.score {
-                println!("new best found {} steps from home", commas(walk.distance()));
+                print!("new best found {} steps from home, ", commas(walk.distance()));
+                walk.try_dfs(input, schedule);
                 best = schedule.clone();
                 walk.rehome(schedule.score);
                 bias = MIN_BIAS;
@@ -532,12 +535,11 @@ pub fn solve(input: &Input, schedule: &mut Schedule, seconds: u64, save_id: i64)
                     return best;
                 }
             } else if schedule.score < walk.best_score_since_rehome {
-                println!("new local best found {} steps from home", walk.distance());
+                print!("new local best found {} steps from home, ", commas(walk.distance()));
+                walk.try_dfs(input, schedule);
                 walk.rehome(schedule.score);
                 bias = MIN_BIAS;
                 bias_delta = BIAS_STEP;
-            } else if schedule.score < walk.best_score_this_interval {
-                walk.best_score_this_interval = schedule.score;
             }
         } else {
             walk.step_back(input, schedule);
@@ -554,31 +556,29 @@ pub fn solve(input: &Input, schedule: &mut Schedule, seconds: u64, save_id: i64)
     best
 }
 
-struct Walk {
-    taboo: Vec<usize>,
-    step_log: Vec<PlacementLog>,
-    big_step_size: Vec<usize>,
+pub struct Walk {
+    pub taboo: Vec<usize>,
+    pub step_log: Vec<PlacementLog>,
+    pub big_step_size: Vec<usize>,
 
-    best_score_this_interval: Score,
-    max_distance_this_interval: usize,
-    min_distance_this_interval: usize,
+    pub max_distance_this_interval: usize,
+    pub min_distance_this_interval: usize,
 
-    best_score_since_rehome: Score,
-    time_of_rehome: Instant,
+    pub best_score_since_rehome: Score,
+    pub time_of_rehome: Instant,
 
-    big_step_count: usize,
-    little_step_count: usize,
-    move_count: usize,
+    pub big_step_count: usize,
+    pub little_step_count: usize,
+    pub move_count: usize,
 }
 
 impl Walk {
-    fn new(score: Score) -> Self {
+    pub fn new(score: Score) -> Self {
         Walk {
             taboo: Vec::new(),
             step_log: Vec::new(),
             big_step_size: Vec::new(),
 
-            best_score_this_interval: score,
             max_distance_this_interval: 0,
             min_distance_this_interval: 0,
 
@@ -591,16 +591,15 @@ impl Walk {
         }
     }
 
-    fn distance(&self) -> usize {
+    pub fn distance(&self) -> usize {
         self.big_step_size.len()
     }
 
-    fn rehome(&mut self, score: Score) {
+    pub fn rehome(&mut self, score: Score) {
         self.taboo.clear();
         self.step_log.clear();
         self.big_step_size.clear();
 
-        self.best_score_this_interval = score;
         self.max_distance_this_interval = 0;
         self.min_distance_this_interval = 0;
 
@@ -608,10 +607,10 @@ impl Walk {
         self.time_of_rehome = Instant::now();
     }
 
-    fn step_forward(&mut self, input: &Input, schedule: &mut Schedule) -> bool {
+    pub fn step_forward(&mut self, input: &Input, schedule: &mut Schedule) -> bool {
         let pre_steps = self.step_log.len();
 
-        if !step_down(input, schedule, &mut self.step_log, &mut self.taboo) {
+        if !step_down(input, schedule, self) {
             return false;
         }
         self.move_count += 1;
@@ -628,7 +627,20 @@ impl Walk {
         true
     }
 
-    fn step_back(&mut self, input: &Input, schedule: &mut Schedule) {
+    pub fn try_dfs(&mut self, input: &Input, schedule: &mut Schedule) -> bool {
+        let pre_steps = self.step_log.len();
+        if depth_first_search(input, schedule, self, 2) {
+            // consider this part of the previous big step
+            let new_steps = self.step_log.len() - pre_steps;
+            *self.big_step_size.last_mut().unwrap() += new_steps;
+            self.little_step_count += new_steps;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn step_back(&mut self, input: &Input, schedule: &mut Schedule) {
         for _ in 0..self.big_step_size.pop().unwrap() {
             revert_move(input, schedule, &self.step_log.pop().unwrap());
         }
@@ -636,7 +648,7 @@ impl Walk {
         self.min_distance_this_interval = min(self.min_distance_this_interval, self.distance());
     }
 
-    fn fall_back(&mut self, input: &Input, schedule: &mut Schedule) {
+    pub fn fall_back(&mut self, input: &Input, schedule: &mut Schedule) {
         for _ in self.big_step_size.len() / 4..self.big_step_size.len() {
             self.step_back(input, schedule);
         }
@@ -660,6 +672,16 @@ fn commas<T: TryInto<i64>>(n: T) -> String {
         n /= 1000;
     }
     format!("{minus}{s}")
+}
+
+fn sec_to_string(seconds: u64) -> String {
+    if seconds < 60 {
+        return format!("{}s", seconds);
+    }
+    if seconds < 3600 {
+        return format!("{}m{:02}s", seconds / 60, seconds % 60);
+    }
+    format!("{}h{:02}m{:02}s", seconds / 3600, (seconds % 3600) / 60, seconds % 60)
 }
 
 fn rooms_adapter(rooms: &[RoomWithOptionalPriority]) -> Vec<Option<usize>> {
@@ -815,14 +837,12 @@ pub fn climb(input: &Input, schedule: &mut Schedule, log: &mut Vec<PlacementLog>
                 continue;
             }
 
-            // try each time slot
+            // try each time slot/room combination
             'time_loop: for &TimeSlotWithOptionalPriority { time_slot, .. } in &input.sections[section].time_slots {
                 for room in rooms_adapter(&input.sections[section].rooms) {
-                    let candidate = Move { section, time_slot: Some(time_slot), room };
-
                     // the current location is off limits, i.e., no moves that do not move anything
-                    if schedule.placements[section].time_slot == candidate.time_slot
-                        && schedule.placements[section].room == candidate.room
+                    if schedule.placements[section].time_slot == Some(time_slot)
+                        && schedule.placements[section].room == room
                     {
                         continue;
                     }
@@ -839,6 +859,7 @@ pub fn climb(input: &Input, schedule: &mut Schedule, log: &mut Vec<PlacementLog>
                         }
                     };
 
+                    let candidate = Move { section, time_slot: Some(time_slot), room };
                     let delta = try_one_move(input, schedule, &candidate);
                     *moves += 1;
 
@@ -872,24 +893,16 @@ pub fn try_one_move(input: &Input, schedule: &mut Schedule, candidate_move: &Mov
     speculative_move_section(input, schedule, section, ts, &room)
 }
 
-pub fn step_down(input: &Input, schedule: &mut Schedule, log: &mut Vec<PlacementLog>, taboo: &mut Vec<usize>) -> bool {
-    //let zero = Score::new();
-
+pub fn step_down(input: &Input, schedule: &mut Schedule, walk: &mut Walk) -> bool {
     // gather a list of potential moves with their local scores
-    // but only those with a non-zero potential for improvement
 
     // for each section
     let mut candidates = Vec::new();
     for section in 0..input.sections.len() {
         // skip taboo moves
-        if taboo.contains(&section) {
+        if walk.taboo.contains(&section) {
             continue;
         }
-
-        // skip sections with no bad scores ???
-        //if schedule.placements[section].score == zero {
-        //    continue;
-        //}
 
         // try each time slot
         'time_loop: for &TimeSlotWithOptionalPriority { time_slot, .. } in &input.sections[section].time_slots {
@@ -904,7 +917,9 @@ pub fn step_down(input: &Input, schedule: &mut Schedule, log: &mut Vec<Placement
                 }
 
                 // not allowed to displace anything from the taboo list
-                if let Some((time_based, taboo)) = schedule.has_hard_conflict(input, section, time_slot, &room, taboo) {
+                if let Some((time_based, taboo)) =
+                    schedule.has_hard_conflict(input, section, time_slot, &room, &walk.taboo)
+                {
                     if taboo {
                         if time_based {
                             continue 'time_loop;
@@ -954,9 +969,111 @@ pub fn step_down(input: &Input, schedule: &mut Schedule, log: &mut Vec<Placement
     };
 
     // apply the move and add the section that was moved to the taboo list
-    taboo.push(section);
+    walk.taboo.push(section);
     let log_entry = move_section(input, schedule, section, ts, &room);
-    log.push(log_entry);
+    walk.step_log.push(log_entry);
 
     true
+}
+
+pub fn depth_first_search(input: &Input, schedule: &mut Schedule, walk: &mut Walk, depth: usize) -> bool {
+    // the best sequence of steps we have found so far
+    let mut best_moves = Vec::new();
+
+    // ... and its score
+    let mut best_score = schedule.score;
+
+    // the current sequence
+    let mut current = Vec::new();
+
+    // kick off the search
+    let start = Instant::now();
+    dfs_helper(input, schedule, walk, depth - 1, &mut best_moves, &mut best_score, &mut current);
+    let elapsed = start.elapsed().as_millis();
+
+    if best_moves.is_empty() {
+        println!("dfs attempt took {}ms", commas(elapsed));
+        return false;
+    }
+
+    // apply the moves and report
+    println!("dfs improved in {} steps in {}ms", best_moves.len(), commas(elapsed));
+    for elt in best_moves {
+        let Move { section, time_slot, room } = elt;
+        walk.step_log.push(move_section(input, schedule, section, time_slot.unwrap(), &room));
+    }
+    true
+}
+
+fn dfs_helper(
+    input: &Input,
+    schedule: &mut Schedule,
+    walk: &mut Walk,
+    depth: usize,
+    best_moves: &mut Vec<Move>,
+    best_score: &mut Score,
+    current: &mut Vec<Move>,
+) {
+    // for each section
+    for section in 0..input.sections.len() {
+        // ignore taboo sections and sections with zero scores
+        if walk.taboo.contains(&section) || schedule.placements[section].score.is_zero() {
+            continue;
+        }
+
+        // try each time slot/room combination
+        'time_loop: for &TimeSlotWithOptionalPriority { time_slot, .. } in &input.sections[section].time_slots {
+            for room in rooms_adapter(&input.sections[section].rooms) {
+                // the current location is off limits, i.e., no moves that do not move anything
+                if schedule.placements[section].time_slot == Some(time_slot)
+                    && schedule.placements[section].room == room
+                {
+                    continue;
+                }
+
+                // not allowed to displace anything from the taboo list
+                if let Some((time_based, taboo)) =
+                    schedule.has_hard_conflict(input, section, time_slot, &room, &walk.taboo)
+                {
+                    if taboo {
+                        if time_based {
+                            continue 'time_loop;
+                        }
+                        continue;
+                    }
+                };
+
+                // make the move
+                let candidate = Move { section, time_slot: Some(time_slot), room };
+                if depth == 0 {
+                    // special case for leaf of search
+                    let delta = try_one_move(input, schedule, &candidate);
+                    if schedule.score + delta < *best_score {
+                        current.push(candidate);
+                        *best_moves = current.clone();
+                        *best_score = schedule.score + delta;
+                        current.pop();
+                    }
+                } else {
+                    walk.taboo.push(section);
+                    walk.step_log.push(move_section(input, schedule, section, time_slot, &room));
+                    current.push(candidate);
+
+                    // improvement?
+                    if schedule.score < *best_score {
+                        *best_moves = current.clone();
+                        *best_score = schedule.score;
+                    }
+
+                    // recursive call
+                    dfs_helper(input, schedule, walk, depth - 1, best_moves, best_score, current);
+
+                    // undo the move
+                    walk.taboo.pop();
+                    revert_move(input, schedule, &walk.step_log.pop().unwrap());
+                    current.pop();
+                }
+            }
+        }
+    }
 }

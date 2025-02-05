@@ -8,7 +8,7 @@ use std::cmp::max;
 
 const DB_PATH: &str = "timetable.db";
 const WARMUP_SECONDS: u64 = 5;
-const SOLVE_SECONDS: u64 = 30;
+const SOLVE_SECONDS: u64 = 600;
 const REPORT_SECONDS: u64 = 5;
 const REHOME_SECONDS: u64 = 60;
 const MIN_BIAS: i64 = -10;
