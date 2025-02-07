@@ -97,6 +97,7 @@ CREATE TABLE faculty_availability (
     day_of_week                 TEXT NOT NULL,
     start_time                  INTEGER NOT NULL,
     duration                    INTEGER NOT NULL,
+    readable                    TEXT GENERATED ALWAYS AS (day_of_week||SUBSTR('00'||CAST(start_time / 60 AS TEXT), -2) || SUBSTR('00'||CAST(start_time % 60 AS TEXT), -2) || '-' || SUBSTR('00'||CAST((start_time + duration) / 60 AS TEXT), -2) || SUBSTR('00'||CAST((start_time + duration) % 60 AS TEXT), -2)) VIRTUAL NOT NULL,
     availability_priority       INTEGER,
 
     CHECK (day_of_week IN ('M', 'T', 'W', 'R', 'F', 'S', 'U')),
@@ -338,6 +339,7 @@ CREATE TABLE multiple_section_overrides (
 CREATE TABLE placements (
     placement_id                INTEGER PRIMARY KEY,
     score                       TEXT NOT NULL,
+    sort_score                  TEXT NOT NULL,
     comment                     TEXT NOT NULL,
     created_at                  TEXT NOT NULL,
     modified_at                 TEXT NOT NULL

@@ -278,7 +278,6 @@ impl Faculty {
                 write!(&mut s, "{}{}", sep, input.sections[elt].name).unwrap();
                 sep = ", ";
             }
-            write!(&mut s, "]").unwrap();
         }
 
         s
@@ -320,7 +319,7 @@ pub fn load_input(db_path: &str, departments: &[String]) -> Result<Input, String
     )?;
 
     compute_neighbors(&mut sections, &criteria);
-    println!(": {}ms", start.elapsed().as_millis());
+    println!(" took {}ms", start.elapsed().as_millis());
 
     Ok(Input { term_name, rooms, time_slots, faculty, sections, criteria, time_slot_conflicts })
 }
@@ -1072,14 +1071,16 @@ pub fn save_schedule(
             .prepare(
                 "UPDATE placements
             SET score = ?,
+            sort_score = ?,
             comment = ?,
             modified_at = DATETIME('now', 'localtime')
             WHERE placement_id = ?",
             )
             .map_err(sql_err)?;
         stmt.bind((1, format!("{}", schedule.score).as_str())).map_err(sql_err)?;
-        stmt.bind((2, comment)).map_err(sql_err)?;
-        stmt.bind((3, id)).map_err(sql_err)?;
+        stmt.bind((2, schedule.score.sortable().as_str())).map_err(sql_err)?;
+        stmt.bind((3, comment)).map_err(sql_err)?;
+        stmt.bind((4, id)).map_err(sql_err)?;
         while stmt.next().map_err(sql_err)? != State::Done {
             // no return rows expected
         }
@@ -1088,17 +1089,19 @@ pub fn save_schedule(
         // create new base record and capture id
         let mut stmt = db
             .prepare(
-                "INSERT INTO placements (score, comment, created_at, modified_at)
-            VALUES (?, ?, DATETIME('now', 'localtime'), DATETIME('now', 'localtime'))
+                "INSERT INTO placements (score, sort_score, comment, created_at, modified_at)
+            VALUES (?, ?, ?, DATETIME('now', 'localtime'), DATETIME('now', 'localtime'))
             RETURNING placement_id",
             )
             .map_err(sql_err)?;
         stmt.bind((1, format!("{}", schedule.score).as_str())).map_err(sql_err)?;
-        stmt.bind((2, comment)).map_err(sql_err)?;
+        stmt.bind((2, schedule.score.sortable().as_str())).map_err(sql_err)?;
+        stmt.bind((3, comment)).map_err(sql_err)?;
         let mut id = -1;
         while stmt.next().map_err(sql_err)? == State::Row {
             id = stmt.read(0).map_err(sql_err)?;
         }
+        println!("saved schedule with new placement id: {}", id);
         id
     };
 
@@ -1147,7 +1150,7 @@ pub fn save_schedule(
         let mut stmt = db
             .prepare(
                 "INSERT INTO placement_penalties (placement_id, priority, message)
-            VALUES (?, ?, ?) RETURNING placement_penalty_id",
+                VALUES (?, ?, ?) RETURNING placement_penalty_id",
             )
             .map_err(sql_err)?;
         stmt.bind((1, root_id)).map_err(sql_err)?;
@@ -1162,7 +1165,7 @@ pub fn save_schedule(
             let mut stmt = db
                 .prepare(
                     "INSERT INTO placement_penalty_sections (placement_penalty_id, section)
-                VALUES (?, ?)",
+                    VALUES (?, ?)",
                 )
                 .map_err(sql_err)?;
             stmt.bind((1, id)).map_err(sql_err)?;
@@ -1177,27 +1180,54 @@ pub fn save_schedule(
     Ok(root_id)
 }
 
-pub fn load_schedule(db_path: &str, input: &Input, schedule: &mut Schedule, placement_id: i64) -> Result<(), String> {
-    println!("loading placement {}", placement_id);
-
+pub fn load_schedule(
+    db_path: &str,
+    input: &Input,
+    schedule: &mut Schedule,
+    maybe_placement_id: Option<i64>,
+) -> Result<(), String> {
     let db =
         Connection::open_with_flags(db_path, OpenFlags::new().with_read_only().with_no_mutex()).map_err(sql_err)?;
     db.execute("PRAGMA foreign_keys = ON").map_err(sql_err)?;
     db.execute("PRAGMA temp_store = memory").map_err(sql_err)?;
     db.execute("PRAGMA mmap_size = 100000000").map_err(sql_err)?;
 
+    let placement_id = match maybe_placement_id {
+        Some(id) => id,
+        None => {
+            // find the best-scoring schedule already in the DB
+            let mut stmt = db
+                .prepare(
+                    "SELECT placement_id
+                FROM placements
+                ORDER BY sort_score, modified_at DESC
+                LIMIT 1",
+                )
+                .map_err(sql_err)?;
+            let mut id = None;
+            while stmt.next().map_err(sql_err)? == State::Row {
+                let found_id: i64 = stmt.read(0).map_err(sql_err)?;
+                id = Some(found_id);
+            }
+            let Some(id) = id else {
+                return Err("no placement found in the database".to_string());
+            };
+            id
+        }
+    };
+
     let mut stmt = db
         .prepare(
             "SELECT modified_at
-        FROM placements
-        WHERE placement_id = ?",
+            FROM placements
+            WHERE placement_id = ?",
         )
         .map_err(sql_err)?;
     stmt.bind((1, placement_id)).map_err(sql_err)?;
     let mut found = false;
     while stmt.next().map_err(sql_err)? == State::Row {
         let modified_at: String = stmt.read(0).map_err(sql_err)?;
-        println!("Loading schedule {}, which was last updated at {}", placement_id, modified_at);
+        println!("loading schedule {}, which was last updated at {}", placement_id, modified_at);
         found = true;
     }
     if !found {
@@ -1207,8 +1237,8 @@ pub fn load_schedule(db_path: &str, input: &Input, schedule: &mut Schedule, plac
     let mut stmt = db
         .prepare(
             "SELECT section, time_slot, room
-        FROM placement_sections
-        WHERE placement_id = ?",
+            FROM placement_sections
+            WHERE placement_id = ?",
         )
         .map_err(sql_err)?;
     stmt.bind((1, placement_id)).map_err(sql_err)?;

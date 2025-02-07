@@ -116,6 +116,25 @@ impl Score {
         }
         self.levels.len() as u8
     }
+
+    pub fn sortable(&self) -> String {
+        // make a string that sorts better scores earlier
+        let mut s = String::new();
+        if self.is_zero() {
+            write!(&mut s, "<<00:00>>").unwrap();
+        } else {
+            let mut sep = "";
+            write!(&mut s, "<<").unwrap();
+            for (level, &count) in self.levels.iter().enumerate() {
+                if count != 0 {
+                    write!(&mut s, "{sep}{:02}×{count:02}", 99 - level).unwrap();
+                    sep = ",";
+                }
+            }
+            write!(&mut s, ">>").unwrap();
+        }
+        s
+    }
 }
 
 impl Default for Score {

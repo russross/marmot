@@ -434,15 +434,18 @@ class DB:
                 tag = tag[:colon]
             else:
                 priority = 0
+
             (room_tags,) = self.db.execute('SELECT COUNT(1) FROM room_tags WHERE room_tag = ?', (tag,)).fetchone()
             (time_slot_tags,) = self.db.execute('SELECT COUNT(1) FROM time_slot_tags WHERE time_slot_tag = ?', (tag,)).fetchone()
             if room_tags == 0 and time_slot_tags == 0:
                 # try creating a new time slot to match (this will validate the name)
                 self.make_time_slot(tag, [])
+                time_slot_tags += 1
                 #print(f'created new time slot: {tag}')
             elif room_tags > 0 and time_slot_tags > 0:
                 raise RuntimeError(f'section {section} tag "{tag}" found as both room_tag and time_slot_tag, unable to proceed')
-            elif room_tags > 0:
+
+            if room_tags > 0:
                 self.db.execute('INSERT INTO section_room_tags VALUES (?, ?, ?)', (section, tag, None if priority == 0 else priority))
             elif time_slot_tags > 0:
                 self.db.execute('INSERT INTO section_time_slot_tags VALUES (?, ?, ?)', (section, tag, None if priority == 0 else priority))

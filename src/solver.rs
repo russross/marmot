@@ -2,6 +2,7 @@ use super::input::*;
 use super::score::*;
 use super::*;
 use std::cmp::{max, min};
+use std::io::Write;
 use std::mem::take;
 use std::time::Instant;
 
@@ -443,11 +444,17 @@ fn compute_penalties_for_criteria(input: &Input, schedule: &mut Schedule, criter
     }
 }
 
-pub fn solve(input: &Input, schedule: &mut Schedule, seconds: u64, save_id: i64) -> Schedule {
+pub fn solve(
+    config: &GenOpts,
+    input: &Input,
+    schedule: &mut Schedule,
+    seconds: u64,
+    save_id: &mut Option<i64>,
+) -> Schedule {
     let mut best = schedule.clone();
     let mut walk = Walk::new(best.score);
-    let mut bias = MIN_BIAS;
-    let mut bias_delta = BIAS_STEP;
+    let mut bias = config.bias_min;
+    let mut bias_delta = config.bias_step;
 
     let start = Instant::now();
     let mut last_report_seconds = 0;
@@ -456,7 +463,7 @@ pub fn solve(input: &Input, schedule: &mut Schedule, seconds: u64, save_id: i64)
     loop {
         // check if we need to report and adjust the bias
         let elapsed = start.elapsed().as_secs();
-        if elapsed != last_report_seconds && elapsed % REPORT_SECONDS == 0 {
+        if elapsed != last_report_seconds && elapsed % config.update_seconds == 0 {
             last_report_seconds = elapsed;
             println!(
                 "{}: best {}, home {}, bias {}, walked [{},{}] steps away from home in {}",
@@ -466,13 +473,13 @@ pub fn solve(input: &Input, schedule: &mut Schedule, seconds: u64, save_id: i64)
                 bias,
                 commas(walk.min_distance_this_interval),
                 commas(walk.max_distance_this_interval),
-                sec_to_string(REPORT_SECONDS),
+                sec_to_string(config.update_seconds),
             );
             if last_report_seconds >= seconds {
                 break;
             }
             bias += bias_delta;
-            if bias <= MIN_BIAS || bias >= MAX_BIAS {
+            if bias <= config.bias_min || bias >= config.bias_max {
                 bias_delta = -bias_delta;
             }
             walk.max_distance_this_interval = walk.distance();
@@ -481,8 +488,8 @@ pub fn solve(input: &Input, schedule: &mut Schedule, seconds: u64, save_id: i64)
 
         // random walk: back up or move forward one big step
         // add bias to stepping backward if we have unplaced sections
-        let roll = fastrand::i64(1..=100);
-        if walk.distance() == 0 || roll <= 50 + bias {
+        let roll = fastrand::f64() * 100.0;
+        if walk.distance() == 0 || roll < 50.0 + bias {
             // make one big step forward
             if !walk.step_forward(input, schedule) {
                 // unrecoverable failure?
@@ -506,40 +513,45 @@ pub fn solve(input: &Input, schedule: &mut Schedule, seconds: u64, save_id: i64)
 
                 // time to rehome?
                 let since_rehome = walk.time_of_rehome.elapsed().as_secs();
-                if since_rehome >= REHOME_SECONDS {
+                if schedule.score == best.score && since_rehome >= config.rehome_global_seconds
+                    || schedule.score != best.score && since_rehome >= config.rehome_local_seconds
+                {
                     println!("no improvement for {} seconds, rehoming", commas(since_rehome));
                     walk.rehome(schedule.score);
-                    bias = MIN_BIAS;
-                    bias_delta = BIAS_STEP;
-                } else if bias_delta > 0 && bias > MIN_BIAS {
+                    bias = config.bias_min;
+                    bias_delta = config.bias_step;
+                } else if bias_delta > 0.0 && bias > config.bias_min {
                     bias_delta = -bias_delta;
                 }
                 continue;
             }
 
             if schedule.score < best.score {
-                print!("new best found {} steps from home, ", commas(walk.distance()));
-                walk.try_dfs(input, schedule);
+                print!("new best found {} steps from home", commas(walk.distance()));
+                walk.try_dfs(input, schedule, config.dfs_depth, true);
                 best = schedule.clone();
                 walk.rehome(schedule.score);
-                bias = MIN_BIAS;
-                bias_delta = BIAS_STEP;
+                bias = config.bias_min;
+                bias_delta = config.bias_step;
                 let msg = format!(
                     "found with random walk after {} seconds, {} big steps, and {} little steps",
                     commas(start.elapsed().as_secs()),
                     commas(walk.big_step_count),
                     commas(walk.little_step_count)
                 );
-                if let Err(e) = save_schedule(DB_PATH, input, schedule, &msg, Some(save_id)) {
-                    println!("quitting due to save error: {}", e);
-                    return best;
+                match save_schedule(&config.db_path, input, schedule, &msg, *save_id) {
+                    Ok(new_id) => *save_id = Some(new_id),
+                    Err(e) => {
+                        println!("quitting due to save error: {}", e);
+                        return best;
+                    }
                 }
             } else if schedule.score < walk.best_score_since_rehome {
-                print!("new local best found {} steps from home, ", commas(walk.distance()));
-                walk.try_dfs(input, schedule);
+                print!("new local best found {} steps from home", commas(walk.distance()));
+                walk.try_dfs(input, schedule, config.dfs_depth, true);
                 walk.rehome(schedule.score);
-                bias = MIN_BIAS;
-                bias_delta = BIAS_STEP;
+                bias = config.bias_min;
+                bias_delta = config.bias_step;
             }
         } else {
             walk.step_back(input, schedule);
@@ -627,28 +639,35 @@ impl Walk {
         true
     }
 
-    pub fn try_dfs(&mut self, input: &Input, schedule: &mut Schedule) {
+    pub fn try_dfs(&mut self, input: &Input, schedule: &mut Schedule, depth: usize, repeat: bool) {
         let start = Instant::now();
         let pre_steps = self.step_log.len();
         let mut post_steps = pre_steps;
         loop {
-            depth_first_search(input, schedule, self, MAX_DFS_DEPTH);
+            print!(".");
+            _ = std::io::stdout().flush();
+            depth_first_search(input, schedule, self, depth);
             let latest = self.step_log.len();
             if latest == post_steps {
                 break;
             }
             post_steps = latest;
+            if !repeat {
+                break;
+            }
         }
         let elapsed = start.elapsed().as_millis();
         let new_steps = post_steps - pre_steps;
 
         if new_steps > 0 {
-            // consider any steps taken as part of the previous big step
-            *self.big_step_size.last_mut().unwrap() += new_steps;
-            self.little_step_count += new_steps;
-            println!("dfs improved in {} steps in {}ms", new_steps, commas(elapsed));
+            if !self.big_step_size.is_empty() {
+                // consider any steps taken as part of the previous big step
+                *self.big_step_size.last_mut().unwrap() += new_steps;
+                self.little_step_count += new_steps;
+            }
+            println!(" dfs improved in {} steps in {}", new_steps, ms_to_string(elapsed));
         } else {
-            println!("dfs attempt took {}ms", commas(elapsed));
+            println!(" dfs attempt took {}", ms_to_string(elapsed));
         }
     }
 
@@ -686,7 +705,48 @@ fn commas<T: TryInto<i64>>(n: T) -> String {
     format!("{minus}{s}")
 }
 
-fn sec_to_string(seconds: u64) -> String {
+pub fn string_to_sec(duration: &str) -> Result<u64, String> {
+    let mut seconds = 0;
+    let mut digits = 0;
+    for ch in duration.chars() {
+        match ch {
+            '0'..='9' => {
+                digits *= 10;
+                digits += ch.to_digit(10).unwrap();
+            }
+            'h' => {
+                seconds += digits * 60 * 60;
+                digits = 0;
+            }
+            'm' => {
+                seconds += digits * 60;
+                digits = 0;
+            }
+            's' => {
+                seconds += digits;
+                digits = 0;
+            }
+            _ => return Err(format!("failed to parse {duration}; expected, e.g., 2h5m13s")),
+        }
+    }
+    if digits != 0 {
+        Err(format!("failed to parse {duration}; expected, e.g.: 2h5m13s but found extra digits at end"))
+    } else {
+        Ok(seconds as u64)
+    }
+}
+
+pub fn ms_to_string(ms: u128) -> String {
+    if ms < 1000 {
+        format!("{}ms", ms)
+    } else if ms < 10000 {
+        format!("{:.1}s", (ms as f64) / 1000.0)
+    } else {
+        sec_to_string((ms as u64) / 1000)
+    }
+}
+
+pub fn sec_to_string(seconds: u64) -> String {
     if seconds < 60 {
         return format!("{}s", seconds);
     }

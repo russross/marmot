@@ -1,233 +1,435 @@
 pub mod input;
+pub mod print;
 pub mod score;
 pub mod solver;
 use self::input::*;
-use self::score::*;
+use self::print::*;
 use self::solver::*;
-use std::cmp::max;
+use std::collections::HashMap;
+use std::time::Instant;
 
-const DB_PATH: &str = "timetable.db";
-const WARMUP_SECONDS: u64 = 5;
-const SOLVE_SECONDS: u64 = 600;
-const REPORT_SECONDS: u64 = 5;
-const REHOME_SECONDS: u64 = 60;
-const MIN_BIAS: i64 = -10;
-const MAX_BIAS: i64 = 10;
-const BIAS_STEP: i64 = 1;
-const MAX_DFS_DEPTH: usize = 3;
+static DEFAULT_DB_PATH: &str = "timetable.db";
 
 fn main() {
-    // load input
-    let departments = vec!["Computing".to_string()];
-    let input = match load_input(DB_PATH, &departments) {
-        Ok(t) => t,
+    match parse_args() {
+        Ok(Opts::Gen(config)) => {
+            _ = (|| {
+                let input = load_input(&config.db_path, &[])?;
+                let mut id = None;
+                let mut schedule = if config.starting_id >= 0 {
+                    let mut schedule = Schedule::new(&input);
+                    load_schedule(
+                        &config.db_path,
+                        &input,
+                        &mut schedule,
+                        if config.starting_id == 0 { None } else { Some(config.starting_id) },
+                    )?;
+                    schedule
+                } else {
+                    println!("running warmup for {}", sec_to_string(config.warmup_seconds));
+                    let Some(schedule) = warmup(&input, config.warmup_seconds) else {
+                        return Err("failed to generate a schedule in the warmup stage".to_string());
+                    };
+                    id = Some(save_schedule(&config.db_path, &input, &schedule, "warmup schedule", None)?);
+                    schedule
+                };
+                let best = solve(&config, &input, &mut schedule, config.solve_seconds, &mut id);
+                print_schedule(&input, &best);
+                print_problems(&input, &best);
+                Ok(())
+            })()
+            .map_err(|msg| {
+                eprintln!("{}", msg);
+            });
+        }
+
+        Ok(Opts::Dfs(config)) => {
+            _ = (|| {
+                let input = load_input(&config.db_path, &[])?;
+                let mut schedule = Schedule::new(&input);
+                load_schedule(
+                    &config.db_path,
+                    &input,
+                    &mut schedule,
+                    if config.starting_id == 0 { None } else { Some(config.starting_id) },
+                )?;
+                let pre_score = schedule.score;
+                let mut save_id = None;
+                let mut iterations = 0;
+                let start = Instant::now();
+                let mut walk = Walk::new(schedule.score);
+                loop {
+                    let before = schedule.score;
+                    print!("running dfs with max depth {}", config.dfs_depth);
+                    walk.try_dfs(&input, &mut schedule, config.dfs_depth, false);
+                    iterations += 1;
+                    if schedule.score < before {
+                        let comment = format!(
+                            "dfs at depth {}, {} iteration{} over {}",
+                            config.dfs_depth,
+                            iterations,
+                            if iterations == 1 { "" } else { "s" },
+                            ms_to_string(start.elapsed().as_millis())
+                        );
+                        save_id = Some(save_schedule(&config.db_path, &input, &schedule, &comment, save_id)?);
+                    }
+                    if schedule.score >= before || !config.repeat {
+                        break;
+                    }
+                }
+                if schedule.score < pre_score {
+                    println!("score improved from {} to {} over {} iterations", pre_score, schedule.score, iterations);
+                }
+                Ok(())
+            })()
+            .map_err(|msg: String| {
+                eprintln!("{}", msg);
+            });
+        }
+
+        Ok(Opts::Print(config)) => {
+            _ = (|| {
+                let input = load_input(&config.db_path, &[])?;
+                let mut schedule = Schedule::new(&input);
+                load_schedule(
+                    &config.db_path,
+                    &input,
+                    &mut schedule,
+                    if config.starting_id == 0 { None } else { Some(config.starting_id) },
+                )?;
+                print_schedule(&input, &schedule);
+                print_problems(&input, &schedule);
+                Ok(())
+            })()
+            .map_err(|msg: String| {
+                eprintln!("{}", msg);
+            });
+        }
+
+        Ok(Opts::Dump(config)) => {
+            _ = (|| {
+                let input = load_input(&config.db_path, &[])?;
+                dump_input(&[], &input);
+                Ok(())
+            })()
+            .map_err(|msg: String| {
+                eprintln!("{}", msg);
+            });
+        }
+
         Err(msg) => {
-            println!("Error in the input: {}", msg);
-            return;
-        }
-    };
-    if false {
-        dump_input(&departments, &input);
-    }
-
-    let mut schedule = if true {
-        println!("running warmup for {} seconds", WARMUP_SECONDS);
-        let Some(schedule) = warmup(&input, WARMUP_SECONDS) else {
-            println!("failed to generate a schedule in the warmup stage");
-            return;
-        };
-        schedule
-    } else {
-        let mut schedule = Schedule::new(&input);
-        if let Err(msg) = load_schedule(DB_PATH, &input, &mut schedule, 25) {
-            println!("{}", msg);
-            return;
-        }
-        print_problems(&input, &schedule);
-        schedule
-    };
-
-    let id = match save_schedule(DB_PATH, &input, &schedule, "loaded schedule", None) {
-        Ok(id) => id,
-        Err(msg) => {
-            println!("Error saving schedule: {}", msg);
-            return;
-        }
-    };
-
-    let best = solve(&input, &mut schedule, SOLVE_SECONDS, id);
-    print_schedule(&input, &best);
-    print_problems(&input, &best);
-}
-
-fn dump_input(departments: &[String], input: &Input) {
-    if departments.is_empty() {
-        print!("{} for all departments: ", input.term_name);
-    } else if departments.len() == 1 {
-        print!("{} for {}: ", input.term_name, departments[0]);
-    } else {
-        let mut sep = "";
-        print!("{} for ", input.term_name);
-        for (i, name) in departments.iter().enumerate() {
-            print!("{}{}", sep, name);
-            if i + 2 == departments.len() && i >= 1 {
-                sep = ", and ";
-            } else if i + 2 == departments.len() {
-                sep = " and ";
-            } else {
-                sep = ", ";
+            if !msg.is_empty() {
+                eprintln!("{msg}");
             }
+            print_usage(std::env::args().nth(1));
         }
-        print!(": ");
-    }
-    println!("{} rooms, {} time slots", input.rooms.len(), input.time_slots.len());
-
-    print!("\nRooms: ");
-    let mut sep = "";
-    for elt in &input.rooms {
-        print!("{sep}{elt}");
-        sep = ", ";
-    }
-    println!();
-    print!("\nTime slots: ");
-    sep = "";
-    for elt in &input.time_slots {
-        print!("{sep}{elt}");
-        sep = ", ";
-    }
-    println!();
-
-    println!("\nFaculty:");
-    for faculty in &input.faculty {
-        println!("{}", faculty.debug(input));
-    }
-
-    println!("\nSections:");
-    for section in &input.sections {
-        print!("section {} with {} rooms and {} times", section.name, section.rooms.len(), section.time_slots.len());
-        if !section.faculty.is_empty() {
-            print!(", faculty");
-            for faculty in &section.faculty {
-                print!(" {faculty}");
-            }
-        }
-        println!();
-        let mut sep = "    hard conflicts: ";
-        for &elt in &section.hard_conflicts {
-            print!("{}{}", sep, input.sections[elt].name);
-            sep = " ";
-        }
-        if !section.hard_conflicts.is_empty() {
-            println!();
-        }
-    }
-
-    println!("\nScoring criteria:");
-    for elt in &input.criteria {
-        println!("{}", elt.debug(input));
     }
 }
 
-fn print_schedule(input: &Input, schedule: &Schedule) {
-    let mut rooms: Vec<usize> = schedule.placements.iter().filter_map(|Placement { room, .. }| *room).collect();
-    rooms.sort_unstable();
-    rooms.dedup();
-    let mut time_slots: Vec<usize> = schedule
-        .placements
-        .iter()
-        .filter_map(|Placement { time_slot, room, .. }| if room.is_some() { *time_slot } else { None })
-        .collect();
-    time_slots.sort_unstable();
-    time_slots.dedup();
-    let mut grid = Vec::new();
-    let mut width = 1;
-    for _ in 0..=time_slots.len() {
-        grid.push(vec![("".to_string(), "".to_string()); rooms.len() + 1]);
-    }
-    for (i, &room) in rooms.iter().enumerate() {
-        let name = input.rooms[room].name.clone();
-        width = max(name.len(), width);
-        grid[0][i + 1] = (name, "".to_string());
-    }
-    for (i, &time_slot) in time_slots.iter().enumerate() {
-        let name = input.time_slots[time_slot].name.clone();
-        width = max(name.len(), width);
-        grid[i + 1][0] = (name, "".to_string());
-    }
-    for (section, Placement { time_slot, room, .. }) in schedule.placements.iter().enumerate() {
-        let (Some(time_slot), Some(room)) = (time_slot, room) else {
-            continue;
-        };
-        let x = rooms.binary_search(room).unwrap() + 1;
-        let y = time_slots.binary_search(time_slot).unwrap() + 1;
-        if grid[y][x] != ("".to_string(), "".to_string()) {
-            panic!("two sections schedule in same room and time");
-        }
-        let sec = &input.sections[section];
-        let section_name = sec.name.clone();
-        let faculty_name = match sec.faculty.len() {
-            0 => "".to_string(),
-            1 => input.faculty[sec.faculty[0]].name.clone(),
-            _ => format!("{}+", input.faculty[sec.faculty[0]].name.clone()),
-        };
-        width = max(section_name.len(), width);
-        width = max(faculty_name.len(), width);
-        grid[y][x] = (section_name, faculty_name);
-    }
-    width += 2;
+fn parse_args() -> Result<Opts, String> {
+    let mut parser = CliParser::new()?;
 
-    for (i, row) in grid.iter().enumerate() {
-        let mut div = "+".to_string();
-        let mut sec = "|".to_string();
-        let mut fac = "|".to_string();
-        for (sec_name, fac_name) in row {
-            for _ in 0..width {
-                div.push('-');
-            }
-            div.push('+');
-            sec = format!("{} {:<width$}|", sec, sec_name, width = width - 1);
-            fac = format!("{} {:<width$}|", fac, fac_name, width = width - 1);
+    match parser.command.as_ref() {
+        "gen" => {
+            let mut opts = GenOpts::default();
+            parser.string("-d", "--db-path", &mut opts.db_path)?;
+            parser.duration("-w", "--warmup", &mut opts.warmup_seconds)?;
+            parser.int64("-i", "--id", &mut opts.starting_id)?;
+            parser.duration("-t", "--time", &mut opts.solve_seconds)?;
+            parser.duration("-g", "--rehome-global", &mut opts.rehome_global_seconds)?;
+            parser.duration("-l", "--rehome-local", &mut opts.rehome_local_seconds)?;
+            parser.duration("-u", "--update", &mut opts.update_seconds)?;
+            parser.float("-n", "--bias-min", &mut opts.bias_min)?;
+            parser.float("-x", "--bias-max", &mut opts.bias_max)?;
+            parser.float("-s", "--bias-step", &mut opts.bias_step)?;
+            parser.uint("-p", "--dfs-depth", &mut opts.dfs_depth)?;
+            parser.leftover()?;
+            Ok(Opts::Gen(opts))
         }
-        if i == 0 {
-            println!("{}", div);
+
+        "dfs" => {
+            let mut opts = DfsOpts::default();
+            parser.string("-d", "--db-path", &mut opts.db_path)?;
+            parser.int64("-i", "--id", &mut opts.starting_id)?;
+            parser.uint("-p", "--dfs-depth", &mut opts.dfs_depth)?;
+            parser.boolean("-r", "--repeat", &mut opts.repeat)?;
+            parser.leftover()?;
+            Ok(Opts::Dfs(opts))
         }
-        println!("{}", sec);
-        println!("{}", fac);
-        println!("{}", div);
-    }
-    for (section, Placement { time_slot, room, .. }) in schedule.placements.iter().enumerate() {
-        let (&Some(time_slot), None) = (time_slot, room) else {
-            continue;
-        };
-        println!("{} at {} with no room", input.sections[section].name, input.time_slots[time_slot].name);
+
+        "print" => {
+            let mut opts = PrintOpts::default();
+            parser.string("-d", "--db-path", &mut opts.db_path)?;
+            parser.int64("-i", "--id", &mut opts.starting_id)?;
+            parser.leftover()?;
+            Ok(Opts::Print(opts))
+        }
+
+        "dump" => {
+            let mut opts = DumpOpts::default();
+            parser.string("-d", "--db-path", &mut opts.db_path)?;
+            parser.leftover()?;
+            Ok(Opts::Dump(opts))
+        }
+
+        cmd => Err(format!("Error: unknown command \"{cmd}\"")),
     }
 }
 
-fn print_problems(input: &Input, schedule: &Schedule) {
-    let mut lst = Vec::new();
-    for (section, placement) in schedule.placements.iter().enumerate() {
-        if placement.time_slot.is_none() {
-            lst.push((LEVEL_FOR_UNPLACED_SECTION, format!("{} is not placed", input.sections[section].name)));
-            continue;
+enum Opts {
+    Gen(GenOpts),
+    Dfs(DfsOpts),
+    Print(PrintOpts),
+    Dump(DumpOpts),
+}
+
+pub struct GenOpts {
+    pub db_path: String,
+    pub warmup_seconds: u64,
+    pub starting_id: i64,
+    pub solve_seconds: u64,
+    pub rehome_global_seconds: u64,
+    pub rehome_local_seconds: u64,
+    pub update_seconds: u64,
+    pub bias_min: f64,
+    pub bias_max: f64,
+    pub bias_step: f64,
+    pub dfs_depth: usize,
+}
+
+impl Default for GenOpts {
+    fn default() -> Self {
+        Self {
+            db_path: DEFAULT_DB_PATH.to_string(),
+            warmup_seconds: 5,
+            starting_id: -1,
+            solve_seconds: 30 * 60,
+            rehome_global_seconds: 2 * 60,
+            rehome_local_seconds: 60,
+            update_seconds: 5,
+            bias_min: -10.0,
+            bias_max: 10.0,
+            bias_step: 1.0,
+            dfs_depth: 3,
         }
     }
-    for penalty_list in &schedule.penalties {
-        for penalty in penalty_list {
-            lst.push(penalty.get_score_message(input, schedule));
+}
+
+pub struct PrintOpts {
+    pub db_path: String,
+    pub starting_id: i64,
+}
+
+impl Default for PrintOpts {
+    fn default() -> Self {
+        Self { db_path: DEFAULT_DB_PATH.to_string(), starting_id: 0 }
+    }
+}
+
+pub struct DumpOpts {
+    pub db_path: String,
+}
+
+impl Default for DumpOpts {
+    fn default() -> Self {
+        Self { db_path: DEFAULT_DB_PATH.to_string() }
+    }
+}
+
+pub struct DfsOpts {
+    pub db_path: String,
+    pub starting_id: i64,
+    pub dfs_depth: usize,
+    pub repeat: bool,
+}
+
+impl Default for DfsOpts {
+    fn default() -> Self {
+        Self { db_path: DEFAULT_DB_PATH.to_string(), starting_id: 0, dfs_depth: 4, repeat: true }
+    }
+}
+
+fn print_usage(command: Option<String>) {
+    match command.as_deref() {
+        Some("gen") => {
+            let default = GenOpts::default();
+            eprintln!("Usage: marmot gen [options]");
+            eprintln!();
+            eprintln!("Options:");
+            eprintln!("  -d, --db-path <path>           Database path (default: {})", default.db_path);
+            eprintln!(
+                "  -w, --warmup <duration>        Warmup period (default: {})",
+                sec_to_string(default.warmup_seconds)
+            );
+            eprintln!("  -i, --id <int>                 ID of schedule to start from (0 to use best in DB)");
+            eprintln!(
+                "  -t, --time <duration>          Total time (default: {})",
+                sec_to_string(default.solve_seconds)
+            );
+            eprintln!(
+                "  -g, --rehome-global <duration> Global rehoming interval (default: {})",
+                sec_to_string(default.rehome_global_seconds)
+            );
+            eprintln!(
+                "  -l, --rehome-local <duration>  Local rehoming interval (default: {})",
+                sec_to_string(default.rehome_local_seconds)
+            );
+            eprintln!(
+                "  -u, --update <duration>        Status update interval (default: {})",
+                sec_to_string(default.update_seconds)
+            );
+            eprintln!("  -n, --bias-min <float>         Minimum bias (default: {})", default.bias_min);
+            eprintln!("  -x, --bias-max <float>         Maximum bias (default: {})", default.bias_max);
+            eprintln!("  -s, --bias-step <float>        Bias step (default: {})", default.bias_step);
+            eprintln!("  -p, --dfs-depth <int>          DFS depth (default: {})", default.dfs_depth);
+        }
+
+        Some("dfs") => {
+            let default = DfsOpts::default();
+            eprintln!("Usage: marmot dfs [options]");
+            eprintln!();
+            eprintln!("Options:");
+            eprintln!("  -d, --db-path <path>           Database path (default: {})", default.db_path);
+            eprintln!("  -i, --id <int>                 ID of schedule to start from (0 to use best in DB)");
+            eprintln!("  -p, --dfs-depth <int>          DFS depth (default: {})", default.dfs_depth);
+            eprintln!("  -r, --repeat <bool>            Repeat automatically on success (default: {})", default.repeat);
+        }
+
+        Some("print") => {
+            let default = PrintOpts::default();
+            eprintln!("Usage: marmot print [options]");
+            eprintln!();
+            eprintln!("Options:");
+            eprintln!("  -d, --db-path <path>           Database path (default: {})", default.db_path);
+            eprintln!(
+                "  -i, --id <int>                 ID of schedule to use (0 to use best in DB, default: {})",
+                default.starting_id
+            );
+        }
+
+        Some("dump") => {
+            let default = DumpOpts::default();
+            eprintln!("Usage: marmot dump [options]");
+            eprintln!();
+            eprintln!("Options:");
+            eprintln!("  -d, --db-path <path>           Database path (default: {})", default.db_path);
+        }
+
+        _ => {
+            eprintln!("Usage: marmot <command> [options]");
+            eprintln!();
+            eprintln!("Commands:");
+            eprintln!("  gen        Generate a new schedule from scratch");
+            eprintln!("  dfs        Try to improve a schedule using bounded DFS");
+            eprintln!("  print      Print a schedule to the console");
+            eprintln!("  dump       Dump the input data to the console");
+            eprintln!();
+            eprintln!("For more help run: marmot <command> -h");
         }
     }
-    lst.sort_unstable_by(|a, b| {
-        if a.0 != b.0 && (a.0 < START_LEVEL_FOR_PREFERENCES || b.0 < START_LEVEL_FOR_PREFERENCES) {
-            a.0.cmp(&b.0)
-        } else {
-            a.1.cmp(&b.1)
+}
+
+struct CliParser {
+    command: String,
+    pairs: HashMap<String, String>,
+}
+
+impl CliParser {
+    fn new() -> Result<Self, String> {
+        let args: Vec<String> = std::env::args().collect();
+        if args.len() < 2 {
+            return Err("Error: no command specified".to_string());
         }
-    });
-    for (priority, msg) in lst {
-        if priority < START_LEVEL_FOR_PREFERENCES {
-            println!("{priority:2}: {msg}");
-        } else {
-            println!("{msg}");
+        let command = &args[1];
+        if args[2..].contains(&"-h".to_string()) {
+            return Err(String::new());
         }
+        if args.len() % 2 == 1 {
+            return Err(format!("Error: 'marmot {}' options must each have a value, e.g., -t 30m", command));
+        }
+        let mut pairs = HashMap::new();
+        for pair in args[2..].chunks_exact(2) {
+            pairs.insert(pair[0].clone(), pair[1].clone());
+        }
+
+        Ok(CliParser { command: args[1].clone(), pairs })
+    }
+
+    fn leftover(&self) -> Result<(), String> {
+        // form an error based on the first unprocessed option we happen to find
+        if let Some((key, val)) = self.pairs.iter().next() {
+            return Err(format!("Error: 'marmot {}' with unknown option: {} {}", self.command, key, val));
+        }
+        Ok(())
+    }
+
+    fn pair(&mut self, short: &str, long: &str) -> Option<(String, String)> {
+        self.pairs
+            .remove(short)
+            .map(|val| (short.to_string(), val))
+            .or_else(|| self.pairs.remove(long).map(|val| (long.to_string(), val)))
+    }
+
+    fn string(&mut self, short: &str, long: &str, s: &mut String) -> Result<(), String> {
+        if let Some((_, val)) = self.pair(short, long) {
+            *s = val;
+        }
+
+        Ok(())
+    }
+
+    fn duration(&mut self, short: &str, long: &str, seconds: &mut u64) -> Result<(), String> {
+        if let Some((key, val)) = self.pair(short, long) {
+            match string_to_sec(val.as_str()) {
+                Ok(n) => *seconds = n,
+                Err(msg) => return Err(format!("Error parsing option {key}: {msg}")),
+            }
+        }
+
+        Ok(())
+    }
+
+    fn float(&mut self, short: &str, long: &str, target: &mut f64) -> Result<(), String> {
+        if let Some((key, val)) = self.pair(short, long) {
+            match val.parse() {
+                Ok(n) => *target = n,
+                Err(msg) => return Err(format!("Error parsing option {key}: {msg}")),
+            }
+        }
+
+        Ok(())
+    }
+
+    fn int64(&mut self, short: &str, long: &str, target: &mut i64) -> Result<(), String> {
+        if let Some((key, val)) = self.pair(short, long) {
+            match val.parse() {
+                Ok(n) => *target = n,
+                Err(msg) => return Err(format!("Error parsing option {key}: {msg}")),
+            }
+        }
+
+        Ok(())
+    }
+
+    fn uint(&mut self, short: &str, long: &str, target: &mut usize) -> Result<(), String> {
+        if let Some((key, val)) = self.pair(short, long) {
+            match val.parse() {
+                Ok(n) => *target = n,
+                Err(msg) => return Err(format!("Error parsing option {key}: {msg}")),
+            }
+        }
+
+        Ok(())
+    }
+
+    fn boolean(&mut self, short: &str, long: &str, target: &mut bool) -> Result<(), String> {
+        if let Some((key, val)) = self.pair(short, long) {
+            match val.parse() {
+                Ok(n) => *target = n,
+                Err(msg) => return Err(format!("Error parsing option {key}: {msg}")),
+            }
+        }
+
+        Ok(())
     }
 }
