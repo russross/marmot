@@ -174,3 +174,82 @@ pub fn dump_input(departments: &[String], input: &Input) {
         println!("{}", elt.debug(input));
     }
 }
+
+pub fn commas<T: TryInto<i64>>(n: T) -> String {
+    let mut n = n.try_into().unwrap_or(0);
+    let mut minus = "";
+    if n < 0 {
+        n = -n;
+        minus = "-";
+    }
+    let mut s = String::new();
+    loop {
+        if n < 1000 {
+            s = format!("{}{}", n, s);
+            break;
+        }
+        s = format!(",{:03}{}", n % 1000, s);
+        n /= 1000;
+    }
+    format!("{minus}{s}")
+}
+
+pub fn ms_to_string(ms: u128) -> String {
+    if ms < 1000 {
+        format!("{}ms", ms)
+    } else if ms < 10000 {
+        format!("{:.1}s", (ms as f64) / 1000.0)
+    } else {
+        sec_to_string((ms as u64) / 1000)
+    }
+}
+
+pub fn string_to_sec(duration: &str) -> Result<u64, String> {
+    let mut seconds = 0;
+    let mut digits = 0;
+    for ch in duration.chars() {
+        match ch {
+            '0'..='9' => {
+                digits *= 10;
+                digits += ch.to_digit(10).unwrap();
+            }
+            'h' => {
+                seconds += digits * 60 * 60;
+                digits = 0;
+            }
+            'm' => {
+                seconds += digits * 60;
+                digits = 0;
+            }
+            's' => {
+                seconds += digits;
+                digits = 0;
+            }
+            _ => return Err(format!("failed to parse {duration}; expected, e.g., 2h5m13s")),
+        }
+    }
+    if digits != 0 {
+        Err(format!("failed to parse {duration}; expected, e.g.: 2h5m13s but found extra digits at end"))
+    } else {
+        Ok(seconds as u64)
+    }
+}
+
+pub fn sec_to_string(seconds: u64) -> String {
+    if seconds < 60 {
+        return format!("{}s", seconds);
+    }
+    if seconds < 3600 && seconds % 60 == 0 {
+        return format!("{}m", seconds / 60);
+    }
+    if seconds < 3600 {
+        return format!("{}m{:02}s", seconds / 60, seconds % 60);
+    }
+    if seconds % 3600 == 0 {
+        return format!("{}h", seconds / 3600);
+    }
+    if seconds % 60 == 0 {
+        return format!("{}h{}m", seconds / 3600, (seconds % 3600) / 60);
+    }
+    format!("{}h{:02}m{:02}s", seconds / 3600, (seconds % 3600) / 60, seconds % 60)
+}

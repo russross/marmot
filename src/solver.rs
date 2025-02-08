@@ -457,33 +457,40 @@ pub fn solve(
     let mut bias_delta = config.bias_step;
 
     let start = Instant::now();
-    let mut last_report_seconds = 0;
+    let mut last_seconds = 0;
 
     // one big step per iteration
     loop {
         // check if we need to report and adjust the bias
         let elapsed = start.elapsed().as_secs();
-        if elapsed != last_report_seconds && elapsed % config.update_seconds == 0 {
-            last_report_seconds = elapsed;
-            println!(
-                "{}: best {}, home {}, bias {}, walked [{},{}] steps away from home in {}",
-                sec_to_string(last_report_seconds),
-                best.score,
-                walk.best_score_since_rehome,
-                bias,
-                commas(walk.min_distance_this_interval),
-                commas(walk.max_distance_this_interval),
-                sec_to_string(config.update_seconds),
-            );
-            if last_report_seconds >= seconds {
+        if elapsed != last_seconds {
+            last_seconds = elapsed;
+
+            // time for an update?
+            if elapsed % config.update_seconds == 0 {
+                println!(
+                    "{}: best {}, home {}, bias {}, ranged [{},{}] steps away from home since last report",
+                    sec_to_string(elapsed),
+                    best.score,
+                    walk.best_score_since_rehome,
+                    bias,
+                    commas(walk.min_distance_this_interval),
+                    commas(walk.max_distance_this_interval),
+                );
+
+                // update per-interval stats
+                walk.max_distance_this_interval = walk.distance();
+                walk.min_distance_this_interval = walk.distance();
+            }
+            if elapsed >= seconds {
                 break;
             }
+
+            // update bias
             bias += bias_delta;
             if bias <= config.bias_min || bias >= config.bias_max {
                 bias_delta = -bias_delta;
             }
-            walk.max_distance_this_interval = walk.distance();
-            walk.min_distance_this_interval = walk.distance();
         }
 
         // random walk: back up or move forward one big step
@@ -516,19 +523,35 @@ pub fn solve(
                 if schedule.score == best.score && since_rehome >= config.rehome_global_seconds
                     || schedule.score != best.score && since_rehome >= config.rehome_local_seconds
                 {
-                    println!("no improvement for {} seconds, rehoming", commas(since_rehome));
+                    if config.fallback {
+                        println!("no improvement for {} seconds, rehoming", commas(since_rehome));
+                    } else {
+                        println!(
+                            "no improvement for {} seconds, running warmup for {}",
+                            commas(since_rehome),
+                            sec_to_string(config.warmup_seconds)
+                        );
+                        if let Some(new_schedule) = warmup(input, config.warmup_seconds) {
+                            *schedule = new_schedule;
+                        } else {
+                            println!("failed to generate a schedule in the warmup stage, rehoming to fallback instead");
+                        };
+                    }
                     walk.rehome(schedule.score);
                     bias = config.bias_min;
                     bias_delta = config.bias_step;
                 } else if bias_delta > 0.0 && bias > config.bias_min {
                     bias_delta = -bias_delta;
                 }
-                continue;
             }
 
             if schedule.score < best.score {
-                println!("new best found {} steps from home", commas(walk.distance()));
-                //walk.try_dfs(input, schedule, config.dfs_depth, true);
+                if config.dfs_depth == 0 {
+                    println!("new best found {} steps from home", commas(walk.distance()));
+                } else {
+                    print!("new best found {} steps from home", commas(walk.distance()));
+                    walk.try_dfs(input, schedule, config.dfs_depth, true);
+                }
                 best = schedule.clone();
                 walk.rehome(schedule.score);
                 bias = config.bias_min;
@@ -547,8 +570,12 @@ pub fn solve(
                     }
                 }
             } else if schedule.score < walk.best_score_since_rehome {
-                println!("new local best found {} steps from home", commas(walk.distance()));
-                //walk.try_dfs(input, schedule, config.dfs_depth, true);
+                if config.dfs_depth == 0 {
+                    println!("new local best found {} steps from home", commas(walk.distance()));
+                } else {
+                    print!("new local best found {} steps from home", commas(walk.distance()));
+                    walk.try_dfs(input, schedule, config.dfs_depth, true);
+                }
                 walk.rehome(schedule.score);
                 bias = config.bias_min;
                 bias_delta = config.bias_step;
@@ -679,76 +706,6 @@ impl Walk {
             self.step_back(input, schedule);
         }
     }
-}
-
-fn commas<T: TryInto<i64>>(n: T) -> String {
-    let mut n = n.try_into().unwrap_or(0);
-    let mut minus = "";
-    if n < 0 {
-        n = -n;
-        minus = "-";
-    }
-    let mut s = String::new();
-    loop {
-        if n < 1000 {
-            s = format!("{}{}", n, s);
-            break;
-        }
-        s = format!(",{:03}{}", n % 1000, s);
-        n /= 1000;
-    }
-    format!("{minus}{s}")
-}
-
-pub fn string_to_sec(duration: &str) -> Result<u64, String> {
-    let mut seconds = 0;
-    let mut digits = 0;
-    for ch in duration.chars() {
-        match ch {
-            '0'..='9' => {
-                digits *= 10;
-                digits += ch.to_digit(10).unwrap();
-            }
-            'h' => {
-                seconds += digits * 60 * 60;
-                digits = 0;
-            }
-            'm' => {
-                seconds += digits * 60;
-                digits = 0;
-            }
-            's' => {
-                seconds += digits;
-                digits = 0;
-            }
-            _ => return Err(format!("failed to parse {duration}; expected, e.g., 2h5m13s")),
-        }
-    }
-    if digits != 0 {
-        Err(format!("failed to parse {duration}; expected, e.g.: 2h5m13s but found extra digits at end"))
-    } else {
-        Ok(seconds as u64)
-    }
-}
-
-pub fn ms_to_string(ms: u128) -> String {
-    if ms < 1000 {
-        format!("{}ms", ms)
-    } else if ms < 10000 {
-        format!("{:.1}s", (ms as f64) / 1000.0)
-    } else {
-        sec_to_string((ms as u64) / 1000)
-    }
-}
-
-pub fn sec_to_string(seconds: u64) -> String {
-    if seconds < 60 {
-        return format!("{}s", seconds);
-    }
-    if seconds < 3600 {
-        return format!("{}m{:02}s", seconds / 60, seconds % 60);
-    }
-    format!("{}h{:02}m{:02}s", seconds / 3600, (seconds % 3600) / 60, seconds % 60)
 }
 
 fn rooms_adapter(rooms: &[RoomWithOptionalPriority]) -> Vec<Option<usize>> {

@@ -144,6 +144,7 @@ fn parse_args() -> Result<Opts, String> {
             parser.float("-x", "--bias-max", &mut opts.bias_max)?;
             parser.float("-s", "--bias-step", &mut opts.bias_step)?;
             parser.uint("-p", "--dfs-depth", &mut opts.dfs_depth)?;
+            parser.boolean("-f", "--fallback", &mut opts.fallback)?;
             parser.leftover()?;
             Ok(Opts::Gen(opts))
         }
@@ -196,22 +197,24 @@ pub struct GenOpts {
     pub bias_max: f64,
     pub bias_step: f64,
     pub dfs_depth: usize,
+    pub fallback: bool,
 }
 
 impl Default for GenOpts {
     fn default() -> Self {
         Self {
             db_path: DEFAULT_DB_PATH.to_string(),
-            warmup_seconds: 5,
+            warmup_seconds: 1,
             starting_id: -1,
             solve_seconds: 30 * 60,
-            rehome_global_seconds: 2 * 60,
-            rehome_local_seconds: 60,
+            rehome_global_seconds: 5 * 60,
+            rehome_local_seconds: 2 * 60,
             update_seconds: 5,
             bias_min: -10.0,
             bias_max: 10.0,
-            bias_step: 1.0,
-            dfs_depth: 3,
+            bias_step: 0.125,
+            dfs_depth: 2,
+            fallback: false,
         }
     }
 }
@@ -283,6 +286,10 @@ fn print_usage(command: Option<String>) {
             eprintln!("  -x, --bias-max <float>         Maximum bias (default: {})", default.bias_max);
             eprintln!("  -s, --bias-step <float>        Bias step (default: {})", default.bias_step);
             eprintln!("  -p, --dfs-depth <int>          DFS depth (default: {})", default.dfs_depth);
+            eprintln!(
+                "  -f, --fallback <bool>          Rehome to fallback instead of new warmup (default: {})",
+                default.fallback
+            );
         }
 
         Some("dfs") => {
