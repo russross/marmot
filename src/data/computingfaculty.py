@@ -98,7 +98,7 @@ def build_faculty(db: DB) -> None:
 
     db.make_faculty('Eric Pedersen', 'Computing', default_availability)
     db.make_faculty_section('Eric Pedersen', 'SE 3500-01', 'TR1030+75', 'TR1200+75', 'flex')
-    db.make_faculty_section('Eric Pedersen', 'SE 4990-01', 'T1600+75')
+    db.make_faculty_section('Eric Pedersen', 'SE 4990-01', 'T1600+75', 'flex', 'Smith 116', 'Smith 117')
     db.make_faculty_section('Eric Pedersen', 'SE 4990-02', 'W1200+50', 'flex', 'Smith 116')
     db.assign_faculty_to_existing_section('Eric Pedersen', 'SD 6450-01') # co-taught with DJ
 

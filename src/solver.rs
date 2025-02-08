@@ -527,8 +527,8 @@ pub fn solve(
             }
 
             if schedule.score < best.score {
-                print!("new best found {} steps from home", commas(walk.distance()));
-                walk.try_dfs(input, schedule, config.dfs_depth, true);
+                println!("new best found {} steps from home", commas(walk.distance()));
+                //walk.try_dfs(input, schedule, config.dfs_depth, true);
                 best = schedule.clone();
                 walk.rehome(schedule.score);
                 bias = config.bias_min;
@@ -547,8 +547,8 @@ pub fn solve(
                     }
                 }
             } else if schedule.score < walk.best_score_since_rehome {
-                print!("new local best found {} steps from home", commas(walk.distance()));
-                walk.try_dfs(input, schedule, config.dfs_depth, true);
+                println!("new local best found {} steps from home", commas(walk.distance()));
+                //walk.try_dfs(input, schedule, config.dfs_depth, true);
                 walk.rehome(schedule.score);
                 bias = config.bias_min;
                 bias_delta = config.bias_step;
@@ -562,8 +562,6 @@ pub fn solve(
         commas(walk.big_step_count),
         walk.little_step_count as f64 / walk.big_step_count as f64
     );
-    let solve_seconds = start.elapsed().as_secs() as usize;
-    println!("total of {} section moves ({}/s)", commas(walk.move_count), commas(walk.move_count / solve_seconds));
 
     best
 }
@@ -581,7 +579,6 @@ pub struct Walk {
 
     pub big_step_count: usize,
     pub little_step_count: usize,
-    pub move_count: usize,
 }
 
 impl Walk {
@@ -599,7 +596,6 @@ impl Walk {
 
             big_step_count: 0,
             little_step_count: 0,
-            move_count: 0,
         }
     }
 
@@ -625,9 +621,8 @@ impl Walk {
         if !step_down(input, schedule, self) {
             return false;
         }
-        self.move_count += 1;
 
-        climb(input, schedule, &mut self.step_log, &self.taboo, &mut self.move_count);
+        climb(input, schedule, &mut self.step_log, &self.taboo);
         let new_steps = self.step_log.len() - pre_steps;
 
         self.big_step_size.push(new_steps);
@@ -845,8 +840,7 @@ pub fn warmup(input: &Input, seconds: u64) -> Option<Schedule> {
 
                 // do a climb
                 let mut log = Vec::new();
-                let mut moves = 0;
-                climb(input, &mut schedule, &mut log, &taboo, &mut moves);
+                climb(input, &mut schedule, &mut log, &taboo);
 
                 // is this a new best?
                 match best {
@@ -876,7 +870,7 @@ pub struct Move {
     pub room: Option<usize>,
 }
 
-pub fn climb(input: &Input, schedule: &mut Schedule, log: &mut Vec<PlacementLog>, taboo: &[usize], moves: &mut usize) {
+pub fn climb(input: &Input, schedule: &mut Schedule, log: &mut Vec<PlacementLog>, taboo: &[usize]) {
     let zero = Score::new();
     let mut by_score = Vec::new();
     for i in 0..input.sections.len() {
@@ -933,7 +927,6 @@ pub fn climb(input: &Input, schedule: &mut Schedule, log: &mut Vec<PlacementLog>
 
                     let candidate = Move { section, time_slot: Some(time_slot), room };
                     let delta = try_one_move(input, schedule, &candidate);
-                    *moves += 1;
 
                     // only consider moves that were improvements
                     if delta < zero && best_delta.map_or(true, |best| delta < best) {
@@ -952,7 +945,6 @@ pub fn climb(input: &Input, schedule: &mut Schedule, log: &mut Vec<PlacementLog>
 
         // apply the move, but do not add it to the taboo list
         let log_entry = move_section(input, schedule, section, ts, &room);
-        *moves += 1;
         log.push(log_entry);
     }
 }

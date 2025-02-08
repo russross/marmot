@@ -97,6 +97,7 @@ fn main() {
                     &mut schedule,
                     if config.starting_id == 0 { None } else { Some(config.starting_id) },
                 )?;
+                println!("score: {}", schedule.score);
                 print_schedule(&input, &schedule);
                 print_problems(&input, &schedule);
                 Ok(())
