@@ -520,8 +520,8 @@ pub fn solve(
 
                 // time to rehome?
                 let since_rehome = walk.time_of_rehome.elapsed().as_secs();
-                if schedule.score == best.score && since_rehome >= config.rehome_global_seconds
-                    || schedule.score != best.score && since_rehome >= config.rehome_local_seconds
+                if walk.best_score_since_rehome == best.score && since_rehome >= config.rehome_global_seconds
+                    || walk.best_score_since_rehome != best.score && since_rehome >= config.rehome_local_seconds
                 {
                     if config.fallback {
                         println!("no improvement for {} seconds, rehoming", commas(since_rehome));

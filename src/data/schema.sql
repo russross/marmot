@@ -4,6 +4,7 @@
 --
 --
 
+BEGIN;
 
 CREATE TABLE terms (
     term                        TEXT PRIMARY KEY,
@@ -1044,3 +1045,5 @@ CREATE TABLE anti_conflict_pairs_materialized (
     group_section               TEXT,
     priority                    INTEGER
 );
+
+COMMIT;
