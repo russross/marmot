@@ -1,9 +1,11 @@
 pub mod input;
 pub mod print;
 pub mod score;
+pub mod sat;
 pub mod solver;
 use self::input::*;
 use self::print::*;
+use self::sat::*;
 use self::solver::*;
 use std::collections::HashMap;
 use std::time::Instant;
@@ -39,6 +41,20 @@ fn main() {
                 Ok(())
             })()
             .map_err(|msg| {
+                eprintln!("{}", msg);
+            });
+        }
+
+        Ok(Opts::SAT(config)) => {
+            _ = (|| {
+                let input = load_input(&config.db_path, &[])?;
+                let mut solver = SatSolver::new();
+                let schedule = solver.generate_schedule(&input, &config.solver)?;
+                print_schedule(&input, &schedule);
+                print_problems(&input, &schedule);
+                Ok(())
+            })()
+            .map_err(|msg: String| {
                 eprintln!("{}", msg);
             });
         }
@@ -149,6 +165,14 @@ fn parse_args() -> Result<Opts, String> {
             Ok(Opts::Gen(opts))
         }
 
+        "sat" => {
+            let mut opts = SATOpts::default();
+            parser.string("-d", "--db-path", &mut opts.db_path)?;
+            parser.string("-s", "--solver", &mut opts.solver)?;
+            parser.leftover()?;
+            Ok(Opts::SAT(opts))
+        }
+
         "dfs" => {
             let mut opts = DfsOpts::default();
             parser.string("-d", "--db-path", &mut opts.db_path)?;
@@ -180,6 +204,7 @@ fn parse_args() -> Result<Opts, String> {
 
 enum Opts {
     Gen(GenOpts),
+    SAT(SATOpts),
     Dfs(DfsOpts),
     Print(PrintOpts),
     Dump(DumpOpts),
@@ -216,6 +241,17 @@ impl Default for GenOpts {
             dfs_depth: 2,
             fallback: false,
         }
+    }
+}
+
+pub struct SATOpts {
+    pub db_path: String,
+    pub solver: String,
+}
+
+impl Default for SATOpts {
+    fn default() -> Self {
+        Self { db_path: DEFAULT_DB_PATH.to_string(), solver: "cadical".to_string() }
     }
 }
 
@@ -292,6 +328,15 @@ fn print_usage(command: Option<String>) {
             );
         }
 
+        Some("sat") => {
+            let default = SATOpts::default();
+            eprintln!("Usage: marmot sat [options]");
+            eprintln!();
+            eprintln!("Options:");
+            eprintln!("  -d, --db-path <path>           Database path (default: {})", default.db_path);
+            eprintln!("  -s, --solver <name>            SAT solver to use: kissat or cadical (default: {})", default.solver);
+        }
+
         Some("dfs") => {
             let default = DfsOpts::default();
             eprintln!("Usage: marmot dfs [options]");
@@ -328,6 +373,7 @@ fn print_usage(command: Option<String>) {
             eprintln!();
             eprintln!("Commands:");
             eprintln!("  gen        Generate a new schedule from scratch");
+            eprintln!("  sat        Generate a new schedule using SAT");
             eprintln!("  dfs        Try to improve a schedule using bounded DFS");
             eprintln!("  print      Print a schedule to the console");
             eprintln!("  dump       Dump the input data to the console");

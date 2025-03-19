@@ -1,0 +1,358 @@
+use super::input::*;
+use super::solver::*;
+use std::collections::HashMap;
+use rustsat::encodings::am1::{Encode, Pairwise};
+use rustsat::instances::{BasicVarManager, ManageVars, Cnf};
+use rustsat::solvers::{Solve, SolverResult};
+use rustsat::types::{Var, Lit, Clause, Assignment};
+use rustsat_cadical::CaDiCaL;
+use rustsat_kissat::Kissat;
+
+pub struct SatSolver {
+    // Variables for time slot assignments
+    pub section_time_vars: HashMap<(usize, usize), Var>, // (section, time_slot) -> var
+    
+    // Variables for room assignments
+    pub section_room_vars: HashMap<(usize, usize), Var>, // (section, room) -> var
+    
+    // Reverse lookups
+    pub var_to_section_time: HashMap<Var, (usize, usize)>,
+    pub var_to_section_room: HashMap<Var, (usize, usize)>,
+    
+    // RustSAT encoding objects
+    pub var_manager: BasicVarManager,
+    pub cnf: Cnf,
+}
+
+impl SatSolver {
+    pub fn new() -> Self {
+        Self {
+            section_time_vars: HashMap::new(),
+            section_room_vars: HashMap::new(),
+            var_to_section_time: HashMap::new(),
+            var_to_section_room: HashMap::new(),
+            var_manager: BasicVarManager::default(),
+            cnf: Cnf::default(),
+        }
+    }
+
+    // Generates a schedule from an input
+    pub fn generate_schedule(&mut self, input: &Input, backend: &str) -> Result<Schedule, String> {
+        self.initialize_variables(input);
+        self.encode_basic_constraints(input)?;
+        self.encode_room_conflicts(input);
+        self.encode_hard_conflicts(input);
+
+        println!("Created CNF with {} variables and {} clauses", self.var_manager.n_used(), self.cnf.len());
+        
+        // Solve and decode
+        match backend {
+            "kissat" => {
+                let mut solver = Kissat::default();
+                solver.add_cnf(self.cnf.clone()).map_err(|e| format!("{}", e))?;
+                
+                match solver.solve().map_err(|e| format!("{}", e))? {
+                    SolverResult::Sat => {
+                        let solution = solver.full_solution().map_err(|e| format!("{}", e))?;
+                        Ok(self.decode_solution(solution, input))
+                    },
+                    _ => {
+                        Err("Schedule is unsatisfiable with current constraints".to_string())
+                    }
+                }
+            },
+            "cadical" => {
+                let mut solver = CaDiCaL::default();
+                solver.add_cnf(self.cnf.clone()).map_err(|e| format!("{}", e))?;
+                
+                match solver.solve().map_err(|e| format!("{}", e))? {
+                    SolverResult::Sat => {
+                        let solution = solver.full_solution().map_err(|e| format!("{}", e))?;
+                        Ok(self.decode_solution(solution, input))
+                    },
+                    _ => {
+                        Err("Schedule is unsatisfiable with current constraints".to_string())
+                    }
+                }
+            },
+            _ => {
+                Err(format!("Unknown SAT solver: {} (valid values are cadical and kissat)", backend))
+            }
+        }
+    }
+    
+    pub fn initialize_variables(&mut self, input: &Input) {
+        let mut time_var_count = 0;
+        let mut room_var_count = 0;
+        
+        // Create variables for sections and time slots
+        for (section_idx, section) in input.sections.iter().enumerate() {
+            for ts in &section.time_slots {
+                // Create variable for section scheduled at this time slot
+                let time_slot = ts.time_slot;
+                let var = self.var_manager.new_var();
+                self.section_time_vars.insert((section_idx, time_slot), var);
+                self.var_to_section_time.insert(var, (section_idx, time_slot));
+                time_var_count += 1;
+            }
+            
+            // Create variables for section and rooms
+            if !section.rooms.is_empty() {
+                for r in &section.rooms {
+                    let room = r.room;
+                    // Create variable for section scheduled in this room
+                    let var = self.var_manager.new_var();
+                    self.section_room_vars.insert((section_idx, room), var);
+                    self.var_to_section_room.insert(var, (section_idx, room));
+                    room_var_count += 1;
+                }
+            }
+        }
+        
+        println!("Created {} time slot variables and {} room variables", time_var_count, room_var_count);
+    }
+    
+    pub fn encode_basic_constraints(&mut self, input: &Input) -> Result<(), String> {
+        // For each section: exactly one time slot
+        for (section_idx, section) in input.sections.iter().enumerate() {
+            // get the SAT variables for these time slots
+            let time_slots_for_section: Vec<_> = section.time_slots.iter().map(|ts| ts.time_slot).collect();
+            let time_vars: Vec<Lit> = time_slots_for_section.iter()
+                .filter_map(|&ts| self.section_time_vars.get(&(section_idx, ts)))
+                .map(|&var| var.pos_lit())
+                .collect();
+            
+            assert!(time_vars.len() == section.time_slots.len());
+            
+            // each section must have at least one time slot
+            self.cnf.add_clause(Clause::from_iter(time_vars.iter().copied()));
+            
+            // each section can have at most one time slot
+            // using pairwise encoding
+            Pairwise::from_iter(time_vars.iter().copied()).encode(&mut self.cnf, &mut self.var_manager).map_err(|e| format!("{}", e))?;
+        }
+        
+        // For each section with rooms: exactly one room
+        for section_idx in 0..input.sections.len() {
+            let rooms_for_section: Vec<_> = input.sections[section_idx].rooms.iter()
+                .map(|r| r.room)
+                .collect();
+                
+            // Get the SAT variables for these rooms
+            let room_vars: Vec<Lit> = rooms_for_section.iter()
+                .filter_map(|&r| self.section_room_vars.get(&(section_idx, r)))
+                .map(|&var| Lit::positive(u32::try_from(var.idx()).unwrap()))
+                .collect();
+            
+            if room_vars.is_empty() {
+                continue;
+            }
+            
+            // Encode exactly-one constraint for rooms
+            // At least one room
+            self.cnf.add_clause(Clause::from_iter(room_vars.iter().copied()));
+            
+            // At most one room using pairwise encoding
+            Pairwise::from_iter(room_vars.iter().copied()).encode(&mut self.cnf, &mut self.var_manager).map_err(|e| format!("{}", e))?;
+        }
+        
+        Ok(())
+    }
+
+    // Encode constraints that prevent room conflicts: no two sections can be in the same room at overlapping times
+    pub fn encode_room_conflicts(&mut self, input: &Input) {
+        let mut conflict_clauses = 0;
+        
+        // Process one room at a time to reduce redundancy
+        for room_idx in 0..input.rooms.len() {
+            // Find all sections that could be scheduled in this room
+            let mut sections_for_room: Vec<usize> = Vec::new();
+            
+            for (section_idx, section) in input.sections.iter().enumerate() {
+                if section.rooms.iter().any(|r| r.room == room_idx) {
+                    sections_for_room.push(section_idx);
+                }
+            }
+            
+            // Skip if fewer than 2 sections could use this room
+            if sections_for_room.len() < 2 {
+                continue;
+            }
+            
+            // Consider all pairs of sections that could use this room
+            for i in 0..sections_for_room.len() {
+                let section_a_idx = sections_for_room[i];
+                
+                for j in (i+1)..sections_for_room.len() {
+                    let section_b_idx = sections_for_room[j];
+                    
+                    // Skip pairs that are already in hard conflict with each other
+                    // This is redundant since these sections can't be scheduled at the same time anyway
+                    if input.sections[section_a_idx].hard_conflicts.contains(&section_b_idx) || 
+                       input.sections[section_b_idx].hard_conflicts.contains(&section_a_idx) {
+                        continue;
+                    }
+                    
+                    // For each pair of time slots that overlap
+                    for &time_a in &input.sections[section_a_idx].time_slots.iter()
+                        .map(|ts| ts.time_slot)
+                        .collect::<Vec<_>>() {
+                        
+                        for &time_b in &input.sections[section_b_idx].time_slots.iter()
+                            .map(|ts| ts.time_slot)
+                            .collect::<Vec<_>>() {
+                            
+                            // Skip if the time slots don't conflict
+                            if !input.time_slot_conflicts[time_a][time_b] {
+                                continue;
+                            }
+                            
+                            // Get the section-time and section-room variables
+                            let var_a_time = match self.section_time_vars.get(&(section_a_idx, time_a)) {
+                                Some(&v) => v,
+                                None => continue,
+                            };
+                            
+                            let var_b_time = match self.section_time_vars.get(&(section_b_idx, time_b)) {
+                                Some(&v) => v,
+                                None => continue,
+                            };
+                            
+                            let var_a_room = match self.section_room_vars.get(&(section_a_idx, room_idx)) {
+                                Some(&v) => v,
+                                None => continue,
+                            };
+                            
+                            let var_b_room = match self.section_room_vars.get(&(section_b_idx, room_idx)) {
+                                Some(&v) => v,
+                                None => continue,
+                            };
+                            
+                            // Add conflict clause: ~(A_time && A_room && B_time && B_room)
+                            // This is equivalent to: (!A_time || !A_room || !B_time || !B_room)
+                            let conflict_lit_a_time = Lit::negative(u32::try_from(var_a_time.idx()).unwrap());
+                            let conflict_lit_a_room = Lit::negative(u32::try_from(var_a_room.idx()).unwrap());
+                            let conflict_lit_b_time = Lit::negative(u32::try_from(var_b_time.idx()).unwrap());
+                            let conflict_lit_b_room = Lit::negative(u32::try_from(var_b_room.idx()).unwrap());
+                            
+                            self.cnf.add_clause(Clause::from_iter([
+                                conflict_lit_a_time,
+                                conflict_lit_a_room,
+                                conflict_lit_b_time,
+                                conflict_lit_b_room,
+                            ]));
+                            
+                            conflict_clauses += 1;
+                        }
+                    }
+                }
+            }
+        }
+        
+        println!("Added {} room conflict clauses", conflict_clauses);
+    }
+    
+    // Encode hard conflict constraints
+    pub fn encode_hard_conflicts(&mut self, input: &Input) {
+        let mut hard_conflict_clauses = 0;
+        
+        // For each section, check its hard conflicts
+        for section_idx in 0..input.sections.len() {
+            let section = &input.sections[section_idx];
+            
+            // Skip if no hard conflicts or no time slots
+            if section.hard_conflicts.is_empty() || section.time_slots.is_empty() {
+                continue;
+            }
+            
+            // Get time slots for this section
+            let time_slots: Vec<usize> = section.time_slots.iter()
+                .map(|ts| ts.time_slot)
+                .collect();
+            
+            // For each hard conflict
+            for &conflict_idx in &section.hard_conflicts {
+                let conflict_section = &input.sections[conflict_idx];
+                
+                // Skip if conflicting section has no time slots
+                if conflict_section.time_slots.is_empty() {
+                    continue;
+                }
+                
+                // Get time slots for the conflicting section
+                let conflict_time_slots: Vec<usize> = conflict_section.time_slots.iter()
+                    .map(|ts| ts.time_slot)
+                    .collect();
+                
+                // Check all pairs of time slots for conflicts
+                for &time_a in &time_slots {
+                    for &time_b in &conflict_time_slots {
+                        // Skip if the time slots don't conflict
+                        if !input.time_slot_conflicts[time_a][time_b] {
+                            continue;
+                        }
+                        
+                        // Get the section-time variables
+                        let var_a_time = match self.section_time_vars.get(&(section_idx, time_a)) {
+                            Some(&v) => v,
+                            None => continue,
+                        };
+                        
+                        let var_b_time = match self.section_time_vars.get(&(conflict_idx, time_b)) {
+                            Some(&v) => v,
+                            None => continue,
+                        };
+                        
+                        // Add conflict clause: ~(A_time && B_time)
+                        // This is equivalent to: (!A_time || !B_time)
+                        let conflict_lit_a = Lit::negative(u32::try_from(var_a_time.idx()).unwrap());
+                        let conflict_lit_b = Lit::negative(u32::try_from(var_b_time.idx()).unwrap());
+                        
+                        self.cnf.add_clause(Clause::from_iter([
+                            conflict_lit_a,
+                            conflict_lit_b,
+                        ]));
+                        
+                        hard_conflict_clauses += 1;
+                    }
+                }
+            }
+        }
+        
+        println!("Added {} hard conflict clauses", hard_conflict_clauses);
+    }
+    
+    // Decodes a solution from the solver into a Schedule
+    pub fn decode_solution(&self, solution: Assignment, input: &Input) -> Schedule {
+        let mut schedule = Schedule::new(input);
+        
+        // Group assignments by section
+        let mut section_assignments: HashMap<usize, (Option<usize>, Option<usize>)> = HashMap::new();
+        
+        // Process time slot assignments
+        for (&var, &(section, time_slot)) in &self.var_to_section_time {
+            if solution.var_value(var).to_bool_with_def(false) {
+                let entry = section_assignments.entry(section).or_insert((None, None));
+                entry.0 = Some(time_slot);
+            }
+        }
+        
+        // Process room assignments
+        for (&var, &(section, room)) in &self.var_to_section_room {
+            if solution.var_value(var).to_bool_with_def(false) {
+                let entry = section_assignments.entry(section).or_insert((None, None));
+                entry.1 = Some(room);
+            }
+        }
+        
+        // Place sections in schedule using move_section to properly update scores
+        for (section, (time_slot_opt, room_opt)) in section_assignments {
+            if let Some(time_slot) = time_slot_opt {
+                // Use move_section to place the section, which updates scores properly
+                _ = move_section(input, &mut schedule, section, time_slot, &room_opt);
+            }
+        }
+        
+        schedule
+    }
+}
