@@ -124,35 +124,35 @@ impl SatSolver {
             
             assert!(time_vars.len() == section.time_slots.len());
             
-            // each section must have at least one time slot
+            // at least one time slot
             self.cnf.add_clause(Clause::from_iter(time_vars.iter().copied()));
             
-            // each section can have at most one time slot
-            // using pairwise encoding
+            // at most one time slot using pairwise encoding
             Pairwise::from_iter(time_vars.iter().copied()).encode(&mut self.cnf, &mut self.var_manager).map_err(|e| format!("{}", e))?;
         }
         
-        // For each section with rooms: exactly one room
+        // for each section with rooms: exactly one room
         for section_idx in 0..input.sections.len() {
             let rooms_for_section: Vec<_> = input.sections[section_idx].rooms.iter()
                 .map(|r| r.room)
                 .collect();
+
+            if rooms_for_section.is_empty() {
+                continue;
+            }
                 
-            // Get the SAT variables for these rooms
+            // get the SAT variables for these rooms
             let room_vars: Vec<Lit> = rooms_for_section.iter()
                 .filter_map(|&r| self.section_room_vars.get(&(section_idx, r)))
                 .map(|&var| Lit::positive(u32::try_from(var.idx()).unwrap()))
                 .collect();
             
-            if room_vars.is_empty() {
-                continue;
-            }
+            assert!(rooms_for_section.len() == room_vars.len());
             
-            // Encode exactly-one constraint for rooms
-            // At least one room
+            // at least one room
             self.cnf.add_clause(Clause::from_iter(room_vars.iter().copied()));
             
-            // At most one room using pairwise encoding
+            // at most one room using pairwise encoding
             Pairwise::from_iter(room_vars.iter().copied()).encode(&mut self.cnf, &mut self.var_manager).map_err(|e| format!("{}", e))?;
         }
         
@@ -163,9 +163,9 @@ impl SatSolver {
     pub fn encode_room_conflicts(&mut self, input: &Input) {
         let mut conflict_clauses = 0;
         
-        // Process one room at a time to reduce redundancy
+        // for each room
         for room_idx in 0..input.rooms.len() {
-            // Find all sections that could be scheduled in this room
+            // find all sections that could be scheduled in this room
             let mut sections_for_room: Vec<usize> = Vec::new();
             
             for (section_idx, section) in input.sections.iter().enumerate() {
@@ -174,26 +174,26 @@ impl SatSolver {
                 }
             }
             
-            // Skip if fewer than 2 sections could use this room
+            // no possible conflicts if there are not at least two sections
             if sections_for_room.len() < 2 {
                 continue;
             }
             
-            // Consider all pairs of sections that could use this room
+            // for each pair of sections
             for i in 0..sections_for_room.len() {
                 let section_a_idx = sections_for_room[i];
                 
                 for j in (i+1)..sections_for_room.len() {
                     let section_b_idx = sections_for_room[j];
                     
-                    // Skip pairs that are already in hard conflict with each other
-                    // This is redundant since these sections can't be scheduled at the same time anyway
+                    // skip pairs that are already in hard conflict with each other
+                    // they will be covered in the hard conflict encoding
                     if input.sections[section_a_idx].hard_conflicts.contains(&section_b_idx) || 
                        input.sections[section_b_idx].hard_conflicts.contains(&section_a_idx) {
                         continue;
                     }
                     
-                    // For each pair of time slots that overlap
+                    // for each time slot pair
                     for &time_a in &input.sections[section_a_idx].time_slots.iter()
                         .map(|ts| ts.time_slot)
                         .collect::<Vec<_>>() {
@@ -202,12 +202,12 @@ impl SatSolver {
                             .map(|ts| ts.time_slot)
                             .collect::<Vec<_>>() {
                             
-                            // Skip if the time slots don't conflict
+                            // skip if the time slots don't conflict
                             if !input.time_slot_conflicts[time_a][time_b] {
                                 continue;
                             }
                             
-                            // Get the section-time and section-room variables
+                            // get the section-time and section-room variables
                             let var_a_time = match self.section_time_vars.get(&(section_a_idx, time_a)) {
                                 Some(&v) => v,
                                 None => continue,
@@ -228,18 +228,13 @@ impl SatSolver {
                                 None => continue,
                             };
                             
-                            // Add conflict clause: ~(A_time && A_room && B_time && B_room)
-                            // This is equivalent to: (!A_time || !A_room || !B_time || !B_room)
-                            let conflict_lit_a_time = Lit::negative(u32::try_from(var_a_time.idx()).unwrap());
-                            let conflict_lit_a_room = Lit::negative(u32::try_from(var_a_room.idx()).unwrap());
-                            let conflict_lit_b_time = Lit::negative(u32::try_from(var_b_time.idx()).unwrap());
-                            let conflict_lit_b_room = Lit::negative(u32::try_from(var_b_room.idx()).unwrap());
-                            
+                            // add conflict clause: ~(A_time && A_room && B_time && B_room)
+                            // which is equivalent to (!A_time || !A_room || !B_time || !B_room)
                             self.cnf.add_clause(Clause::from_iter([
-                                conflict_lit_a_time,
-                                conflict_lit_a_room,
-                                conflict_lit_b_time,
-                                conflict_lit_b_room,
+                                var_a_time.neg_lit(),
+                                var_a_room.neg_lit(),
+                                var_b_time.neg_lit(),
+                                var_b_room.neg_lit(),
                             ]));
                             
                             conflict_clauses += 1;
