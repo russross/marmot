@@ -144,7 +144,7 @@ impl SatSolver {
             // get the SAT variables for these rooms
             let room_vars: Vec<Lit> = rooms_for_section.iter()
                 .filter_map(|&r| self.section_room_vars.get(&(section_idx, r)))
-                .map(|&var| Lit::positive(u32::try_from(var.idx()).unwrap()))
+                .map(|&var| var.pos_lit())
                 .collect();
             
             assert!(rooms_for_section.len() == room_vars.len());
