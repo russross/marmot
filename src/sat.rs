@@ -1,5 +1,6 @@
 use super::error::Result;
 use super::input::*;
+use super::print::*;
 use super::sat_encoding::*;
 use super::score::*;
 use super::solver::*;
@@ -366,6 +367,11 @@ pub fn generate_schedule(input: &Input, solver_type: &str) -> Result<Schedule> {
             (true, k) => {
                 // Update max violations for this level
                 max_violations[priority] = k;
+
+                // print the schedule found at each priority level
+                // this is the proof that the solver is working
+                print_schedule(input, &best_schedule);
+                print_problems(input, &best_schedule);
             }
             (false, _) => {
                 println!("Failed to find solution at priority level {}, keeping best schedule so far", priority);
