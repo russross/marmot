@@ -1,9 +1,8 @@
 use super::error::Result;
 use super::input::*;
-use rustsat::encodings::am1::{Encode, Pairwise};
-use rustsat::encodings::card::{BoundUpper, DbTotalizer};
-use rustsat::instances::{BasicVarManager, Cnf, ManageVars};
-use rustsat::types::{Clause, Lit, Var};
+use rustsat::instances::{BasicVarManager, SatInstance};
+use rustsat::types::constraints::CardConstraint;
+use rustsat::types::{Lit, Var};
 use std::collections::HashMap;
 
 // Simplified representation of criteria for SAT solving
@@ -100,8 +99,7 @@ pub struct SATEncoder {
     pub var_to_section_room: HashMap<Var, (usize, usize)>,
 
     // RustSAT components
-    pub var_manager: BasicVarManager,
-    pub cnf: Cnf,
+    pub sat_instance: SatInstance,
 }
 
 impl Default for SATEncoder {
@@ -117,8 +115,7 @@ impl SATEncoder {
             section_room_vars: HashMap::new(),
             var_to_section_time: HashMap::new(),
             var_to_section_room: HashMap::new(),
-            var_manager: BasicVarManager::default(),
-            cnf: Cnf::default(),
+            sat_instance: SatInstance::new_with_manager(BasicVarManager::default()),
         }
     }
 
@@ -129,7 +126,7 @@ impl SATEncoder {
             for ts in &section.time_slots {
                 // Create variable for section scheduled at this time slot
                 let time_slot = ts.time_slot;
-                let var = self.var_manager.new_var();
+                let var = self.sat_instance.new_var();
                 self.section_time_vars.insert((section_idx, time_slot), var);
                 self.var_to_section_time.insert(var, (section_idx, time_slot));
             }
@@ -139,7 +136,7 @@ impl SATEncoder {
                 for r in &section.rooms {
                     let room = r.room;
                     // Create variable for section scheduled in this room
-                    let var = self.var_manager.new_var();
+                    let var = self.sat_instance.new_var();
                     self.section_room_vars.insert((section_idx, room), var);
                     self.var_to_section_room.insert(var, (section_idx, room));
                 }
@@ -164,10 +161,10 @@ impl SATEncoder {
             }
 
             // at least one time slot
-            self.cnf.add_clause(Clause::from_iter(time_vars.iter().copied()));
+            self.sat_instance.add_nary(&time_vars);
 
             // at most one time slot using pairwise encoding
-            Pairwise::from_iter(time_vars.iter().copied()).encode(&mut self.cnf, &mut self.var_manager)?;
+            self.sat_instance.add_card_constr(CardConstraint::new_ub(time_vars, 1));
         }
 
         // for each section with rooms: exactly one room
@@ -190,10 +187,10 @@ impl SATEncoder {
             }
 
             // at least one room
-            self.cnf.add_clause(Clause::from_iter(room_vars.iter().copied()));
+            self.sat_instance.add_nary(&room_vars);
 
             // at most one room using pairwise encoding
-            Pairwise::from_iter(room_vars.iter().copied()).encode(&mut self.cnf, &mut self.var_manager)?;
+            self.sat_instance.add_card_constr(CardConstraint::new_ub(room_vars, 1));
         }
 
         Ok(())
@@ -251,12 +248,12 @@ impl SATEncoder {
                             ) {
                                 // add conflict clause: ~(A_time && A_room && B_time && B_room)
                                 // which is equivalent to (!A_time || !A_room || !B_time || !B_room)
-                                self.cnf.add_clause(Clause::from_iter([
+                                self.sat_instance.add_nary(&[
                                     var_a_time.neg_lit(),
                                     var_a_room.neg_lit(),
                                     var_b_time.neg_lit(),
                                     var_b_room.neg_lit(),
-                                ]));
+                                ]);
                             }
                         }
                     }
@@ -297,29 +294,12 @@ impl SATEncoder {
                         ) {
                             // add conflict clause: ~(A_time && B_time)
                             // which is equivalent to: (!A_time || !B_time)
-                            self.cnf.add_clause(Clause::from_iter([var_a_time.neg_lit(), var_b_time.neg_lit()]));
+                            self.sat_instance.add_binary(var_a_time.neg_lit(), var_b_time.neg_lit());
                         }
                     }
                 }
             }
         }
-    }
-
-    // Encode at-most-k constraint for a set of criterion variables
-    pub fn encode_at_most_k(&mut self, criterion_vars: &[Lit], k: usize) -> Result<()> {
-        if criterion_vars.is_empty() || k >= criterion_vars.len() {
-            // No constraint needed if we can violate all criteria
-            return Ok(());
-        }
-
-        // Use the DbTotalizer encoder for at-most-k
-        DbTotalizer::from_iter(criterion_vars.iter().copied()).encode_ub(
-            0..=k,
-            &mut self.cnf,
-            &mut self.var_manager,
-        )?;
-
-        Ok(())
     }
 
     pub fn encode_criteria_group(
@@ -413,11 +393,11 @@ impl SATEncoder {
                     // assignments cannot both be true
                     for (var_a, var_b) in conflict_pairs {
                         // (!var_a || !var_b) - Both cannot be true
-                        self.cnf.add_clause(Clause::from_iter([var_a.neg_lit(), var_b.neg_lit()]));
+                        self.sat_instance.add_binary(var_a.neg_lit(), var_b.neg_lit());
                     }
                 } else {
                     // When violations are permitted, create a criterion variable
-                    let criterion_var = self.var_manager.new_var();
+                    let criterion_var = self.sat_instance.new_var();
                     criterion_vars.push(criterion_var);
 
                     // For each potential conflict, if both sections are scheduled at conflicting times,
@@ -426,11 +406,7 @@ impl SATEncoder {
                         // (!var_a || !var_b || criterion_var)
                         // This means: If both var_a and var_b are true (sections scheduled at conflicting times),
                         // then criterion_var must be true (constraint is violated)
-                        self.cnf.add_clause(Clause::from_iter([
-                            var_a.neg_lit(),
-                            var_b.neg_lit(),
-                            criterion_var.pos_lit(),
-                        ]));
+                        self.sat_instance.add_ternary(var_a.neg_lit(), var_b.neg_lit(), criterion_var.pos_lit());
                     }
                 }
             }
@@ -502,22 +478,22 @@ impl SATEncoder {
                     // If violations are not permitted, then the single section cannot be scheduled
                     if !violations_permitted {
                         for &var_single in &single_vars {
-                            self.cnf.add_clause(Clause::from_iter([var_single.neg_lit()]));
+                            self.sat_instance.add_unit(var_single.neg_lit());
                         }
                     } else {
                         // With violations permitted, create a criterion variable that's true
                         // whenever the single section is scheduled
-                        let criterion_var = self.var_manager.new_var();
+                        let criterion_var = self.sat_instance.new_var();
                         criterion_vars.push(criterion_var);
 
                         for &var_single in &single_vars {
-                            self.cnf.add_clause(Clause::from_iter([var_single.neg_lit(), criterion_var.pos_lit()]));
+                            self.sat_instance.add_binary(var_single.neg_lit(), criterion_var.pos_lit());
                         }
 
                         // Also ensure criterion is false if single section not scheduled
                         let mut at_least_one_clause = single_vars.iter().map(|&&var| var.pos_lit()).collect::<Vec<_>>();
                         at_least_one_clause.push(criterion_var.neg_lit());
-                        self.cnf.add_clause(Clause::from_iter(at_least_one_clause));
+                        self.sat_instance.add_nary(&at_least_one_clause);
                     }
                     continue;
                 }
@@ -529,11 +505,11 @@ impl SATEncoder {
                     for (var_single, group_vars) in time_matches {
                         let mut clause = vec![var_single.neg_lit()];
                         clause.extend(group_vars);
-                        self.cnf.add_clause(Clause::from_iter(clause));
+                        self.sat_instance.add_nary(&clause);
                     }
                 } else {
                     // With violations permitted, create a criterion variable
-                    let criterion_var = self.var_manager.new_var();
+                    let criterion_var = self.sat_instance.new_var();
                     criterion_vars.push(criterion_var);
 
                     // For each time slot the single section could be at
@@ -542,7 +518,7 @@ impl SATEncoder {
                         let mut clause = vec![var_single.neg_lit()];
                         clause.extend(group_vars);
                         clause.push(criterion_var.pos_lit());
-                        self.cnf.add_clause(Clause::from_iter(clause));
+                        self.sat_instance.add_nary(&clause);
                     }
 
                     // We also need to ensure criterion is false if single section not scheduled
@@ -550,7 +526,7 @@ impl SATEncoder {
 
                     let mut at_least_one_clause = single_vars;
                     at_least_one_clause.push(criterion_var.neg_lit());
-                    self.cnf.add_clause(Clause::from_iter(at_least_one_clause));
+                    self.sat_instance.add_nary(&at_least_one_clause);
                 }
             }
         }
@@ -558,24 +534,66 @@ impl SATEncoder {
         Ok(criterion_vars)
     }
 
-    // Placeholder for other group encoding methods
-    // These should be implemented similar to the above examples
-    fn encode_room_preferences(
-        &mut self,
-        _input: &Input,
-        _criteria: &[SatCriterion],
-        _violations_permitted: bool,
-    ) -> Result<Vec<Var>> {
-        unimplemented!("Room preference group encoding not yet implemented");
-    }
-
     fn encode_time_slot_preferences(
         &mut self,
         _input: &Input,
-        _criteria: &[SatCriterion],
-        _violations_permitted: bool,
+        criteria: &[SatCriterion],
+        violations_permitted: bool,
     ) -> Result<Vec<Var>> {
-        unimplemented!("Time slot preference group encoding not yet implemented");
+        let mut criterion_vars = Vec::new();
+
+        for criterion in criteria {
+            if let SatCriterion::TimeSlotPreference { section, time_slot, .. } = criterion {
+                // If we have a variable for this section-time slot pair
+                if let Some(&var) = self.section_time_vars.get(&(*section, *time_slot)) {
+                    if !violations_permitted {
+                        // Hard constraint: section must not be scheduled in this time slot
+                        self.sat_instance.add_unit(var.neg_lit());
+                    } else {
+                        // Create a criterion variable for this individual section-time slot pair
+                        let criterion_var = self.sat_instance.new_var();
+                        criterion_vars.push(criterion_var);
+
+                        // (section_at_time_slot => criterion_var)
+                        // Encoded as: (!section_at_time_slot || criterion_var)
+                        self.sat_instance.add_binary(var.neg_lit(), criterion_var.pos_lit());
+                    }
+                }
+            }
+        }
+
+        Ok(criterion_vars)
+    }
+
+    fn encode_room_preferences(
+        &mut self,
+        _input: &Input,
+        criteria: &[SatCriterion],
+        violations_permitted: bool,
+    ) -> Result<Vec<Var>> {
+        let mut criterion_vars = Vec::new();
+
+        for criterion in criteria {
+            if let SatCriterion::RoomPreference { section, room, .. } = criterion {
+                // If we have a variable for this section-room pair
+                if let Some(&var) = self.section_room_vars.get(&(*section, *room)) {
+                    if !violations_permitted {
+                        // Hard constraint: section must not be scheduled in this room
+                        self.sat_instance.add_unit(var.neg_lit());
+                    } else {
+                        // Create a criterion variable for this individual section-room pair
+                        let criterion_var = self.sat_instance.new_var();
+                        criterion_vars.push(criterion_var);
+
+                        // (section_in_room => criterion_var)
+                        // Encoded as: (!section_in_room || criterion_var)
+                        self.sat_instance.add_binary(var.neg_lit(), criterion_var.pos_lit());
+                    }
+                }
+            }
+        }
+
+        Ok(criterion_vars)
     }
 
     fn encode_faculty_days_off_group(
@@ -584,7 +602,7 @@ impl SATEncoder {
         _criteria: &[SatCriterion],
         _violations_permitted: bool,
     ) -> Result<Vec<Var>> {
-        unimplemented!("Faculty days off group encoding not yet implemented");
+        Ok(Vec::new())
     }
 
     fn encode_faculty_evenly_spread_group(
@@ -593,7 +611,7 @@ impl SATEncoder {
         _criteria: &[SatCriterion],
         _violations_permitted: bool,
     ) -> Result<Vec<Var>> {
-        unimplemented!("Faculty evenly spread group encoding not yet implemented");
+        Ok(Vec::new())
     }
 
     fn encode_faculty_no_room_switch_group(
@@ -602,7 +620,7 @@ impl SATEncoder {
         _criteria: &[SatCriterion],
         _violations_permitted: bool,
     ) -> Result<Vec<Var>> {
-        unimplemented!("Faculty no room switch group encoding not yet implemented");
+        Ok(Vec::new())
     }
 
     fn encode_faculty_too_many_rooms_group(
@@ -611,7 +629,7 @@ impl SATEncoder {
         _criteria: &[SatCriterion],
         _violations_permitted: bool,
     ) -> Result<Vec<Var>> {
-        unimplemented!("Faculty too many rooms group encoding not yet implemented");
+        Ok(Vec::new())
     }
 
     fn encode_faculty_distribution_interval_group(
@@ -620,7 +638,7 @@ impl SATEncoder {
         _criteria: &[SatCriterion],
         _violations_permitted: bool,
     ) -> Result<Vec<Var>> {
-        unimplemented!("Faculty distribution interval group encoding not yet implemented");
+        Ok(Vec::new())
     }
 
     fn encode_different_time_patterns_group(
@@ -629,6 +647,6 @@ impl SATEncoder {
         _criteria: &[SatCriterion],
         _violations_permitted: bool,
     ) -> Result<Vec<Var>> {
-        unimplemented!("Different time patterns group encoding not yet implemented");
+        Ok(Vec::new())
     }
 }

@@ -4,9 +4,8 @@ use super::print::*;
 use super::sat_encoding::*;
 use super::score::*;
 use super::solver::*;
-use rustsat::instances::ManageVars;
 use rustsat::solvers::{Solve, SolverResult};
-use rustsat::types::{Assignment, Var};
+use rustsat::types::{Assignment, Var, constraints::CardConstraint};
 use rustsat_cadical::CaDiCaL;
 use rustsat_kissat::Kissat;
 use std::collections::HashMap;
@@ -281,23 +280,25 @@ fn solve_at_priority_level(
             // Only encode at-most-k constraint if we have more criterion variables than permitted violations
             if all_criterion_vars.len() > max_violations_for_level {
                 let criterion_lits: Vec<_> = all_criterion_vars.iter().map(|&var| var.pos_lit()).collect();
-                encoder.encode_at_most_k(&criterion_lits, max_violations_for_level)?;
+                encoder.sat_instance.add_card_constr(CardConstraint::new_ub(criterion_lits, max_violations_for_level));
             }
         }
+
+        encoder.sat_instance.convert_to_cnf();
 
         println!(
             "    priority {}, k={} solving encoding with {} variables and {} clauses",
             priority,
             k,
-            encoder.var_manager.n_used(),
-            encoder.cnf.len()
+            encoder.sat_instance.n_vars(),
+            encoder.sat_instance.cnf().len()
         );
 
         // Solve with the appropriate solver
         match solver_type {
             "kissat" => {
                 let mut solver = Kissat::default();
-                solver.add_cnf(encoder.cnf.clone())?;
+                solver.add_cnf(encoder.sat_instance.cnf().clone())?;
 
                 match solver.solve()? {
                     SolverResult::Sat => {
@@ -317,7 +318,7 @@ fn solve_at_priority_level(
             }
             "cadical" => {
                 let mut solver = CaDiCaL::default();
-                solver.add_cnf(encoder.cnf.clone())?;
+                solver.add_cnf(encoder.sat_instance.cnf().clone())?;
 
                 match solver.solve()? {
                     SolverResult::Sat => {
@@ -379,11 +380,6 @@ pub fn generate_schedule(input: &Input, solver_type: &str) -> Result<Schedule> {
             (true, k) => {
                 // Update max violations for this level
                 max_violations[priority] = k;
-
-                // print the schedule found at each priority level
-                // this is the proof that the solver is working
-                print_schedule(input, &best_schedule);
-                print_problems(input, &best_schedule);
             }
             (false, _) => {
                 println!("Failed to find solution at priority level {}, keeping best schedule so far", priority);
@@ -391,6 +387,10 @@ pub fn generate_schedule(input: &Input, solver_type: &str) -> Result<Schedule> {
             }
         };
     }
+
+    // print the schedule
+    print_schedule(input, &best_schedule);
+    print_problems(input, &best_schedule);
 
     println!("Final solution maximum violations per priority level:");
     print_max_violations(&max_violations);
