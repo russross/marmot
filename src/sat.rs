@@ -1,317 +1,391 @@
+use super::error::Result;
 use super::input::*;
+use super::sat_encoding::*;
+use super::score::*;
 use super::solver::*;
-use std::collections::HashMap;
-use rustsat::encodings::am1::{Encode, Pairwise};
-use rustsat::instances::{BasicVarManager, ManageVars, Cnf};
+use rustsat::instances::ManageVars;
 use rustsat::solvers::{Solve, SolverResult};
-use rustsat::types::{Var, Lit, Clause, Assignment};
+use rustsat::types::{Assignment, Var};
 use rustsat_cadical::CaDiCaL;
 use rustsat_kissat::Kissat;
+use std::collections::HashMap;
 
-pub struct SatSolver {
-    // Variables for time slot assignments
-    pub section_time_vars: HashMap<(usize, usize), Var>, // (section, time_slot) -> var
-    
-    // Variables for room assignments
-    pub section_room_vars: HashMap<(usize, usize), Var>, // (section, room) -> var
-    
-    // Reverse lookups
-    pub var_to_section_time: HashMap<Var, (usize, usize)>,
-    pub var_to_section_room: HashMap<Var, (usize, usize)>,
-    
-    // RustSAT encoding objects
-    pub var_manager: BasicVarManager,
-    pub cnf: Cnf,
+// Transform the input criteria into SatCriterion objects
+fn transform_criteria(input: &Input) -> Vec<Vec<SatCriterion>> {
+    // Initialize with empty vectors for each priority level
+    let mut criteria_by_priority = Vec::new();
+    for _ in 0..PRIORITY_LEVELS {
+        criteria_by_priority.push(Vec::new());
+    }
+
+    // Process each criterion and distribute according to priority
+    for criterion in &input.criteria {
+        match criterion {
+            Criterion::SoftConflict { priority, sections } => {
+                let sat_criterion = SatCriterion::SoftConflict { priority: *priority, sections: *sections };
+                criteria_by_priority[*priority as usize].push(sat_criterion);
+            }
+
+            Criterion::AntiConflict { priority, single, group } => {
+                let sat_criterion =
+                    SatCriterion::AntiConflict { priority: *priority, single: *single, group: group.clone() };
+                criteria_by_priority[*priority as usize].push(sat_criterion);
+            }
+
+            Criterion::RoomPreference { section, rooms_with_priorities } => {
+                for room_with_priority in rooms_with_priorities {
+                    let sat_criterion = SatCriterion::RoomPreference {
+                        priority: room_with_priority.priority,
+                        section: *section,
+                        room: room_with_priority.room,
+                    };
+                    criteria_by_priority[room_with_priority.priority as usize].push(sat_criterion);
+                }
+            }
+
+            Criterion::TimeSlotPreference { section, time_slots_with_priorities } => {
+                for time_slot_with_priority in time_slots_with_priorities {
+                    let sat_criterion = SatCriterion::TimeSlotPreference {
+                        priority: time_slot_with_priority.priority,
+                        section: *section,
+                        time_slot: time_slot_with_priority.time_slot,
+                    };
+                    criteria_by_priority[time_slot_with_priority.priority as usize].push(sat_criterion);
+                }
+            }
+
+            Criterion::FacultyPreference {
+                faculty: _,
+                sections,
+                days_to_check,
+                days_off,
+                evenly_spread,
+                no_room_switch,
+                too_many_rooms,
+                max_gap_within_cluster,
+                distribution_intervals,
+            } => {
+                // Process days off preference
+                if let Some((priority, desired)) = days_off {
+                    let sat_criterion = SatCriterion::FacultyDaysOff {
+                        priority: *priority,
+                        sections: sections.clone(),
+                        days_to_check: *days_to_check,
+                        desired: *desired,
+                    };
+                    criteria_by_priority[*priority as usize].push(sat_criterion);
+                }
+
+                // Process evenly spread preference
+                if let Some(priority) = evenly_spread {
+                    let sat_criterion = SatCriterion::FacultyEvenlySpread {
+                        priority: *priority,
+                        sections: sections.clone(),
+                        days_to_check: *days_to_check,
+                    };
+                    criteria_by_priority[*priority as usize].push(sat_criterion);
+                }
+
+                // Process no room switch preference
+                if let Some(priority) = no_room_switch {
+                    let sat_criterion = SatCriterion::FacultyNoRoomSwitch {
+                        priority: *priority,
+                        sections: sections.clone(),
+                        days_to_check: *days_to_check,
+                        max_gap_within_cluster: *max_gap_within_cluster,
+                    };
+                    criteria_by_priority[*priority as usize].push(sat_criterion);
+                }
+
+                // Process too many rooms preference
+                if let Some((priority, desired)) = too_many_rooms {
+                    let sat_criterion = SatCriterion::FacultyTooManyRooms {
+                        priority: *priority,
+                        sections: sections.clone(),
+                        desired: *desired,
+                    };
+                    criteria_by_priority[*priority as usize].push(sat_criterion);
+                }
+
+                // Process distribution intervals
+                for interval in distribution_intervals {
+                    match interval {
+                        DistributionInterval::GapTooShort { priority, duration } => {
+                            let sat_criterion = SatCriterion::FacultyDistributionInterval {
+                                priority: *priority,
+                                sections: sections.clone(),
+                                days_to_check: *days_to_check,
+                                interval_type: DistributionIntervalType::GapTooShort,
+                                duration: *duration,
+                                max_gap_within_cluster: *max_gap_within_cluster,
+                            };
+                            criteria_by_priority[*priority as usize].push(sat_criterion);
+                        }
+                        DistributionInterval::GapTooLong { priority, duration } => {
+                            let sat_criterion = SatCriterion::FacultyDistributionInterval {
+                                priority: *priority,
+                                sections: sections.clone(),
+                                days_to_check: *days_to_check,
+                                interval_type: DistributionIntervalType::GapTooLong,
+                                duration: *duration,
+                                max_gap_within_cluster: *max_gap_within_cluster,
+                            };
+                            criteria_by_priority[*priority as usize].push(sat_criterion);
+                        }
+                        DistributionInterval::ClusterTooShort { priority, duration } => {
+                            let sat_criterion = SatCriterion::FacultyDistributionInterval {
+                                priority: *priority,
+                                sections: sections.clone(),
+                                days_to_check: *days_to_check,
+                                interval_type: DistributionIntervalType::ClusterTooShort,
+                                duration: *duration,
+                                max_gap_within_cluster: *max_gap_within_cluster,
+                            };
+                            criteria_by_priority[*priority as usize].push(sat_criterion);
+                        }
+                        DistributionInterval::ClusterTooLong { priority, duration } => {
+                            let sat_criterion = SatCriterion::FacultyDistributionInterval {
+                                priority: *priority,
+                                sections: sections.clone(),
+                                days_to_check: *days_to_check,
+                                interval_type: DistributionIntervalType::ClusterTooLong,
+                                duration: *duration,
+                                max_gap_within_cluster: *max_gap_within_cluster,
+                            };
+                            criteria_by_priority[*priority as usize].push(sat_criterion);
+                        }
+                    }
+                }
+            }
+
+            Criterion::SectionsWithDifferentTimePatterns { priority, sections } => {
+                let sat_criterion =
+                    SatCriterion::DifferentTimePatterns { priority: *priority, sections: sections.clone() };
+                criteria_by_priority[*priority as usize].push(sat_criterion);
+            }
+        }
+    }
+
+    criteria_by_priority
 }
 
-impl SatSolver {
-    pub fn new() -> Self {
-        Self {
-            section_time_vars: HashMap::new(),
-            section_room_vars: HashMap::new(),
-            var_to_section_time: HashMap::new(),
-            var_to_section_room: HashMap::new(),
-            var_manager: BasicVarManager::default(),
-            cnf: Cnf::default(),
+// Decode SAT solution into a Schedule
+fn decode_solution(
+    solution: Assignment,
+    input: &Input,
+    var_to_section_time: &HashMap<Var, (usize, usize)>,
+    var_to_section_room: &HashMap<Var, (usize, usize)>,
+) -> Schedule {
+    let mut schedule = Schedule::new(input);
+
+    // Group assignments by section
+    let mut section_assignments: HashMap<usize, (Option<usize>, Option<usize>)> = HashMap::new();
+
+    // Process time slot assignments
+    for (&var, &(section, time_slot)) in var_to_section_time {
+        if solution.var_value(var).to_bool_with_def(false) {
+            let entry = section_assignments.entry(section).or_insert((None, None));
+            entry.0 = Some(time_slot);
         }
     }
 
-    // Generates a schedule from an input
-    pub fn generate_schedule(&mut self, input: &Input, backend: &str) -> Result<Schedule, String> {
-        self.initialize_variables(input);
-        self.encode_basic_constraints(input)?;
-        self.encode_room_conflicts(input);
-        self.encode_hard_conflicts(input);
+    // Process room assignments
+    for (&var, &(section, room)) in var_to_section_room {
+        if solution.var_value(var).to_bool_with_def(false) {
+            let entry = section_assignments.entry(section).or_insert((None, None));
+            entry.1 = Some(room);
+        }
+    }
 
-        println!("Created CNF with {} variables and {} clauses", self.var_manager.n_used(), self.cnf.len());
-        
-        // Solve and decode
-        match backend {
+    // Place sections in schedule using move_section to properly update scores
+    for (section, (time_slot_opt, room_opt)) in section_assignments {
+        if let Some(time_slot) = time_slot_opt {
+            _ = move_section(input, &mut schedule, section, time_slot, &room_opt);
+        }
+    }
+
+    schedule
+}
+
+// Solve at each priority level
+fn solve_at_priority_level(
+    input: &Input,
+    criteria_by_priority: &[Vec<SatCriterion>],
+    best_schedule: &mut Schedule,
+    priority: usize,
+    max_violations: &[usize], // Maximum allowed violations for each prior priority level
+    solver_type: &str,
+) -> Result<(bool, usize)> {
+    let criteria_count = criteria_by_priority[priority].len();
+
+    println!("Solving for priority level {} with {} criteria", priority, criteria_count);
+    if criteria_count == 0 && priority > 0 {
+        println!("    no criteria at priority level {}, skipping", priority);
+        return Ok((true, 0)); // Successfully "solved" with 0 violations
+    }
+
+    // Start with attempting to satisfy all criteria at this level
+    let mut k = 0;
+    let mut solution_found = false;
+
+    // Try with increasing values of k until a solution is found
+    while !solution_found {
+        // Create a new encoder for this attempt
+        let mut encoder = SATEncoder::new();
+
+        // Create variables for the SAT problem
+        encoder.initialize_variables(input);
+
+        // Encode basic constraints (each section gets one time slot, etc.)
+        encoder.encode_basic_constraints(input)?;
+
+        // Encode room conflicts
+        encoder.encode_room_conflicts(input);
+
+        // Encode hard conflicts
+        encoder.encode_hard_conflicts(input);
+
+        // For each priority level up to current
+        // (this skips level 0, which is hard conflicts)
+        for p in 1..=priority {
+            // Create criterion variables and track which ones were created
+            let mut criterion_vars = Vec::new();
+
+            // For prior priority levels, use the established maximum violations
+            let max_violations_for_level = if p < priority {
+                max_violations[p]
+            } else {
+                k // For current priority level, try with current k value
+            };
+
+            // For each criterion at this priority level
+            for criterion in &criteria_by_priority[p] {
+                // Encode the criterion
+                if let Some(criterion_var) = encoder.encode_criterion(input, criterion, max_violations_for_level > 0)? {
+                    criterion_vars.push(criterion_var.pos_lit());
+                }
+            }
+
+            // Only encode at-most-k constraint if we have more criterion variables than permitted violations
+            if criterion_vars.len() > max_violations_for_level {
+                encoder.encode_at_most_k(&criterion_vars, max_violations_for_level)?;
+            }
+        }
+
+        println!(
+            "    priority {}, k={} encoded with {} variables and {} clauses, solving with {}",
+            priority,
+            k,
+            encoder.var_manager.n_used(),
+            encoder.cnf.len(),
+            solver_type
+        );
+
+        // Solve with the appropriate solver
+        match solver_type {
             "kissat" => {
                 let mut solver = Kissat::default();
-                solver.add_cnf(self.cnf.clone()).map_err(|e| format!("{}", e))?;
-                
-                match solver.solve().map_err(|e| format!("{}", e))? {
+                solver.add_cnf(encoder.cnf.clone())?;
+
+                match solver.solve()? {
                     SolverResult::Sat => {
-                        let solution = solver.full_solution().map_err(|e| format!("{}", e))?;
-                        Ok(self.decode_solution(solution, input))
-                    },
+                        let solution = solver.full_solution()?;
+                        *best_schedule = decode_solution(
+                            solution,
+                            input,
+                            &encoder.var_to_section_time,
+                            &encoder.var_to_section_room,
+                        );
+                        solution_found = true;
+                    }
                     _ => {
-                        Err("Schedule is unsatisfiable with current constraints".to_string())
+                        k += 1;
                     }
                 }
-            },
+            }
             "cadical" => {
                 let mut solver = CaDiCaL::default();
-                solver.add_cnf(self.cnf.clone()).map_err(|e| format!("{}", e))?;
-                
-                match solver.solve().map_err(|e| format!("{}", e))? {
+                solver.add_cnf(encoder.cnf.clone())?;
+
+                match solver.solve()? {
                     SolverResult::Sat => {
-                        let solution = solver.full_solution().map_err(|e| format!("{}", e))?;
-                        Ok(self.decode_solution(solution, input))
-                    },
+                        let solution = solver.full_solution()?;
+                        *best_schedule = decode_solution(
+                            solution,
+                            input,
+                            &encoder.var_to_section_time,
+                            &encoder.var_to_section_room,
+                        );
+                        solution_found = true;
+                    }
                     _ => {
-                        Err("Schedule is unsatisfiable with current constraints".to_string())
+                        k += 1;
                     }
                 }
-            },
+
+                // we must find a solution for hard conflicts with no violations
+                if priority == 0 && !solution_found {
+                    break;
+                }
+            }
             _ => {
-                Err(format!("Unknown SAT solver: {} (valid values are cadical and kissat)", backend))
+                return Err(format!("Unknown SAT solver: {} (valid values are cadical and kissat)", solver_type).into());
             }
         }
-    }
-    
-    pub fn initialize_variables(&mut self, input: &Input) {
-        let mut time_var_count = 0;
-        let mut room_var_count = 0;
-        
-        // Create variables for sections and time slots
-        for (section_idx, section) in input.sections.iter().enumerate() {
-            for ts in &section.time_slots {
-                // Create variable for section scheduled at this time slot
-                let time_slot = ts.time_slot;
-                let var = self.var_manager.new_var();
-                self.section_time_vars.insert((section_idx, time_slot), var);
-                self.var_to_section_time.insert(var, (section_idx, time_slot));
-                time_var_count += 1;
-            }
-            
-            // Create variables for section and rooms
-            if !section.rooms.is_empty() {
-                for r in &section.rooms {
-                    let room = r.room;
-                    // Create variable for section scheduled in this room
-                    let var = self.var_manager.new_var();
-                    self.section_room_vars.insert((section_idx, room), var);
-                    self.var_to_section_room.insert(var, (section_idx, room));
-                    room_var_count += 1;
-                }
-            }
-        }
-        
-        println!("Created {} time slot variables and {} room variables", time_var_count, room_var_count);
-    }
-    
-    pub fn encode_basic_constraints(&mut self, input: &Input) -> Result<(), String> {
-        // For each section: exactly one time slot
-        for (section_idx, section) in input.sections.iter().enumerate() {
-            // get the SAT variables for these time slots
-            let time_slots_for_section: Vec<_> = section.time_slots.iter().map(|ts| ts.time_slot).collect();
-            let time_vars: Vec<Lit> = time_slots_for_section.iter()
-                .filter_map(|&ts| self.section_time_vars.get(&(section_idx, ts)))
-                .map(|&var| var.pos_lit())
-                .collect();
-            
-            assert!(time_vars.len() == section.time_slots.len());
-            
-            // at least one time slot
-            self.cnf.add_clause(Clause::from_iter(time_vars.iter().copied()));
-            
-            // at most one time slot using pairwise encoding
-            Pairwise::from_iter(time_vars.iter().copied()).encode(&mut self.cnf, &mut self.var_manager).map_err(|e| format!("{}", e))?;
-        }
-        
-        // for each section with rooms: exactly one room
-        for section_idx in 0..input.sections.len() {
-            let rooms_for_section: Vec<_> = input.sections[section_idx].rooms.iter()
-                .map(|r| r.room)
-                .collect();
-
-            if rooms_for_section.is_empty() {
-                continue;
-            }
-                
-            // get the SAT variables for these rooms
-            let room_vars: Vec<Lit> = rooms_for_section.iter()
-                .filter_map(|&r| self.section_room_vars.get(&(section_idx, r)))
-                .map(|&var| var.pos_lit())
-                .collect();
-            
-            assert!(rooms_for_section.len() == room_vars.len());
-            
-            // at least one room
-            self.cnf.add_clause(Clause::from_iter(room_vars.iter().copied()));
-            
-            // at most one room using pairwise encoding
-            Pairwise::from_iter(room_vars.iter().copied()).encode(&mut self.cnf, &mut self.var_manager).map_err(|e| format!("{}", e))?;
-        }
-        
-        Ok(())
     }
 
-    // Encode constraints that prevent room conflicts: no two sections can be in the same room at overlapping times
-    pub fn encode_room_conflicts(&mut self, input: &Input) {
-        let mut conflict_clauses = 0;
-        
-        // for each room
-        for room_idx in 0..input.rooms.len() {
-            // find all sections that could be scheduled in this room
-            let mut sections_for_room: Vec<usize> = Vec::new();
-            
-            for (section_idx, section) in input.sections.iter().enumerate() {
-                if section.rooms.iter().any(|r| r.room == room_idx) {
-                    sections_for_room.push(section_idx);
-                }
-            }
-            
-            // no possible conflicts if there are not at least two sections
-            if sections_for_room.len() < 2 {
-                continue;
-            }
-            
-            // for each pair of sections
-            for i in 0..sections_for_room.len() {
-                let section_a_idx = sections_for_room[i];
-                
-                for j in (i+1)..sections_for_room.len() {
-                    let section_b_idx = sections_for_room[j];
-                    
-                    // skip pairs that are already in hard conflict with each other
-                    // they will be covered in the hard conflict encoding
-                    if input.sections[section_a_idx].hard_conflicts.contains(&section_b_idx) || 
-                       input.sections[section_b_idx].hard_conflicts.contains(&section_a_idx) {
-                        continue;
-                    }
-                    
-                    // for each time slot pair
-                    for &time_a in &input.sections[section_a_idx].time_slots.iter()
-                        .map(|ts| ts.time_slot)
-                        .collect::<Vec<_>>() {
-                        
-                        for &time_b in &input.sections[section_b_idx].time_slots.iter()
-                            .map(|ts| ts.time_slot)
-                            .collect::<Vec<_>>() {
-                            
-                            // skip if the time slots don't conflict
-                            if !input.time_slot_conflicts[time_a][time_b] {
-                                continue;
-                            }
-                            
-                            // get the section-time and section-room variables
-                            let var_a_time = self.section_time_vars.get(&(section_a_idx, time_a)).unwrap();
-                            let var_b_time = self.section_time_vars.get(&(section_b_idx, time_b)).unwrap();
-                            let var_a_room = self.section_room_vars.get(&(section_a_idx, room_idx)).unwrap();
-                            let var_b_room = self.section_room_vars.get(&(section_b_idx, room_idx)).unwrap();
-                            
-                            // add conflict clause: ~(A_time && A_room && B_time && B_room)
-                            // which is equivalent to (!A_time || !A_room || !B_time || !B_room)
-                            self.cnf.add_clause(Clause::from_iter([
-                                var_a_time.neg_lit(),
-                                var_a_room.neg_lit(),
-                                var_b_time.neg_lit(),
-                                var_b_room.neg_lit(),
-                            ]));
-                            
-                            conflict_clauses += 1;
-                        }
-                    }
-                }
-            }
-        }
-        
-        println!("Added {} room conflict clauses", conflict_clauses);
+    if !solution_found {
+        println!("    could not find a solution for priority level {}", priority);
+        return Ok((false, 0));
     }
-    
-    // encode hard conflict constraints
-    pub fn encode_hard_conflicts(&mut self, input: &Input) {
-        let mut hard_conflict_clauses = 0;
-        
-        // for each section
-        for section_idx in 0..input.sections.len() {
-            let section = &input.sections[section_idx];
-            
-            // get time slots for this section
-            let time_slots: Vec<usize> = section.time_slots.iter()
-                .map(|ts| ts.time_slot)
-                .collect();
-            
-            // for each hard conflict
-            for &conflict_idx in &section.hard_conflicts {
-                let conflict_section = &input.sections[conflict_idx];
-                
-                // get time slots for the other section
-                let conflict_time_slots: Vec<usize> = conflict_section.time_slots.iter()
-                    .map(|ts| ts.time_slot)
-                    .collect();
-                
-                // for each time slot pair
-                for &time_a in &time_slots {
-                    for &time_b in &conflict_time_slots {
-                        // skip if the time slots don't conflict
-                        if !input.time_slot_conflicts[time_a][time_b] {
-                            continue;
-                        }
-                        
-                        // get the section-time variables
-                        let var_a_time = self.section_time_vars.get(&(section_idx, time_a)).unwrap();
-                        let var_b_time = self.section_time_vars.get(&(conflict_idx, time_b)).unwrap();
-                        
-                        // add conflict clause: ~(A_time && B_time)
-                        // which is equivalent to: (!A_time || !B_time)
-                        self.cnf.add_clause(Clause::from_iter([
-                            var_a_time.neg_lit(),
-                            var_b_time.neg_lit(),
-                        ]));
-                        
-                        hard_conflict_clauses += 1;
-                    }
-                }
+
+    Ok((true, k))
+}
+
+// Main driver function to generate a schedule using iterative SAT solving
+pub fn generate_schedule(input: &Input, solver_type: &str) -> Result<Schedule> {
+    // Transform criteria from the input
+    let criteria_by_priority = transform_criteria(input);
+
+    // Store the best schedule found
+    let mut best_schedule = Schedule::new(input);
+
+    // Keep track of minimum violations required at each priority level
+    let mut max_violations = vec![0; PRIORITY_LEVELS];
+
+    // Iteratively solve for each priority level (starting with 0 which is hard constraints)
+    for priority in 0..PRIORITY_LEVELS {
+        // Solve at this priority level
+        match solve_at_priority_level(
+            input,
+            &criteria_by_priority,
+            &mut best_schedule,
+            priority,
+            &max_violations,
+            solver_type,
+        )? {
+            (true, k) => {
+                // Update max violations for this level
+                max_violations[priority] = k;
             }
-        }
-        
-        println!("Added {} hard conflict clauses", hard_conflict_clauses);
+            (false, _) => {
+                println!("Failed to find solution at priority level {}, keeping best schedule so far", priority);
+                break;
+            }
+        };
     }
-    
-    // decodes a solution from the solver into a Schedule
-    pub fn decode_solution(&self, solution: Assignment, input: &Input) -> Schedule {
-        let mut schedule = Schedule::new(input);
-        
-        // group assignments by section
-        let mut section_assignments: HashMap<usize, (Option<usize>, Option<usize>)> = HashMap::new();
-        
-        // process time slot assignments
-        for (&var, &(section, time_slot)) in &self.var_to_section_time {
-            if solution.var_value(var).to_bool_with_def(false) {
-                let entry = section_assignments.entry(section).or_insert((None, None));
-                entry.0 = Some(time_slot);
-            }
+
+    println!("Final solution maximum violations per priority level:");
+    print_max_violations(&max_violations);
+
+    Ok(best_schedule)
+}
+
+// Helper function to display maximum violations
+fn print_max_violations(max_violations: &[usize]) {
+    for (priority, &violations) in max_violations.iter().enumerate() {
+        if violations > 0 || priority == 0 {
+            println!("  Priority level {}: {} violations", priority, violations);
         }
-        
-        // process room assignments
-        for (&var, &(section, room)) in &self.var_to_section_room {
-            if solution.var_value(var).to_bool_with_def(false) {
-                let entry = section_assignments.entry(section).or_insert((None, None));
-                entry.1 = Some(room);
-            }
-        }
-        
-        // place sections in schedule using move_section to properly update scores
-        for (section, (time_slot_opt, room_opt)) in section_assignments {
-            if let Some(time_slot) = time_slot_opt {
-                _ = move_section(input, &mut schedule, section, time_slot, &room_opt);
-            }
-        }
-        
-        schedule
     }
 }

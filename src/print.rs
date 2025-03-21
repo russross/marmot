@@ -1,3 +1,4 @@
+use super::error::Result;
 use super::input::*;
 use super::score::*;
 use super::solver::*;
@@ -204,7 +205,7 @@ pub fn ms_to_string(ms: u128) -> String {
     }
 }
 
-pub fn string_to_sec(duration: &str) -> Result<u64, String> {
+pub fn string_to_sec(duration: &str) -> Result<u64> {
     let mut seconds = 0;
     let mut digits = 0;
     for ch in duration.chars() {
@@ -225,11 +226,11 @@ pub fn string_to_sec(duration: &str) -> Result<u64, String> {
                 seconds += digits;
                 digits = 0;
             }
-            _ => return Err(format!("failed to parse {duration}; expected, e.g., 2h5m13s")),
+            _ => return Err(format!("failed to parse {duration}; expected, e.g., 2h5m13s").into()),
         }
     }
     if digits != 0 {
-        Err(format!("failed to parse {duration}; expected, e.g.: 2h5m13s but found extra digits at end"))
+        Err(format!("failed to parse {duration}; expected, e.g.: 2h5m13s but found extra digits at end").into())
     } else {
         Ok(seconds as u64)
     }

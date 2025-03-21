@@ -206,11 +206,7 @@ impl Schedule {
             }
         }
 
-        if found {
-            Some((time_based, with_taboo))
-        } else {
-            None
-        }
+        if found { Some((time_based, with_taboo)) } else { None }
     }
 }
 
@@ -886,7 +882,7 @@ pub fn climb(input: &Input, schedule: &mut Schedule, log: &mut Vec<PlacementLog>
                     let delta = try_one_move(input, schedule, &candidate);
 
                     // only consider moves that were improvements
-                    if delta < zero && best_delta.map_or(true, |best| delta < best) {
+                    if delta < zero && best_delta.is_none_or(|best| delta < best) {
                         best_delta = Some(delta);
                         best_move = Some(candidate);
                     }

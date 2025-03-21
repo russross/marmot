@@ -1,6 +1,7 @@
+use super::error::Result;
 use super::score::*;
 use super::solver::*;
-use sqlite::{Connection, Error, OpenFlags, State, Value};
+use sqlite::{Connection, OpenFlags, State, Value};
 use std::cmp::min;
 use std::collections::HashMap;
 use std::fmt;
@@ -131,7 +132,7 @@ impl ops::Sub for Time {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Duration {
     pub minutes: u16,
 }
@@ -160,7 +161,7 @@ impl fmt::Display for Duration {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Days {
     pub days: u8,
 }
@@ -171,7 +172,7 @@ impl Days {
         Days { days: 0 }
     }
 
-    pub fn parse(weekday_raw: &str) -> Result<Self, String> {
+    pub fn parse(weekday_raw: &str) -> Result<Self> {
         let mut days = 0;
         for day in weekday_raw.chars() {
             match day {
@@ -182,7 +183,7 @@ impl Days {
                 'f' | 'F' => days |= 0b0010000,
                 's' | 'S' => days |= 0b0100000,
                 'u' | 'U' => days |= 0b1000000,
-                _ => return Err(format!("Unknown day of week in {}: I only understand mtwrfsu", weekday_raw)),
+                _ => return Err(format!("Unknown day of week in {}: I only understand mtwrfsu", weekday_raw).into()),
             }
         }
         Ok(Days { days })
@@ -284,20 +285,19 @@ impl Faculty {
     }
 }
 
-pub fn load_input(db_path: &str, departments: &[String]) -> Result<Input, String> {
+pub fn load_input(db_path: &str, departments: &[String]) -> Result<Input> {
     print!("loading input data");
     let start = Instant::now();
 
-    let db =
-        Connection::open_with_flags(db_path, OpenFlags::new().with_read_only().with_no_mutex()).map_err(sql_err)?;
-    db.execute("PRAGMA foreign_keys = ON").map_err(sql_err)?;
-    db.execute("PRAGMA temp_store = memory").map_err(sql_err)?;
-    db.execute("PRAGMA mmap_size = 100000000").map_err(sql_err)?;
+    let db = Connection::open_with_flags(db_path, OpenFlags::new().with_read_only().with_no_mutex())?;
+    db.execute("PRAGMA foreign_keys = ON")?;
+    db.execute("PRAGMA temp_store = memory")?;
+    db.execute("PRAGMA mmap_size = 100000000")?;
 
     let mut term_name = "Unknown term".to_string();
-    let mut stmt = db.prepare("SELECT term FROM terms").map_err(sql_err)?;
-    while stmt.next().map_err(sql_err)? == State::Row {
-        term_name = stmt.read(0).map_err(sql_err)?;
+    let mut stmt = db.prepare("SELECT term FROM terms")?;
+    while stmt.next()? == State::Row {
+        term_name = stmt.read(0)?;
     }
 
     let (rooms, room_index) = load_rooms(&db, departments)?;
@@ -325,24 +325,22 @@ pub fn load_input(db_path: &str, departments: &[String]) -> Result<Input, String
 }
 
 // load all rooms
-pub fn load_rooms(db: &Connection, departments: &[String]) -> Result<(Vec<Room>, HashMap<String, usize>), String> {
+pub fn load_rooms(db: &Connection, departments: &[String]) -> Result<(Vec<Room>, HashMap<String, usize>)> {
     let dept_in = dept_clause(departments, &["department".into()], true);
-    let mut stmt = db
-        .prepare(format!(
-            "
+    let mut stmt = db.prepare(format!(
+        "
             SELECT DISTINCT room
             FROM rooms_used_by_departments
             {}
             ORDER BY building, CAST (room_number AS INTEGER), room_number",
-            dept_in
-        ))
-        .map_err(sql_err)?;
-    stmt.bind_iter(as_values(departments)).map_err(sql_err)?;
+        dept_in
+    ))?;
+    stmt.bind_iter(as_values(departments))?;
 
     let mut rooms = Vec::new();
     let mut room_index = HashMap::new();
-    while stmt.next().map_err(sql_err)? == State::Row {
-        let room = Room { name: stmt.read(0).map_err(sql_err)? };
+    while stmt.next()? == State::Row {
+        let room = Room { name: stmt.read(0)? };
         room_index.insert(room.name.clone(), rooms.len());
         rooms.push(room);
     }
@@ -351,32 +349,27 @@ pub fn load_rooms(db: &Connection, departments: &[String]) -> Result<(Vec<Room>,
 }
 
 // load all time slots
-pub fn load_time_slots(
-    db: &Connection,
-    departments: &[String],
-) -> Result<(Vec<TimeSlot>, HashMap<String, usize>), String> {
+pub fn load_time_slots(db: &Connection, departments: &[String]) -> Result<(Vec<TimeSlot>, HashMap<String, usize>)> {
     let dept_in = dept_clause(departments, &["department".into()], true);
-    let mut stmt = db
-        .prepare(format!(
-            "
+    let mut stmt = db.prepare(format!(
+        "
             SELECT DISTINCT time_slot, days, start_time, duration
             FROM time_slots_used_by_departments_materialized
             {}
             ORDER BY first_day, start_time, duration, duration * LENGTH(days)",
-            dept_in
-        ))
-        .map_err(sql_err)?;
-    stmt.bind_iter(as_values(departments)).map_err(sql_err)?;
+        dept_in
+    ))?;
+    stmt.bind_iter(as_values(departments))?;
 
     let mut time_slots = Vec::new();
     let mut time_slot_index = HashMap::new();
-    while stmt.next().map_err(sql_err)? == State::Row {
-        let name: String = stmt.read(0).map_err(sql_err)?;
-        let days: String = stmt.read(1).map_err(sql_err)?;
+    while stmt.next()? == State::Row {
+        let name: String = stmt.read(0)?;
+        let days: String = stmt.read(1)?;
         let days = Days::parse(&days)?;
-        let start_time: i64 = stmt.read(2).map_err(sql_err)?;
+        let start_time: i64 = stmt.read(2)?;
         let start_time = Time::new(start_time as u16);
-        let duration: i64 = stmt.read(3).map_err(sql_err)?;
+        let duration: i64 = stmt.read(3)?;
         let duration = Duration::new(duration as u16);
         let time_slot = TimeSlot { name, days, start_time, duration };
         time_slot_index.insert(time_slot.name.clone(), time_slots.len());
@@ -391,11 +384,10 @@ pub fn load_time_slot_conflicts(
     db: &Connection,
     time_slot_index: &HashMap<String, usize>,
     departments: &[String],
-) -> Result<Vec<Vec<bool>>, String> {
+) -> Result<Vec<Vec<bool>>> {
     let dept_in = dept_clause(departments, &["ts_a.department".into(), "ts_b.department".into()], true);
-    let mut stmt = db
-        .prepare(format!(
-            "
+    let mut stmt = db.prepare(format!(
+        "
             SELECT time_slot_a, time_slot_b
             FROM conflicting_time_slots
             JOIN time_slots_used_by_departments_materialized AS ts_a
@@ -403,16 +395,15 @@ pub fn load_time_slot_conflicts(
             JOIN time_slots_used_by_departments_materialized AS ts_b
                 ON  time_slot_b = ts_b.time_slot
             {}",
-            dept_in
-        ))
-        .map_err(sql_err)?;
-    stmt.bind_iter(as_values(&double_vec(departments))).map_err(sql_err)?;
+        dept_in
+    ))?;
+    stmt.bind_iter(as_values(&double_vec(departments)))?;
 
     let time_slot_len = time_slot_index.len();
     let mut conflicts = vec![vec![false; time_slot_len]; time_slot_len];
-    while stmt.next().map_err(sql_err)? == State::Row {
-        let a: String = stmt.read(0).map_err(sql_err)?;
-        let b: String = stmt.read(1).map_err(sql_err)?;
+    while stmt.next()? == State::Row {
+        let a: String = stmt.read(0)?;
+        let b: String = stmt.read(1)?;
         let &aa = time_slot_index
             .get(&a)
             .ok_or(format!("time slot {a} reported as conflict but not found in usable time slots"))?;
@@ -429,26 +420,24 @@ pub fn load_time_slot_conflicts(
 }
 
 // load faculty
-pub fn load_faculty(db: &Connection, departments: &[String]) -> Result<(Vec<Faculty>, HashMap<String, usize>), String> {
+pub fn load_faculty(db: &Connection, departments: &[String]) -> Result<(Vec<Faculty>, HashMap<String, usize>)> {
     let mut faculty_list = Vec::new();
     let mut faculty_lookup = HashMap::new();
 
     {
         let dept_in = dept_clause(departments, &["department".into()], true);
-        let mut stmt = db
-            .prepare(format!(
-                "
+        let mut stmt = db.prepare(format!(
+            "
                 SELECT DISTINCT faculty
                 FROM faculty_sections_to_be_scheduled
                 {}
                 ORDER BY faculty",
-                dept_in
-            ))
-            .map_err(sql_err)?;
-        stmt.bind_iter(as_values(departments)).map_err(sql_err)?;
+            dept_in
+        ))?;
+        stmt.bind_iter(as_values(departments))?;
 
-        while stmt.next().map_err(sql_err)? == State::Row {
-            let faculty = Faculty { name: stmt.read(0).map_err(sql_err)?, sections: Vec::new() };
+        while stmt.next()? == State::Row {
+            let faculty = Faculty { name: stmt.read(0)?, sections: Vec::new() };
             faculty_lookup.insert(faculty.name.clone(), faculty_list.len());
             faculty_list.push(faculty);
         }
@@ -464,7 +453,7 @@ pub fn load_sections(
     room_index: &HashMap<String, usize>,
     time_slot_index: &HashMap<String, usize>,
     departments: &[String],
-) -> Result<(Vec<Section>, HashMap<String, usize>, Vec<Criterion>), String> {
+) -> Result<(Vec<Section>, HashMap<String, usize>, Vec<Criterion>)> {
     let mut sections = Vec::new();
     let mut section_index = HashMap::new();
     let mut criteria = Vec::new();
@@ -472,23 +461,21 @@ pub fn load_sections(
     // load and create sections and their time slots
     {
         let dept_in = dept_clause(departments, &["department".into()], true);
-        let mut stmt = db
-            .prepare(format!(
-                "
+        let mut stmt = db.prepare(format!(
+            "
                 SELECT DISTINCT section, time_slot, time_slot_priority
                 FROM time_slots_available_to_sections_materialized
                 {}
                 ORDER BY section",
-                dept_in
-            ))
-            .map_err(sql_err)?;
-        stmt.bind_iter(as_values(departments)).map_err(sql_err)?;
+            dept_in
+        ))?;
+        stmt.bind_iter(as_values(departments))?;
 
         let mut section_name = String::new();
-        while stmt.next().map_err(sql_err)? == State::Row {
-            let new_section_name: String = stmt.read(0).map_err(sql_err)?;
-            let time_slot_name: String = stmt.read(1).map_err(sql_err)?;
-            let priority: Option<i64> = stmt.read(2).map_err(sql_err)?;
+        while stmt.next()? == State::Row {
+            let new_section_name: String = stmt.read(0)?;
+            let time_slot_name: String = stmt.read(1)?;
+            let priority: Option<i64> = stmt.read(2)?;
 
             // is this a new section?
             if new_section_name != section_name {
@@ -521,25 +508,23 @@ pub fn load_sections(
     // add rooms
     {
         let dept_in = dept_clause(departments, &["department".into()], true);
-        let mut stmt = db
-            .prepare(format!(
-                "
+        let mut stmt = db.prepare(format!(
+            "
                 SELECT DISTINCT section, room, room_priority
                 FROM rooms_available_to_sections
                 {}
                 ORDER BY section",
-                dept_in
-            ))
-            .map_err(sql_err)?;
-        stmt.bind_iter(as_values(departments)).map_err(sql_err)?;
+            dept_in
+        ))?;
+        stmt.bind_iter(as_values(departments))?;
 
         let mut section_name = String::new();
         let mut index = None;
 
-        while stmt.next().map_err(sql_err)? == State::Row {
-            let new_section_name: String = stmt.read(0).map_err(sql_err)?;
-            let room_name: String = stmt.read(1).map_err(sql_err)?;
-            let priority: Option<i64> = stmt.read(2).map_err(sql_err)?;
+        while stmt.next()? == State::Row {
+            let new_section_name: String = stmt.read(0)?;
+            let room_name: String = stmt.read(1)?;
+            let priority: Option<i64> = stmt.read(2)?;
 
             if new_section_name != section_name {
                 section_name = new_section_name.clone();
@@ -593,32 +578,30 @@ pub fn load_conflicts(
     section_index: &HashMap<String, usize>,
     criteria: &mut Vec<Criterion>,
     departments: &[String],
-) -> Result<(), String> {
+) -> Result<()> {
     let dept_in = dept_clause(departments, &["department_a".into(), "department_b".into()], false);
-    let mut stmt = db
-        .prepare(format!(
-            "
+    let mut stmt = db.prepare(format!(
+        "
             SELECT DISTINCT section_a, section_b, priority
             FROM conflict_pairs_materialized
             WHERE section_a < section_b
             {}
             ORDER BY section_a, section_b",
-            dept_in
-        ))
-        .map_err(sql_err)?;
-    stmt.bind_iter(as_values(&double_vec(departments))).map_err(sql_err)?;
+        dept_in
+    ))?;
+    stmt.bind_iter(as_values(&double_vec(departments)))?;
 
-    while stmt.next().map_err(sql_err)? == State::Row {
-        let section_a: String = stmt.read(0).map_err(sql_err)?;
-        let section_b: String = stmt.read(1).map_err(sql_err)?;
-        let priority: i64 = stmt.read(2).map_err(sql_err)?;
+    while stmt.next()? == State::Row {
+        let section_a: String = stmt.read(0)?;
+        let section_b: String = stmt.read(1)?;
+        let priority: i64 = stmt.read(2)?;
 
         let index_a =
             *section_index.get(&section_a).ok_or(format!("section_a {section_a} from conflict pair not found"))?;
         let index_b =
             *section_index.get(&section_b).ok_or(format!("section_b {section_b} from conflict pair not found"))?;
         if priority < LEVEL_FOR_HARD_CONFLICT as i64 || priority >= START_LEVEL_FOR_PREFERENCES as i64 {
-            return Err(format!("conflict pair {section_a} vs {section_b} has invalid priority of {priority}"));
+            return Err(format!("conflict pair {section_a} vs {section_b} has invalid priority of {priority}").into());
         }
         let priority = priority as u8;
         if priority == LEVEL_FOR_HARD_CONFLICT {
@@ -638,35 +621,33 @@ pub fn load_anti_conflicts(
     section_index: &HashMap<String, usize>,
     criteria: &mut Vec<Criterion>,
     departments: &[String],
-) -> Result<(), String> {
+) -> Result<()> {
     let dept_in = dept_clause(departments, &["single_department".into(), "group_department".into()], true);
     // note: single_section can only have one anticonflict rule
-    let mut stmt = db
-        .prepare(format!(
-            "
+    let mut stmt = db.prepare(format!(
+        "
             SELECT DISTINCT single_section, group_section, priority
             FROM anti_conflict_pairs
             {}
             ORDER BY single_section, priority, group_section",
-            dept_in
-        ))
-        .map_err(sql_err)?;
-    stmt.bind_iter(as_values(&double_vec(departments))).map_err(sql_err)?;
+        dept_in
+    ))?;
+    stmt.bind_iter(as_values(&double_vec(departments)))?;
 
     let mut criterion = None;
 
-    while stmt.next().map_err(sql_err)? == State::Row {
-        let new_single_name: String = stmt.read(0).map_err(sql_err)?;
+    while stmt.next()? == State::Row {
+        let new_single_name: String = stmt.read(0)?;
         let new_single = *section_index
             .get(&new_single_name)
             .ok_or(format!("anticonflict for unknown section {new_single_name}"))?;
-        let other_name: String = stmt.read(1).map_err(sql_err)?;
+        let other_name: String = stmt.read(1)?;
         let other =
             *section_index.get(&other_name).ok_or(format!("anticonflict references unknown section {other_name}"))?;
         if new_single == other {
             panic!("anticonflict: single and group names must differ");
         }
-        let pri: i64 = stmt.read(2).map_err(sql_err)?;
+        let pri: i64 = stmt.read(2)?;
 
         // existing anti conflict?
         match &mut criterion {
@@ -698,11 +679,10 @@ pub fn load_time_pattern_matches(
     section_index: &HashMap<String, usize>,
     criteria: &mut Vec<Criterion>,
     departments: &[String],
-) -> Result<(), String> {
+) -> Result<()> {
     let dept_in = dept_clause(departments, &["department".into()], true);
-    let mut stmt = db
-        .prepare(format!(
-            "
+    let mut stmt = db.prepare(format!(
+        "
             SELECT DISTINCT time_pattern_match_name, time_pattern_match_priority, time_pattern_match_section
             FROM time_pattern_matches
             NATURAL JOIN time_pattern_match_sections
@@ -710,16 +690,15 @@ pub fn load_time_pattern_matches(
                 ON time_pattern_match_section = section
             {}
             ORDER BY time_pattern_match_name, time_pattern_match_priority, time_pattern_match_section",
-            dept_in
-        ))
-        .map_err(sql_err)?;
-    stmt.bind_iter(as_values(departments)).map_err(sql_err)?;
+        dept_in
+    ))?;
+    stmt.bind_iter(as_values(departments))?;
 
     let mut criterion = None;
-    while stmt.next().map_err(sql_err)? == State::Row {
-        let new_group_name: String = stmt.read(0).map_err(sql_err)?;
-        let pri: i64 = stmt.read(1).map_err(sql_err)?;
-        let section_name: String = stmt.read(2).map_err(sql_err)?;
+    while stmt.next()? == State::Row {
+        let new_group_name: String = stmt.read(0)?;
+        let pri: i64 = stmt.read(1)?;
+        let section_name: String = stmt.read(2)?;
         let section = *section_index
             .get(&section_name)
             .ok_or(format!("time pattern match {new_group_name} references unknown section {section_name}"))?;
@@ -766,7 +745,7 @@ pub fn load_faculty_section_assignments(
     section_index: &HashMap<String, usize>,
     criteria: &mut Vec<Criterion>,
     departments: &[String],
-) -> Result<(), String> {
+) -> Result<()> {
     let mut faculty_sections = Vec::new();
     for _ in 0..faculty_list.len() {
         faculty_sections.push(Vec::new());
@@ -774,21 +753,19 @@ pub fn load_faculty_section_assignments(
     {
         // link sections to faculty
         let dept_in = dept_clause(departments, &["department".into()], true);
-        let mut stmt = db
-            .prepare(format!(
-                "
+        let mut stmt = db.prepare(format!(
+            "
                 SELECT DISTINCT faculty, section
                 FROM faculty_sections_to_be_scheduled
                 {}
                 ORDER BY faculty, section",
-                dept_in
-            ))
-            .map_err(sql_err)?;
-        stmt.bind_iter(as_values(departments)).map_err(sql_err)?;
+            dept_in
+        ))?;
+        stmt.bind_iter(as_values(departments))?;
 
-        while stmt.next().map_err(sql_err)? == State::Row {
-            let faculty_name: String = stmt.read(0).map_err(sql_err)?;
-            let section_name: String = stmt.read(1).map_err(sql_err)?;
+        while stmt.next()? == State::Row {
+            let faculty_name: String = stmt.read(0)?;
+            let section_name: String = stmt.read(1)?;
             let faculty_i = *faculty_index
                 .get(&faculty_name)
                 .ok_or(format!("faculty {faculty_name} not found in mapping to section {section_name}"))?;
@@ -877,9 +854,8 @@ pub fn load_faculty_section_assignments(
     let mut prefs = vec![None; faculty_list.len()];
     {
         let dept_in = dept_clause(departments, &["department".into()], true);
-        let mut stmt = db
-            .prepare(format!(
-                "
+        let mut stmt = db.prepare(format!(
+            "
                 SELECT  faculty, days_to_check,
                         days_off, days_off_priority, evenly_spread_priority,
                         no_room_switch_priority, too_many_rooms_priority,
@@ -888,23 +864,22 @@ pub fn load_faculty_section_assignments(
                 FROM faculty_to_be_scheduled_preference_intervals
                 {}
                 ORDER BY faculty, is_cluster, is_too_short, interval_minutes",
-                dept_in
-            ))
-            .map_err(sql_err)?;
-        stmt.bind_iter(as_values(departments)).map_err(sql_err)?;
+            dept_in
+        ))?;
+        stmt.bind_iter(as_values(departments))?;
 
-        while stmt.next().map_err(sql_err)? == State::Row {
-            let name: String = stmt.read(0).map_err(sql_err)?;
+        while stmt.next()? == State::Row {
+            let name: String = stmt.read(0)?;
             let index = *faculty_index.get(&name).ok_or(format!("faculty not found for {name} but prefs found"))?;
 
             // is this the first row for this faculty?
             if prefs[index].is_none() {
-                let days_to_check: String = stmt.read(1).map_err(sql_err)?;
+                let days_to_check: String = stmt.read(1)?;
                 let days_to_check = Days::parse(&days_to_check)?;
 
                 // days off penalty?
-                let days_off_opt: Option<i64> = stmt.read(2).map_err(sql_err)?;
-                let days_off_priority_opt: Option<i64> = stmt.read(3).map_err(sql_err)?;
+                let days_off_opt: Option<i64> = stmt.read(2)?;
+                let days_off_priority_opt: Option<i64> = stmt.read(3)?;
                 let days_off = if let (Some(days_off), Some(priority)) = (days_off_opt, days_off_priority_opt) {
                     Some((priority as u8, days_off as usize))
                 } else {
@@ -912,22 +887,22 @@ pub fn load_faculty_section_assignments(
                 };
 
                 // evenly spread penalty?
-                let evenly_spread_priority: Option<i64> = stmt.read(4).map_err(sql_err)?;
+                let evenly_spread_priority: Option<i64> = stmt.read(4)?;
                 let evenly_spread = evenly_spread_priority.map(|priority| priority as u8);
 
                 // no room switch penalty?
-                let no_room_switch_priority: Option<i64> = stmt.read(5).map_err(sql_err)?;
+                let no_room_switch_priority: Option<i64> = stmt.read(5)?;
                 let no_room_switch = no_room_switch_priority.map(|priority| priority as u8);
 
                 // too many rooms penalty?
-                let too_many_rooms_priority: Option<i64> = stmt.read(6).map_err(sql_err)?;
+                let too_many_rooms_priority: Option<i64> = stmt.read(6)?;
                 let too_many_rooms = if let Some(priority) = too_many_rooms_priority {
                     min_rooms[index].map(|k| (priority as u8, k))
                 } else {
                     None
                 };
 
-                let max_gap_within_cluster: i64 = stmt.read(7).map_err(sql_err)?;
+                let max_gap_within_cluster: i64 = stmt.read(7)?;
                 let max_gap_within_cluster = Duration::new(max_gap_within_cluster as u16);
 
                 // create the base record
@@ -945,17 +920,17 @@ pub fn load_faculty_section_assignments(
             }
 
             // if there is no clustering interval than move on to the next faculty
-            let is_cluster: Option<i64> = stmt.read(8).map_err(sql_err)?;
+            let is_cluster: Option<i64> = stmt.read(8)?;
             if is_cluster.is_none() {
                 continue;
             }
             let is_cluster = is_cluster.unwrap() != 0;
 
-            let is_too_short: i64 = stmt.read(9).map_err(sql_err)?;
+            let is_too_short: i64 = stmt.read(9)?;
             let is_too_short = is_too_short != 0;
-            let duration: i64 = stmt.read(10).map_err(sql_err)?;
+            let duration: i64 = stmt.read(10)?;
             let duration = Duration::new(duration as u16);
-            let interval_priority: i64 = stmt.read(11).map_err(sql_err)?;
+            let interval_priority: i64 = stmt.read(11)?;
             let priority = interval_priority as u8;
 
             let interval = match (is_cluster, is_too_short) {
@@ -992,10 +967,6 @@ fn compute_neighbors(sections: &mut [Section], criteria: &[Criterion]) {
         section.neighbors.sort_unstable();
         section.neighbors.dedup();
     }
-}
-
-fn sql_err(err: Error) -> String {
-    err.to_string()
 }
 
 fn as_values(list: &[String]) -> Vec<(usize, Value)> {
@@ -1039,67 +1010,58 @@ pub fn save_schedule(
     schedule: &Schedule,
     comment: &str,
     existing_id: Option<i64>,
-) -> Result<i64, String> {
-    let db =
-        Connection::open_with_flags(db_path, OpenFlags::new().with_read_write().with_full_mutex()).map_err(sql_err)?;
-    db.execute("PRAGMA foreign_keys = ON").map_err(sql_err)?;
-    db.execute("PRAGMA busy_timeout = 10000").map_err(sql_err)?;
-    db.execute("BEGIN").map_err(sql_err)?;
+) -> Result<i64> {
+    let db = Connection::open_with_flags(db_path, OpenFlags::new().with_read_write().with_full_mutex())?;
+    db.execute("PRAGMA foreign_keys = ON")?;
+    db.execute("PRAGMA busy_timeout = 10000")?;
+    db.execute("BEGIN")?;
     let root_id = if let Some(id) = existing_id {
         // delete old schedule with this id and update base record
-        let mut stmt = db
-            .prepare(
-                "DELETE FROM placement_sections
+        let mut stmt = db.prepare(
+            "DELETE FROM placement_sections
             WHERE placement_id = ?",
-            )
-            .map_err(sql_err)?;
-        stmt.bind((1, id)).map_err(sql_err)?;
-        while stmt.next().map_err(sql_err)? != State::Done {
+        )?;
+        stmt.bind((1, id))?;
+        while stmt.next()? != State::Done {
             // no return rows expected
         }
-        stmt = db
-            .prepare(
-                "DELETE FROM placement_penalties
+        stmt = db.prepare(
+            "DELETE FROM placement_penalties
             WHERE placement_id = ?",
-            )
-            .map_err(sql_err)?;
-        stmt.bind((1, id)).map_err(sql_err)?;
-        while stmt.next().map_err(sql_err)? != State::Done {
+        )?;
+        stmt.bind((1, id))?;
+        while stmt.next()? != State::Done {
             // no return rows expected
         }
-        stmt = db
-            .prepare(
-                "UPDATE placements
+        stmt = db.prepare(
+            "UPDATE placements
             SET score = ?,
             sort_score = ?,
             comment = ?,
             modified_at = DATETIME('now', 'localtime')
             WHERE placement_id = ?",
-            )
-            .map_err(sql_err)?;
-        stmt.bind((1, format!("{}", schedule.score).as_str())).map_err(sql_err)?;
-        stmt.bind((2, schedule.score.sortable().as_str())).map_err(sql_err)?;
-        stmt.bind((3, comment)).map_err(sql_err)?;
-        stmt.bind((4, id)).map_err(sql_err)?;
-        while stmt.next().map_err(sql_err)? != State::Done {
+        )?;
+        stmt.bind((1, format!("{}", schedule.score).as_str()))?;
+        stmt.bind((2, schedule.score.sortable().as_str()))?;
+        stmt.bind((3, comment))?;
+        stmt.bind((4, id))?;
+        while stmt.next()? != State::Done {
             // no return rows expected
         }
         id
     } else {
         // create new base record and capture id
-        let mut stmt = db
-            .prepare(
-                "INSERT INTO placements (score, sort_score, comment, created_at, modified_at)
+        let mut stmt = db.prepare(
+            "INSERT INTO placements (score, sort_score, comment, created_at, modified_at)
             VALUES (?, ?, ?, DATETIME('now', 'localtime'), DATETIME('now', 'localtime'))
             RETURNING placement_id",
-            )
-            .map_err(sql_err)?;
-        stmt.bind((1, format!("{}", schedule.score).as_str())).map_err(sql_err)?;
-        stmt.bind((2, schedule.score.sortable().as_str())).map_err(sql_err)?;
-        stmt.bind((3, comment)).map_err(sql_err)?;
+        )?;
+        stmt.bind((1, format!("{}", schedule.score).as_str()))?;
+        stmt.bind((2, schedule.score.sortable().as_str()))?;
+        stmt.bind((3, comment))?;
         let mut id = -1;
-        while stmt.next().map_err(sql_err)? == State::Row {
-            id = stmt.read(0).map_err(sql_err)?;
+        while stmt.next()? == State::Row {
+            id = stmt.read(0)?;
         }
         println!("saved schedule with new placement id: {}", id);
         id
@@ -1111,17 +1073,15 @@ pub fn save_schedule(
             // skip unplaced sections
             continue;
         };
-        let mut stmt = db
-            .prepare(
-                "INSERT INTO placement_sections (placement_id, section, time_slot, room)
+        let mut stmt = db.prepare(
+            "INSERT INTO placement_sections (placement_id, section, time_slot, room)
             VALUES (?, ?, ?, ?)",
-            )
-            .map_err(sql_err)?;
-        stmt.bind((1, root_id)).map_err(sql_err)?;
-        stmt.bind((2, input.sections[section].name.as_str())).map_err(sql_err)?;
-        stmt.bind((3, input.time_slots[time_slot].name.as_str())).map_err(sql_err)?;
-        stmt.bind((4, placement.room.map(|room| input.rooms[room].name.as_str()))).map_err(sql_err)?;
-        while stmt.next().map_err(sql_err)? != State::Done {
+        )?;
+        stmt.bind((1, root_id))?;
+        stmt.bind((2, input.sections[section].name.as_str()))?;
+        stmt.bind((3, input.time_slots[time_slot].name.as_str()))?;
+        stmt.bind((4, placement.room.map(|room| input.rooms[room].name.as_str())))?;
+        while stmt.next()? != State::Done {
             // no return rows expected
         }
     }
@@ -1147,35 +1107,31 @@ pub fn save_schedule(
 
     // insert them
     for (priority, msg, sections) in penalties {
-        let mut stmt = db
-            .prepare(
-                "INSERT INTO placement_penalties (placement_id, priority, message)
+        let mut stmt = db.prepare(
+            "INSERT INTO placement_penalties (placement_id, priority, message)
                 VALUES (?, ?, ?) RETURNING placement_penalty_id",
-            )
-            .map_err(sql_err)?;
-        stmt.bind((1, root_id)).map_err(sql_err)?;
-        stmt.bind((2, priority as i64)).map_err(sql_err)?;
-        stmt.bind((3, msg.as_str())).map_err(sql_err)?;
+        )?;
+        stmt.bind((1, root_id))?;
+        stmt.bind((2, priority as i64))?;
+        stmt.bind((3, msg.as_str()))?;
         let mut id = -1;
-        while stmt.next().map_err(sql_err)? == State::Row {
-            id = stmt.read(0).map_err(sql_err)?;
+        while stmt.next()? == State::Row {
+            id = stmt.read(0)?;
         }
 
         for section in sections {
-            let mut stmt = db
-                .prepare(
-                    "INSERT INTO placement_penalty_sections (placement_penalty_id, section)
+            let mut stmt = db.prepare(
+                "INSERT INTO placement_penalty_sections (placement_penalty_id, section)
                     VALUES (?, ?)",
-                )
-                .map_err(sql_err)?;
-            stmt.bind((1, id)).map_err(sql_err)?;
-            stmt.bind((2, input.sections[section].name.as_str())).map_err(sql_err)?;
-            while stmt.next().map_err(sql_err)? != State::Done {
+            )?;
+            stmt.bind((1, id))?;
+            stmt.bind((2, input.sections[section].name.as_str()))?;
+            while stmt.next()? != State::Done {
                 // no return rows expected
             }
         }
     }
-    db.execute("COMMIT").map_err(sql_err)?;
+    db.execute("COMMIT")?;
 
     Ok(root_id)
 }
@@ -1185,79 +1141,74 @@ pub fn load_schedule(
     input: &Input,
     schedule: &mut Schedule,
     maybe_placement_id: Option<i64>,
-) -> Result<(), String> {
-    let db =
-        Connection::open_with_flags(db_path, OpenFlags::new().with_read_only().with_no_mutex()).map_err(sql_err)?;
-    db.execute("PRAGMA foreign_keys = ON").map_err(sql_err)?;
-    db.execute("PRAGMA temp_store = memory").map_err(sql_err)?;
-    db.execute("PRAGMA mmap_size = 100000000").map_err(sql_err)?;
+) -> Result<()> {
+    let db = Connection::open_with_flags(db_path, OpenFlags::new().with_read_only().with_no_mutex())?;
+    db.execute("PRAGMA foreign_keys = ON")?;
+    db.execute("PRAGMA temp_store = memory")?;
+    db.execute("PRAGMA mmap_size = 100000000")?;
 
     let placement_id = match maybe_placement_id {
         Some(id) => id,
         None => {
             // find the best-scoring schedule already in the DB
-            let mut stmt = db
-                .prepare(
-                    "SELECT placement_id
+            let mut stmt = db.prepare(
+                "SELECT placement_id
                 FROM placements
                 ORDER BY sort_score, modified_at DESC
                 LIMIT 1",
-                )
-                .map_err(sql_err)?;
+            )?;
             let mut id = None;
-            while stmt.next().map_err(sql_err)? == State::Row {
-                let found_id: i64 = stmt.read(0).map_err(sql_err)?;
+            while stmt.next()? == State::Row {
+                let found_id: i64 = stmt.read(0)?;
                 id = Some(found_id);
             }
             let Some(id) = id else {
-                return Err("no placement found in the database".to_string());
+                return Err("no placement found in the database".into());
             };
             id
         }
     };
 
-    let mut stmt = db
-        .prepare(
-            "SELECT modified_at
+    let mut stmt = db.prepare(
+        "SELECT modified_at
             FROM placements
             WHERE placement_id = ?",
-        )
-        .map_err(sql_err)?;
-    stmt.bind((1, placement_id)).map_err(sql_err)?;
+    )?;
+    stmt.bind((1, placement_id))?;
     let mut found = false;
-    while stmt.next().map_err(sql_err)? == State::Row {
-        let modified_at: String = stmt.read(0).map_err(sql_err)?;
+    while stmt.next()? == State::Row {
+        let modified_at: String = stmt.read(0)?;
         println!("loading schedule {}, which was last updated at {}", placement_id, modified_at);
         found = true;
     }
     if !found {
-        return Err(format!("schedule {} not found", placement_id));
+        return Err(format!("schedule {} not found", placement_id).into());
     }
 
-    let mut stmt = db
-        .prepare(
-            "SELECT section, time_slot, room
+    let mut stmt = db.prepare(
+        "SELECT section, time_slot, room
             FROM placement_sections
             WHERE placement_id = ?",
-        )
-        .map_err(sql_err)?;
-    stmt.bind((1, placement_id)).map_err(sql_err)?;
+    )?;
+    stmt.bind((1, placement_id))?;
 
-    while stmt.next().map_err(sql_err)? == State::Row {
-        let section_name: String = stmt.read(0).map_err(sql_err)?;
-        let time_slot_name: String = stmt.read(1).map_err(sql_err)?;
-        let maybe_room_name: Option<String> = stmt.read(2).map_err(sql_err)?;
+    while stmt.next()? == State::Row {
+        let section_name: String = stmt.read(0)?;
+        let time_slot_name: String = stmt.read(1)?;
+        let maybe_room_name: Option<String> = stmt.read(2)?;
 
         let Some((section, _)) = input.sections.iter().enumerate().find(|(_, elt)| elt.name == section_name) else {
-            return Err(format!("load_schedule cannot find section {} referenced in placement", section_name));
+            return Err(format!("load_schedule cannot find section {} referenced in placement", section_name).into());
         };
         let Some((time_slot, _)) = input.time_slots.iter().enumerate().find(|(_, elt)| elt.name == time_slot_name)
         else {
-            return Err(format!("load_schedule cannot find time slot {} referenced in placement", time_slot_name));
+            return Err(
+                format!("load_schedule cannot find time slot {} referenced in placement", time_slot_name).into()
+            );
         };
         let maybe_room = if let Some(room_name) = maybe_room_name {
             let Some((room, _)) = input.rooms.iter().enumerate().find(|(_, elt)| elt.name == room_name) else {
-                return Err(format!("load_schedule cannot find room {} referenced in placement", room_name));
+                return Err(format!("load_schedule cannot find room {} referenced in placement", room_name).into());
             };
             Some(room)
         } else {

@@ -1,8 +1,11 @@
+pub mod error;
 pub mod input;
 pub mod print;
-pub mod score;
 pub mod sat;
+pub mod sat_encoding;
+pub mod score;
 pub mod solver;
+use self::error::Result;
 use self::input::*;
 use self::print::*;
 use self::sat::*;
@@ -13,137 +16,115 @@ use std::time::Instant;
 static DEFAULT_DB_PATH: &str = "timetable.db";
 
 fn main() {
+    if let Err(e) = dispatch_subcommands() {
+        eprintln!("{}", e);
+    };
+}
+
+fn dispatch_subcommands() -> Result<()> {
     match parse_args() {
         Ok(Opts::Gen(config)) => {
-            _ = (|| {
-                let input = load_input(&config.db_path, &[])?;
-                let mut id = None;
-                let mut schedule = if config.starting_id >= 0 {
-                    let mut schedule = Schedule::new(&input);
-                    load_schedule(
-                        &config.db_path,
-                        &input,
-                        &mut schedule,
-                        if config.starting_id == 0 { None } else { Some(config.starting_id) },
-                    )?;
-                    schedule
-                } else {
-                    println!("running warmup for {}", sec_to_string(config.warmup_seconds));
-                    let Some(schedule) = warmup(&input, config.warmup_seconds) else {
-                        return Err("failed to generate a schedule in the warmup stage".to_string());
-                    };
-                    id = Some(save_schedule(&config.db_path, &input, &schedule, "warmup schedule", None)?);
-                    schedule
+            let input = load_input(&config.db_path, &[])?;
+            let mut id = None;
+            let mut schedule = if config.starting_id >= 0 {
+                let mut schedule = Schedule::new(&input);
+                load_schedule(
+                    &config.db_path,
+                    &input,
+                    &mut schedule,
+                    if config.starting_id == 0 { None } else { Some(config.starting_id) },
+                )?;
+                schedule
+            } else {
+                println!("running warmup for {}", sec_to_string(config.warmup_seconds));
+                let Some(schedule) = warmup(&input, config.warmup_seconds) else {
+                    return Err("failed to generate a schedule in the warmup stage".into());
                 };
-                let best = solve(&config, &input, &mut schedule, config.solve_seconds, &mut id);
-                print_schedule(&input, &best);
-                print_problems(&input, &best);
-                Ok(())
-            })()
-            .map_err(|msg| {
-                eprintln!("{}", msg);
-            });
+                id = Some(save_schedule(&config.db_path, &input, &schedule, "warmup schedule", None)?);
+                schedule
+            };
+            let best = solve(&config, &input, &mut schedule, config.solve_seconds, &mut id);
+            print_schedule(&input, &best);
+            print_problems(&input, &best);
+            Ok(())
         }
 
-        Ok(Opts::SAT(config)) => {
-            _ = (|| {
-                let input = load_input(&config.db_path, &[])?;
-                let mut solver = SatSolver::new();
-                let schedule = solver.generate_schedule(&input, &config.solver)?;
-                print_schedule(&input, &schedule);
-                print_problems(&input, &schedule);
-                Ok(())
-            })()
-            .map_err(|msg: String| {
-                eprintln!("{}", msg);
-            });
+        Ok(Opts::Sat(config)) => {
+            let input = load_input(&config.db_path, &[])?;
+            let schedule = generate_schedule(&input, &config.solver)?;
+            print_schedule(&input, &schedule);
+            print_problems(&input, &schedule);
+            Ok(())
         }
 
         Ok(Opts::Dfs(config)) => {
-            _ = (|| {
-                let input = load_input(&config.db_path, &[])?;
-                let mut schedule = Schedule::new(&input);
-                load_schedule(
-                    &config.db_path,
-                    &input,
-                    &mut schedule,
-                    if config.starting_id == 0 { None } else { Some(config.starting_id) },
-                )?;
-                let pre_score = schedule.score;
-                let mut save_id = None;
-                let mut iterations = 0;
-                let start = Instant::now();
-                let mut walk = Walk::new(schedule.score);
-                loop {
-                    let before = schedule.score;
-                    print!("running dfs with max depth {}", config.dfs_depth);
-                    walk.try_dfs(&input, &mut schedule, config.dfs_depth, false);
-                    iterations += 1;
-                    if schedule.score < before {
-                        let comment = format!(
-                            "dfs at depth {}, {} iteration{} over {}",
-                            config.dfs_depth,
-                            iterations,
-                            if iterations == 1 { "" } else { "s" },
-                            ms_to_string(start.elapsed().as_millis())
-                        );
-                        save_id = Some(save_schedule(&config.db_path, &input, &schedule, &comment, save_id)?);
-                    }
-                    if schedule.score >= before || !config.repeat {
-                        break;
-                    }
+            let input = load_input(&config.db_path, &[])?;
+            let mut schedule = Schedule::new(&input);
+            load_schedule(
+                &config.db_path,
+                &input,
+                &mut schedule,
+                if config.starting_id == 0 { None } else { Some(config.starting_id) },
+            )?;
+            let pre_score = schedule.score;
+            let mut save_id = None;
+            let mut iterations = 0;
+            let start = Instant::now();
+            let mut walk = Walk::new(schedule.score);
+            loop {
+                let before = schedule.score;
+                print!("running dfs with max depth {}", config.dfs_depth);
+                walk.try_dfs(&input, &mut schedule, config.dfs_depth, false);
+                iterations += 1;
+                if schedule.score < before {
+                    let comment = format!(
+                        "dfs at depth {}, {} iteration{} over {}",
+                        config.dfs_depth,
+                        iterations,
+                        if iterations == 1 { "" } else { "s" },
+                        ms_to_string(start.elapsed().as_millis())
+                    );
+                    save_id = Some(save_schedule(&config.db_path, &input, &schedule, &comment, save_id)?);
                 }
-                if schedule.score < pre_score {
-                    println!("score improved from {} to {} over {} iterations", pre_score, schedule.score, iterations);
+                if schedule.score >= before || !config.repeat {
+                    break;
                 }
-                Ok(())
-            })()
-            .map_err(|msg: String| {
-                eprintln!("{}", msg);
-            });
+            }
+            if schedule.score < pre_score {
+                println!("score improved from {} to {} over {} iterations", pre_score, schedule.score, iterations);
+            }
+            Ok(())
         }
 
         Ok(Opts::Print(config)) => {
-            _ = (|| {
-                let input = load_input(&config.db_path, &[])?;
-                let mut schedule = Schedule::new(&input);
-                load_schedule(
-                    &config.db_path,
-                    &input,
-                    &mut schedule,
-                    if config.starting_id == 0 { None } else { Some(config.starting_id) },
-                )?;
-                println!("score: {}", schedule.score);
-                print_schedule(&input, &schedule);
-                print_problems(&input, &schedule);
-                Ok(())
-            })()
-            .map_err(|msg: String| {
-                eprintln!("{}", msg);
-            });
+            let input = load_input(&config.db_path, &[])?;
+            let mut schedule = Schedule::new(&input);
+            load_schedule(
+                &config.db_path,
+                &input,
+                &mut schedule,
+                if config.starting_id == 0 { None } else { Some(config.starting_id) },
+            )?;
+            println!("score: {}", schedule.score);
+            print_schedule(&input, &schedule);
+            print_problems(&input, &schedule);
+            Ok(())
         }
 
         Ok(Opts::Dump(config)) => {
-            _ = (|| {
-                let input = load_input(&config.db_path, &[])?;
-                dump_input(&[], &input);
-                Ok(())
-            })()
-            .map_err(|msg: String| {
-                eprintln!("{}", msg);
-            });
+            let input = load_input(&config.db_path, &[])?;
+            dump_input(&[], &input);
+            Ok(())
         }
 
         Err(msg) => {
-            if !msg.is_empty() {
-                eprintln!("{msg}");
-            }
             print_usage(std::env::args().nth(1));
+            Err(msg)
         }
     }
 }
 
-fn parse_args() -> Result<Opts, String> {
+fn parse_args() -> Result<Opts> {
     let mut parser = CliParser::new()?;
 
     match parser.command.as_ref() {
@@ -166,11 +147,11 @@ fn parse_args() -> Result<Opts, String> {
         }
 
         "sat" => {
-            let mut opts = SATOpts::default();
+            let mut opts = SatOpts::default();
             parser.string("-d", "--db-path", &mut opts.db_path)?;
             parser.string("-s", "--solver", &mut opts.solver)?;
             parser.leftover()?;
-            Ok(Opts::SAT(opts))
+            Ok(Opts::Sat(opts))
         }
 
         "dfs" => {
@@ -198,13 +179,13 @@ fn parse_args() -> Result<Opts, String> {
             Ok(Opts::Dump(opts))
         }
 
-        cmd => Err(format!("Error: unknown command \"{cmd}\"")),
+        cmd => Err(format!("Error: unknown command \"{}\"", cmd).into()),
     }
 }
 
 enum Opts {
     Gen(GenOpts),
-    SAT(SATOpts),
+    Sat(SatOpts),
     Dfs(DfsOpts),
     Print(PrintOpts),
     Dump(DumpOpts),
@@ -244,12 +225,12 @@ impl Default for GenOpts {
     }
 }
 
-pub struct SATOpts {
+pub struct SatOpts {
     pub db_path: String,
     pub solver: String,
 }
 
-impl Default for SATOpts {
+impl Default for SatOpts {
     fn default() -> Self {
         Self { db_path: DEFAULT_DB_PATH.to_string(), solver: "cadical".to_string() }
     }
@@ -329,12 +310,15 @@ fn print_usage(command: Option<String>) {
         }
 
         Some("sat") => {
-            let default = SATOpts::default();
+            let default = SatOpts::default();
             eprintln!("Usage: marmot sat [options]");
             eprintln!();
             eprintln!("Options:");
             eprintln!("  -d, --db-path <path>           Database path (default: {})", default.db_path);
-            eprintln!("  -s, --solver <name>            SAT solver to use: kissat or cadical (default: {})", default.solver);
+            eprintln!(
+                "  -s, --solver <name>            SAT solver to use: kissat or cadical (default: {})",
+                default.solver
+            );
         }
 
         Some("dfs") => {
@@ -389,17 +373,17 @@ struct CliParser {
 }
 
 impl CliParser {
-    fn new() -> Result<Self, String> {
+    fn new() -> Result<Self> {
         let args: Vec<String> = std::env::args().collect();
         if args.len() < 2 {
-            return Err("Error: no command specified".to_string());
+            return Err("Error: no command specified".into());
         }
         let command = &args[1];
         if args[2..].contains(&"-h".to_string()) {
-            return Err(String::new());
+            return Err(String::new().into());
         }
         if args.len() % 2 == 1 {
-            return Err(format!("Error: 'marmot {}' options must each have a value, e.g., -t 30m", command));
+            return Err(format!("Error: 'marmot {}' options must each have a value, e.g., -t 30m", command).into());
         }
         let mut pairs = HashMap::new();
         for pair in args[2..].chunks_exact(2) {
@@ -409,10 +393,10 @@ impl CliParser {
         Ok(CliParser { command: args[1].clone(), pairs })
     }
 
-    fn leftover(&self) -> Result<(), String> {
+    fn leftover(&self) -> Result<()> {
         // form an error based on the first unprocessed option we happen to find
         if let Some((key, val)) = self.pairs.iter().next() {
-            return Err(format!("Error: 'marmot {}' with unknown option: {} {}", self.command, key, val));
+            return Err(format!("Error: 'marmot {}' with unknown option: {} {}", self.command, key, val).into());
         }
         Ok(())
     }
@@ -424,7 +408,7 @@ impl CliParser {
             .or_else(|| self.pairs.remove(long).map(|val| (long.to_string(), val)))
     }
 
-    fn string(&mut self, short: &str, long: &str, s: &mut String) -> Result<(), String> {
+    fn string(&mut self, short: &str, long: &str, s: &mut String) -> Result<()> {
         if let Some((_, val)) = self.pair(short, long) {
             *s = val;
         }
@@ -432,55 +416,55 @@ impl CliParser {
         Ok(())
     }
 
-    fn duration(&mut self, short: &str, long: &str, seconds: &mut u64) -> Result<(), String> {
+    fn duration(&mut self, short: &str, long: &str, seconds: &mut u64) -> Result<()> {
         if let Some((key, val)) = self.pair(short, long) {
             match string_to_sec(val.as_str()) {
                 Ok(n) => *seconds = n,
-                Err(msg) => return Err(format!("Error parsing option {key}: {msg}")),
+                Err(msg) => return Err(format!("Error parsing option {}: {}", key, msg).into()),
             }
         }
 
         Ok(())
     }
 
-    fn float(&mut self, short: &str, long: &str, target: &mut f64) -> Result<(), String> {
+    fn float(&mut self, short: &str, long: &str, target: &mut f64) -> Result<()> {
         if let Some((key, val)) = self.pair(short, long) {
             match val.parse() {
                 Ok(n) => *target = n,
-                Err(msg) => return Err(format!("Error parsing option {key}: {msg}")),
+                Err(msg) => return Err(format!("Error parsing option {}: {}", key, msg).into()),
             }
         }
 
         Ok(())
     }
 
-    fn int64(&mut self, short: &str, long: &str, target: &mut i64) -> Result<(), String> {
+    fn int64(&mut self, short: &str, long: &str, target: &mut i64) -> Result<()> {
         if let Some((key, val)) = self.pair(short, long) {
             match val.parse() {
                 Ok(n) => *target = n,
-                Err(msg) => return Err(format!("Error parsing option {key}: {msg}")),
+                Err(msg) => return Err(format!("Error parsing option {}: {}", key, msg).into()),
             }
         }
 
         Ok(())
     }
 
-    fn uint(&mut self, short: &str, long: &str, target: &mut usize) -> Result<(), String> {
+    fn uint(&mut self, short: &str, long: &str, target: &mut usize) -> Result<()> {
         if let Some((key, val)) = self.pair(short, long) {
             match val.parse() {
                 Ok(n) => *target = n,
-                Err(msg) => return Err(format!("Error parsing option {key}: {msg}")),
+                Err(msg) => return Err(format!("Error parsing option {}: {}", key, msg).into()),
             }
         }
 
         Ok(())
     }
 
-    fn boolean(&mut self, short: &str, long: &str, target: &mut bool) -> Result<(), String> {
+    fn boolean(&mut self, short: &str, long: &str, target: &mut bool) -> Result<()> {
         if let Some((key, val)) = self.pair(short, long) {
             match val.parse() {
                 Ok(n) => *target = n,
-                Err(msg) => return Err(format!("Error parsing option {key}: {msg}")),
+                Err(msg) => return Err(format!("Error parsing option {}: {}", key, msg).into()),
             }
         }
 
