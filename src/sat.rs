@@ -273,12 +273,11 @@ fn solve_at_priority_level(
         }
 
         println!(
-            "    priority {}, k={} encoded with {} variables and {} clauses, solving with {}",
+            "    priority {}, k={} solving encodint with {} variables and {} clauses",
             priority,
             k,
             encoder.var_manager.n_used(),
-            encoder.cnf.len(),
-            solver_type
+            encoder.cnf.len()
         );
 
         // Solve with the appropriate solver
