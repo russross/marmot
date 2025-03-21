@@ -64,6 +64,24 @@ pub enum SatCriterion {
     },
 }
 
+impl SatCriterion {
+    // Returns a numeric type identifier for sorting criteria by type
+    pub fn get_type_id(&self) -> u8 {
+        match self {
+            SatCriterion::SoftConflict { .. } => 1,
+            SatCriterion::AntiConflict { .. } => 2,
+            SatCriterion::RoomPreference { .. } => 3,
+            SatCriterion::TimeSlotPreference { .. } => 4,
+            SatCriterion::FacultyDaysOff { .. } => 5,
+            SatCriterion::FacultyEvenlySpread { .. } => 6,
+            SatCriterion::FacultyNoRoomSwitch { .. } => 7,
+            SatCriterion::FacultyTooManyRooms { .. } => 8,
+            SatCriterion::FacultyDistributionInterval { .. } => 9,
+            SatCriterion::DifferentTimePatterns { .. } => 10,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum DistributionIntervalType {
     GapTooShort,
@@ -304,329 +322,313 @@ impl SATEncoder {
         Ok(())
     }
 
-    // Encode a specific criterion
-    pub fn encode_criterion(
+    pub fn encode_criteria_group(
         &mut self,
         input: &Input,
-        criterion: &SatCriterion,
+        criteria: &[SatCriterion],
         violations_permitted: bool,
-    ) -> Result<Option<Var>> {
-        match criterion {
-            SatCriterion::SoftConflict { priority: _, sections } => {
-                self.encode_soft_conflict(input, sections, violations_permitted)
+    ) -> Result<Vec<Var>> {
+        if criteria.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Dispatch based on the type of the first criterion
+        // (all criteria in the group are of the same type)
+        match &criteria[0] {
+            SatCriterion::SoftConflict { .. } => self.encode_soft_conflicts(input, criteria, violations_permitted),
+            SatCriterion::AntiConflict { .. } => self.encode_anti_conflicts(input, criteria, violations_permitted),
+            SatCriterion::RoomPreference { .. } => self.encode_room_preferences(input, criteria, violations_permitted),
+            SatCriterion::TimeSlotPreference { .. } => {
+                self.encode_time_slot_preferences(input, criteria, violations_permitted)
             }
-            SatCriterion::AntiConflict { priority: _, single, group } => {
-                self.encode_anti_conflict(input, *single, group, violations_permitted)
+            SatCriterion::FacultyDaysOff { .. } => {
+                self.encode_faculty_days_off_group(input, criteria, violations_permitted)
             }
-            SatCriterion::RoomPreference { priority: _, section, room } => {
-                self.encode_room_preference(input, *section, *room, violations_permitted)
+            SatCriterion::FacultyEvenlySpread { .. } => {
+                self.encode_faculty_evenly_spread_group(input, criteria, violations_permitted)
             }
-            SatCriterion::TimeSlotPreference { priority: _, section, time_slot } => {
-                self.encode_time_slot_preference(input, *section, *time_slot, violations_permitted)
+            SatCriterion::FacultyNoRoomSwitch { .. } => {
+                self.encode_faculty_no_room_switch_group(input, criteria, violations_permitted)
             }
-            SatCriterion::FacultyDaysOff { priority: _, sections, days_to_check, desired } => {
-                self.encode_faculty_days_off(input, sections, *days_to_check, *desired, violations_permitted)
+            SatCriterion::FacultyTooManyRooms { .. } => {
+                self.encode_faculty_too_many_rooms_group(input, criteria, violations_permitted)
             }
-            SatCriterion::FacultyEvenlySpread { priority: _, sections, days_to_check } => {
-                self.encode_faculty_evenly_spread(input, sections, *days_to_check, violations_permitted)
+            SatCriterion::FacultyDistributionInterval { .. } => {
+                self.encode_faculty_distribution_interval_group(input, criteria, violations_permitted)
             }
-            SatCriterion::FacultyNoRoomSwitch { priority: _, sections, days_to_check, max_gap_within_cluster } => self
-                .encode_faculty_no_room_switch(
-                    input,
-                    sections,
-                    *days_to_check,
-                    *max_gap_within_cluster,
-                    violations_permitted,
-                ),
-            SatCriterion::FacultyTooManyRooms { priority: _, sections, desired } => {
-                self.encode_faculty_too_many_rooms(input, sections, *desired, violations_permitted)
-            }
-            SatCriterion::FacultyDistributionInterval {
-                priority: _,
-                sections,
-                days_to_check,
-                interval_type,
-                duration,
-                max_gap_within_cluster,
-            } => self.encode_faculty_distribution_interval(
-                input,
-                sections,
-                *days_to_check,
-                interval_type,
-                *duration,
-                *max_gap_within_cluster,
-                violations_permitted,
-            ),
-            SatCriterion::DifferentTimePatterns { priority: _, sections } => {
-                self.encode_different_time_patterns(input, sections, violations_permitted)
+            SatCriterion::DifferentTimePatterns { .. } => {
+                self.encode_different_time_patterns_group(input, criteria, violations_permitted)
             }
         }
     }
 
-    // Encode soft conflict constraint
-    fn encode_soft_conflict(
+    // Updated method for encoding soft conflicts as a group
+    fn encode_soft_conflicts(
         &mut self,
         input: &Input,
-        sections: &[usize; 2],
+        criteria: &[SatCriterion],
         violations_permitted: bool,
-    ) -> Result<Option<Var>> {
-        let section_a = sections[0];
-        let section_b = sections[1];
+    ) -> Result<Vec<Var>> {
+        let mut criterion_vars = Vec::new();
 
-        // Get time slots for both sections
-        let time_slots_a: Vec<usize> = input.sections[section_a].time_slots.iter().map(|ts| ts.time_slot).collect();
+        for criterion in criteria {
+            if let SatCriterion::SoftConflict { sections, .. } = criterion {
+                let section_a = sections[0];
+                let section_b = sections[1];
 
-        let time_slots_b: Vec<usize> = input.sections[section_b].time_slots.iter().map(|ts| ts.time_slot).collect();
+                // Get time slots for both sections
+                let time_slots_a: Vec<usize> =
+                    input.sections[section_a].time_slots.iter().map(|ts| ts.time_slot).collect();
+                let time_slots_b: Vec<usize> =
+                    input.sections[section_b].time_slots.iter().map(|ts| ts.time_slot).collect();
 
-        // Build collection of conflicting time slot pairs
-        let mut conflict_pairs = Vec::new();
+                // Build collection of conflicting time slot pairs
+                let mut conflict_pairs = Vec::new();
 
-        for &time_a in &time_slots_a {
-            for &time_b in &time_slots_b {
-                // Skip if the time slots don't conflict
-                if !input.time_slot_conflicts[time_a][time_b] {
-                    continue;
-                }
+                for &time_a in &time_slots_a {
+                    for &time_b in &time_slots_b {
+                        // Skip if the time slots don't conflict
+                        if !input.time_slot_conflicts[time_a][time_b] {
+                            continue;
+                        }
 
-                // Get the section-time variables
-                if let (Some(&var_a), Some(&var_b)) =
-                    (self.section_time_vars.get(&(section_a, time_a)), self.section_time_vars.get(&(section_b, time_b)))
-                {
-                    // Add to our list of conflicts
-                    conflict_pairs.push((var_a, var_b));
-                }
-            }
-        }
-
-        // If there are no possible conflicts, no need for constraint
-        if conflict_pairs.is_empty() {
-            return Ok(None);
-        }
-
-        if !violations_permitted {
-            // When violations aren't permitted, directly encode that conflicting
-            // assignments cannot both be true
-            for (var_a, var_b) in conflict_pairs {
-                // (!var_a || !var_b) - Both cannot be true
-                self.cnf.add_clause(Clause::from_iter([var_a.neg_lit(), var_b.neg_lit()]));
-            }
-            Ok(None)
-        } else {
-            // When violations are permitted, create a criterion variable
-            let criterion_var = self.var_manager.new_var();
-
-            // For each potential conflict, if both sections are scheduled at conflicting times,
-            // then the criterion is violated
-            for (var_a, var_b) in conflict_pairs {
-                // (!var_a || !var_b || criterion_var)
-                // This means: If both var_a and var_b are true (sections scheduled at conflicting times),
-                // then criterion_var must be true (constraint is violated)
-                self.cnf.add_clause(Clause::from_iter([var_a.neg_lit(), var_b.neg_lit(), criterion_var.pos_lit()]));
-            }
-
-            Ok(Some(criterion_var))
-        }
-    }
-
-    // Encode anti-conflict constraint
-    fn encode_anti_conflict(
-        &mut self,
-        input: &Input,
-        single: usize,
-        group: &Vec<usize>,
-        violations_permitted: bool,
-    ) -> Result<Option<Var>> {
-        // Get time slots for the single section
-        let time_slots_single: Vec<usize> = input.sections[single].time_slots.iter().map(|ts| ts.time_slot).collect();
-
-        // Structure to track time slots and their corresponding variables
-        let mut time_matches = Vec::new();
-
-        for &time_single in &time_slots_single {
-            // Get the variable for the single section at this time
-            if let Some(&var_single) = self.section_time_vars.get(&(single, time_single)) {
-                // Create a list of group section variables for this time slot
-                let mut group_vars = Vec::new();
-
-                for &group_section in group {
-                    // Get matching time slots for this group section
-                    for &time_slot_group in
-                        &input.sections[group_section].time_slots.iter().map(|ts| ts.time_slot).collect::<Vec<_>>()
-                    {
-                        // Only consider exact time matches (not just overlapping times)
-                        if time_single == time_slot_group {
-                            if let Some(&var_group) = self.section_time_vars.get(&(group_section, time_slot_group)) {
-                                group_vars.push(var_group.pos_lit());
-                            }
+                        // Get the section-time variables
+                        if let (Some(&var_a), Some(&var_b)) = (
+                            self.section_time_vars.get(&(section_a, time_a)),
+                            self.section_time_vars.get(&(section_b, time_b)),
+                        ) {
+                            // Add to our list of conflicts
+                            conflict_pairs.push((var_a, var_b));
                         }
                     }
                 }
 
-                // If we found group variables for this time slot
-                if !group_vars.is_empty() {
-                    time_matches.push((var_single, group_vars));
+                // If there are no possible conflicts, continue to the next criterion
+                if conflict_pairs.is_empty() {
+                    continue;
+                }
+
+                if !violations_permitted {
+                    // When violations aren't permitted, directly encode that conflicting
+                    // assignments cannot both be true
+                    for (var_a, var_b) in conflict_pairs {
+                        // (!var_a || !var_b) - Both cannot be true
+                        self.cnf.add_clause(Clause::from_iter([var_a.neg_lit(), var_b.neg_lit()]));
+                    }
+                } else {
+                    // When violations are permitted, create a criterion variable
+                    let criterion_var = self.var_manager.new_var();
+                    criterion_vars.push(criterion_var);
+
+                    // For each potential conflict, if both sections are scheduled at conflicting times,
+                    // then the criterion is violated
+                    for (var_a, var_b) in conflict_pairs {
+                        // (!var_a || !var_b || criterion_var)
+                        // This means: If both var_a and var_b are true (sections scheduled at conflicting times),
+                        // then criterion_var must be true (constraint is violated)
+                        self.cnf.add_clause(Clause::from_iter([
+                            var_a.neg_lit(),
+                            var_b.neg_lit(),
+                            criterion_var.pos_lit(),
+                        ]));
+                    }
                 }
             }
         }
 
-        // If there are no possible matches, check if the single section can be scheduled
-        if time_matches.is_empty() {
-            let single_vars: Vec<_> =
-                time_slots_single.iter().filter_map(|&ts| self.section_time_vars.get(&(single, ts))).collect();
+        Ok(criterion_vars)
+    }
 
-            // If the single section can't be scheduled, no constraint is needed
-            if single_vars.is_empty() {
-                return Ok(None);
-            }
+    // Updated method for encoding anti-conflicts as a group
+    fn encode_anti_conflicts(
+        &mut self,
+        input: &Input,
+        criteria: &[SatCriterion],
+        violations_permitted: bool,
+    ) -> Result<Vec<Var>> {
+        let mut criterion_vars = Vec::new();
 
-            // If violations are not permitted, then the single section cannot be scheduled
-            if !violations_permitted {
-                for &var_single in &single_vars {
-                    self.cnf.add_clause(Clause::from_iter([var_single.neg_lit()]));
+        for criterion in criteria {
+            if let SatCriterion::AntiConflict { single, group, .. } = criterion {
+                // Get time slots for the single section
+                let time_slots_single: Vec<usize> =
+                    input.sections[*single].time_slots.iter().map(|ts| ts.time_slot).collect();
+
+                // Structure to track time slots and their corresponding variables
+                let mut time_matches = Vec::new();
+
+                for &time_single in &time_slots_single {
+                    // Get the variable for the single section at this time
+                    if let Some(&var_single) = self.section_time_vars.get(&(*single, time_single)) {
+                        // Create a list of group section variables for this time slot
+                        let mut group_vars = Vec::new();
+
+                        for &group_section in group {
+                            // Get matching time slots for this group section
+                            for &time_slot_group in &input.sections[group_section]
+                                .time_slots
+                                .iter()
+                                .map(|ts| ts.time_slot)
+                                .collect::<Vec<_>>()
+                            {
+                                // Only consider exact time matches (not just overlapping times)
+                                if time_single == time_slot_group {
+                                    if let Some(&var_group) =
+                                        self.section_time_vars.get(&(group_section, time_slot_group))
+                                    {
+                                        group_vars.push(var_group.pos_lit());
+                                    }
+                                }
+                            }
+                        }
+
+                        // If we found group variables for this time slot
+                        if !group_vars.is_empty() {
+                            time_matches.push((var_single, group_vars));
+                        }
+                    }
                 }
-                return Ok(None);
-            } else {
-                // With violations permitted, create a criterion variable that's true
-                // whenever the single section is scheduled
-                let criterion_var = self.var_manager.new_var();
 
-                for &var_single in &single_vars {
-                    self.cnf.add_clause(Clause::from_iter([var_single.neg_lit(), criterion_var.pos_lit()]));
+                // If there are no possible matches, check if the single section can be scheduled
+                if time_matches.is_empty() {
+                    let single_vars: Vec<_> =
+                        time_slots_single.iter().filter_map(|&ts| self.section_time_vars.get(&(*single, ts))).collect();
+
+                    // If the single section can't be scheduled, continue to the next criterion
+                    if single_vars.is_empty() {
+                        continue;
+                    }
+
+                    // If violations are not permitted, then the single section cannot be scheduled
+                    if !violations_permitted {
+                        for &var_single in &single_vars {
+                            self.cnf.add_clause(Clause::from_iter([var_single.neg_lit()]));
+                        }
+                    } else {
+                        // With violations permitted, create a criterion variable that's true
+                        // whenever the single section is scheduled
+                        let criterion_var = self.var_manager.new_var();
+                        criterion_vars.push(criterion_var);
+
+                        for &var_single in &single_vars {
+                            self.cnf.add_clause(Clause::from_iter([var_single.neg_lit(), criterion_var.pos_lit()]));
+                        }
+
+                        // Also ensure criterion is false if single section not scheduled
+                        let mut at_least_one_clause = single_vars.iter().map(|&&var| var.pos_lit()).collect::<Vec<_>>();
+                        at_least_one_clause.push(criterion_var.neg_lit());
+                        self.cnf.add_clause(Clause::from_iter(at_least_one_clause));
+                    }
+                    continue;
                 }
 
-                // Also ensure criterion is false if single section not scheduled
-                let mut at_least_one_clause = single_vars.iter().map(|&&var| var.pos_lit()).collect::<Vec<_>>();
-                at_least_one_clause.push(criterion_var.neg_lit());
-                self.cnf.add_clause(Clause::from_iter(at_least_one_clause));
+                // There are possible matches, so encode the constraints
+                if !violations_permitted {
+                    // Directly encode that if the single section is at a time,
+                    // at least one group section must also be at that time
+                    for (var_single, group_vars) in time_matches {
+                        let mut clause = vec![var_single.neg_lit()];
+                        clause.extend(group_vars);
+                        self.cnf.add_clause(Clause::from_iter(clause));
+                    }
+                } else {
+                    // With violations permitted, create a criterion variable
+                    let criterion_var = self.var_manager.new_var();
+                    criterion_vars.push(criterion_var);
 
-                return Ok(Some(criterion_var));
+                    // For each time slot the single section could be at
+                    for (var_single, group_vars) in &time_matches {
+                        // If single section is at this time, one group section must also be at this time
+                        let mut clause = vec![var_single.neg_lit()];
+                        clause.extend(group_vars);
+                        clause.push(criterion_var.pos_lit());
+                        self.cnf.add_clause(Clause::from_iter(clause));
+                    }
+
+                    // We also need to ensure criterion is false if single section not scheduled
+                    let single_vars = time_matches.iter().map(|(var, _)| var.pos_lit()).collect::<Vec<_>>();
+
+                    let mut at_least_one_clause = single_vars;
+                    at_least_one_clause.push(criterion_var.neg_lit());
+                    self.cnf.add_clause(Clause::from_iter(at_least_one_clause));
+                }
             }
         }
 
-        // There are possible matches, so encode the constraints
-        if !violations_permitted {
-            // Directly encode that if the single section is at a time,
-            // at least one group section must also be at that time
-            for (var_single, group_vars) in time_matches {
-                let mut clause = vec![var_single.neg_lit()];
-                clause.extend(group_vars);
-                self.cnf.add_clause(Clause::from_iter(clause));
-            }
-            Ok(None)
-        } else {
-            // With violations permitted, create a criterion variable
-            let criterion_var = self.var_manager.new_var();
-
-            // For each time slot the single section could be at
-            for (var_single, group_vars) in &time_matches {
-                // If single section is at this time, one group section must also be at this time
-                let mut clause = vec![var_single.neg_lit()];
-                clause.extend(group_vars);
-                clause.push(criterion_var.pos_lit());
-                self.cnf.add_clause(Clause::from_iter(clause));
-            }
-
-            // We also need to ensure criterion is false if single section not scheduled
-            let single_vars = time_matches.iter().map(|(var, _)| var.pos_lit()).collect::<Vec<_>>();
-
-            let mut at_least_one_clause = single_vars;
-            at_least_one_clause.push(criterion_var.neg_lit());
-            self.cnf.add_clause(Clause::from_iter(at_least_one_clause));
-
-            Ok(Some(criterion_var))
-        }
+        Ok(criterion_vars)
     }
 
-    // Encode room preference constraint
-    fn encode_room_preference(
+    // Placeholder for other group encoding methods
+    // These should be implemented similar to the above examples
+    fn encode_room_preferences(
         &mut self,
         _input: &Input,
-        _section: usize,
-        _room: usize,
+        _criteria: &[SatCriterion],
         _violations_permitted: bool,
-    ) -> Result<Option<Var>> {
-        unimplemented!("Room preference encoding not yet implemented");
+    ) -> Result<Vec<Var>> {
+        unimplemented!("Room preference group encoding not yet implemented");
     }
 
-    // Encode time slot preference constraint
-    fn encode_time_slot_preference(
+    fn encode_time_slot_preferences(
         &mut self,
         _input: &Input,
-        _section: usize,
-        _time_slot: usize,
+        _criteria: &[SatCriterion],
         _violations_permitted: bool,
-    ) -> Result<Option<Var>> {
-        unimplemented!("Time slot preference encoding not yet implemented");
+    ) -> Result<Vec<Var>> {
+        unimplemented!("Time slot preference group encoding not yet implemented");
     }
 
-    // Encode faculty days off constraint
-    fn encode_faculty_days_off(
+    fn encode_faculty_days_off_group(
         &mut self,
         _input: &Input,
-        _sections: &[usize],
-        _days_to_check: Days,
-        _desired: usize,
+        _criteria: &[SatCriterion],
         _violations_permitted: bool,
-    ) -> Result<Option<Var>> {
-        unimplemented!("Faculty days off encoding not yet implemented");
+    ) -> Result<Vec<Var>> {
+        unimplemented!("Faculty days off group encoding not yet implemented");
     }
 
-    // Encode faculty evenly spread constraint
-    fn encode_faculty_evenly_spread(
+    fn encode_faculty_evenly_spread_group(
         &mut self,
         _input: &Input,
-        _sections: &[usize],
-        _days_to_check: Days,
+        _criteria: &[SatCriterion],
         _violations_permitted: bool,
-    ) -> Result<Option<Var>> {
-        unimplemented!("Faculty evenly spread encoding not yet implemented");
+    ) -> Result<Vec<Var>> {
+        unimplemented!("Faculty evenly spread group encoding not yet implemented");
     }
 
-    // Encode faculty no room switch constraint
-    fn encode_faculty_no_room_switch(
+    fn encode_faculty_no_room_switch_group(
         &mut self,
         _input: &Input,
-        _sections: &[usize],
-        _days_to_check: Days,
-        _max_gap_within_cluster: Duration,
+        _criteria: &[SatCriterion],
         _violations_permitted: bool,
-    ) -> Result<Option<Var>> {
-        unimplemented!("Faculty no room switch encoding not yet implemented");
+    ) -> Result<Vec<Var>> {
+        unimplemented!("Faculty no room switch group encoding not yet implemented");
     }
 
-    // Encode faculty too many rooms constraint
-    fn encode_faculty_too_many_rooms(
+    fn encode_faculty_too_many_rooms_group(
         &mut self,
         _input: &Input,
-        _sections: &[usize],
-        _desired: usize,
+        _criteria: &[SatCriterion],
         _violations_permitted: bool,
-    ) -> Result<Option<Var>> {
-        unimplemented!("Faculty too many rooms encoding not yet implemented");
+    ) -> Result<Vec<Var>> {
+        unimplemented!("Faculty too many rooms group encoding not yet implemented");
     }
 
-    // Encode faculty distribution interval constraint
-    #[allow(clippy::too_many_arguments)]
-    fn encode_faculty_distribution_interval(
+    fn encode_faculty_distribution_interval_group(
         &mut self,
         _input: &Input,
-        _sections: &[usize],
-        _days_to_check: Days,
-        _interval_type: &DistributionIntervalType,
-        _duration: Duration,
-        _max_gap_within_cluster: Duration,
+        _criteria: &[SatCriterion],
         _violations_permitted: bool,
-    ) -> Result<Option<Var>> {
-        unimplemented!("Faculty distribution interval encoding not yet implemented");
+    ) -> Result<Vec<Var>> {
+        unimplemented!("Faculty distribution interval group encoding not yet implemented");
     }
 
-    // Encode different time patterns constraint
-    fn encode_different_time_patterns(
+    fn encode_different_time_patterns_group(
         &mut self,
         _input: &Input,
-        _sections: &[usize],
+        _criteria: &[SatCriterion],
         _violations_permitted: bool,
-    ) -> Result<Option<Var>> {
-        unimplemented!("Different time patterns encoding not yet implemented");
+    ) -> Result<Vec<Var>> {
+        unimplemented!("Different time patterns group encoding not yet implemented");
     }
 }

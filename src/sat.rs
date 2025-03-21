@@ -167,6 +167,11 @@ fn transform_criteria(input: &Input) -> Vec<Vec<SatCriterion>> {
         }
     }
 
+    // Sort criteria by type within each priority level
+    for criteria_list in &mut criteria_by_priority {
+        criteria_list.sort_by_key(|criterion| criterion.get_type_id());
+    }
+
     criteria_by_priority
 }
 
@@ -208,7 +213,7 @@ fn decode_solution(
     schedule
 }
 
-// Solve at each priority level
+// Updated solve_at_priority_level function in sat.rs to process criteria by type
 fn solve_at_priority_level(
     input: &Input,
     criteria_by_priority: &[Vec<SatCriterion>],
@@ -250,7 +255,7 @@ fn solve_at_priority_level(
         // (this skips level 0, which is hard conflicts)
         for p in 1..=priority {
             // Create criterion variables and track which ones were created
-            let mut criterion_vars = Vec::new();
+            let mut all_criterion_vars = Vec::new();
 
             // For prior priority levels, use the established maximum violations
             let max_violations_for_level = if p < priority {
@@ -259,22 +264,29 @@ fn solve_at_priority_level(
                 k // For current priority level, try with current k value
             };
 
-            // For each criterion at this priority level
-            for criterion in &criteria_by_priority[p] {
-                // Encode the criterion
-                if let Some(criterion_var) = encoder.encode_criterion(input, criterion, max_violations_for_level > 0)? {
-                    criterion_vars.push(criterion_var.pos_lit());
+            // Group criteria by type using chunk_by
+            if !criteria_by_priority[p].is_empty() {
+                // Process each group of criteria by type
+                for group in criteria_by_priority[p].chunk_by(|a, b| a.get_type_id() == b.get_type_id()) {
+                    // Convert the slice to a Vec for the encode_criteria_group call
+                    let criteria_group = group.to_vec();
+
+                    // Process the group
+                    let mut criterion_vars =
+                        encoder.encode_criteria_group(input, &criteria_group, max_violations_for_level > 0)?;
+                    all_criterion_vars.append(&mut criterion_vars);
                 }
             }
 
             // Only encode at-most-k constraint if we have more criterion variables than permitted violations
-            if criterion_vars.len() > max_violations_for_level {
-                encoder.encode_at_most_k(&criterion_vars, max_violations_for_level)?;
+            if all_criterion_vars.len() > max_violations_for_level {
+                let criterion_lits: Vec<_> = all_criterion_vars.iter().map(|&var| var.pos_lit()).collect();
+                encoder.encode_at_most_k(&criterion_lits, max_violations_for_level)?;
             }
         }
 
         println!(
-            "    priority {}, k={} solving encodint with {} variables and {} clauses",
+            "    priority {}, k={} solving encoding with {} variables and {} clauses",
             priority,
             k,
             encoder.var_manager.n_used(),
