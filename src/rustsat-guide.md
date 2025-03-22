@@ -1,6 +1,6 @@
-# Guide to Using the Latest RustSAT API
+# Guide to Using the RustSAT API
 
-This guide covers essential aspects of working with the RustSAT library based on the implementation in `sat.rs`. The RustSAT API has evolved, and this document highlights key components and patterns for effectively using the current version.
+This guide covers essential aspects of working with the RustSAT library based on the implementation in the Marmot timetabling system.
 
 ## Core Components
 
@@ -9,64 +9,60 @@ This guide covers essential aspects of working with the RustSAT library based on
 ```rust
 use rustsat::types::{Var, Lit};
 
-// Create a variable from the variable manager
-let var = var_manager.new_var();
+// Create a new variable from the SAT instance
+let var = sat_instance.new_var();
 
 // Create literals from a variable
 let positive_lit = var.pos_lit();  // Positive literal
 let negative_lit = var.neg_lit();  // Negative literal
 ```
 
-Note: The current API uses methods like `pos_lit()` and `neg_lit()` on the `Var` type rather than constructors.
+Note that the current API uses methods `pos_lit()` and `neg_lit()` on the `Var` type rather than constructors.
 
-### Clauses
+### SAT Instance Management
 
 ```rust
-use rustsat::types::Clause;
+use rustsat::instances::{BasicVarManager, SatInstance};
 
-// Create a clause from an iterator of literals
-let clause = Clause::from_iter(lits.iter().copied());
+// Create a new SAT instance with a variable manager
+let sat_instance = SatInstance::new_with_manager(BasicVarManager::default());
 
-// Add clause to CNF
-cnf.add_clause(clause);
-
-// You can also create and add a clause in one step
-cnf.add_clause(Clause::from_iter([lit1, lit2, lit3]));
+// Create a new variable
+let var = sat_instance.new_var();
 ```
 
-### Variable Management
+## Adding Constraints
+
+The implementation uses specialized methods for adding clauses of different sizes:
 
 ```rust
-use rustsat::instances::{BasicVarManager, ManageVars};
+// Add a unit clause (single literal)
+sat_instance.add_unit(lit);
 
-// Create a variable manager
-let mut var_manager = BasicVarManager::default();
+// Add a binary clause (two literals)
+sat_instance.add_binary(lit1, lit2);
 
-// Create new variables
-let var = var_manager.new_var();
+// Add a ternary clause (three literals)
+sat_instance.add_ternary(lit1, lit2, lit3);
 
-// Get number of variables used
-let num_vars = var_manager.n_used();
+// Add a clause of arbitrary size
+sat_instance.add_nary(&[lit1, lit2, lit3, lit4]);
 ```
 
-The `ManageVars` trait provides methods for variable management.
-
-## CNF Representation
+## Cardinality Constraints
 
 ```rust
-use rustsat::instances::Cnf;
+use rustsat::types::constraints::CardConstraint;
 
-// Create a new CNF
-let mut cnf = Cnf::default();
+// Create at-most-k constraint
+// Example: at most 1 of these literals can be true
+let literals = vec![var1.pos_lit(), var2.pos_lit(), var3.pos_lit()];
+sat_instance.add_card_constr(CardConstraint::new_ub(literals, 1));
 
-// Add clauses to the CNF
-cnf.add_clause(Clause::from_iter(literals));
-
-// Get the number of clauses
-let num_clauses = cnf.len();
-
-// Clone a CNF for use with multiple solvers
-let cnf_copy = cnf.clone();
+// Create at-least-k constraint
+// Example: at least 1 of these literals must be true
+let literals = vec![var1.pos_lit(), var2.pos_lit(), var3.pos_lit()];
+sat_instance.add_nary(&literals); // Simpler way to express at-least-one
 ```
 
 ## Working with SAT Solvers
@@ -80,14 +76,17 @@ use rustsat_cadical::CaDiCaL;
 // Create a solver
 let mut solver = CaDiCaL::default();
 
-// Add CNF to the solver
-solver.add_cnf(cnf.clone()).map_err(|e| format!("{}", e))?;
+// Convert SAT instance to CNF
+sat_instance.convert_to_cnf();
 
-// Solve the CNF
-match solver.solve().map_err(|e| format!("{}", e))? {
+// Add CNF to the solver
+solver.add_cnf(sat_instance.cnf().clone())?;
+
+// Solve and check result
+match solver.solve()? {
     SolverResult::Sat => {
         // Get the full solution
-        let solution = solver.full_solution().map_err(|e| format!("{}", e))?;
+        let solution = solver.full_solution()?;
         // Process solution...
     },
     _ => {
@@ -104,8 +103,8 @@ use rustsat_kissat::Kissat;
 // Create a solver
 let mut solver = Kissat::default();
 
-// Usage is identical to CaDiCaL
-solver.add_cnf(cnf.clone()).map_err(|e| format!("{}", e))?;
+// Usage follows the same pattern as CaDiCaL
+solver.add_cnf(sat_instance.cnf().clone())?;
 // ...
 ```
 
@@ -113,9 +112,6 @@ solver.add_cnf(cnf.clone()).map_err(|e| format!("{}", e))?;
 
 ```rust
 use rustsat::types::Assignment;
-
-// Get the full solution from a solver
-let solution = solver.full_solution().map_err(|e| format!("{}", e))?;
 
 // Check if a variable is true in the solution
 if solution.var_value(var).to_bool_with_def(false) {
@@ -125,61 +121,46 @@ if solution.var_value(var).to_bool_with_def(false) {
 }
 ```
 
-## Encodings
-
-### At-Most-One Encodings
-
-```rust
-use rustsat::encodings::am1::{Encode, Pairwise};
-
-// Create a pairwise encoding from an iterator of literals
-let am1_encoding = Pairwise::from_iter(literals.iter().copied());
-
-// Encode and add to the CNF
-am1_encoding.encode(&mut cnf, &mut var_manager).map_err(|e| format!("{}", e))?;
-```
-
-The `Pairwise` encoder ensures that at most one of the literals can be true. Other at-most-one encoders are available in the `am1` module.
-
 ## Error Handling
-
-Note that the RustSAT functions return `Result` types that need to be handled:
 
 ```rust
 // Common pattern for converting errors to strings
-solver.add_cnf(cnf.clone()).map_err(|e| format!("{}", e))?;
+solver.add_cnf(sat_instance.cnf().clone()).map_err(|e| format!("{}", e))?;
+solver.solve().map_err(|e| format!("{}", e))?;
 ```
 
-## Literal Creation Examples
+## Typical SAT-Based Solving Workflow
 
-Creating literals has important nuances in the API:
+The implementation in `sat.rs` follows a hierarchical approach to constraints:
+
+1. **Basic Constraints**: These are encoded first and must always be satisfied (e.g., each section must have one time slot)
+2. **Hard Conflicts**: These are priority 0 constraints that cannot be violated
+3. **Soft Constraints**: These are grouped by priority levels (1 to PRIORITY_LEVELS)
+
+The solver works iteratively:
+1. Encode hard constraints (priority 0)
+2. For each priority level k (starting from 1):
+   - Use previously determined violation limits for all prior levels
+   - Try to find minimum violations needed for current level
+   - Record this value and proceed to next level
+
+This iterative approach ensures the most important constraints are satisfied first, with minimal violations at each subsequent priority level.
+
+## Advanced Pattern: Criterion Variables
+
+When soft constraints can be violated, the code uses a pattern with "criterion variables":
 
 ```rust
-// From a Var object
-let pos_lit = var.pos_lit();
-let neg_lit = var.neg_lit();
+// Create a criterion variable
+let criterion_var = sat_instance.new_var();
+
+// Add implications that force criterion_var to be true when constraint is violated
+// Example: If var_a and var_b are true (constraint violated), criterion_var must be true
+sat_instance.add_ternary(var_a.neg_lit(), var_b.neg_lit(), criterion_var.pos_lit());
+
+// Then use at-most-k constraint on all criterion variables to limit violations
+let criterion_lits = criterion_vars.iter().map(|&var| var.pos_lit()).collect::<Vec<_>>();
+sat_instance.add_card_constr(CardConstraint::new_ub(criterion_lits, max_violations));
 ```
 
-## Iterating Over Literals and Clauses
-
-```rust
-// Collect literals into a vector
-let lits: Vec<Lit> = vars.iter()
-    .map(|&var| var.pos_lit())
-    .collect();
-
-// Adding literals to a clause
-let clause = Clause::from_iter(lits.iter().copied());
-```
-
-## Typical Workflow
-
-1. Define the problem variables with a `BasicVarManager`
-2. Create a `Cnf` instance to store clauses
-3. Add problem constraints as clauses
-4. Use encodings like `Pairwise` for complex constraints
-5. Create a solver (CaDiCaL or Kissat)
-6. Add the CNF to the solver
-7. Solve and process the solution if satisfiable
-
-This guide covers the key aspects of the RustSAT API as demonstrated in the provided implementation.
+This pattern allows the SAT solver to determine which constraints to violate when not all can be satisfied.
