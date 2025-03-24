@@ -1,6 +1,7 @@
 use super::error::Result;
 use super::input::*;
-use rustsat::instances::{BasicVarManager, SatInstance};
+use rustsat::encodings::am1::{Bitwise, Commander, Encode, Pairwise};
+use rustsat::instances::{BasicVarManager, Cnf, SatInstance};
 use rustsat::types::constraints::CardConstraint;
 use rustsat::types::{Lit, Var};
 use std::collections::HashMap;
@@ -119,6 +120,74 @@ impl SATEncoder {
         }
     }
 
+    pub fn encode_cardinality(&mut self, clause: Vec<Lit>, min: Option<usize>, max: Option<usize>) -> Result<()> {
+        // special cases
+        if clause.is_empty() {
+            return Ok(());
+        }
+        let mut encoding = Cnf::new();
+        match (min, max) {
+            // trivially satisfied
+            (None, Some(n)) if n >= clause.len() => (),
+
+            // at-most-1 with n ≤ 10 use pairwise
+            (None | Some(1), Some(1)) if clause.len() <= 10 => {
+                // for exactly-1 add the clause itself to get at-least-1
+                if min.is_some() {
+                    self.sat_instance.add_nary(&clause);
+                }
+
+                println!("using pairwise to encode at-most-1 for n={}", clause.len());
+                Pairwise::from(clause).encode(&mut encoding, self.sat_instance.var_manager_mut())?;
+            }
+
+            // for at-most-1 with 10 < n ≤ 30 use bitwise (binary)
+            (None | Some(1), Some(1)) if clause.len() <= 30 => {
+                // for exactly-1 add the clause itself to get at-least-1
+                if min.is_some() {
+                    self.sat_instance.add_nary(&clause);
+                }
+
+                println!("using bitwise to encode at-most-1 for n={}", clause.len());
+                Bitwise::from(clause).encode(&mut encoding, self.sat_instance.var_manager_mut())?;
+            }
+
+            // for at-most-1 with 30 < n ≤ 100 use commander
+            (None | Some(1), Some(1)) if clause.len() <= 30 => {
+                // for exactly-1 add the clause itself to get at-least-1
+                if min.is_some() {
+                    self.sat_instance.add_nary(&clause);
+                }
+
+                println!("using commander to encode at-most-1 for n={}", clause.len());
+                Commander::<4, Pairwise>::from(clause).encode(&mut encoding, self.sat_instance.var_manager_mut())?;
+            }
+
+            // for at-least-1 we can just copy the clause in
+            (Some(1), None) => self.sat_instance.add_nary(&clause),
+
+            // for now, fall back to totalizer for all other cases
+            (None, Some(k)) => {
+                println!("using totalizer for at-most-{} for n={}", k, clause.len());
+                self.sat_instance.add_card_constr(CardConstraint::new_ub(clause, k));
+            }
+            (Some(k), None) => {
+                println!("using totalizer for at-least-{} for n={}", k, clause.len());
+                self.sat_instance.add_card_constr(CardConstraint::new_lb(clause, k));
+            }
+            (Some(k1), Some(k2)) if k1 == k2 => {
+                println!("using totalizer for exactly-{} for n={}", k1, clause.len());
+                self.sat_instance.add_card_constr(CardConstraint::new_eq(clause, k1));
+            }
+            _ => unimplemented!("unexecpted cardinality requirement"),
+        }
+
+        for c in encoding {
+            self.sat_instance.add_clause(c);
+        }
+        Ok(())
+    }
+
     // Initialize variables for sections and time slots
     pub fn initialize_variables(&mut self, input: &Input) {
         // Create variables for sections and time slots
@@ -160,11 +229,8 @@ impl SATEncoder {
                 continue; // Skip if no time slots available
             }
 
-            // at least one time slot
-            self.sat_instance.add_nary(&time_vars);
-
-            // at most one time slot using pairwise encoding
-            self.sat_instance.add_card_constr(CardConstraint::new_ub(time_vars, 1));
+            // exactly-1
+            self.encode_cardinality(time_vars, Some(1), Some(1))?;
         }
 
         // for each section with rooms: exactly one room
@@ -186,11 +252,8 @@ impl SATEncoder {
                 continue; // Skip if no rooms available
             }
 
-            // at least one room
-            self.sat_instance.add_nary(&room_vars);
-
-            // at most one room using pairwise encoding
-            self.sat_instance.add_card_constr(CardConstraint::new_ub(room_vars, 1));
+            // exactly-1
+            self.encode_cardinality(room_vars, Some(1), Some(1))?;
         }
 
         Ok(())
@@ -388,25 +451,19 @@ impl SATEncoder {
                     continue;
                 }
 
-                if !violations_permitted {
-                    // When violations aren't permitted, directly encode that conflicting
-                    // assignments cannot both be true
-                    for (var_a, var_b) in conflict_pairs {
-                        // (!var_a || !var_b) - Both cannot be true
-                        self.sat_instance.add_binary(var_a.neg_lit(), var_b.neg_lit());
-                    }
-                } else {
+                // For each potential conflict, if both sections are scheduled at conflicting times,
+                // then the criterion is violated
+                for (var_a, var_b) in conflict_pairs {
                     // When violations are permitted, create a criterion variable
-                    let criterion_var = self.sat_instance.new_var();
-                    criterion_vars.push(criterion_var);
-
-                    // For each potential conflict, if both sections are scheduled at conflicting times,
-                    // then the criterion is violated
-                    for (var_a, var_b) in conflict_pairs {
-                        // (!var_a || !var_b || criterion_var)
-                        // This means: If both var_a and var_b are true (sections scheduled at conflicting times),
-                        // then criterion_var must be true (constraint is violated)
+                    // (!var_a || !var_b || criterion_var)
+                    // This means: If both var_a and var_b are true (sections scheduled at conflicting times),
+                    // then criterion_var must be true (constraint is violated)
+                    if violations_permitted {
+                        let criterion_var = self.sat_instance.new_var();
+                        criterion_vars.push(criterion_var);
                         self.sat_instance.add_ternary(var_a.neg_lit(), var_b.neg_lit(), criterion_var.pos_lit());
+                    } else {
+                        self.sat_instance.add_binary(var_a.neg_lit(), var_b.neg_lit());
                     }
                 }
             }

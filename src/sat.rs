@@ -5,7 +5,7 @@ use super::sat_encoding::*;
 use super::score::*;
 use super::solver::*;
 use rustsat::solvers::{Solve, SolverResult};
-use rustsat::types::{Assignment, Var, constraints::CardConstraint};
+use rustsat::types::{Assignment, Var};
 use rustsat_cadical::CaDiCaL;
 use rustsat_kissat::Kissat;
 use std::collections::HashMap;
@@ -277,11 +277,8 @@ fn solve_at_priority_level(
                 }
             }
 
-            // Only encode at-most-k constraint if we have more criterion variables than permitted violations
-            if all_criterion_vars.len() > max_violations_for_level {
-                let criterion_lits: Vec<_> = all_criterion_vars.iter().map(|&var| var.pos_lit()).collect();
-                encoder.sat_instance.add_card_constr(CardConstraint::new_ub(criterion_lits, max_violations_for_level));
-            }
+            let criterion_lits: Vec<_> = all_criterion_vars.iter().map(|&var| var.pos_lit()).collect();
+            encoder.encode_cardinality(criterion_lits, None, Some(max_violations_for_level))?;
         }
 
         encoder.sat_instance.convert_to_cnf();

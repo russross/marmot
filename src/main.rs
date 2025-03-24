@@ -51,9 +51,9 @@ fn dispatch_subcommands() -> Result<()> {
 
         Ok(Opts::Sat(config)) => {
             let input = load_input(&config.db_path, &[])?;
-            let schedule = generate_schedule(&input, &config.solver)?;
-            print_schedule(&input, &schedule);
-            print_problems(&input, &schedule);
+            let _schedule = generate_schedule(&input, &config.solver)?;
+            //print_schedule(&input, &schedule);
+            //print_problems(&input, &schedule);
             Ok(())
         }
 
