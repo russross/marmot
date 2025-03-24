@@ -132,7 +132,7 @@ impl ops::Sub for Time {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Duration {
     pub minutes: u16,
 }

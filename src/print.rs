@@ -93,7 +93,7 @@ pub fn print_problems(input: &Input, schedule: &Schedule) {
         }
     }
     lst.sort_unstable_by(|a, b| {
-        if a.0 != b.0 && (a.0 < START_LEVEL_FOR_PREFERENCES || b.0 < START_LEVEL_FOR_PREFERENCES) {
+        if a.0 != b.0 && (a.0 < START_LEVEL_FOR_PREFERENCES || b.0 < START_LEVEL_FOR_PREFERENCES) || true {
             a.0.cmp(&b.0)
         } else {
             a.1.cmp(&b.1)

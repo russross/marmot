@@ -398,7 +398,7 @@ pub fn generate_schedule(input: &Input, solver_type: &str) -> Result<Schedule> {
 // Helper function to display maximum violations
 fn print_max_violations(max_violations: &[usize]) {
     for (priority, &violations) in max_violations.iter().enumerate() {
-        if violations > 0 || priority == 0 {
+        if violations > 0 {
             println!("  Priority level {}: {} violations", priority, violations);
         }
     }
