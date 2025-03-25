@@ -235,6 +235,10 @@ fn solve_at_priority_level(
 
     // Try with increasing values of k until a solution is found
     while !solution_found {
+        if k > criteria_count {
+            return Err("    k > criteria count for this priority, giving up".into());
+        }
+
         // Create a new encoder for this attempt
         let mut encoder = SATEncoder::new();
 

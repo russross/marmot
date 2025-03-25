@@ -1,6 +1,5 @@
 use super::error::Result;
 use super::input::*;
-use itertools::Itertools;
 use rustsat::encodings::am1::{Bitwise, Commander, Encode, Pairwise};
 use rustsat::instances::{BasicVarManager, Cnf, SatInstance};
 use rustsat::types::constraints::CardConstraint;
@@ -671,134 +670,60 @@ impl SATEncoder {
 
         for criterion in criteria {
             if let SatCriterion::FacultyDaysOff { priority: _, sections, days_to_check, desired } = criterion {
-                // Skip if no sections or if the days to check is empty
-                if sections.is_empty() || days_to_check.is_empty() {
+                // Skip if no sections to process
+                if sections.is_empty() {
                     continue;
                 }
 
-                // Get the faculty index from the first section
-                let faculty = match input.sections[sections[0]].faculty.first() {
-                    Some(&faculty_idx) => faculty_idx,
-                    None => continue, // Skip if this section has no faculty
-                };
+                // Determine the faculty for these sections
+                let faculty_idx = input.sections[sections[0]].faculty[0];
 
-                // Collect time slot variables for each day
-                let mut day_to_time_slots: Vec<Vec<Var>> = vec![Vec::new(); 7];
+                // Get the day variables for this faculty
+                let day_vars = self.get_faculty_day_variables(input, faculty_idx, *days_to_check);
 
-                {
-                    let faculty_vars = self.get_faculty_time_variables(input, faculty, *days_to_check);
-                    for (ts_idx, ts_var) in faculty_vars.all_time_slot_vars() {
-                        for day in 0..7 {
-                            if input.time_slots[ts_idx].days.contains(day) {
-                                day_to_time_slots[day as usize].push(ts_var);
-                            }
-                        }
-                    }
+                // Convert to a vector of literals (negated because we want days OFF)
+                let day_lits: Vec<Lit> = day_vars.values().map(|&var| var.neg_lit()).collect();
+
+                if day_lits.len() <= *desired {
+                    // If we have fewer total days than desired days off,
+                    // this constraint is automatically satisfied
+                    continue;
                 }
-
-                // Create day variables and constraints
-                let mut day_vars = Vec::new();
-                let relevant_days: Vec<u8> = days_to_check.into_iter().collect();
-
-                for &day in &relevant_days {
-                    let day_var = self.sat_instance.new_var();
-                    day_vars.push(day_var);
-
-                    let day_time_slots = &day_to_time_slots[day as usize];
-
-                    if day_time_slots.is_empty() {
-                        // No time slots on this day, faculty is definitely not scheduled
-                        self.sat_instance.add_unit(day_var.neg_lit());
-                    } else {
-                        // 1. If any time slot on this day is used, the day is used
-                        for &ts_var in day_time_slots {
-                            // ts_var => day_var
-                            self.sat_instance.add_binary(ts_var.neg_lit(), day_var.pos_lit());
-                        }
-
-                        // 2. If the day is used, at least one time slot on this day must be used
-                        let mut clause = vec![day_var.neg_lit()];
-                        for &ts_var in day_time_slots {
-                            clause.push(ts_var.pos_lit());
-                        }
-                        self.sat_instance.add_nary(&clause);
-                    }
-                }
-
-                // Number of days that must be scheduled = total days - desired days off
-                let days_to_schedule = relevant_days.len() - desired;
 
                 if !violations_permitted {
-                    // Hard constraint: Exactly days_to_schedule days must be scheduled
-                    let day_lits: Vec<Lit> = day_vars.iter().map(|&var| var.pos_lit()).collect();
-                    self.encode_cardinality(day_lits, Some(days_to_schedule), Some(days_to_schedule))?;
+                    // Directly encode as a hard constraint
+                    // Exactly 'desired' number of days should be off
+                    self.encode_cardinality(day_lits, Some(*desired), Some(*desired))?;
                 } else {
-                    // Soft constraint: Create a criterion variable
+                    // Create a criterion variable that's violated if we don't have
+                    // exactly 'desired' days off
                     let criterion_var = self.sat_instance.new_var();
                     criterion_vars.push(criterion_var);
 
-                    // We need criterion_var to be true if and only if the number of scheduled days != days_to_schedule
+                    // Encode at-most-(desired) days off constraint with relaxation
+                    let mut clause = day_lits.clone();
+                    clause.push(criterion_var.pos_lit());
+                    self.encode_cardinality(clause, None, Some(*desired))?;
 
-                    // When desired = 0, all days must be scheduled
-                    if *desired == 0 {
-                        // If any day is not scheduled, the criterion is violated
-                        for &day_var in &day_vars {
-                            // !day_var => criterion_var
-                            self.sat_instance.add_binary(day_var.neg_lit(), criterion_var.pos_lit());
-                        }
+                    // Encode at-least-(desired) days off constraint with relaxation
+                    // We need auxiliary variables for this encoding
+                    let mut aux_vars = Vec::new();
+                    for &day_lit in &day_lits {
+                        let aux_var = self.sat_instance.new_var();
+                        aux_vars.push(aux_var);
 
-                        // If all days are scheduled, criterion is not violated
-                        let mut clause = Vec::new();
-                        clause.push(criterion_var.neg_lit());
-                        for &day_var in &day_vars {
-                            clause.push(day_var.neg_lit());
-                        }
-                        self.sat_instance.add_nary(&clause);
+                        // Encode: day_lit => aux_var
+                        // !day_lit || aux_var
+                        self.sat_instance.add_binary(day_lit, aux_var.pos_lit());
+
+                        // Encode: !aux_var => criterion_var
+                        // aux_var || criterion_var
+                        self.sat_instance.add_binary(aux_var.pos_lit(), criterion_var.pos_lit());
                     }
-                    // When desired equals all days, no days should be scheduled
-                    else if *desired == relevant_days.len() {
-                        // If any day is scheduled, the criterion is violated
-                        for &day_var in &day_vars {
-                            // day_var => criterion_var
-                            self.sat_instance.add_binary(day_var.pos_lit(), criterion_var.pos_lit());
-                        }
 
-                        // If no days are scheduled, criterion is not violated
-                        let mut clause = Vec::new();
-                        clause.push(criterion_var.neg_lit());
-                        for &day_var in &day_vars {
-                            clause.push(day_var.pos_lit());
-                        }
-                        self.sat_instance.add_nary(&clause);
-                    }
-                    // General case
-                    else {
-                        // First handle "at least days_to_schedule": For each subset of N-k+1 days,
-                        // at least one must be scheduled or criterion is violated
-                        if days_to_schedule > 0 {
-                            for subset in day_vars.iter().combinations(day_vars.len() - days_to_schedule + 1) {
-                                let mut clause = Vec::new();
-                                for &var in subset {
-                                    clause.push(var.pos_lit());
-                                }
-                                clause.push(criterion_var.pos_lit());
-                                self.sat_instance.add_nary(&clause);
-                            }
-                        }
-
-                        // Then handle "at most days_to_schedule": For each subset of k+1 days,
-                        // at least one must NOT be scheduled or criterion is violated
-                        if days_to_schedule < day_vars.len() {
-                            for subset in day_vars.iter().combinations(days_to_schedule + 1) {
-                                let mut clause = Vec::new();
-                                for &var in subset {
-                                    clause.push(var.neg_lit());
-                                }
-                                clause.push(criterion_var.pos_lit());
-                                self.sat_instance.add_nary(&clause);
-                            }
-                        }
-                    }
+                    // Encode: sum(aux_vars) >= desired
+                    let aux_lits: Vec<Lit> = aux_vars.iter().map(|&var| var.pos_lit()).collect();
+                    self.encode_cardinality(aux_lits, Some(*desired), None)?;
                 }
             }
         }
@@ -808,12 +733,151 @@ impl SATEncoder {
 
     fn encode_faculty_evenly_spread_group(
         &mut self,
-        _input: &Input,
-        _criteria: &[SatCriterion],
-        _violations_permitted: bool,
+        input: &Input,
+        criteria: &[SatCriterion],
+        violations_permitted: bool,
     ) -> Result<Vec<Var>> {
-        //unimplemented!("encode_faculty_evenly_spread_group not implemented");
-        Ok(Vec::new())
+        let mut criterion_vars = Vec::new();
+
+        for criterion in criteria {
+            if let SatCriterion::FacultyEvenlySpread { priority: _, sections, days_to_check, .. } = criterion {
+                // Skip trivial cases
+                if days_to_check.len() <= 1 || sections.len() <= 3 {
+                    continue;
+                }
+
+                // Get valid days to check
+                let days = days_to_check.into_iter().collect::<Vec<_>>();
+
+                // Create a map of day -> section variables
+                let mut day_section_vars: HashMap<u8, Vec<Var>> = HashMap::new();
+
+                // For each section
+                for &section in sections {
+                    // For each time slot of this section
+                    for ts in &input.sections[section].time_slots {
+                        let time_slot = ts.time_slot;
+
+                        // Get the days this time slot is on
+                        for &day in &days {
+                            if input.time_slots[time_slot].days.contains(day) {
+                                // If we have a variable for this section-time pair
+                                if let Some(&var) = self.section_time_vars.get(&(section, time_slot)) {
+                                    day_section_vars.entry(day).or_insert_with(Vec::new).push(var);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Filter days with no sections
+                let active_days: Vec<u8> = day_section_vars.keys()
+                    .filter(|&&day| !day_section_vars[&day].is_empty())
+                    .cloned()
+                    .collect();
+
+                // Skip if fewer than 2 active days
+                if active_days.len() < 2 {
+                    continue;
+                }
+
+                // Optional criterion variable for soft constraint
+                let criterion_var = if violations_permitted {
+                    let var = self.sat_instance.new_var();
+                    criterion_vars.push(var);
+                    Some(var)
+                } else {
+                    None
+                };
+
+                // For each pair of days
+                for i in 0..active_days.len() {
+                    for j in i+1..active_days.len() {
+                        let day1 = active_days[i];
+                        let day2 = active_days[j];
+
+                        // Get section variables for each day
+                        let vars1 = &day_section_vars[&day1];
+                        let vars2 = &day_section_vars[&day2];
+
+                        // Create day activity variables
+                        let day1_active = self.sat_instance.new_var();
+                        let day2_active = self.sat_instance.new_var();
+
+                        // Link day activity to any section on that day
+                        for &var in vars1 {
+                            // var => day1_active
+                            self.sat_instance.add_binary(var.neg_lit(), day1_active.pos_lit());
+                        }
+                        let mut clause1 = vec![day1_active.neg_lit()];
+                        for &var in vars1 {
+                            clause1.push(var.pos_lit());
+                        }
+                        self.sat_instance.add_nary(&clause1);
+
+                        for &var in vars2 {
+                            // var => day2_active
+                            self.sat_instance.add_binary(var.neg_lit(), day2_active.pos_lit());
+                        }
+                        let mut clause2 = vec![day2_active.neg_lit()];
+                        for &var in vars2 {
+                            clause2.push(var.pos_lit());
+                        }
+                        self.sat_instance.add_nary(&clause2);
+
+                        // Hard encode: |count1 - count2| <= 1 when both days active
+                        let vars1_lits: Vec<Lit> = vars1.iter().map(|&var| var.pos_lit()).collect();
+                        let vars2_lits: Vec<Lit> = vars2.iter().map(|&var| var.pos_lit()).collect();
+
+                        // Enumerate all valid configurations
+                        for count1 in 1..=vars1.len() {
+                            for count2 in 1..=vars2.len() {
+                                if (count1 as i32 - count2 as i32).abs() > 1 {
+                                    // Create variables for "exactly count1 on day1" and "exactly count2 on day2"
+                                    let count1_var = self.sat_instance.new_var();
+                                    let count2_var = self.sat_instance.new_var();
+
+                                    // Link count variables to actual counts
+                                    let mut count1_clause = vec![count1_var.neg_lit()];
+                                    count1_clause.extend_from_slice(&vars1_lits);
+                                    self.encode_cardinality(count1_clause, Some(count1), Some(count1))?;
+
+                                    let mut count2_clause = vec![count2_var.neg_lit()];
+                                    count2_clause.extend_from_slice(&vars2_lits);
+                                    self.encode_cardinality(count2_clause, Some(count2), Some(count2))?;
+
+                                    // Either the constraint is satisfied or the criterion is violated
+                                    if let Some(criterion_var) = criterion_var {
+                                        // For soft constraint
+                                        // (day1_active AND day2_active AND count1_var AND count2_var) -> criterion_var
+                                        self.sat_instance.add_cube_impl_lit(
+                                                &[
+                                                day1_active.pos_lit(),
+                                                day2_active.pos_lit(),
+                                                count1_var.pos_lit(),
+                                                count2_var.pos_lit()
+                                                ],
+                                                criterion_var.pos_lit()
+                                                );
+                                    } else {
+                                        // For hard constraint
+                                        // Forbid this combination: NOT(day1_active AND day2_active AND count1_var AND count2_var)
+                                        self.sat_instance.add_nary(&[
+                                                day1_active.neg_lit(),
+                                                day2_active.neg_lit(),
+                                                count1_var.neg_lit(),
+                                                count2_var.neg_lit()
+                                        ]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(criterion_vars)
     }
 
     fn encode_faculty_no_room_switch_group(
@@ -1036,6 +1100,76 @@ impl SATEncoder {
         &self.faculty_time_vars[&faculty]
     }
 
+    // Get faculty day variables, creating them if they don't exist
+    pub fn get_faculty_day_variables(
+        &mut self,
+        input: &Input,
+        faculty: usize,
+        days_to_check: Days,
+    ) -> HashMap<u8, Var> {
+        // First ensure we have the faculty time variables
+        let _faculty_vars = self.get_faculty_time_variables(input, faculty, days_to_check);
+
+        // Create a mutable reference to the faculty vars since we might modify it
+        let faculty_vars = self.faculty_time_vars.get_mut(&faculty).unwrap();
+
+        // Check if we need to create any day variables
+        let mut days_to_create = Vec::new();
+        for day in days_to_check.into_iter() {
+            if faculty_vars.get_day_var(day).is_none() {
+                days_to_create.push(day);
+            }
+        }
+
+        // If no new day variables needed, return the existing ones
+        if days_to_create.is_empty() {
+            return faculty_vars.all_day_vars().into_iter().collect();
+        }
+
+        // For each day that needs a variable
+        for day in days_to_create {
+            // Create a new variable representing if the faculty has any class on this day
+            let day_var = self.sat_instance.new_var();
+            faculty_vars.add_day_var(day, day_var);
+
+            // Collect all time slot variables for this faculty on this day
+            let mut time_slots_on_day = Vec::new();
+            for (time_slot, var) in faculty_vars.all_time_slot_vars() {
+                // Check if this time slot is on the current day
+                if input.time_slots[time_slot].days.contains(day) {
+                    time_slots_on_day.push(var);
+                }
+            }
+
+            // If there are no time slots on this day, faculty can't be scheduled on this day
+            if time_slots_on_day.is_empty() {
+                self.sat_instance.add_unit(day_var.neg_lit());
+                continue;
+            }
+
+            // Constraint 1: If faculty is scheduled at any time slot on this day,
+            // the day variable must be true
+            for time_var in &time_slots_on_day {
+                // time_var => day_var
+                // !time_var || day_var
+                self.sat_instance.add_binary(time_var.neg_lit(), day_var.pos_lit());
+            }
+
+            // Constraint 2: If day variable is true, faculty must be scheduled
+            // at at least one time slot on this day
+            // day_var => (time_var_1 || time_var_2 || ...)
+            // !day_var || (time_var_1 || time_var_2 || ...)
+            let mut clause = vec![day_var.neg_lit()];
+            for &time_var in &time_slots_on_day {
+                clause.push(time_var.pos_lit());
+            }
+            self.sat_instance.add_nary(&clause);
+        }
+
+        // Return all day variables
+        faculty_vars.all_day_vars().into_iter().collect()
+    }
+
     // Helper method to link a faculty time variable to section time variables
     fn link_faculty_time_var_to_sections(
         &mut self,
@@ -1168,6 +1302,10 @@ pub struct FacultyTimeVars {
     // whether the faculty is scheduled at that time slot
     time_slot_vars: HashMap<usize, Var>,
 
+    // Map from day index to the variable representing
+    // whether the faculty has any class on that day
+    day_vars: HashMap<u8, Var>,
+
     // Track the days to check for this faculty
     days_to_check: Days,
 }
@@ -1175,7 +1313,7 @@ pub struct FacultyTimeVars {
 impl FacultyTimeVars {
     // Create a new FacultyTimeVars instance for a given faculty
     pub fn new(days_to_check: Days) -> Self {
-        FacultyTimeVars { time_slot_vars: HashMap::new(), days_to_check }
+        FacultyTimeVars { time_slot_vars: HashMap::new(), day_vars: HashMap::new(), days_to_check }
     }
 
     // Get the variable for a time slot (if it exists)
@@ -1191,6 +1329,21 @@ impl FacultyTimeVars {
     // Get all time slot variables
     pub fn all_time_slot_vars(&self) -> Vec<(usize, Var)> {
         self.time_slot_vars.iter().map(|(&time_slot, &var)| (time_slot, var)).collect()
+    }
+
+    // Get the variable for a day (if it exists)
+    pub fn get_day_var(&self, day: u8) -> Option<Var> {
+        self.day_vars.get(&day).copied()
+    }
+
+    // Add a new day variable
+    pub fn add_day_var(&mut self, day: u8, var: Var) {
+        self.day_vars.insert(day, var);
+    }
+
+    // Get all day variables
+    pub fn all_day_vars(&self) -> Vec<(u8, Var)> {
+        self.day_vars.iter().map(|(&day, &var)| (day, var)).collect()
     }
 
     // Get the days to check
