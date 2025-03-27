@@ -104,4 +104,11 @@ sat_instance.add_card_constr(CardConstraint::new_ub(literals, 1));
 // Example: at least 1 of these literals must be true
 let literals = vec![var1.pos_lit(), var2.pos_lit(), var3.pos_lit()];
 sat_instance.add_nary(&literals); // a simple direct encoding of at-least-one
+
+Update: where practical, use the encode_cardinality method of
+SatEncoding, which chooses an appropriate encoding for various
+cardinality constraints. That will provide a single place to
+optimize choice of encoding. If you see reason to use a particular
+encoding and encode_cardinality would not choose that encoding
+already, let me know so we can update it rather than bypassing it.
 ```

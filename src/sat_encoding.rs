@@ -737,147 +737,8 @@ impl SATEncoder {
         criteria: &[SatCriterion],
         violations_permitted: bool,
     ) -> Result<Vec<Var>> {
-        let mut criterion_vars = Vec::new();
-
-        for criterion in criteria {
-            if let SatCriterion::FacultyEvenlySpread { priority: _, sections, days_to_check, .. } = criterion {
-                // Skip trivial cases
-                if days_to_check.len() <= 1 || sections.len() <= 3 {
-                    continue;
-                }
-
-                // Get valid days to check
-                let days = days_to_check.into_iter().collect::<Vec<_>>();
-
-                // Create a map of day -> section variables
-                let mut day_section_vars: HashMap<u8, Vec<Var>> = HashMap::new();
-
-                // For each section
-                for &section in sections {
-                    // For each time slot of this section
-                    for ts in &input.sections[section].time_slots {
-                        let time_slot = ts.time_slot;
-
-                        // Get the days this time slot is on
-                        for &day in &days {
-                            if input.time_slots[time_slot].days.contains(day) {
-                                // If we have a variable for this section-time pair
-                                if let Some(&var) = self.section_time_vars.get(&(section, time_slot)) {
-                                    day_section_vars.entry(day).or_insert_with(Vec::new).push(var);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Filter days with no sections
-                let active_days: Vec<u8> = day_section_vars.keys()
-                    .filter(|&&day| !day_section_vars[&day].is_empty())
-                    .cloned()
-                    .collect();
-
-                // Skip if fewer than 2 active days
-                if active_days.len() < 2 {
-                    continue;
-                }
-
-                // Optional criterion variable for soft constraint
-                let criterion_var = if violations_permitted {
-                    let var = self.sat_instance.new_var();
-                    criterion_vars.push(var);
-                    Some(var)
-                } else {
-                    None
-                };
-
-                // For each pair of days
-                for i in 0..active_days.len() {
-                    for j in i+1..active_days.len() {
-                        let day1 = active_days[i];
-                        let day2 = active_days[j];
-
-                        // Get section variables for each day
-                        let vars1 = &day_section_vars[&day1];
-                        let vars2 = &day_section_vars[&day2];
-
-                        // Create day activity variables
-                        let day1_active = self.sat_instance.new_var();
-                        let day2_active = self.sat_instance.new_var();
-
-                        // Link day activity to any section on that day
-                        for &var in vars1 {
-                            // var => day1_active
-                            self.sat_instance.add_binary(var.neg_lit(), day1_active.pos_lit());
-                        }
-                        let mut clause1 = vec![day1_active.neg_lit()];
-                        for &var in vars1 {
-                            clause1.push(var.pos_lit());
-                        }
-                        self.sat_instance.add_nary(&clause1);
-
-                        for &var in vars2 {
-                            // var => day2_active
-                            self.sat_instance.add_binary(var.neg_lit(), day2_active.pos_lit());
-                        }
-                        let mut clause2 = vec![day2_active.neg_lit()];
-                        for &var in vars2 {
-                            clause2.push(var.pos_lit());
-                        }
-                        self.sat_instance.add_nary(&clause2);
-
-                        // Hard encode: |count1 - count2| <= 1 when both days active
-                        let vars1_lits: Vec<Lit> = vars1.iter().map(|&var| var.pos_lit()).collect();
-                        let vars2_lits: Vec<Lit> = vars2.iter().map(|&var| var.pos_lit()).collect();
-
-                        // Enumerate all valid configurations
-                        for count1 in 1..=vars1.len() {
-                            for count2 in 1..=vars2.len() {
-                                if (count1 as i32 - count2 as i32).abs() > 1 {
-                                    // Create variables for "exactly count1 on day1" and "exactly count2 on day2"
-                                    let count1_var = self.sat_instance.new_var();
-                                    let count2_var = self.sat_instance.new_var();
-
-                                    // Link count variables to actual counts
-                                    let mut count1_clause = vec![count1_var.neg_lit()];
-                                    count1_clause.extend_from_slice(&vars1_lits);
-                                    self.encode_cardinality(count1_clause, Some(count1), Some(count1))?;
-
-                                    let mut count2_clause = vec![count2_var.neg_lit()];
-                                    count2_clause.extend_from_slice(&vars2_lits);
-                                    self.encode_cardinality(count2_clause, Some(count2), Some(count2))?;
-
-                                    // Either the constraint is satisfied or the criterion is violated
-                                    if let Some(criterion_var) = criterion_var {
-                                        // For soft constraint
-                                        // (day1_active AND day2_active AND count1_var AND count2_var) -> criterion_var
-                                        self.sat_instance.add_cube_impl_lit(
-                                                &[
-                                                day1_active.pos_lit(),
-                                                day2_active.pos_lit(),
-                                                count1_var.pos_lit(),
-                                                count2_var.pos_lit()
-                                                ],
-                                                criterion_var.pos_lit()
-                                                );
-                                    } else {
-                                        // For hard constraint
-                                        // Forbid this combination: NOT(day1_active AND day2_active AND count1_var AND count2_var)
-                                        self.sat_instance.add_nary(&[
-                                                day1_active.neg_lit(),
-                                                day2_active.neg_lit(),
-                                                count1_var.neg_lit(),
-                                                count2_var.neg_lit()
-                                        ]);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(criterion_vars)
+        unimplemented!("encode_faculty_evenly_spread_group not implemented");
+        Ok(Vec::new())
     }
 
     fn encode_faculty_no_room_switch_group(
@@ -886,7 +747,7 @@ impl SATEncoder {
         _criteria: &[SatCriterion],
         _violations_permitted: bool,
     ) -> Result<Vec<Var>> {
-        //unimplemented!("encode_faculty_no_room_switch_group not implemented");
+        unimplemented!("encode_faculty_no_room_switch_group not implemented");
         Ok(Vec::new())
     }
 
@@ -896,7 +757,7 @@ impl SATEncoder {
         _criteria: &[SatCriterion],
         _violations_permitted: bool,
     ) -> Result<Vec<Var>> {
-        //unimplemented!("encode_faculty_too_many_rooms_group not implemented");
+        unimplemented!("encode_faculty_too_many_rooms_group not implemented");
         Ok(Vec::new())
     }
 
@@ -906,7 +767,7 @@ impl SATEncoder {
         _criteria: &[SatCriterion],
         _violations_permitted: bool,
     ) -> Result<Vec<Var>> {
-        //unimplemented!("encode_faculty_distribution_interval_group not implemented");
+        unimplemented!("encode_faculty_distribution_interval_group not implemented");
         Ok(Vec::new())
     }
 

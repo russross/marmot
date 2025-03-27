@@ -167,11 +167,6 @@ pub struct Days {
 }
 
 impl Days {
-    #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
-        Days { days: 0 }
-    }
-
     pub fn parse(weekday_raw: &str) -> Result<Self> {
         let mut days = 0;
         for day in weekday_raw.chars() {
@@ -224,18 +219,38 @@ impl fmt::Display for Days {
     }
 }
 
-impl IntoIterator for Days {
-    type Item = u8;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
+pub struct DaysIter {
+    days: u8,
+    current_day: u8,
+}
 
-    fn into_iter(self) -> Self::IntoIter {
-        let mut v = Vec::new();
-        for day in 0..7 {
+impl Iterator for DaysIter {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Check all remaining bits
+        while self.current_day < 7 {
+            let day = self.current_day;
+            self.current_day += 1;
+            
+            // If this bit is set, return the day
             if self.days & (1 << day) != 0 {
-                v.push(day);
+                return Some(day);
             }
         }
-        v.into_iter()
+        None
+    }
+}
+
+impl IntoIterator for Days {
+    type Item = u8;
+    type IntoIter = DaysIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        DaysIter {
+            days: self.days,
+            current_day: 0,
+        }
     }
 }
 
