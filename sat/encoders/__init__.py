@@ -10,5 +10,6 @@ All encoders are automatically loaded when this package is imported.
 from . import conflicts
 from . import faculty_days
 from . import room_pref
+from . import time_pattern
 from . import time_pref
 # Add other encoder imports here as they are created
