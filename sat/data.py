@@ -6,7 +6,7 @@ for encoding into SAT.
 """
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Dict, List, Optional, Set, Tuple, FrozenSet, Any, TypeVar, Union
+from typing import Optional, FrozenSet, Any, TypeVar, Union
 
 
 @dataclass(frozen=True)
@@ -98,7 +98,7 @@ class TimeSlot:
         return self.start_time + self.duration
     
     @property
-    def time_pattern(self) -> Tuple[int, Duration]:
+    def time_pattern(self) -> tuple[int, Duration]:
         """Return the time pattern as (number of days, duration)."""
         return (len(self.days.days), self.duration)
 
@@ -111,17 +111,17 @@ class Section:
     name: str
     
     # Available rooms and time slots for this section
-    available_rooms: Set[str] = field(default_factory=set)
-    available_time_slots: Set[str] = field(default_factory=set)
+    available_rooms: set[str] = field(default_factory=set)
+    available_time_slots: set[str] = field(default_factory=set)
     
     # Room preferences (room name -> priority), higher priority is worse
-    room_preferences: Dict[str, int] = field(default_factory=dict)
+    room_preferences: dict[str, int] = field(default_factory=dict)
     
     # Time slot preferences (time slot name -> priority), higher priority is worse
-    time_slot_preferences: Dict[str, int] = field(default_factory=dict)
+    time_slot_preferences: dict[str, int] = field(default_factory=dict)
     
     # Faculty assigned to this section
-    faculty: Set[str] = field(default_factory=set)
+    faculty: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -132,7 +132,7 @@ class Faculty:
     name: str
     
     # Sections assigned to this faculty member
-    sections: Set[str] = field(default_factory=set)
+    sections: set[str] = field(default_factory=set)
 
 
 class DistributionIntervalType(Enum):
@@ -148,7 +148,7 @@ class Conflict:
     """
     Represents a conflict between two sections.
     """
-    sections: Tuple[str, str]  # Ordered pair of section names
+    sections: tuple[str, str]  # Ordered pair of section names
     priority: int
 
 
@@ -159,7 +159,7 @@ class AntiConflict:
     section from the group.
     """
     single: str
-    group: Set[str]
+    group: set[str]
     priority: int
 
 
@@ -243,7 +243,7 @@ class TimePatternMatch:
     """
     Represents a constraint that all sections in the group should have the same time pattern.
     """
-    sections: Set[str]
+    sections: set[str]
     priority: int
 
 
@@ -270,40 +270,40 @@ class TimetableData:
     term_name: str
     
     # Basic entities
-    rooms: Dict[str, Room] = field(default_factory=dict)
-    time_slots: Dict[str, TimeSlot] = field(default_factory=dict)
-    sections: Dict[str, Section] = field(default_factory=dict)
-    faculty: Dict[str, Faculty] = field(default_factory=dict)
+    rooms: dict[str, Room] = field(default_factory=dict)
+    time_slots: dict[str, TimeSlot] = field(default_factory=dict)
+    sections: dict[str, Section] = field(default_factory=dict)
+    faculty: dict[str, Faculty] = field(default_factory=dict)
     
     # Time slot conflicts - maps pairs of time slot names to whether they conflict
-    time_slot_conflicts: Dict[Tuple[str, str], bool] = field(default_factory=dict)
+    time_slot_conflicts: dict[tuple[str, str], bool] = field(default_factory=dict)
     
     # Constraint collections organized by type
-    conflicts: List[Conflict] = field(default_factory=list)
-    anti_conflicts: List[AntiConflict] = field(default_factory=list)
-    room_preferences: List[RoomPreference] = field(default_factory=list)
-    time_slot_preferences: List[TimeSlotPreference] = field(default_factory=list)
-    faculty_days_off: List[FacultyDaysOff] = field(default_factory=list)
-    faculty_evenly_spread: List[FacultyEvenlySpread] = field(default_factory=list)
-    faculty_no_room_switch: List[FacultyNoRoomSwitch] = field(default_factory=list)
-    faculty_too_many_rooms: List[FacultyTooManyRooms] = field(default_factory=list)
-    faculty_distribution_intervals: List[FacultyDistributionInterval] = field(default_factory=list)
-    time_pattern_matches: List[TimePatternMatch] = field(default_factory=list)
+    conflicts: list[Conflict] = field(default_factory=list)
+    anti_conflicts: list[AntiConflict] = field(default_factory=list)
+    room_preferences: list[RoomPreference] = field(default_factory=list)
+    time_slot_preferences: list[TimeSlotPreference] = field(default_factory=list)
+    faculty_days_off: list[FacultyDaysOff] = field(default_factory=list)
+    faculty_evenly_spread: list[FacultyEvenlySpread] = field(default_factory=list)
+    faculty_no_room_switch: list[FacultyNoRoomSwitch] = field(default_factory=list)
+    faculty_too_many_rooms: list[FacultyTooManyRooms] = field(default_factory=list)
+    faculty_distribution_intervals: list[FacultyDistributionInterval] = field(default_factory=list)
+    time_pattern_matches: list[TimePatternMatch] = field(default_factory=list)
     
     def do_time_slots_conflict(self, time_slot1: str, time_slot2: str) -> bool:
         """Check if two time slots conflict."""
         key = (time_slot1, time_slot2)
         return self.time_slot_conflicts.get(key, False)
     
-    def get_constraints_by_priority(self) -> Dict[int, List[ConstraintType]]:
+    def get_constraints_by_priority(self) -> dict[int, list[ConstraintType]]:
         """
         Group all constraints by priority level.
         Returns a dictionary mapping priority levels to lists of constraints.
         """
-        result: Dict[int, List[ConstraintType]] = {}
+        result: dict[int, list[ConstraintType]] = {}
         
         # Collect all constraints
-        all_constraints: List[ConstraintType] = (
+        all_constraints: list[ConstraintType] = (
             self.conflicts +
             self.anti_conflicts +
             self.room_preferences +
@@ -325,7 +325,7 @@ class TimetableData:
             
         return result
             
-    def get_all_constraints(self) -> List[ConstraintType]:
+    def get_all_constraints(self) -> list[ConstraintType]:
         """Return all constraints as a flat list."""
         return (
             self.conflicts +

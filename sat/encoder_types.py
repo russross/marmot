@@ -2,7 +2,7 @@
 """
 Type definitions for SAT encoders in the Marmot timetabling system.
 """
-from typing import Dict, List, Tuple, Protocol, Optional
+from typing import Protocol, Optional
 from pysat.formula import CNF, IDPool # type: ignore
 from data import TimetableData
 
@@ -12,10 +12,10 @@ TimeSlotName = str
 RoomName = str
 
 # Type for section-time variables mapping
-SectionTimeVars = Dict[Tuple[str, str], int]
+SectionTimeVars = dict[tuple[str, str], int]
 
 # Type for section-room variables mapping
-SectionRoomVars = Dict[Tuple[str, str], int]
+SectionRoomVars = dict[tuple[str, str], int]
 
 class ConstraintEncoder(Protocol):
     """Protocol defining the interface for constraint encoders."""
@@ -29,7 +29,7 @@ class ConstraintEncoder(Protocol):
         section_room_vars: SectionRoomVars,
         priority: int,
         allow_violations: bool = False
-    ) -> List[int]:
+    ) -> list[int]:
         """
         Encode constraints at a specific priority level.
         

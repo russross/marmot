@@ -8,7 +8,7 @@ import argparse
 import sys
 import time
 from collections import Counter, defaultdict
-from typing import Dict, List, Set, Tuple, Any, Optional, cast
+from typing import Any, Optional, cast
 import encoders
 
 from data import (
@@ -65,7 +65,7 @@ def print_data_summary(timetable: TimetableData) -> None:
         print(f"  {count} faculty: {num_sections} sections")
     
     # Constraint statistics by priority
-    constraints_by_priority: Dict[int, Counter[str]] = defaultdict(Counter)
+    constraints_by_priority: dict[int, Counter[str]] = defaultdict(Counter)
     
     for conflict in timetable.conflicts:
         constraints_by_priority[conflict.priority]["conflicts"] += 1

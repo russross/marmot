@@ -5,8 +5,6 @@ Time slot preference constraint encoders for the Marmot timetabling system.
 This module provides encoders to implement constraints for sections to avoid
 certain time slots with specified priorities.
 """
-from typing import Dict, List, Tuple
-
 from pysat.formula import CNF, IDPool # type: ignore
 
 from data import TimetableData, TimeSlotPreference
@@ -26,7 +24,7 @@ class TimeSlotPreferenceEncoder(ConstraintEncoder):
         section_room_vars: SectionRoomVars,
         priority: int,
         allow_violations: bool = False
-    ) -> List[int]:
+    ) -> list[int]:
         """
         Encode time slot preference constraints: sections should avoid specific time slots
         if possible, according to their defined preferences.

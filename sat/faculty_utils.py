@@ -4,7 +4,7 @@ Utility functions for faculty-related SAT encodings.
 This module provides helper functions to generate and manage SAT variables
 related to faculty scheduling constraints.
 """
-from typing import Dict, List, Set, Tuple, Optional, FrozenSet, NamedTuple
+from typing import Optional, FrozenSet, NamedTuple
 from pysat.formula import CNF, IDPool  # type: ignore
 
 from data import TimetableData, Days
@@ -25,7 +25,7 @@ class FacultyDayVariable(NamedTuple):
     purpose: str = "faculty_section_day"
 
 # Cache for faculty day variables
-_faculty_day_vars_cache: Dict[Tuple[FacultyName, FrozenSet[DayNum]], Dict[Tuple[SectionName, DayNum], int]] = {}
+_faculty_day_vars_cache: dict[tuple[FacultyName, FrozenSet[DayNum]], dict[tuple[SectionName, DayNum], int]] = {}
 
 def get_faculty_day_vars(
     timetable: TimetableData,
@@ -34,7 +34,7 @@ def get_faculty_day_vars(
     section_time_vars: SectionTimeVars,
     faculty: FacultyName,
     days_to_check: Days
-) -> Dict[Tuple[SectionName, DayNum], int]:
+) -> dict[tuple[SectionName, DayNum], int]:
     """
     Get or create variables that represent when a faculty member's sections are scheduled on specific days.
     
@@ -60,7 +60,7 @@ def get_faculty_day_vars(
     faculty_sections = timetable.faculty[faculty].sections
     
     # Create variables and constraints for each section and day
-    faculty_day_vars: Dict[Tuple[SectionName, DayNum], int] = {}
+    faculty_day_vars: dict[tuple[SectionName, DayNum], int] = {}
     
     for section_name in faculty_sections:
         section = timetable.sections[section_name]

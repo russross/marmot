@@ -4,7 +4,7 @@ Core SAT encoding for the Marmot timetabling system.
 
 This module provides functions to encode the timetabling problem as a SAT instance.
 """
-from typing import Dict, List, Tuple, Optional, Any, NamedTuple
+from typing import Optional, Any, NamedTuple
 import collections
 
 from pysat.formula import CNF, IDPool # type: ignore
@@ -33,10 +33,10 @@ class SATVariable(NamedTuple):
 
 def create_sat_instance(
     timetable: TimetableData,
-    prior_violations: Dict[int, int],
+    prior_violations: dict[int, int],
     current_priority: int,
     current_violations: int
-) -> Tuple[CNF, Dict[str, Any]]:
+) -> tuple[CNF, dict[str, Any]]:
     """
     Create a SAT instance for the timetabling problem.
     
@@ -75,7 +75,7 @@ def create_sat_instance(
         allow_violations = max_violations > 0
         
         # Get all constraints at this priority level
-        constraints_by_type: Dict[str, List[ConstraintType]] = {}
+        constraints_by_type: dict[str, list[ConstraintType]] = {}
         for constraint in timetable.get_all_constraints():
             if constraint.priority == priority:
                 constraint_type = type(constraint).__name__
@@ -96,7 +96,7 @@ def create_sat_instance(
         if allow_violations:
             all_vars = criterion_vars_by_priority[priority]
             if max_violations < len(all_vars) and all_vars:
-                clauses = CardEnc.atmost(all_vars, bound=max_violations).clauses
+                clauses = CardEnc.atmost(all_vars, bound=max_violations, encoding=EncType.totalizer).clauses
                 for clause in clauses:
                     cnf.append(clause)
     
@@ -114,7 +114,7 @@ def create_sat_instance(
 def create_basic_variables(
     timetable: TimetableData,
     pool: IDPool
-) -> Tuple[SectionTimeVars, SectionRoomVars, Dict[int, SATVariable]]:
+) -> tuple[SectionTimeVars, SectionRoomVars, dict[int, SATVariable]]:
     """
     Create the basic variables for sections, time slots, and rooms.
     
@@ -188,8 +188,11 @@ def encode_basic_constraints(
     for section, time_vars in section_to_times.items():
         assert time_vars, f"Section {section} has no available time slots"
         
-        # Add exactly-one constraint
-        clauses = CardEnc.equals(time_vars, bound=1, encoding=EncType.pairwise).clauses
+        # At least one time slot must be assigned
+        cnf.append(time_vars)
+
+        # At most one time slot must be assigned
+        clauses = CardEnc.atmost(time_vars, bound=1, encoding=EncType.pairwise).clauses
         for clause in clauses:
             cnf.append(clause)
     
@@ -198,8 +201,11 @@ def encode_basic_constraints(
         if not room_vars:
             continue
             
-        # If a section has available rooms, it must use one of them
-        clauses = CardEnc.equals(room_vars, bound=1, encoding=EncType.pairwise).clauses
+        # At least one room must be assigned
+        cnf.append(room_vars)
+
+        # At most one room must be assigned
+        clauses = CardEnc.atmost(room_vars, bound=1, encoding=EncType.pairwise).clauses
         for clause in clauses:
             cnf.append(clause)
 
@@ -290,7 +296,7 @@ def encode_room_conflict(
             cnf.append([-time_var_a, -room_var_a, -time_var_b, -room_var_b])
 
 
-def decode_solution(model: List[int], var_mappings: Dict[str, Any]) -> Dict[SectionName, Tuple[Optional[RoomName], TimeSlotName]]:
+def decode_solution(model: list[int], var_mappings: dict[str, Any]) -> dict[SectionName, tuple[Optional[RoomName], TimeSlotName]]:
     """
     Decode a SAT solution into a schedule.
     
@@ -308,7 +314,7 @@ def decode_solution(model: List[int], var_mappings: Dict[str, Any]) -> Dict[Sect
     positive_assignments = set(var for var in model if var > 0)
     
     # Group by section for faster processing
-    section_assignments: Dict[str, Dict[str, str]] = collections.defaultdict(dict)
+    section_assignments: dict[str, dict[str, str]] = collections.defaultdict(dict)
     
     # Process all positive variable assignments
     for var in positive_assignments:

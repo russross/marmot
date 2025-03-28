@@ -1,6 +1,4 @@
 # conflicts.py
-from typing import Dict, List, Tuple
-
 from pysat.formula import CNF, IDPool # type: ignore
 
 from data import TimetableData, Conflict, AntiConflict
@@ -19,7 +17,7 @@ class ConflictEncoder(ConstraintEncoder):
         section_room_vars: SectionRoomVars,
         priority: int,
         allow_violations: bool = False
-    ) -> List[int]:
+    ) -> list[int]:
         """
         Encode conflict constraints at a specific priority level.
         
@@ -88,7 +86,7 @@ class AntiConflictEncoder(ConstraintEncoder):
         section_room_vars: SectionRoomVars,
         priority: int,
         allow_violations: bool = False
-    ) -> List[int]:
+    ) -> list[int]:
         """
         Encode anti-conflict constraints at a specific priority level.
         

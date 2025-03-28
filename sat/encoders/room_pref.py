@@ -5,8 +5,6 @@ Room preference constraint encoders for the Marmot timetabling system.
 This module provides encoders to implement constraints for sections to avoid
 certain rooms with specified priorities.
 """
-from typing import Dict, List, Tuple
-
 from pysat.formula import CNF, IDPool # type: ignore
 
 from data import TimetableData, RoomPreference
@@ -26,7 +24,7 @@ class RoomPreferenceEncoder(ConstraintEncoder):
         section_room_vars: SectionRoomVars,
         priority: int,
         allow_violations: bool = False
-    ) -> List[int]:
+    ) -> list[int]:
         """
         Encode room preference constraints: sections should avoid specific rooms
         if possible, according to their defined preferences.

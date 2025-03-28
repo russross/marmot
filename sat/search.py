@@ -5,7 +5,7 @@ Iterative SAT solver for the Marmot timetabling system.
 This module implements the core search algorithm that iteratively searches
 for the minimum number of violations at each priority level.
 """
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Optional, Any
 import time
 import sys
 
@@ -16,7 +16,7 @@ from data import TimetableData
 from core import create_sat_instance, decode_solution
 
 # Type alias for schedule representation
-Schedule = Dict[str, Tuple[Optional[str], str]]
+Schedule = dict[str, tuple[Optional[str], str]]
 
 
 def solve_timetable(
@@ -98,11 +98,11 @@ def solve_timetable(
 def solve_at_priority_level(
     timetable: TimetableData,
     priority: int,
-    max_violations: Dict[int, int],
+    max_violations: dict[int, int],
     solver_name: str,
     remaining_time: float,
     verbose: bool
-) -> Tuple[bool, int, Optional[Schedule]]:
+) -> tuple[bool, int, Optional[Schedule]]:
     """
     Solve for a specific priority level, finding minimum violations.
     
@@ -170,7 +170,7 @@ def solve_at_priority_level(
     return True, k, schedule
 
 
-def print_max_violations(max_violations: Dict[int, int]) -> None:
+def print_max_violations(max_violations: dict[int, int]) -> None:
     """Print a summary of violations at each priority level."""
     for priority, violations in sorted(max_violations.items()):
         if violations > 0:

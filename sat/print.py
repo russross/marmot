@@ -5,13 +5,13 @@ Printing utilities for schedule visualization.
 This module provides functions to print a schedule in a grid format 
 similar to the format used in the Rust version.
 """
-from typing import Dict, List, Optional, Tuple, Set
+from typing import Optional
 import textwrap
 
 from data import TimetableData
 
 # Type alias for schedule representation
-Schedule = Dict[str, Tuple[Optional[str], str]]
+Schedule = dict[str, tuple[Optional[str], str]]
 
 
 def print_schedule(timetable: TimetableData, schedule: Schedule) -> None:
@@ -23,8 +23,8 @@ def print_schedule(timetable: TimetableData, schedule: Schedule) -> None:
         schedule: The schedule mapping sections to (room, time_slot) pairs
     """
     # Extract rooms and time slots used in the schedule
-    used_rooms: Set[str] = set()
-    used_time_slots: Set[str] = set()
+    used_rooms: set[str] = set()
+    used_time_slots: set[str] = set()
     
     for section, (room, time_slot) in schedule.items():
         if room is not None:
