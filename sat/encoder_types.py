@@ -3,7 +3,7 @@
 Type definitions for SAT encoders in the Marmot timetabling system.
 """
 from typing import Dict, List, Tuple, Protocol, Optional
-from pysat.formula import CNF, IDPool
+from pysat.formula import CNF, IDPool # type: ignore
 from data import TimetableData
 
 # Common type aliases

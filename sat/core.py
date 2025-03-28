@@ -1,4 +1,4 @@
-# core.py (UPDATED)
+# core.py
 """
 Core SAT encoding for the Marmot timetabling system.
 
@@ -7,12 +7,12 @@ This module provides functions to encode the timetabling problem as a SAT instan
 from typing import Dict, List, Tuple, Optional, Any, NamedTuple
 import collections
 
-from pysat.formula import CNF, IDPool
-from pysat.card import CardEnc, EncType
+from pysat.formula import CNF, IDPool # type: ignore
+from pysat.card import CardEnc, EncType # type: ignore
 
-from data import TimetableData
+from data import TimetableData, ConstraintType
 from encoder_types import SectionTimeVars, SectionRoomVars
-import conflicts  # Import the module, not just specific functions
+from encoder_registry import get_all_encoders
 
 # Type aliases (additional ones not defined in encoder_types.py)
 SectionName = str
@@ -54,13 +54,16 @@ def create_sat_instance(
     pool = IDPool()
     
     # Create the basic variables
-    section_time_vars, section_room_vars, var_info = _create_basic_variables(timetable, pool)
+    section_time_vars, section_room_vars, var_info = create_basic_variables(timetable, pool)
     
     # Encode the basic constraints
-    _encode_basic_constraints(timetable, cnf, section_time_vars, section_room_vars)
+    encode_basic_constraints(timetable, cnf, section_time_vars, section_room_vars)
     
     # Encode room conflicts
-    _encode_room_conflicts(timetable, cnf, section_time_vars, section_room_vars)
+    encode_room_conflicts(timetable, cnf, section_time_vars, section_room_vars)
+    
+    # Get all registered encoders
+    encoders = get_all_encoders()
     
     # Track criterion variables by priority
     criterion_vars_by_priority = collections.defaultdict(list)
@@ -71,17 +74,23 @@ def create_sat_instance(
         max_violations = prior_violations.get(priority, 0) if priority < current_priority else current_violations
         allow_violations = max_violations > 0
         
-        # Encode conflicts at this priority level
-        conflict_vars = conflicts.encode_conflicts(
-            timetable, cnf, pool, section_time_vars, section_room_vars, priority, allow_violations
-        )
-        criterion_vars_by_priority[priority].extend(conflict_vars)
+        # Get all constraints at this priority level
+        constraints_by_type: Dict[str, List[ConstraintType]] = {}
+        for constraint in timetable.get_all_constraints():
+            if constraint.priority == priority:
+                constraint_type = type(constraint).__name__
+                if constraint_type not in constraints_by_type:
+                    constraints_by_type[constraint_type] = []
+                constraints_by_type[constraint_type].append(constraint)
         
-        # Encode anti-conflicts at this priority level
-        anti_conflict_vars = conflicts.encode_anti_conflicts(
-            timetable, cnf, pool, section_time_vars, section_room_vars, priority, allow_violations
-        )
-        criterion_vars_by_priority[priority].extend(anti_conflict_vars)
+        # Apply each registered encoder
+        for constraint_type, encoder_class in encoders.items():
+            if constraint_type in constraints_by_type and constraints_by_type[constraint_type]:
+                encoder = encoder_class()
+                criterion_vars = encoder.encode(
+                    timetable, cnf, pool, section_time_vars, section_room_vars, priority, allow_violations
+                )
+                criterion_vars_by_priority[priority].extend(criterion_vars)
         
         # If violations are allowed, add cardinality constraint to limit total violations
         if allow_violations:
@@ -104,7 +113,7 @@ def create_sat_instance(
     return cnf, var_mappings
 
 
-def _create_basic_variables(
+def create_basic_variables(
     timetable: TimetableData,
     pool: IDPool
 ) -> Tuple[SectionTimeVars, SectionRoomVars, Dict[int, SATVariable]]:
@@ -149,7 +158,7 @@ def _create_basic_variables(
     return section_time_vars, section_room_vars, var_info
 
 
-def _encode_basic_constraints(
+def encode_basic_constraints(
     timetable: TimetableData,
     cnf: CNF,
     section_time_vars: SectionTimeVars,
@@ -197,7 +206,7 @@ def _encode_basic_constraints(
             cnf.append(clause)
 
 
-def _encode_room_conflicts(
+def encode_room_conflicts(
     timetable: TimetableData,
     cnf: CNF,
     section_time_vars: SectionTimeVars,
@@ -228,11 +237,10 @@ def _encode_room_conflicts(
         # For each pair of sections that could use this room
         for i, section_a in enumerate(sections):
             for section_b in sections[i+1:]:
-                _encode_room_conflict(timetable, cnf, section_time_vars, section_room_vars, 
-                                     section_a, section_b, room)
+                encode_room_conflict(timetable, cnf, section_time_vars, section_room_vars, section_a, section_b, room)
 
 
-def _encode_room_conflict(
+def encode_room_conflict(
     timetable: TimetableData,
     cnf: CNF,
     section_time_vars: SectionTimeVars,
@@ -302,7 +310,7 @@ def decode_solution(model: List[int], var_mappings: Dict[str, Any]) -> Dict[Sect
     positive_assignments = set(var for var in model if var > 0)
     
     # Group by section for faster processing
-    section_assignments = collections.defaultdict(dict)
+    section_assignments: Dict[str, Dict[str, str]] = collections.defaultdict(dict)
     
     # Process all positive variable assignments
     for var in positive_assignments:

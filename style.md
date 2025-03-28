@@ -1,5 +1,23 @@
 # Style Guide
 
+## Project Structure
+
+*   The project follows a modular structure with clear separation of concerns:
+    - Core data types and structures are defined in `data.py`
+    - The main SAT encoding logic is in `core.py`
+    - Individual constraint encoders reside in the `encoders/` subdirectory
+    - Each encoder module in `encoders/` should focus on a single constraint type
+    - Registration with the encoder system happens in each encoder module
+    - `encoders/__init__.py` imports all encoder modules to ensure registration
+
+*   Encoder module naming and organization:
+    - File names should clearly indicate the constraint type they handle (e.g., `time_pref.py`)
+    - Each module should include a class implementing the `ConstraintEncoder` protocol
+    - The class name should end with "Encoder" (e.g., `TimeSlotPreferenceEncoder`)
+    - Register using the EXACT constraint class name (e.g., `"TimeSlotPreference"`)
+
+*   The main entry point is `main.py`, which should import the encoders package
+
 ## Rust style notes
 
 *   Prefer a single long line for function headers. These will be
@@ -49,15 +67,10 @@
 
 *   Follow function naming conventions:
     - Public functions use lowercase with underscores (snake_case)
-    - Internal/private helper functions start with an underscore
+    - Internal/private helper functions start with an underscore.
+      Only use this for minor helpers, not those that are
+      significant steps in the process.
     - Function names should be descriptive but not excessively verbose
-
-*   Keep a clean separation between modules:
-    - data.py: Contains core data structures
-    - core.py: Core SAT encoding and variable management
-    - conflicts.py: Specialized constraint encodings
-    - search.py: High-level search logic
-    - Specialized modules for other constraint types
 
 *   For error cases where recovery isn't possible, use assertions for internal
     errors and explicit exit with error messages for data integrity issues.
@@ -72,3 +85,26 @@
     - Dict/Set for lookups by key
     - defaultdict for building maps with default values
     - NamedTuple for immutable structured data with fields
+
+*   For Python static types, avoid the old Dict, Tuple, and List
+    values that have to be imported in favor of the built-in dict,
+    typle, and list.
+
+## SAT Encoding Guidelines
+
+*   SAT variable naming should be consistent and clear:
+    - Use tuples with descriptive fields as identifiers in the pool
+    - Include context as the last element in the tuple (e.g., `"section_time"`, `"criterion"`)
+
+*   Each constraint encoder should:
+    - Focus on a single constraint type
+    - Follow the interface defined in `encoder_types.py`
+    - Include clear comments explaining the logical encoding of constraints
+    - Return criterion variables when `allow_violations` is True
+    - Handle the hard constraint case when `allow_violations` is False
+
+*   Comments for SAT encoding should be particularly detailed, explaining:
+    - The high-level meaning of the constraint
+    - How the constraint is mapped to CNF clauses
+    - The meaning of any auxiliary variables created
+    - The logical equivalence of the encoding (e.g., "Encode: A → B ⟺ ¬A ∨ B")

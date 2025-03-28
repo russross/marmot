@@ -9,6 +9,7 @@ import sys
 import time
 from collections import Counter, defaultdict
 from typing import Dict, List, Set, Tuple, Any, Optional, cast
+import encoders
 
 from data import (
     TimetableData, Section, Room, TimeSlot, 
@@ -21,115 +22,8 @@ from input import load_timetable_data
 from search import solve_timetable
 from print import print_schedule
 
-
-def perform_consistency_checks(timetable: TimetableData) -> bool:
-    """
-    Verify data consistency and report any issues found.
-    Returns True if all checks pass, False otherwise.
-    """
-    all_checks_passed = True
-    
-    # Check that all time slots referenced by sections exist
-    for section_name, section in timetable.sections.items():
-        for time_slot_name in section.available_time_slots:
-            if time_slot_name not in timetable.time_slots:
-                print(f"ERROR: Section {section_name} references non-existent time slot {time_slot_name}")
-                all_checks_passed = False
-    
-    # Check that all rooms referenced by sections exist
-    for section_name, section in timetable.sections.items():
-        for room_name in section.available_rooms:
-            if room_name not in timetable.rooms:
-                print(f"ERROR: Section {section_name} references non-existent room {room_name}")
-                all_checks_passed = False
-    
-    # Check that all faculty referenced by sections exist
-    for section_name, section in timetable.sections.items():
-        for faculty_name in section.faculty:
-            if faculty_name not in timetable.faculty:
-                print(f"ERROR: Section {section_name} references non-existent faculty {faculty_name}")
-                all_checks_passed = False
-    
-    # Check that all sections referenced by faculty exist
-    for faculty_name, faculty in timetable.faculty.items():
-        for section_name in faculty.sections:
-            if section_name not in timetable.sections:
-                print(f"ERROR: Faculty {faculty_name} references non-existent section {section_name}")
-                all_checks_passed = False
-    
-    # Check that all sections have at least one available time slot
-    for section_name, section in timetable.sections.items():
-        if not section.available_time_slots:
-            print(f"ERROR: Section {section_name} has no available time slots")
-            all_checks_passed = False
-    
-    # Check that all sections have at least one available room
-    for section_name, section in timetable.sections.items():
-        if not section.available_rooms:
-            print(f"WARNING: Section {section_name} has no available rooms")
-    
-    # Make sure time slot conflicts are symmetric
-    for (ts1, ts2), conflicts in timetable.time_slot_conflicts.items():
-        if conflicts and (ts2, ts1) not in timetable.time_slot_conflicts:
-            print(f"ERROR: Time slot conflict ({ts1}, {ts2}) is not symmetric")
-            all_checks_passed = False
-    
-    # Check constraints reference valid sections
-    for conflict in timetable.conflicts:
-        for section_name in conflict.sections:
-            if section_name not in timetable.sections:
-                print(f"ERROR: Conflict references non-existent section {section_name}")
-                all_checks_passed = False
-    
-    # Check anti-conflicts
-    for anti_conflict in timetable.anti_conflicts:
-        if anti_conflict.single not in timetable.sections:
-            print(f"ERROR: Anti-conflict references non-existent section {anti_conflict.single}")
-            all_checks_passed = False
-        
-        for section_name in anti_conflict.group:
-            if section_name not in timetable.sections:
-                print(f"ERROR: Anti-conflict references non-existent section {section_name}")
-                all_checks_passed = False
-    
-    # Check time pattern matches
-    for pattern_match in timetable.time_pattern_matches:
-        for section_name in pattern_match.sections:
-            if section_name not in timetable.sections:
-                print(f"ERROR: Time pattern match references non-existent section {section_name}")
-                all_checks_passed = False
-    
-    # Check faculty preferences
-    for days_off in timetable.faculty_days_off:
-        if days_off.faculty not in timetable.faculty:
-            print(f"ERROR: Faculty days off preference references non-existent faculty {days_off.faculty}")
-            all_checks_passed = False
-    
-    for evenly_spread in timetable.faculty_evenly_spread:
-        if evenly_spread.faculty not in timetable.faculty:
-            print(f"ERROR: Faculty evenly spread preference references non-existent faculty {evenly_spread.faculty}")
-            all_checks_passed = False
-    
-    for no_room_switch in timetable.faculty_no_room_switch:
-        if no_room_switch.faculty not in timetable.faculty:
-            print(f"ERROR: Faculty no room switch preference references non-existent faculty {no_room_switch.faculty}")
-            all_checks_passed = False
-    
-    for too_many_rooms in timetable.faculty_too_many_rooms:
-        if too_many_rooms.faculty not in timetable.faculty:
-            print(f"ERROR: Faculty too many rooms preference references non-existent faculty {too_many_rooms.faculty}")
-            all_checks_passed = False
-    
-    for interval in timetable.faculty_distribution_intervals:
-        if interval.faculty not in timetable.faculty:
-            print(f"ERROR: Faculty distribution interval references non-existent faculty {interval.faculty}")
-            all_checks_passed = False
-    
-    return all_checks_passed
-
-
 def print_data_summary(timetable: TimetableData) -> None:
-    """Print a compact summary of the timetable data."""
+    """Print a detailed summary of the timetable data."""
     print(f"\n=== TIMETABLE SUMMARY FOR TERM: {timetable.term_name} ===")
     
     # Basic counts
@@ -249,43 +143,42 @@ def main() -> None:
                         help="Only print data summary without solving")
     parser.add_argument("--limit-priority", type=int, 
                         help="Limit solving to up to this priority level")
-    parser.add_argument("--quiet", action="store_true",
-                        help="Run with minimal output")
+    parser.add_argument("--verbose", action="store_true",
+                        help="Print detailed output")
     args = parser.parse_args()
     
-    print(f"Loading timetable data from {args.db_path}...")
-    
     try:
+        # Load timetable data
         timetable = load_timetable_data(args.db_path)
-        print(f"Successfully loaded timetable data for term: {timetable.term_name}")
         
-        print("\nPerforming consistency checks...")
-        all_checks_passed = perform_consistency_checks(timetable)
+        # Print a concise summary of the loaded data
+        constraints = timetable.get_all_constraints()
+        priorities = sorted({c.priority for c in constraints})
         
-        if all_checks_passed:
-            print("All consistency checks passed!")
-        else:
-            print("WARNING: Some consistency checks failed!")
+        print(f"Loaded {timetable.term_name}: {len(timetable.sections)} sections, {len(timetable.rooms)} rooms, "
+              f"{len(timetable.time_slots)} time slots, {len(timetable.faculty)} faculty, "
+              f"{len(constraints)} constraints across {len(priorities)} priority levels")
         
-        print_data_summary(timetable)
+        # Print detailed data summary if requested
+        if args.verbose or args.summary_only:
+            print_data_summary(timetable)
         
         if args.summary_only:
-            print("\nSummary-only mode, skipping solving.")
             return
         
         # Solve the timetable
-        print(f"\nSolving timetable with {args.solver} solver (time limit: {args.time_limit}s)...")
+        print(f"\nGenerating schedule using {args.solver} solver (time limit: {args.time_limit}s)...")
         start_time = time.time()
         
         schedule = solve_timetable(
             timetable=timetable,
             solver_name=args.solver,
             max_time_seconds=args.time_limit,
-            verbose=True
+            verbose=args.verbose
         )
         
         solve_time = time.time() - start_time
-        print(f"\nSolving completed in {solve_time:.2f} seconds")
+        print(f"Solving completed in {solve_time:.2f} seconds")
         
         if schedule:
             print("\nFound schedule:")

@@ -5,6 +5,8 @@ This module is responsible for loading data from the database into the
 data structures defined in data.py.
 """
 import sqlite3
+import sys
+import os.path
 from typing import List, Set, Tuple
 from itertools import combinations
 
@@ -27,7 +29,10 @@ def load_timetable_data(db_path: str) -> TimetableData:
         A populated TimetableData object
     """
     # Connect to the database
-    conn = sqlite3.connect(db_path)
+    if not os.path.exists(db_path):
+        print(f'Database file not found: {db_path}')
+        sys.exit(1)
+    conn = sqlite3.connect(f'file:{db_path}?mode=ro', uri=True)
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA temp_store = memory")
     conn.execute("PRAGMA mmap_size = 100000000")
