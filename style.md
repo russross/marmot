@@ -90,6 +90,9 @@
     values that have to be imported in favor of the built-in dict,
     typle, and list.
 
+*   Prefer list comprehensions and set comprehensions over explicit
+    loops when they make the code more succinct.
+
 ## SAT Encoding Guidelines
 
 *   SAT variable naming should be consistent and clear:

@@ -96,9 +96,7 @@ def create_sat_instance(
         if allow_violations:
             all_vars = criterion_vars_by_priority[priority]
             if max_violations < len(all_vars) and all_vars:
-                clauses = CardEnc.atmost(
-                    all_vars, bound=max_violations, encoding=EncType.totalizer
-                ).clauses
+                clauses = CardEnc.atmost(all_vars, bound=max_violations).clauses
                 for clause in clauses:
                     cnf.append(clause)
     

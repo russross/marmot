@@ -3,3 +3,4 @@ Cargo.lock
 *.db
 __pycache__
 spring2025
+.DS_Store
