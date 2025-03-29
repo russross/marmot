@@ -12,19 +12,15 @@ import sys
 from pysat.formula import CNF # type: ignore
 from pysat.solvers import Solver # type: ignore
 
-from data import TimetableData
+from data import TimetableData, Placement, SectionName, RoomName, TimeSlotName, Priority
 from core import create_sat_instance, decode_solution
-
-# Type alias for schedule representation
-Schedule = dict[str, tuple[Optional[str], str]]
-
 
 def solve_timetable(
     timetable: TimetableData, 
     solver_name: str = "cd", 
     max_time_seconds: int = 3600, 
     verbose: bool = False
-) -> Optional[Schedule]:
+) -> Optional[Placement]:
     """
     Solve the timetabling problem using iterative SAT solving.
     
@@ -39,33 +35,25 @@ def solve_timetable(
     """
     start_time = time.time()
     
-    # Transform criteria from the input by priority level
-    constraints_by_priority = timetable.get_constraints_by_priority()
-    
     # Store the best schedule found
     best_schedule = None
     
     # Keep track of maximum violations allowed at each priority level
     max_violations = {}
     
-    # Get all priority levels from the constraints
-    all_priorities = sorted(constraints_by_priority.keys())
-    
     # Process each priority level in order
-    for priority in all_priorities:
+    for p in range(timetable.get_max_priority() + 1):
+        priority = Priority(p)
+        constraints = timetable.get_constraints_by_priority(priority)
+        if len(constraints) == 0 and priority > 0:
+            max_violations[priority] = 0
+            continue
+
         if time.time() - start_time > max_time_seconds:
             print(f"Time limit reached after processing priority level {priority-1}")
             break
         
-        # Get criteria count at this level
-        criteria_count = len(constraints_by_priority.get(priority, []))
-        
-        # Skip if no criteria at this level and not priority 0
-        if criteria_count == 0:
-            max_violations[priority] = 0
-            continue
-        
-        print(f"Solving for priority level {priority} with {criteria_count} criteria")
+        print(f"Solving for priority level {priority} with {len(constraints)} criteria")
         
         # Solve at this priority level
         success, k, new_schedule = solve_at_priority_level(
@@ -97,12 +85,12 @@ def solve_timetable(
 
 def solve_at_priority_level(
     timetable: TimetableData,
-    priority: int,
-    max_violations: dict[int, int],
+    priority: Priority,
+    max_violations: dict[Priority, int],
     solver_name: str,
     remaining_time: float,
     verbose: bool
-) -> tuple[bool, int, Optional[Schedule]]:
+) -> tuple[bool, int, Optional[Placement]]:
     """
     Solve for a specific priority level, finding minimum violations.
     
@@ -137,7 +125,7 @@ def solve_at_priority_level(
             return False, 0, None
         
         # Create the SAT instance
-        cnf, var_mappings = create_sat_instance(
+        cnf, section_room_vars, section_time_vars = create_sat_instance(
             timetable, 
             max_violations,
             priority, 
@@ -153,7 +141,7 @@ def solve_at_priority_level(
         if solved:
             # We've found a solution with this many violations
             model = solver.get_model()
-            schedule = decode_solution(model, var_mappings)
+            schedule = decode_solution(model, section_room_vars, section_time_vars)
             solution_found = True
         else:
             # Increment violations and try again
@@ -170,7 +158,7 @@ def solve_at_priority_level(
     return True, k, schedule
 
 
-def print_max_violations(max_violations: dict[int, int]) -> None:
+def print_max_violations(max_violations: dict[Priority, int]) -> None:
     """Print a summary of violations at each priority level."""
     for priority, violations in sorted(max_violations.items()):
         if violations > 0:

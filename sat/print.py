@@ -5,31 +5,19 @@ Printing utilities for schedule visualization.
 This module provides functions to print a schedule in a grid format 
 similar to the format used in the Rust version.
 """
-from typing import Optional
-import textwrap
+from data import TimetableData, Placement
 
-from data import TimetableData
-
-# Type alias for schedule representation
-Schedule = dict[str, tuple[Optional[str], str]]
-
-
-def print_schedule(timetable: TimetableData, schedule: Schedule) -> None:
+def print_schedule(timetable: TimetableData, placement: Placement) -> None:
     """
     Print the schedule in a grid format.
     
     Args:
         timetable: The timetable data
-        schedule: The schedule mapping sections to (room, time_slot) pairs
+        placemen: The placement mapping sections to (room, time_slot) pairs
     """
-    # Extract rooms and time slots used in the schedule
-    used_rooms: set[str] = set()
-    used_time_slots: set[str] = set()
-    
-    for section, (room, time_slot) in schedule.items():
-        if room is not None:
-            used_rooms.add(room)
-        used_time_slots.add(time_slot)
+    # Extract rooms and time slots used in the placement
+    used_rooms = { room for (room, _) in placement.values() if room is not None }
+    used_time_slots = { time_slot for (_, time_slot) in placement.values() }
     
     # Convert to sorted lists
     rooms_list = sorted(list(used_rooms))
@@ -40,14 +28,14 @@ def print_schedule(timetable: TimetableData, schedule: Schedule) -> None:
     grid = [[("", "") for _ in range(len(rooms_list) + 1)] for _ in range(len(time_slots_list) + 1)]
     
     # Fill in the headers
-    for i, room in enumerate(rooms_list):
-        grid[0][i + 1] = (room, "")
+    for i, room_name in enumerate(rooms_list):
+        grid[0][i + 1] = (room_name, "")
     
     for i, time_slot in enumerate(time_slots_list):
         grid[i + 1][0] = (time_slot, "")
     
     # Fill in the schedule
-    for section, (room, time_slot) in schedule.items():
+    for section, (room, time_slot) in placement.items():
         if room is None:
             continue  # Skip sections without rooms
             
@@ -99,7 +87,7 @@ def print_schedule(timetable: TimetableData, schedule: Schedule) -> None:
     print(divider)
     
     # Print sections with time slots but no rooms
-    for section, (room, time_slot) in schedule.items():
+    for section, (room, time_slot) in placement.items():
         if room is None:
             print(f"{section} at {time_slot} with no room")
 

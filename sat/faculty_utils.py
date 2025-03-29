@@ -7,18 +7,11 @@ related to faculty scheduling constraints.
 from pysat.formula import CNF, IDPool  # type: ignore
 
 from typing import FrozenSet
-from data import TimetableData, Days
-from registry import SectionTimeVars, SectionRoomVars
-
-# Type aliases
-SectionName = str
-TimeSlotName = str
-RoomName = str
-FacultyName = str
-DayNum = int
+from data import TimetableData, Days, SectionRoomVars, SectionTimeVars
+from data import FacultyName, SectionName, TimeSlotName, RoomName, Day
 
 # cache
-_faculty_section_day_vars_cache: dict[FacultyName, dict[tuple[SectionName, DayNum], int]] = {}
+_faculty_section_day_vars_cache: dict[FacultyName, dict[tuple[SectionName, Day], int]] = {}
 
 def get_faculty_section_day_vars(
     timetable: TimetableData,
@@ -26,8 +19,8 @@ def get_faculty_section_day_vars(
     pool: IDPool,
     section_time_vars: SectionTimeVars,
     faculty: FacultyName,
-    days_to_check: FrozenSet[DayNum]
-) -> dict[tuple[SectionName, DayNum], int]:
+    days_to_check: FrozenSet[Day]
+) -> dict[tuple[SectionName, Day], int]:
     """
     Get or create variables that represent when a faculty member's sections are scheduled on specific days.
     
@@ -47,7 +40,7 @@ def get_faculty_section_day_vars(
         return _faculty_section_day_vars_cache[faculty]
     
     # create the set of vars we return
-    section_day_to_var: dict[tuple[SectionName, DayNum], int] = {}
+    section_day_to_var: dict[tuple[SectionName, Day], int] = {}
 
     # create mappings to help with encoding
     var_to_time_slot_vars: dict[int, set[int]] = {}

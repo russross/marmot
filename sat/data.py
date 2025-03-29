@@ -4,30 +4,44 @@ Data structures for the Marmot SAT-based timetabling system.
 This module defines the core data structures that represent the timetabling problem
 for encoding into SAT.
 """
-from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import Optional, FrozenSet, Any, TypeVar, Union
+from dataclasses import dataclass
+from typing import Optional, FrozenSet, Union, NewType, Mapping
 
+# make some new string types to prevent confusion
+SectionName = NewType('SectionName', str)
+TimeSlotName = NewType('TimeSlotName', str)
+RoomName = NewType('RoomName', str)
+FacultyName = NewType('FacultyName', str)
+Day = NewType('Day', str)
+Priority = NewType('Priority', int)
+
+# Type for section-time variables mapping
+SectionTimeVars = NewType('SectionTimeVars', dict[tuple[SectionName, TimeSlotName], int])
+
+# Type for section-room variables mapping
+SectionRoomVars = NewType('SectionRoomVars', dict[tuple[SectionName, RoomName], int])
+
+# Type for a placement
+Placement = NewType('Placement', dict[SectionName, tuple[Optional[RoomName], TimeSlotName]])
 
 @dataclass(frozen=True)
 class Days:
     """
     Represents a set of days of the week.
     Uses a frozenset for immutability and to allow it to be used as a dictionary key.
-    Days are represented as integers 0-6 (Monday-Sunday).
+    Days are represented as strings 'M', 'T', etc.
     """
-    days: FrozenSet[int]
+    days: FrozenSet[Day]
     
     @staticmethod
     def from_string(day_str: str) -> 'Days':
         """Create Days from a string like 'MWF' or 'TR'"""
-        day_map = {'M': 0, 'T': 1, 'W': 2, 'R': 3, 'F': 4, 'S': 5, 'U': 6,
-                   'm': 0, 't': 1, 'w': 2, 'r': 3, 'f': 4, 's': 5, 'u': 6}
-        return Days(frozenset(day_map[d] for d in day_str if d in day_map))
+        days = 'MTWRFSUmtwrfsu'
+        return Days(frozenset(Day(d.upper()) for d in day_str if d in days))
     
     def __str__(self) -> str:
-        day_chars = ['M', 'T', 'W', 'R', 'F', 'S', 'U']
-        return ''.join(day_chars[d] for d in sorted(self.days))
+        days = 'MTWRFSU'
+        return ''.join(str(d) for d in sorted(self.days, key=lambda d: days.index(str(d))))
 
 
 @dataclass(frozen=True)
@@ -79,7 +93,7 @@ class Room:
     """
     Represents a room.
     """
-    name: str
+    name: RoomName
 
 
 @dataclass(frozen=True)
@@ -87,7 +101,7 @@ class TimeSlot:
     """
     Represents a time slot.
     """
-    name: str
+    name: TimeSlotName
     days: Days
     start_time: Time
     duration: Duration
@@ -108,143 +122,160 @@ class Section:
     """
     Represents a course section.
     """
-    name: str
-    
-    # Available rooms and time slots for this section
-    available_rooms: set[str] = field(default_factory=set)
-    available_time_slots: set[str] = field(default_factory=set)
-    
-    # Room preferences (room name -> priority), higher priority is worse
-    room_preferences: dict[str, int] = field(default_factory=dict)
-    
-    # Time slot preferences (time slot name -> priority), higher priority is worse
-    time_slot_preferences: dict[str, int] = field(default_factory=dict)
-    
-    # Faculty assigned to this section
-    faculty: set[str] = field(default_factory=set)
+    name: SectionName
+    available_rooms: FrozenSet[RoomName]
+    available_time_slots: FrozenSet[TimeSlotName]
+    room_preferences: Mapping[RoomName, Priority]
+    time_slot_preferences: Mapping[TimeSlotName, Priority]
+    faculty: FrozenSet[FacultyName]
 
 
-@dataclass
+@dataclass(frozen=True)
 class Faculty:
     """
     Represents a faculty member.
     """
-    name: str
-    
-    # Sections assigned to this faculty member
-    sections: set[str] = field(default_factory=set)
+    name: FacultyName
+    sections: FrozenSet[SectionName]
 
 
-class DistributionIntervalType(Enum):
-    """Types of distribution intervals for faculty preferences."""
-    GAP_TOO_SHORT = auto()
-    GAP_TOO_LONG = auto()
-    CLUSTER_TOO_SHORT = auto()
-    CLUSTER_TOO_LONG = auto()
-
-
-@dataclass
+@dataclass(frozen=True)
 class Conflict:
     """
     Represents a conflict between two sections.
     """
-    sections: tuple[str, str]  # Ordered pair of section names
-    priority: int
+    sections: tuple[SectionName, SectionName]  # Ordered pair of section names
+    priority: Priority
 
 
-@dataclass
+@dataclass(frozen=True)
 class AntiConflict:
     """
     Represents an anti-conflict: single section must be at the same time as at least one
     section from the group.
     """
-    single: str
-    group: set[str]
-    priority: int
+    single: SectionName
+    group: FrozenSet[SectionName]
+    priority: Priority
 
 
-@dataclass
+@dataclass(frozen=True)
 class RoomPreference:
     """
     Represents a preference for a section to avoid a specific room.
     """
-    section: str
-    room: str
-    priority: int
+    section: SectionName
+    room: RoomName
+    priority: Priority
 
 
-@dataclass
+@dataclass(frozen=True)
 class TimeSlotPreference:
     """
     Represents a preference for a section to avoid a specific time slot.
     """
-    section: str
-    time_slot: str
-    priority: int
+    section: SectionName
+    time_slot: TimeSlotName
+    priority: Priority
 
 
-@dataclass
+@dataclass(frozen=True)
 class FacultyDaysOff:
     """
     Represents a preference for a faculty member to have a specific number of days off.
     """
-    faculty: str
+    faculty: FacultyName
     days_to_check: Days
     desired_days_off: int
-    priority: int
+    priority: Priority
 
 
-@dataclass
+@dataclass(frozen=True)
 class FacultyEvenlySpread:
     """
     Represents a preference for a faculty member's classes to be evenly spread across days.
     """
-    faculty: str
+    faculty: FacultyName
     days_to_check: Days
-    priority: int
+    priority: Priority
 
 
-@dataclass
+@dataclass(frozen=True)
 class FacultyNoRoomSwitch:
     """
     Represents a preference for a faculty member to not have to switch rooms between back-to-back classes.
     """
-    faculty: str
+    faculty: FacultyName
     days_to_check: Days
     max_gap_within_cluster: Duration
-    priority: int
+    priority: Priority
 
 
-@dataclass
+@dataclass(frozen=True)
 class FacultyTooManyRooms:
     """
     Represents a preference for a faculty member to not have classes in too many different rooms.
     """
-    faculty: str
+    faculty: FacultyName
     desired_max_rooms: int
-    priority: int
+    priority: Priority
 
 
-@dataclass
-class FacultyDistributionInterval:
+@dataclass(frozen=True)
+class FacultyGapTooLong:
     """
-    Represents a constraint on time gaps or clusters in a faculty member's schedule.
+    Represents a time gap between class clusters that is too long in a faculty member's schedule.
     """
-    faculty: str
+    faculty: FacultyName
     days_to_check: Days
-    interval_type: DistributionIntervalType
     duration: Duration
     max_gap_within_cluster: Duration
-    priority: int
+    priority: Priority
 
 
-@dataclass
+@dataclass(frozen=True)
+class FacultyGapTooShort:
+    """
+    Represents a time gap between class clusters that is too short in a faculty member's schedule.
+    """
+    faculty: FacultyName
+    days_to_check: Days
+    duration: Duration
+    max_gap_within_cluster: Duration
+    priority: Priority
+
+
+@dataclass(frozen=True)
+class FacultyClusterTooLong:
+    """
+    Represents a cluster of classes that is too long in a faculty member's schedule.
+    """
+    faculty: FacultyName
+    days_to_check: Days
+    duration: Duration
+    max_gap_within_cluster: Duration
+    priority: Priority
+
+
+@dataclass(frozen=True)
+class FacultyClusterTooShort:
+    """
+    Represents a cluster of classes that is too short in a faculty member's schedule.
+    """
+    faculty: FacultyName
+    days_to_check: Days
+    duration: Duration
+    max_gap_within_cluster: Duration
+    priority: Priority
+
+
+@dataclass(frozen=True)
 class TimePatternMatch:
     """
     Represents a constraint that all sections in the group should have the same time pattern.
     """
-    sections: set[str]
-    priority: int
+    sections: FrozenSet[SectionName]
+    priority: Priority
 
 
 # Type for constraints that can be grouped by priority
@@ -257,85 +288,67 @@ ConstraintType = Union[
     FacultyEvenlySpread, 
     FacultyNoRoomSwitch, 
     FacultyTooManyRooms,
-    FacultyDistributionInterval, 
+    FacultyGapTooLong,
+    FacultyGapTooShort,
+    FacultyClusterTooLong,
+    FacultyClusterTooShort,
     TimePatternMatch
 ]
 
 
-@dataclass
+@dataclass(frozen=True)
 class TimetableData:
     """
     Main container for all timetabling data.
     """
     term_name: str
+    rooms: Mapping[RoomName, Room]
+    time_slots: Mapping[TimeSlotName, TimeSlot]
+    sections: Mapping[SectionName, Section]
+    faculty: Mapping[FacultyName, Faculty]
+    time_slot_conflicts: FrozenSet[tuple[TimeSlotName, TimeSlotName]]
+    conflicts: FrozenSet[Conflict]
+    anti_conflicts: FrozenSet[AntiConflict]
+    room_preferences: FrozenSet[RoomPreference]
+    time_slot_preferences: FrozenSet[TimeSlotPreference]
+    faculty_days_off: FrozenSet[FacultyDaysOff]
+    faculty_evenly_spread: FrozenSet[FacultyEvenlySpread]
+    faculty_no_room_switch: FrozenSet[FacultyNoRoomSwitch]
+    faculty_too_many_rooms: FrozenSet[FacultyTooManyRooms]
+    faculty_gap_too_short: FrozenSet[FacultyGapTooShort]
+    faculty_gap_too_long: FrozenSet[FacultyGapTooLong]
+    faculty_cluster_too_short: FrozenSet[FacultyClusterTooShort]
+    faculty_cluster_too_long: FrozenSet[FacultyClusterTooLong]
+    time_pattern_matches: FrozenSet[TimePatternMatch]
     
-    # Basic entities
-    rooms: dict[str, Room] = field(default_factory=dict)
-    time_slots: dict[str, TimeSlot] = field(default_factory=dict)
-    sections: dict[str, Section] = field(default_factory=dict)
-    faculty: dict[str, Faculty] = field(default_factory=dict)
-    
-    # Time slot conflicts - maps pairs of time slot names to whether they conflict
-    time_slot_conflicts: dict[tuple[str, str], bool] = field(default_factory=dict)
-    
-    # Constraint collections organized by type
-    conflicts: list[Conflict] = field(default_factory=list)
-    anti_conflicts: list[AntiConflict] = field(default_factory=list)
-    room_preferences: list[RoomPreference] = field(default_factory=list)
-    time_slot_preferences: list[TimeSlotPreference] = field(default_factory=list)
-    faculty_days_off: list[FacultyDaysOff] = field(default_factory=list)
-    faculty_evenly_spread: list[FacultyEvenlySpread] = field(default_factory=list)
-    faculty_no_room_switch: list[FacultyNoRoomSwitch] = field(default_factory=list)
-    faculty_too_many_rooms: list[FacultyTooManyRooms] = field(default_factory=list)
-    faculty_distribution_intervals: list[FacultyDistributionInterval] = field(default_factory=list)
-    time_pattern_matches: list[TimePatternMatch] = field(default_factory=list)
-    
-    def do_time_slots_conflict(self, time_slot1: str, time_slot2: str) -> bool:
+    def do_time_slots_conflict(self, time_slot1: TimeSlotName, time_slot2: TimeSlotName) -> bool:
         """Check if two time slots conflict."""
-        key = (time_slot1, time_slot2)
-        return self.time_slot_conflicts.get(key, False)
+        return (time_slot1, time_slot2) in self.time_slot_conflicts
     
-    def get_constraints_by_priority(self) -> dict[int, list[ConstraintType]]:
+    def get_constraints_by_priority(self, priority: Priority) -> set[ConstraintType]:
         """
-        Group all constraints by priority level.
-        Returns a dictionary mapping priority levels to lists of constraints.
+        Get the set of all constraints for a given priority level.
         """
-        result: dict[int, list[ConstraintType]] = {}
-        
-        # Collect all constraints
-        all_constraints: list[ConstraintType] = (
-            self.conflicts +
-            self.anti_conflicts +
-            self.room_preferences +
-            self.time_slot_preferences +
-            self.faculty_days_off +
-            self.faculty_evenly_spread +
-            self.faculty_no_room_switch +
-            self.faculty_too_many_rooms +
-            self.faculty_distribution_intervals +
-            self.time_pattern_matches
-        )
-        
-        # Group by priority
-        for constraint in all_constraints:
-            priority = constraint.priority
-            if priority not in result:
-                result[priority] = []
-            result[priority].append(constraint)
+        return { elt for elt in self.get_all_constraints() if elt.priority == priority }
+
+    def get_max_priority(self) -> Priority:
+        all_constraints = self.get_all_constraints()
+        return max((elt.priority for elt in all_constraints), default=Priority(0))
             
-        return result
-            
-    def get_all_constraints(self) -> list[ConstraintType]:
-        """Return all constraints as a flat list."""
-        return (
-            self.conflicts +
-            self.anti_conflicts +
-            self.room_preferences +
-            self.time_slot_preferences +
-            self.faculty_days_off +
-            self.faculty_evenly_spread +
-            self.faculty_no_room_switch +
-            self.faculty_too_many_rooms +
-            self.faculty_distribution_intervals +
+    def get_all_constraints(self) -> set[ConstraintType]:
+        """Return all constraints as a flat set."""
+        return set().union(
+            self.conflicts,
+            self.anti_conflicts,
+            self.room_preferences,
+            self.time_slot_preferences,
+            self.faculty_days_off,
+            self.faculty_evenly_spread,
+            self.faculty_no_room_switch,
+            self.faculty_too_many_rooms,
+            self.faculty_gap_too_short,
+            self.faculty_gap_too_long,
+            self.faculty_cluster_too_short,
+            self.faculty_cluster_too_long,
             self.time_pattern_matches
         )

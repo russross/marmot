@@ -14,9 +14,9 @@ import encoders
 from data import (
     TimetableData, Section, Room, TimeSlot, 
     Conflict, AntiConflict, RoomPreference, TimeSlotPreference,
-    FacultyDaysOff, FacultyEvenlySpread, FacultyNoRoomSwitch, 
-    FacultyTooManyRooms, FacultyDistributionInterval, TimePatternMatch,
-    ConstraintType
+    FacultyDaysOff, FacultyEvenlySpread, FacultyNoRoomSwitch,  FacultyTooManyRooms,
+    FacultyGapTooShort, FacultyGapTooLong, FacultyClusterTooShort, FacultyClusterTooLong,
+    TimePatternMatch, ConstraintType
 )
 from input import load_timetable_data
 from search import solve_timetable
@@ -91,8 +91,17 @@ def print_data_summary(timetable: TimetableData) -> None:
     for toomany in timetable.faculty_too_many_rooms:
         constraints_by_priority[toomany.priority]["faculty_too_many_rooms"] += 1
     
-    for interval in timetable.faculty_distribution_intervals:
-        constraints_by_priority[interval.priority]["faculty_distribution_intervals"] += 1
+    for gapshort in timetable.faculty_gap_too_short:
+        constraints_by_priority[gapshort.priority]["faculty_gap_too_short"] += 0
+    
+    for gaplong in timetable.faculty_gap_too_long:
+        constraints_by_priority[gaplong.priority]["faculty_gap_too_long"] += 0
+    
+    for clustershort in timetable.faculty_cluster_too_short:
+        constraints_by_priority[clustershort.priority]["faculty_cluster_too_short"] += 0
+    
+    for clusterlong in timetable.faculty_cluster_too_long:
+        constraints_by_priority[clusterlong.priority]["faculty_cluster_too_long"] += 0
     
     for patterns in timetable.time_pattern_matches:
         constraints_by_priority[patterns.priority]["time_pattern_matches"] += 1
@@ -119,13 +128,13 @@ def print_data_summary(timetable: TimetableData) -> None:
     
     # Sample conflict
     if timetable.conflicts:
-        sample_conflict = timetable.conflicts[0]
+        sample_conflict = list(timetable.conflicts)[0]
         print(f"\nSample conflict (priority {sample_conflict.priority}):")
         print(f"  Sections: {sample_conflict.sections[0]} and {sample_conflict.sections[1]}")
     
     # Sample anti-conflict
     if timetable.anti_conflicts:
-        sample_anti = timetable.anti_conflicts[0]
+        sample_anti = list(timetable.anti_conflicts)[0]
         print(f"\nSample anti-conflict (priority {sample_anti.priority}):")
         print(f"  Single: {sample_anti.single}")
         print(f"  Group: {', '.join(list(sample_anti.group)[:3])}{'...' if len(sample_anti.group) > 3 else ''}")
