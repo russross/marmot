@@ -2,8 +2,7 @@
 from pysat.formula import CNF, IDPool # type: ignore
 
 from data import TimetableData, Conflict, AntiConflict
-from encoder_types import SectionTimeVars, SectionRoomVars, ConstraintEncoder
-from encoder_registry import register_encoder
+from registry import SectionTimeVars, SectionRoomVars, ConstraintEncoder, register_encoder
 
 class ConflictEncoder(ConstraintEncoder):
     """Encoder for conflict constraints."""
@@ -15,11 +14,15 @@ class ConflictEncoder(ConstraintEncoder):
         pool: IDPool,
         section_time_vars: SectionTimeVars,
         section_room_vars: SectionRoomVars,
-        priority: int,
-        allow_violations: bool = False
+        priority: int
     ) -> list[int]:
         """
         Encode conflict constraints at a specific priority level.
+        
+        Each conflict specifies that two sections cannot be scheduled at conflicting times.
+        This encoder creates a criterion variable for each conflict and adds clauses to
+        enforce that if both sections are scheduled at conflicting times, the criterion
+        variable must be true (indicating a violation).
         
         Args:
             timetable: The timetable data
@@ -28,10 +31,9 @@ class ConflictEncoder(ConstraintEncoder):
             section_time_vars: Mapping from (section, time_slot) to variable IDs
             section_room_vars: Mapping from (section, room) to variable IDs
             priority: The priority level to encode
-            allow_violations: Whether to allow violations of these constraints
             
         Returns:
-            List of criterion variables if violations are allowed, empty list otherwise
+            List of criterion variables that can be set to true to allow a violation
         """
         # Get all conflicts at this priority level
         conflicts_at_level = [c for c in timetable.conflicts if c.priority == priority]
@@ -44,10 +46,9 @@ class ConflictEncoder(ConstraintEncoder):
             assert section_a in timetable.sections, f"Section {section_a} in conflict not found"
             assert section_b in timetable.sections, f"Section {section_b} in conflict not found"
             
-            # Create a single criterion variable for this conflict if violations allowed
-            if allow_violations:
-                criterion_var = pool.id(("conflict", section_a, section_b))
-                criterion_vars.append(criterion_var)
+            # Create a criterion variable for this conflict
+            criterion_var = pool.id(("conflict", section_a, section_b))
+            criterion_vars.append(criterion_var)
             
             # Check each pair of potentially conflicting time slots
             for time_a in timetable.sections[section_a].available_time_slots:
@@ -63,14 +64,9 @@ class ConflictEncoder(ConstraintEncoder):
                     var_a = section_time_vars[(section_a, time_a)]
                     var_b = section_time_vars[(section_b, time_b)]
                     
-                    if allow_violations:
-                        # Encode: (var_a AND var_b) -> criterion_var
-                        # Equivalent to: (!var_a OR !var_b OR criterion_var)
-                        cnf.append([-var_a, -var_b, criterion_var])
-                    else:
-                        # Hard constraint: sections cannot be scheduled at conflicting times
-                        # Equivalent to: (!var_a OR !var_b)
-                        cnf.append([-var_a, -var_b])
+                    # Encode: (var_a AND var_b) -> criterion_var
+                    # Equivalent to: (!var_a OR !var_b OR criterion_var)
+                    cnf.append([-var_a, -var_b, criterion_var])
         
         return criterion_vars
 
@@ -84,11 +80,16 @@ class AntiConflictEncoder(ConstraintEncoder):
         pool: IDPool,
         section_time_vars: SectionTimeVars,
         section_room_vars: SectionRoomVars,
-        priority: int,
-        allow_violations: bool = False
+        priority: int
     ) -> list[int]:
         """
         Encode anti-conflict constraints at a specific priority level.
+        
+        An anti-conflict specifies that a single section must be scheduled at the same time
+        as at least one section from a specified group. This encoder creates a criterion 
+        variable for each anti-conflict and adds clauses to enforce that if the single section
+        is scheduled at a time when no group section is scheduled, the criterion variable 
+        must be true (indicating a violation).
         
         Args:
             timetable: The timetable data
@@ -97,10 +98,9 @@ class AntiConflictEncoder(ConstraintEncoder):
             section_time_vars: Mapping from (section, time_slot) to variable IDs
             section_room_vars: Mapping from (section, room) to variable IDs
             priority: The priority level to encode
-            allow_violations: Whether to allow violations of these constraints
             
         Returns:
-            List of criterion variables if violations are allowed, empty list otherwise
+            List of criterion variables that can be set to true to allow a violation
         """
         # Get all anti-conflicts at this priority level
         anti_conflicts_at_level = [c for c in timetable.anti_conflicts if c.priority == priority]
@@ -129,10 +129,9 @@ class AntiConflictEncoder(ConstraintEncoder):
             
             assert has_shared_time_slot, f"Anti-conflict for section {single} has no shared time slots with any group section"
             
-            # Create a single criterion variable for this anti-conflict constraint if violations allowed
-            if allow_violations:
-                criterion_var = pool.id(("anti_conflict", single, tuple(sorted(group))))
-                criterion_vars.append(criterion_var)
+            # Create a criterion variable for this anti-conflict constraint
+            criterion_var = pool.id(("anti_conflict", single, tuple(sorted(group))))
+            criterion_vars.append(criterion_var)
             
             # For each time slot of the single section
             for single_time in timetable.sections[single].available_time_slots:
@@ -151,25 +150,15 @@ class AntiConflictEncoder(ConstraintEncoder):
                 
                 # If no group sections share this time slot
                 if not group_vars:
-                    if allow_violations:
-                        # Encode: single_time_var -> criterion_var
-                        # Equivalent to: (!single_time_var | criterion_var)
-                        cnf.append([-single_var, criterion_var])
-                    else:
-                        # Hard constraint: this time slot is not allowed for the single section
-                        cnf.append([-single_var])
+                    # Encode: single_time_var -> criterion_var
+                    # Equivalent to: (!single_time_var | criterion_var)
+                    cnf.append([-single_var, criterion_var])
                 else:
                     # There are some group sections that share this time slot
-                    if allow_violations:
-                        # Encode: single_time_var -> (group_var_1 | group_var_2 | ... | criterion_var)
-                        # Equivalent to: (!single_time_var | group_var_1 | group_var_2 | ... | criterion_var)
-                        clause = [-single_var] + group_vars + [criterion_var]
-                        cnf.append(clause)
-                    else:
-                        # Hard constraint: single_time_var -> (group_var_1 | group_var_2 | ...)
-                        # Equivalent to: (!single_time_var | group_var_1 | group_var_2 | ...)
-                        clause = [-single_var] + group_vars
-                        cnf.append(clause)
+                    # Encode: single_time_var -> (group_var_1 | group_var_2 | ... | criterion_var)
+                    # Equivalent to: (!single_time_var | group_var_1 | group_var_2 | ... | criterion_var)
+                    clause = [-single_var] + group_vars + [criterion_var]
+                    cnf.append(clause)
         
         return criterion_vars
 

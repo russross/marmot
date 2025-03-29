@@ -11,8 +11,7 @@ from pysat.formula import CNF, IDPool # type: ignore
 from pysat.card import CardEnc, EncType # type: ignore
 
 from data import TimetableData, ConstraintType
-from encoder_types import SectionTimeVars, SectionRoomVars
-from encoder_registry import get_all_encoders
+from registry import SectionTimeVars, SectionRoomVars, get_all_encoders
 
 # Type aliases (additional ones not defined in encoder_types.py)
 SectionName = str
@@ -70,10 +69,6 @@ def create_sat_instance(
     
     # Encode all constraints up to and including the current priority level
     for priority in range(current_priority + 1):
-        # Determine max violations allowed for this priority level
-        max_violations = prior_violations.get(priority, 0) if priority < current_priority else current_violations
-        allow_violations = max_violations > 0
-        
         # Get all constraints at this priority level
         constraints_by_type: dict[str, list[ConstraintType]] = {}
         for constraint in timetable.get_all_constraints():
@@ -88,15 +83,26 @@ def create_sat_instance(
             if constraint_type in constraints_by_type and constraints_by_type[constraint_type]:
                 encoder = encoder_class()
                 criterion_vars = encoder.encode(
-                    timetable, cnf, pool, section_time_vars, section_room_vars, priority, allow_violations
+                    timetable, cnf, pool, section_time_vars, section_room_vars, priority
                 )
                 criterion_vars_by_priority[priority].extend(criterion_vars)
         
-        # If violations are allowed, add cardinality constraint to limit total violations
-        if allow_violations:
-            all_vars = criterion_vars_by_priority[priority]
-            if max_violations < len(all_vars) and all_vars:
-                clauses = CardEnc.atmost(all_vars, bound=max_violations, encoding=EncType.totalizer).clauses
+        # Determine max violations allowed for this priority level
+        max_violations = prior_violations.get(priority, 0) if priority < current_priority else current_violations
+        
+        # Add constraints for violations based on priority level
+        all_vars = criterion_vars_by_priority[priority]
+        if all_vars:
+            if max_violations == 0:
+                # No violations allowed: force all criterion variables to be false
+                for var in all_vars:
+                    cnf.append([-var])
+            elif max_violations < len(all_vars):
+                # Limited violations allowed: add cardinality constraint
+                if max_violations == 1 and len(all_vars) <= 20:
+                    clauses = CardEnc.atmost(all_vars, bound=max_violations, encoding=EncType.pairwise).clauses
+                else:
+                    clauses = CardEnc.atmost(all_vars, bound=max_violations, encoding=EncType.kmtotalizer).clauses
                 for clause in clauses:
                     cnf.append(clause)
     

@@ -13,9 +13,8 @@ from itertools import product
 from pysat.formula import CNF, IDPool  # type: ignore
 
 from data import TimetableData, FacultyDaysOff, FacultyEvenlySpread, Days
-from encoder_types import SectionTimeVars, SectionRoomVars, ConstraintEncoder
-from encoder_registry import register_encoder
-from faculty_utils import get_faculty_day_vars
+from registry import SectionTimeVars, SectionRoomVars, ConstraintEncoder, register_encoder
+from faculty_utils import get_faculty_section_day_vars
 
 
 class FacultyScheduleEncoder(ConstraintEncoder):
@@ -28,30 +27,32 @@ class FacultyScheduleEncoder(ConstraintEncoder):
         pool: IDPool,
         section_time_vars: SectionTimeVars,
         section_room_vars: SectionRoomVars,
-        priority: int,
-        allow_violations: bool = False
+        priority: int
     ) -> list[int]:
         """
         Encode faculty scheduling constraints at a specific priority level.
 
+        This encoder handles two types of faculty scheduling constraints:
+        1. Faculty Days Off: Ensures faculty members have a specific number of days without classes
+        2. Faculty Evenly Spread: Ensures faculty classes are evenly distributed across days
+
         Args:
-            timetable: The timetable data containing faculty and constraint information.
-            cnf: The CNF formula to append clauses to.
-            pool: The ID pool for creating unique variable IDs.
-            section_time_vars: Mapping of (section, time_slot) to SAT variable IDs.
-            section_room_vars: Mapping of (section, room) to SAT variable IDs (unused here).
-            priority: The priority level of constraints to encode.
-            allow_violations: If True, encode as soft constraints with criterion variables.
+            timetable: The timetable data containing faculty and constraint information
+            cnf: The CNF formula to append clauses to
+            pool: The ID pool for creating unique variable IDs
+            section_time_vars: Mapping of (section, time_slot) to SAT variable IDs
+            section_room_vars: Mapping of (section, room) to SAT variable IDs (unused here)
+            priority: The priority level of constraints to encode
 
         Returns:
-            List of criterion variables for soft constraints; empty list if hard constraints.
+            List of criterion variables that can be set to true to allow a violation
         """
         criterion_vars: list[int] = []
         criterion_vars.extend(
-            self._encode_days_off(timetable, cnf, pool, section_time_vars, priority, allow_violations)
+            self._encode_days_off(timetable, cnf, pool, section_time_vars, priority)
         )
         criterion_vars.extend(
-            self._encode_evenly_spread(timetable, cnf, pool, section_time_vars, priority, allow_violations)
+            self._encode_evenly_spread(timetable, cnf, pool, section_time_vars, priority)
         )
         return criterion_vars
 
@@ -61,125 +62,85 @@ class FacultyScheduleEncoder(ConstraintEncoder):
         cnf: CNF,
         pool: IDPool,
         section_time_vars: SectionTimeVars,
-        priority: int,
-        allow_violations: bool
+        priority: int
     ) -> list[int]:
         """
         Encode Faculty Days Off constraints for all faculty at the given priority.
 
         For each constraint:
-        - Creates auxiliary variables for section-day assignments.
-        - Enumerates all possible day configurations (days with/without classes).
-        - Adds clauses to forbid configurations where the number of days off differs from desired.
+        - Creates auxiliary variables for section-day assignments
+        - Enumerates all possible day configurations (days with/without classes)
+        - Adds clauses to forbid configurations where the number of days off differs from desired
 
         Args:
-            timetable: The timetable data.
-            cnf: The CNF formula to append clauses to.
-            pool: The ID pool for variable creation.
-            section_time_vars: Mapping of (section, time_slot) to SAT variables.
-            priority: The priority level to encode.
-            allow_violations: If True, adds criterion variables for soft constraints.
+            timetable: The timetable data
+            cnf: The CNF formula to append clauses to
+            pool: The ID pool for variable creation
+            section_time_vars: Mapping of (section, time_slot) to SAT variables
+            priority: The priority level to encode
 
         Returns:
-            List of criterion variables if violations are allowed; empty list otherwise.
+            List of criterion variables that can be set to true to allow a violation
         """
         constraints: list[FacultyDaysOff] = [
             c for c in timetable.faculty_days_off if c.priority == priority
         ]
-        criterion_vars: list[int] = []
+        hallpass_vars: list[int] = []
 
         for constraint in constraints:
             faculty: str = constraint.faculty
-            days_to_check: Days = constraint.days_to_check
+            days: FrozenSet[int] = constraint.days_to_check.days
             desired_days_off: int = constraint.desired_days_off
 
             # Validate inputs
             assert faculty in timetable.faculty, f"Faculty {faculty} not found in timetable"
-            assert days_to_check.days, f"Empty days_to_check for faculty {faculty}"
+            assert days, f"Empty days_to_check for faculty {faculty}"
             assert desired_days_off >= 0, f"Negative desired_days_off for faculty {faculty}"
-            assert desired_days_off <= len(days_to_check.days), (
+            assert desired_days_off <= len(days), (
                 f"Desired days off {desired_days_off} exceeds possible days "
-                f"{len(days_to_check.days)} for faculty {faculty}"
+                f"{len(days)} for faculty {faculty}"
             )
 
-            # Get faculty sections and auxiliary variables
-            sections: set[str] = timetable.faculty[faculty].sections
-            assert sections, f"Faculty {faculty} has no sections"
-            day_vars: dict[tuple[str, int], int] = get_faculty_day_vars(
-                timetable, cnf, pool, section_time_vars, faculty, days_to_check
-            )
+            # get faculty sections and auxiliary variables
+            #   (section_name, day) -> variable
+            section_day_to_var = get_faculty_section_day_vars(timetable, cnf, pool, section_time_vars, faculty, days)
+            section_day_list = list(section_day_to_var.keys())
+            day_list = list(days)
 
-            # Organize variables by day
-            day_map: dict[int, list[int]] = self._map_section_day_vars(sections, days_to_check.days, day_vars)
+            # only create one hallpass variable for the entire constraint
+            # we create this the first time it is needed
+            # just in case we find a constraint that is trivially met
+            hallpass_var: Optional[int] = None
 
-            # Create criterion variable for soft constraints
-            criterion_var: Optional[int] = None
-            if allow_violations:
-                criterion_var = pool.id((faculty, "days_off", tuple(sorted(days_to_check.days)), desired_days_off))
+            # iterate through a truth table of all 2**n possible section_day combinations
+            # note: this could be refined by filtering out the impossible combinations
+            for combo in range(2**len(section_day_list)):
+                # figure out what days are scheduled for this combo
+                scheduled_days: set[int] = set()
+                for (i, (_, day)) in enumerate(section_day_list):
+                    # is this section_day var true in this combo?
+                    if combo & (1<<i) != 0:
+                        scheduled_days.add(day)
 
-            # Encode the constraint
-            self._encode_days_off_constraint(
-                cnf, day_map, list(days_to_check.days), desired_days_off, allow_violations, criterion_var
-            )
-
-            if criterion_var is not None:
-                criterion_vars.append(criterion_var)
-
-        return criterion_vars
-
-    def _encode_days_off_constraint(
-        self,
-        cnf: CNF,
-        day_map: dict[int, list[int]],
-        days: list[int],
-        desired_days_off: int,
-        allow_violations: bool,
-        criterion_var: Optional[int]
-    ) -> None:
-        """
-        Encode the Faculty Days Off constraint for a single faculty member.
-
-        Enumerates all 2^n configurations of days having classes or not (where n is the number of days).
-        For each configuration violating the desired number of days off, adds a clause to forbid it.
-
-        Args:
-            cnf: The CNF formula to append clauses to.
-            day_map: Mapping of day to list of section-day variables.
-            days: List of days to check.
-            desired_days_off: Number of days that should have no classes.
-            allow_violations: If True, adds criterion variable to clauses.
-            criterion_var: The criterion variable for soft constraints, if any.
-        """
-        # For each possible configuration of days with/without classes
-        for config_tuple in product([False, True], repeat=len(days)):
-            config: dict[int, bool] = {days[i]: config_tuple[i] for i in range(len(days))}
-            days_off: int = sum(1 for day in days if not config[day])
-
-            # Check if this configuration violates the constraint
-            if days_off != desired_days_off:
-                clause: list[int] = []
-                skip: bool = False
-
-                for day in days:
-                    section_vars: list[int] = day_map.get(day, [])
-                    has_class: bool = config[day]
-
-                    if not section_vars and has_class:
-                        # Impossible: no sections can be scheduled, but config requires a class
-                        skip = True
-                        break
-                    elif section_vars:
-                        if has_class:
-                            # At least one section must be true; negate "all false"
-                            clause.extend(section_vars)  # section1 ∨ section2 ∨ ...
+                # is this combo a violation?
+                if len(days) - len(scheduled_days) != desired_days_off:
+                    # encode that this should not happen
+                    clause = []
+                    for (i, key) in enumerate(section_day_list):
+                        var = section_day_to_var[key]
+                        if combo & (1<<i) == 0:
+                            clause.append(var)
                         else:
-                            # All sections must be false; negate "any true"
-                            clause.extend(-var for var in section_vars)  # ¬section1 ∧ ¬section2 → ¬section1 ∨ ¬section2 in clause
+                            clause.append(-var)
 
-                if not skip and clause:  # Only add clause if valid and non-empty
-                    if allow_violations and criterion_var is not None:
-                        clause.append(criterion_var)  # Allows violation if criterion_var is true
+                    # create the hallpass variable lazily
+                    if hallpass_var is None:
+                        hallpass_var = pool.id((faculty, "days_off", days, desired_days_off))
+                        hallpass_vars.append(hallpass_var)
+                    clause.append(hallpass_var)
                     cnf.append(clause)
+
+        return hallpass_vars
 
     def _encode_evenly_spread(
         self,
@@ -187,154 +148,86 @@ class FacultyScheduleEncoder(ConstraintEncoder):
         cnf: CNF,
         pool: IDPool,
         section_time_vars: SectionTimeVars,
-        priority: int,
-        allow_violations: bool
+        priority: int
     ) -> list[int]:
         """
-        Encode Faculty Evenly Spread constraints for all faculty at the given priority.
+        Encode Faculty Days Off constraints for all faculty at the given priority.
 
         For each constraint:
-        - Creates auxiliary variables for section-day assignments.
-        - Enumerates all 2^n possible section-day assignments (where n is sections × days).
-        - Adds clauses to forbid configurations where working days' section counts differ by more than 1.
+        - Creates auxiliary variables for section-day assignments
+        - Enumerates all possible day configurations (days with/without classes)
+        - Adds clauses to forbid configurations where the number of days off differs from desired
 
         Args:
-            timetable: The timetable data.
-            cnf: The CNF formula to append clauses to.
-            pool: The ID pool for variable creation.
-            section_time_vars: Mapping of (section, time_slot) to SAT variables.
-            priority: The priority level to encode.
-            allow_violations: If True, adds criterion variables for soft constraints.
+            timetable: The timetable data
+            cnf: The CNF formula to append clauses to
+            pool: The ID pool for variable creation
+            section_time_vars: Mapping of (section, time_slot) to SAT variables
+            priority: The priority level to encode
 
         Returns:
-            List of criterion variables if violations are allowed; empty list otherwise.
+            List of criterion variables that can be set to true to allow a violation
         """
         constraints: list[FacultyEvenlySpread] = [
             c for c in timetable.faculty_evenly_spread if c.priority == priority
         ]
-        criterion_vars: list[int] = []
+        hallpass_vars: list[int] = []
 
         for constraint in constraints:
             faculty: str = constraint.faculty
-            days_to_check: Days = constraint.days_to_check
+            days: FrozenSet[int] = constraint.days_to_check.days
 
             # Validate inputs
             assert faculty in timetable.faculty, f"Faculty {faculty} not found in timetable"
-            assert days_to_check.days, f"Empty days_to_check for faculty {faculty}"
+            assert days, f"Empty days_to_check for faculty {faculty}"
+            assert len(days) > 1, f"Need at least two days to spread out classes for faculty {faculty}"
 
-            # Get faculty sections and auxiliary variables
-            sections: set[str] = timetable.faculty[faculty].sections
-            assert sections, f"Faculty {faculty} has no sections"
-            if len(sections) <= 1:
-                continue  # Evenly spread is trivial with 0 or 1 section
+            # get faculty sections and auxiliary variables
+            #   (section_name, day) -> variable
+            section_day_to_var = get_faculty_section_day_vars(timetable, cnf, pool, section_time_vars, faculty, days)
+            section_day_list = list(section_day_to_var.keys())
+            day_list = list(days)
 
-            day_vars: dict[tuple[str, int], int] = get_faculty_day_vars(
-                timetable, cnf, pool, section_time_vars, faculty, days_to_check
-            )
+            # only create one hallpass variable for the entire constraint
+            # we create this the first time it is needed
+            # just in case we find a constraint that is trivially met
+            hallpass_var: Optional[int] = None
 
-            # Organize variables by section and day for full enumeration
-            section_day_map: dict[tuple[str, int], int] = day_vars
-            all_vars: list[tuple[str, int, int]] = [
-                (section, day, var) for (section, day), var in section_day_map.items()
-            ]
+            # iterate through a truth table of all 2**n possible section_day combinations
+            # note: this could be refined by filtering out the impossible combinations
+            for combo in range(2**len(section_day_list)):
+                # count the sections on each day for this combo
+                scheduled_days: dict[int, int] = {}
+                for (i, (_, day)) in enumerate(section_day_list):
+                    # is this section_day var true in this combo?
+                    if combo & (1<<i) != 0:
+                        if day not in scheduled_days:
+                            scheduled_days[day] = 0
+                        scheduled_days[day] += 1
 
-            # Create criterion variable for soft constraints
-            criterion_var: Optional[int] = None
-            if allow_violations:
-                criterion_var = pool.id((faculty, "evenly_spread", tuple(sorted(days_to_check.days))))
+                # is this combo a violation?
+                (min_sections, max_sections) = (len(section_day_list), -1)
+                for n in scheduled_days.values():
+                    min_sections = min(min_sections, n)
+                    max_sections = max(max_sections, n)
+                if max_sections - min_sections > 1:
+                    # encode that this should not happen
+                    clause = []
+                    for (i, key) in enumerate(section_day_list):
+                        var = section_day_to_var[key]
+                        if combo & (1<<i) == 0:
+                            clause.append(var)
+                        else:
+                            clause.append(-var)
 
-            # Encode the constraint
-            self._encode_evenly_spread_constraint(
-                cnf, all_vars, sections, list(days_to_check.days), allow_violations, criterion_var
-            )
-
-            if criterion_var is not None:
-                criterion_vars.append(criterion_var)
-
-        return criterion_vars
-
-    def _encode_evenly_spread_constraint(
-        self,
-        cnf: CNF,
-        all_vars: list[tuple[str, int, int]],
-        sections: set[str],
-        days: list[int],
-        allow_violations: bool,
-        criterion_var: Optional[int]
-    ) -> None:
-        """
-        Encode the Faculty Evenly Spread constraint for a single faculty member.
-
-        Enumerates all 2^n configurations of section-day assignments (where n is sections × days).
-        For each configuration violating the max-min ≤ 1 condition on working days, adds a clause to forbid it.
-
-        Args:
-            cnf: The CNF formula to append clauses to.
-            all_vars: List of (section, day, variable) tuples for all section-day assignments.
-            sections: Set of faculty section names.
-            days: List of days to check.
-            allow_violations: If True, adds criterion variable to clauses.
-            criterion_var: The criterion variable for soft constraints, if any.
-        """
-        var_map: dict[tuple[str, int], int] = {(s, d): v for s, d, v in all_vars}
-        var_keys: list[tuple[str, int]] = list(var_map.keys())
-
-        # Enumerate all possible assignments to section-day variables
-        for assignment_tuple in product([False, True], repeat=len(var_keys)):
-            assignment: dict[tuple[str, int], bool] = {
-                var_keys[i]: assignment_tuple[i] for i in range(len(var_keys))
-            }
-
-            # Count sections per day
-            sections_per_day: dict[int, int] = {day: 0 for day in days}
-            for (section, day) in assignment:
-                if day in days and assignment[(section, day)]:
-                    sections_per_day[day] += 1
-
-            # Identify working days and check spread
-            working_days: list[tuple[int, int]] = [
-                (day, count) for day, count in sections_per_day.items() if count > 0
-            ]
-            if not working_days:
-                continue  # No classes scheduled; trivially satisfied
-
-            counts: list[int] = [count for _, count in working_days]
-            if max(counts) - min(counts) > 1:
-                # Violation: Add clause to forbid this configuration
-                clause: list[int] = []
-                for (section, day), value in assignment.items():
-                    var: int = var_map[(section, day)]
-                    clause.append(var if not value else -var)  # Negate the assignment
-
-                if allow_violations and criterion_var is not None:
-                    clause.append(criterion_var)
-                if clause:
+                    # create the hallpass variable lazily
+                    if hallpass_var is None:
+                        hallpass_var = pool.id((faculty, "evenly_spread", days))
+                        hallpass_vars.append(hallpass_var)
+                    clause.append(hallpass_var)
                     cnf.append(clause)
 
-    def _map_section_day_vars(
-        self,
-        sections: set[str],
-        days: FrozenSet[int],
-        day_vars: dict[tuple[str, int], int]
-    ) -> dict[int, list[int]]:
-        """
-        Map section-day variables by day.
-
-        Args:
-            sections: Set of faculty section names.
-            days: Set of days to check.
-            day_vars: Mapping of (section, day) to SAT variables.
-
-        Returns:
-            Dictionary mapping each day to a list of section-day variables.
-        """
-        day_map: dict[int, list[int]] = {day: [] for day in days}
-        for section in sections:
-            for day in days:
-                key: tuple[str, int] = (section, day)
-                if key in day_vars:
-                    day_map[day].append(day_vars[key])
-        return day_map
+        return hallpass_vars
 
 
 # Register the encoder

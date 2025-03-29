@@ -8,8 +8,7 @@ certain rooms with specified priorities.
 from pysat.formula import CNF, IDPool # type: ignore
 
 from data import TimetableData, RoomPreference
-from encoder_types import SectionTimeVars, SectionRoomVars, ConstraintEncoder
-from encoder_registry import register_encoder
+from registry import SectionTimeVars, SectionRoomVars, ConstraintEncoder, register_encoder
 
 
 class RoomPreferenceEncoder(ConstraintEncoder):
@@ -22,12 +21,16 @@ class RoomPreferenceEncoder(ConstraintEncoder):
         pool: IDPool,
         section_time_vars: SectionTimeVars,
         section_room_vars: SectionRoomVars,
-        priority: int,
-        allow_violations: bool = False
+        priority: int
     ) -> list[int]:
         """
         Encode room preference constraints: sections should avoid specific rooms
         if possible, according to their defined preferences.
+        
+        For each room preference constraint, a criterion variable is created.
+        The encoding enforces that if a section is assigned to a room it should
+        avoid, the corresponding criterion variable must be true (indicating a
+        violation).
         
         Args:
             timetable: The timetable data
@@ -36,10 +39,9 @@ class RoomPreferenceEncoder(ConstraintEncoder):
             section_time_vars: Mapping from (section, time_slot) to variable IDs
             section_room_vars: Mapping from (section, room) to variable IDs
             priority: The priority level to encode
-            allow_violations: Whether to allow violations of these constraints
             
         Returns:
-            List of criterion variables if violations are allowed, empty list otherwise
+            List of criterion variables that can be set to true to allow a violation
         """
         # Get all room preferences at this priority level
         preferences_at_level = [p for p in timetable.room_preferences 
@@ -64,17 +66,13 @@ class RoomPreferenceEncoder(ConstraintEncoder):
             
             room_var = section_room_vars[(section, room)]
             
-            if allow_violations:
-                # Create a criterion variable for this preference
-                criterion_var = pool.id(("room_pref", section, room))
-                criterion_vars.append(criterion_var)
-                
-                # Encode: room_var -> criterion_var
-                # Equivalent to: (!room_var OR criterion_var)
-                cnf.append([-room_var, criterion_var])
-            else:
-                # Hard constraint: section cannot be scheduled in this room
-                cnf.append([-room_var])
+            # Create a criterion variable for this preference
+            criterion_var = pool.id(("room_pref", section, room))
+            criterion_vars.append(criterion_var)
+            
+            # Encode: room_var -> criterion_var
+            # Equivalent to: (!room_var OR criterion_var)
+            cnf.append([-room_var, criterion_var])
         
         return criterion_vars
 
