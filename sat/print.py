@@ -5,7 +5,8 @@ Printing utilities for schedule visualization.
 This module provides functions to print a schedule in a grid format 
 similar to the format used in the Rust version.
 """
-from data import TimetableData, Placement
+from data import TimetableData
+from encoding import Placement
 
 def print_schedule(timetable: TimetableData, placement: Placement) -> None:
     """

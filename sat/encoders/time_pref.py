@@ -5,18 +5,17 @@ Time slot preference constraint encoder for the Marmot timetabling system.
 This module provides a function to encode a time slot preference constraint:
 sections should avoid specific time slots if possible.
 """
-from pysat.formula import CNF, IDPool # type: ignore
 
-from data import TimetableData, TimeSlotPreference, SectionTimeVars
+from data import TimetableData, TimeSlotPreference
+from encoding import Encoding
 
 
 def encode_time_slot_preference(
     timetable: TimetableData,
-    cnf: CNF,
-    pool: IDPool,
-    section_time_vars: SectionTimeVars,
+    encoding: Encoding,
+    hallpass: int,
     preference: TimeSlotPreference
-) -> int:
+) -> None:
     """
     Encode a single time slot preference constraint.
     
@@ -24,16 +23,6 @@ def encode_time_slot_preference(
     if possible. This function creates a hallpass variable and adds clauses to
     enforce that if the section is assigned to the time slot it should avoid,
     the hallpass variable must be true (indicating a violation that is allowed).
-    
-    Args:
-        timetable: The timetable data
-        cnf: The CNF formula to add clauses to
-        pool: The ID pool for variable creation
-        section_time_vars: Mapping from (section, time_slot) to variable IDs
-        preference: The specific time slot preference to encode
-        
-    Returns:
-        The hallpass variable that can be set to true to allow a violation
     """
     section = preference.section
     time_slot = preference.time_slot
@@ -47,16 +36,11 @@ def encode_time_slot_preference(
            f"Time slot {time_slot} is not available for section {section}"
     
     # The section-time variable must exist if we've initialized correctly
-    assert (section, time_slot) in section_time_vars, \
+    assert (section, time_slot) in encoding.section_time_vars, \
            f"Missing variable for {section}, {time_slot}"
     
-    time_var = section_time_vars[(section, time_slot)]
+    time_var = encoding.section_time_vars[(section, time_slot)]
     
-    # Create a hallpass variable for this preference
-    hallpass_var: int = pool.id(("time_pref", section, time_slot))
-    
-    # Encode: time_var -> hallpass_var
-    # Equivalent to: (!time_var OR hallpass_var)
-    cnf.append([-time_var, hallpass_var])
-    
-    return hallpass_var
+    # Encode: time_var -> hallpass
+    # Equivalent to: (!time_var OR hallpass)
+    encoding.add_clause([-time_var, hallpass])

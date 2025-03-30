@@ -5,7 +5,7 @@ This module defines the core data structures that represent the timetabling prob
 for encoding into SAT.
 """
 from dataclasses import dataclass
-from typing import Optional, FrozenSet, Union, NewType, Mapping
+from typing import Optional, FrozenSet, Union, NewType, Mapping, Iterable
 
 # make some new string types to prevent confusion
 SectionName = NewType('SectionName', str)
@@ -15,34 +15,20 @@ FacultyName = NewType('FacultyName', str)
 Day = NewType('Day', str)
 Priority = NewType('Priority', int)
 
-# Type for section-time variables mapping
-SectionTimeVars = NewType('SectionTimeVars', dict[tuple[SectionName, TimeSlotName], int])
+class Days(frozenset[Day]):
+    """Represents a set of days of the week."""
+    valid_days = "MTWRFSU"
 
-# Type for section-room variables mapping
-SectionRoomVars = NewType('SectionRoomVars', dict[tuple[SectionName, RoomName], int])
+    def __new__(cls, days: Iterable[str]) -> 'Days':
+        return super().__new__(cls, (Day(d) for d in days if d in cls.valid_days))
 
-# Type for a placement
-Placement = NewType('Placement', dict[SectionName, tuple[Optional[RoomName], TimeSlotName]])
-
-@dataclass(frozen=True)
-class Days:
-    """
-    Represents a set of days of the week.
-    Uses a frozenset for immutability and to allow it to be used as a dictionary key.
-    Days are represented as strings 'M', 'T', etc.
-    """
-    days: FrozenSet[Day]
-    
     @staticmethod
     def from_string(day_str: str) -> 'Days':
         """Create Days from a string like 'MWF' or 'TR'"""
-        days = 'MTWRFSUmtwrfsu'
-        return Days(frozenset(Day(d.upper()) for d in day_str if d in days))
-    
-    def __str__(self) -> str:
-        days = 'MTWRFSU'
-        return ''.join(str(d) for d in sorted(self.days, key=lambda d: days.index(str(d))))
+        return Days(day_str.upper())
 
+    def __str__(self) -> str:
+        return ''.join(sorted(self, key=lambda d: self.valid_days.index(d)))
 
 @dataclass(frozen=True)
 class Time:
@@ -114,7 +100,7 @@ class TimeSlot:
     @property
     def time_pattern(self) -> tuple[int, Duration]:
         """Return the time pattern as (number of days, duration)."""
-        return (len(self.days.days), self.duration)
+        return (len(self.days), self.duration)
 
 
 @dataclass(frozen=True)

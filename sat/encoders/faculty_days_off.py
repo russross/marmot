@@ -5,19 +5,18 @@ Faculty days off constraint encoder for the Marmot timetabling system.
 This module provides a function to encode a faculty days off constraint:
 ensuring faculty members have a specific number of days without classes.
 """
-from pysat.formula import CNF, IDPool  # type: ignore
 
-from data import TimetableData, FacultyDaysOff, SectionTimeVars
+from data import TimetableData, FacultyDaysOff
+from encoding import Encoding
 from faculty_utils import get_faculty_section_day_vars
 
 
 def encode_faculty_days_off(
     timetable: TimetableData,
-    cnf: CNF,
-    pool: IDPool,
-    section_time_vars: SectionTimeVars,
+    encoding: Encoding,
+    hallpass: int,
     constraint: FacultyDaysOff
-) -> int:
+) -> None:
     """
     Encode a single faculty days off constraint.
     
@@ -29,19 +28,9 @@ def encode_faculty_days_off(
     The encoding uses a truth table approach, enumerating all possible section-day
     assignments and adding CNF clauses to forbid configurations where the number
     of days off differs from the desired amount.
-    
-    Args:
-        timetable: The timetable data
-        cnf: The CNF formula to add clauses to
-        pool: The ID pool for variable creation
-        section_time_vars: Mapping from (section, time_slot) to variable IDs
-        constraint: The specific faculty days off constraint to encode
-        
-    Returns:
-        The hallpass variable that can be set to true to allow a violation
     """
     faculty = constraint.faculty
-    days = constraint.days_to_check.days
+    days = constraint.days_to_check
     desired_days_off = constraint.desired_days_off
 
     # Validate inputs
@@ -53,13 +42,11 @@ def encode_faculty_days_off(
         f"{len(days)} for faculty {faculty}"
     )
 
-    # get faculty sections and auxiliary variables
+    # get faculty sections day auxiliary variables
     #   (section_name, day) -> variable
-    section_day_to_var = get_faculty_section_day_vars(timetable, cnf, pool, section_time_vars, faculty, days)
+    section_day_to_var = get_faculty_section_day_vars(timetable, encoding, faculty, days)
     section_day_list = list(section_day_to_var.keys())
     
-    hallpass_var: int = pool.id((faculty, "days_off", days, desired_days_off))
-
     # iterate through a truth table of all 2**n possible section_day combinations
     # note: this could be refined by filtering out the impossible combinations
     for combo in range(2**len(section_day_list)):
@@ -82,7 +69,5 @@ def encode_faculty_days_off(
                     clause.append(-var)
 
             # create the hallpass variable lazily
-            clause.append(hallpass_var)
-            cnf.append(clause)
-
-    return hallpass_var
+            clause.append(hallpass)
+            encoding.add_clause(clause)

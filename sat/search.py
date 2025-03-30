@@ -5,15 +5,16 @@ Iterative SAT solver for the Marmot timetabling system.
 This module implements the core search algorithm that iteratively searches
 for the minimum number of violations at each priority level.
 """
+
 from typing import Optional, Any
 import time
 import sys
 
-from pysat.formula import CNF # type: ignore
 from pysat.solvers import Solver # type: ignore
 
-from data import TimetableData, Placement, SectionName, RoomName, TimeSlotName, Priority
 from core import create_sat_instance, decode_solution
+from data import TimetableData, SectionName, RoomName, TimeSlotName, Priority
+from encoding import Placement
 
 def solve_timetable(
     timetable: TimetableData, 
@@ -125,23 +126,18 @@ def solve_at_priority_level(
             return False, 0, None
         
         # Create the SAT instance
-        cnf, section_room_vars, section_time_vars = create_sat_instance(
-            timetable, 
-            max_violations,
-            priority, 
-            k
-        )
+        encoding = create_sat_instance(timetable, max_violations, priority, k)
         
-        print(f"    priority {priority}, k={k} solving encoding with {cnf.nv} variables and {len(cnf.clauses)} clauses")
+        print(f"    priority {priority}, k={k} solving encoding with {encoding.last_var} variables and {len(encoding.clauses)} clauses")
         
         # Solve the SAT instance
-        solver = Solver(name=solver_name, bootstrap_with=cnf)
+        solver = Solver(name=solver_name, bootstrap_with=encoding.clauses)
         solved = solver.solve()
         
         if solved:
             # We've found a solution with this many violations
             model = solver.get_model()
-            schedule = decode_solution(model, section_room_vars, section_time_vars)
+            placement = decode_solution(encoding, model)
             solution_found = True
         else:
             # Increment violations and try again
@@ -155,7 +151,7 @@ def solve_at_priority_level(
         # Clean up the solver
         solver.delete()
     
-    return True, k, schedule
+    return True, k, placement
 
 
 def print_max_violations(max_violations: dict[Priority, int]) -> None:
