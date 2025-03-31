@@ -6,14 +6,14 @@ This module provides a function to encode a time slot preference constraint:
 sections should avoid specific time slots if possible.
 """
 
-from data import TimetableData, TimeSlotPreference
+from data import TimetableData, TimeSlotPreference, Priority
 from encoding import Encoding
 
 
 def encode_time_slot_preference(
     timetable: TimetableData,
     encoding: Encoding,
-    hallpass: int,
+    priority: Priority,
     preference: TimeSlotPreference
 ) -> None:
     """
@@ -27,6 +27,10 @@ def encode_time_slot_preference(
     section = preference.section
     time_slot = preference.time_slot
     
+    hallpass = encoding.new_var()
+    encoding.hallpass.add(hallpass)
+    encoding.problems[hallpass] = f'{priority}: {section} should not be at {time_slot}'
+
     # Verify section and time slot exist
     assert section in timetable.sections, f"Section {section} in time preference not found"
     assert time_slot in timetable.time_slots, f"Time slot {time_slot} in time preference not found"
@@ -43,4 +47,4 @@ def encode_time_slot_preference(
     
     # Encode: time_var -> hallpass
     # Equivalent to: (!time_var OR hallpass)
-    encoding.add_clause([-time_var, hallpass])
+    encoding.add_clause({-time_var, hallpass})

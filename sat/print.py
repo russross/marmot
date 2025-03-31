@@ -8,14 +8,17 @@ similar to the format used in the Rust version.
 from data import TimetableData
 from encoding import Placement
 
-def print_schedule(timetable: TimetableData, placement: Placement) -> None:
+def print_schedule(timetable: TimetableData, schedule: tuple[Placement, set[str]]) -> None:
     """
     Print the schedule in a grid format.
     
     Args:
         timetable: The timetable data
-        placemen: The placement mapping sections to (room, time_slot) pairs
+        placement: The placement mapping sections to (room, time_slot) pairs
     """
+
+    (placement, problems) = schedule
+
     # Extract rooms and time slots used in the placement
     used_rooms = { room for (room, _) in placement.values() if room is not None }
     used_time_slots = { time_slot for (_, time_slot) in placement.values() }
@@ -92,3 +95,6 @@ def print_schedule(timetable: TimetableData, placement: Placement) -> None:
         if room is None:
             print(f"{section} at {time_slot} with no room")
 
+    problem_list = sorted(problems, key=lambda elt: int(elt[:elt.index(':')]))
+    for elt in problem_list:
+        print(elt)

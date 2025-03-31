@@ -7,7 +7,7 @@ groups of sections should use the same time pattern (number of days, duration).
 """
 from typing import NewType
 
-from data import TimetableData, TimePatternMatch, Duration
+from data import TimetableData, TimePatternMatch, Duration, Priority
 from data import TimeSlotName, SectionName
 from encoding import Encoding
 
@@ -17,7 +17,7 @@ Pattern = NewType('Pattern', tuple[int, Duration])
 def encode_time_pattern_match(
     timetable: TimetableData,
     encoding: Encoding,
-    hallpass: int,
+    priority: Priority,
     constraint: TimePatternMatch
 ) -> None:
     """
@@ -32,6 +32,10 @@ def encode_time_pattern_match(
     # Skip if fewer than 2 sections (constraint is trivially satisfied)
     if len(constraint.sections) < 2:
         return
+
+    hallpass = encoding.new_var()
+    encoding.hallpass.add(hallpass)
+    encoding.problems[hallpass] = f'{priority}: {" and ".join(constraint.sections)} should have the same time pattern'
         
     # Get all possible time patterns for these sections
     # A time pattern is a tuple of (number of days, duration)
@@ -75,35 +79,33 @@ def encode_time_pattern_match(
         for section_name in constraint.sections:
             if section_name in section_to_patterns and pattern in section_to_patterns[section_name]:
                 # Get all time slot variables for this section with this pattern
-                pattern_time_vars = [var for _, var in section_to_patterns[section_name][pattern]]
+                pattern_time_vars = {var for _, var in section_to_patterns[section_name][pattern]}
                 
                 # If this pattern is selected, the section must use one of these time slots
                 # pattern_var -> (time_var_1 OR time_var_2 OR ... OR hallpass)
                 # Equivalent to: !pattern_var OR time_var_1 OR time_var_2 OR ... OR hallpass
-                clause = [-pattern_var]
-                clause.extend(pattern_time_vars)
-                clause.append(hallpass)  # Allow violation with hallpass
+                clause = {-pattern_var} | pattern_time_vars | {hallpass}
                 encoding.add_clause(clause)
                 
                 # For each time slot variable with this pattern:
                 # time_var -> (pattern_var OR hallpass)
                 # Equivalent to: !time_var OR pattern_var OR hallpass
                 for var in pattern_time_vars:
-                    encoding.add_clause([-var, pattern_var, hallpass])
+                    encoding.add_clause({-var, pattern_var, hallpass})
             else:
                 # This section cannot use this pattern, so this pattern cannot be selected
                 # unless hallpass is true
-                encoding.add_clause([-pattern_var, hallpass])
+                encoding.add_clause({-pattern_var, hallpass})
     
     # At least one pattern must be selected, or hallpass must be true
-    clause = list(pattern_vars.values()) + [hallpass]
+    clause = set(pattern_vars.values()) | {hallpass}
     if clause:  # Only add if we have patterns
         encoding.add_clause(clause)
         
         # At most one pattern can be selected, or hallpass must be true
         for i, var1 in enumerate(pattern_vars.values()):
             for var2 in list(pattern_vars.values())[i+1:]:
-                encoding.add_clause([-var1, -var2, hallpass])
+                encoding.add_clause({-var1, -var2, hallpass})
     
     # For each pair of sections, encode: if they use different patterns, hallpass is true
     for i, section_a in enumerate(constraint.sections):
@@ -133,4 +135,4 @@ def encode_time_pattern_match(
                                 # If section_a uses pattern1 and section_b uses pattern2, hallpass must be true
                                 # (var_a AND var_b) -> hallpass
                                 # Equivalent to: !var_a OR !var_b OR hallpass
-                                encoding.add_clause([-var_a, -var_b, hallpass])
+                                encoding.add_clause({-var_a, -var_b, hallpass})

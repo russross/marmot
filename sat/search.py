@@ -21,7 +21,7 @@ def solve_timetable(
     solver_name: str = "cd", 
     max_time_seconds: int = 3600, 
     verbose: bool = False
-) -> Optional[Placement]:
+) -> Optional[tuple[Placement, set[str]]]:
     """
     Solve the timetabling problem using iterative SAT solving.
     
@@ -91,7 +91,7 @@ def solve_at_priority_level(
     solver_name: str,
     remaining_time: float,
     verbose: bool
-) -> tuple[bool, int, Optional[Placement]]:
+) -> tuple[bool, int, Optional[tuple[Placement, set[str]]]]:
     """
     Solve for a specific priority level, finding minimum violations.
     
@@ -112,11 +112,10 @@ def solve_at_priority_level(
     
     # Start with attempting zero violations and increase until a solution is found
     k = 0
-    solution_found = False
     schedule = None
     
     start_time = time.time()
-    while not solution_found:
+    while schedule is None:
         if k > criteria_count:
             print(f"    k > criteria count for this priority, giving up")
             return False, 0, None
@@ -137,21 +136,19 @@ def solve_at_priority_level(
         if solved:
             # We've found a solution with this many violations
             model = solver.get_model()
-            placement = decode_solution(encoding, model)
-            solution_found = True
+            schedule = decode_solution(encoding, model)
         else:
             # Increment violations and try again
             k += 1
             
-            # We must find a solution for hard constraints with no violations
-            if priority == 0 and not solution_found:
-                print(f"    could not find a solution for priority level {priority}")
-                return False, 0, None
+            # Make a note if we fail to satisfy hard constraints
+            if priority == 0 and schedule is None:
+                print(f"    could not find a solution using only hard constraints")
                 
         # Clean up the solver
         solver.delete()
     
-    return True, k, placement
+    return True, k, schedule
 
 
 def print_max_violations(max_violations: dict[Priority, int]) -> None:

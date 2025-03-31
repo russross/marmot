@@ -1,20 +1,16 @@
 # conflicts.py
 """
-Conflict constraint encoders for the Marmot timetabling system.
-
-This module provides functions to encode conflict and anti-conflict constraints.
-Each function focuses on encoding a single constraint instance and returns
-exactly one hallpass variable.
+Conflict constraint encoder.
 """
 
-from data import TimetableData, Conflict, AntiConflict
+from data import TimetableData, Conflict, AntiConflict, Priority
 from encoding import Encoding
 
 
 def encode_conflict(
     timetable: TimetableData,
     encoding: Encoding,
-    hallpass: int,
+    priority: Priority,
     conflict: Conflict
 ) -> None:
     """
@@ -27,6 +23,10 @@ def encode_conflict(
     """
     section_a, section_b = conflict.sections
     
+    hallpass = encoding.new_var()
+    encoding.hallpass.add(hallpass)
+    encoding.problems[hallpass] = f'{priority}: {section_a} and {section_b} conflict'
+
     # Verify sections exist
     assert section_a in timetable.sections, f"Section {section_a} in conflict not found"
     assert section_b in timetable.sections, f"Section {section_b} in conflict not found"
@@ -47,4 +47,4 @@ def encode_conflict(
             
             # Encode: (var_a AND var_b) -> hallpass
             # Equivalent to: (!var_a OR !var_b OR hallpass)
-            encoding.add_clause([-var_a, -var_b, hallpass])
+            encoding.add_clause({-var_a, -var_b, hallpass})

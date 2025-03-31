@@ -64,40 +64,37 @@ def encode_constraints(
     from encoders.anticonflicts import encode_anti_conflict
     from encoders.room_pref import encode_room_preference
     from encoders.time_pref import encode_time_slot_preference
-    from encoders.faculty_days_off import encode_faculty_days_off
-    from encoders.faculty_evenly_spread import encode_faculty_evenly_spread
+    from encoders.faculty_days_off import encode_faculty_days_off, encode_faculty_evenly_spread
     from encoders.time_pattern import encode_time_pattern_match
 
     # Collect all hallpass variables for this priority level
-    hallpass_vars = set()
+    encoding.hallpass.clear()
 
     # Get all constraints at this priority level
     constraints = timetable.get_constraints_by_priority(priority)
 
     # Encode each constraint based on its type
     for constraint in constraints:
-        hallpass = encoding.new_var()
-
         if isinstance(constraint, Conflict):
-            encode_conflict(timetable, encoding, hallpass, constraint)
+            encode_conflict(timetable, encoding, priority, constraint)
 
         elif isinstance(constraint, AntiConflict):
-            encode_anti_conflict(timetable, encoding, hallpass, constraint)
+            encode_anti_conflict(timetable, encoding, priority, constraint)
 
         elif isinstance(constraint, RoomPreference):
-            encode_room_preference(timetable, encoding, hallpass, constraint)
+            encode_room_preference(timetable, encoding, priority, constraint)
 
         elif isinstance(constraint, TimeSlotPreference):
-            encode_time_slot_preference(timetable, encoding, hallpass, constraint)
+            encode_time_slot_preference(timetable, encoding, priority, constraint)
 
         elif isinstance(constraint, FacultyDaysOff):
-            encode_faculty_days_off(timetable, encoding, hallpass, constraint)
+            encode_faculty_days_off(timetable, encoding, priority, constraint)
 
         elif isinstance(constraint, FacultyEvenlySpread):
-            encode_faculty_evenly_spread(timetable, encoding, hallpass, constraint)
+            encode_faculty_evenly_spread(timetable, encoding, priority, constraint)
 
         elif isinstance(constraint, TimePatternMatch):
-            encode_time_pattern_match(timetable, encoding, hallpass, constraint)
+            encode_time_pattern_match(timetable, encoding, priority, constraint)
 
         # Add cases for other constraint types as they are implemented
         elif isinstance(constraint, FacultyNoRoomSwitch):
@@ -142,20 +139,18 @@ def encode_constraints(
                 _already_reported.add(constraint)
             continue
 
-        # Add hallpass variable to the list if a valid one was returned
-        hallpass_vars.add(hallpass)
-
     # Apply cardinality constraint if needed
     if max_violations == 0:
         # No violations allowed: force all hallpass variables to be false
-        for var in hallpass_vars:
+        for var in encoding.hallpass:
             encoding.add_clause({-var})
-    elif hallpass_vars and max_violations < len(hallpass_vars):
+    elif len(encoding.hallpass) > 0 and max_violations < len(encoding.hallpass):
         # Limited violations allowed: add cardinality constraint
-        if max_violations == 1 and len(hallpass_vars) <= 20:
-            encoding.pairwise(hallpass_vars)
+        if max_violations == 1 and len(encoding.hallpass) <= 30:
+            encoding.pairwise_at_most_one(encoding.hallpass)
         else:
-            encoding.totalizer(hallpass_vars, max_violations)
+            encoding.totalizer_at_most_k(encoding.hallpass, max_violations)
+    encoding.hallpass.clear()
 
 def create_basic_variables(
     timetable: TimetableData,
@@ -205,7 +200,7 @@ def encode_basic_constraints(
         encoding.add_clause(room_vars)
 
         # At most one room must be assigned
-        encoding.pairwise(room_vars)
+        encoding.pairwise_at_most_one(room_vars)
 
     # Constraint 2: Each section must be assigned exactly one time slot
     for section, time_vars in section_to_times.items():
@@ -215,7 +210,7 @@ def encode_basic_constraints(
         encoding.add_clause(time_vars)
 
         # At most one time slot must be assigned
-        encoding.pairwise(time_vars)
+        encoding.pairwise_at_most_one(time_vars)
     
 
 def encode_room_conflicts(
@@ -289,7 +284,7 @@ def encode_room_conflict(
 def decode_solution(
     encoding: Encoding,
     model: list[int],
-) -> Placement:
+) -> tuple[Placement, set[str]]:
     """
     Decode a SAT solution into a schedule.
     """
@@ -299,6 +294,7 @@ def decode_solution(
 
     section_to_room = {}
     section_to_time_slot = {}
+    problems = set()
 
     # Process all positive variable assignments
     for var in model:
@@ -313,6 +309,9 @@ def decode_solution(
             (section, time_slot) = var_to_section_time[var]
             section_to_time_slot[section] = time_slot
 
+        elif var in encoding.problems:
+            problems.add(encoding.problems[var])
+
     # Construct the placement
     placement = Placement({})
     for (section, time_slot) in section_to_time_slot.items():
@@ -321,4 +320,4 @@ def decode_solution(
         else:
             placement[section] = (None, time_slot)
     
-    return placement
+    return (placement, problems)

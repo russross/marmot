@@ -6,14 +6,14 @@ This module provides a function to encode a room preference constraint:
 sections should avoid specific rooms if possible.
 """
 
-from data import TimetableData, RoomPreference
+from data import TimetableData, RoomPreference, Priority
 from encoding import Encoding
 
 
 def encode_room_preference(
     timetable: TimetableData, 
     encoding: Encoding,
-    hallpass: int,
+    priority: Priority,
     preference: RoomPreference
 ) -> None:
     """
@@ -27,6 +27,10 @@ def encode_room_preference(
     section = preference.section
     room = preference.room
     
+    hallpass = encoding.new_var()
+    encoding.hallpass.add(hallpass)
+    encoding.problems[hallpass] = f'{priority}: {section} should not be in {room}'
+
     # Verify section and room exist
     assert section in timetable.sections, f"Section {section} in room preference not found"
     assert room in timetable.rooms, f"Room {room} in room preference not found"
@@ -43,4 +47,4 @@ def encode_room_preference(
     
     # Encode: room_var -> hallpass
     # Equivalent to: (!room_var OR hallpass)
-    encoding.add_clause([-room_var, hallpass])
+    encoding.add_clause({-room_var, hallpass})
