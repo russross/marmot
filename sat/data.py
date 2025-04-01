@@ -31,47 +31,90 @@ class Days(frozenset[Day]):
         return ''.join(sorted(self, key=lambda d: self.valid_days.index(d)))
 
 @dataclass(frozen=True)
-class Time:
-    """
-    Represents a time of day in minutes from midnight.
-    """
-    minutes: int
-    
-    def __str__(self) -> str:
-        hours, mins = divmod(self.minutes, 60)
-        return f"{hours:02d}:{mins:02d}"
-    
-    def __add__(self, duration: 'Duration') -> 'Time':
-        """Add a duration to this time."""
-        return Time(self.minutes + duration.minutes)
-    
-    def __sub__(self, other: 'Time') -> 'Duration':
-        """Subtract another time from this time to get a duration."""
-        return Duration(self.minutes - other.minutes)
-
-
-@dataclass(frozen=True)
 class Duration:
     """
     Represents a duration in minutes.
     """
     minutes: int
-    
+
     def __str__(self) -> str:
         if self.minutes == 0:
             return "0m"
-        
+
         result = []
         mins = self.minutes
-        
+
         if mins >= 60:
             hours, mins = divmod(mins, 60)
             result.append(f"{hours}h")
-        
+
         if mins > 0:
             result.append(f"{mins}m")
-            
+
         return "".join(result)
+
+    # Comparison operators
+    def __lt__(self, other: 'Duration') -> bool:
+        return self.minutes < other.minutes
+
+    def __le__(self, other: 'Duration') -> bool:
+        return self.minutes <= other.minutes
+
+    def __gt__(self, other: 'Duration') -> bool:
+        return self.minutes > other.minutes
+
+    def __ge__(self, other: 'Duration') -> bool:
+        return self.minutes >= other.minutes
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Duration):
+            return NotImplemented
+        return self.minutes == other.minutes
+
+@dataclass(frozen=True)
+class Time:
+    """
+    Represents a time of day in minutes from midnight.
+    """
+    minutes: int
+
+    def __str__(self) -> str:
+        hours, mins = divmod(self.minutes, 60)
+        return f"{hours:02d}:{mins:02d}"
+
+    def __add__(self, duration: Duration) -> 'Time':
+        """Add a duration to this time."""
+        return Time(self.minutes + duration.minutes)
+
+    def __sub__(self, other: object) -> Union[Duration, 'Time']:
+        """
+        Subtract from this time.
+        - If subtracting a Time, returns a Duration
+        - If subtracting a Duration, returns a Time
+        """
+        if isinstance(other, Time):
+            return Duration(self.minutes - other.minutes)
+        elif isinstance(other, Duration):
+            return Time(self.minutes - other.minutes)
+        return NotImplemented
+
+    # Comparison operators
+    def __lt__(self, other: 'Time') -> bool:
+        return self.minutes < other.minutes
+
+    def __le__(self, other: 'Time') -> bool:
+        return self.minutes <= other.minutes
+
+    def __gt__(self, other: 'Time') -> bool:
+        return self.minutes > other.minutes
+
+    def __ge__(self, other: 'Time') -> bool:
+        return self.minutes >= other.minutes
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Time):
+            return NotImplemented
+        return self.minutes == other.minutes
 
 
 @dataclass(frozen=True)

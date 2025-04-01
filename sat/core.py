@@ -64,7 +64,8 @@ def encode_constraints(
     from encoders.anticonflicts import encode_anti_conflict
     from encoders.room_pref import encode_room_preference
     from encoders.time_pref import encode_time_slot_preference
-    from encoders.faculty_days_off import encode_faculty_days_off, encode_faculty_evenly_spread
+    from encoders.faculty_days_off import encode_faculty_days_off
+    from encoders.faculty_evenly_spread import encode_faculty_evenly_spread
     from encoders.time_pattern import encode_time_pattern_match
 
     # Collect all hallpass variables for this priority level
