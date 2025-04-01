@@ -25,8 +25,8 @@ def encode_faculty_days_off(
     and adds clauses to enforce that if the faculty member's schedule doesn't have
     the desired number of days off, the hallpass variable must be true.
     
-    The encoding uses a truth table approach, enumerating all possible section-day
-    assignments and adding CNF clauses to forbid configurations where the number
+    The encoding uses a truth table approach, enumerating all possible day
+    patterns and adding CNF clauses to forbid patterns where the number
     of days off differs from the desired amount.
     """
     faculty = constraint.faculty
@@ -46,27 +46,24 @@ def encode_faculty_days_off(
         f"{len(days)} for faculty {faculty}"
     )
 
-    # get faculty sections day auxiliary variables
-    #   (section_name, day) -> variable
-    section_day_to_var = make_faculty_section_day_vars(timetable, encoding, faculty, days)
-    section_day_list = list(section_day_to_var.keys())
+    # Get day auxiliary variables
+    #   day -> variable
+    day_to_var = make_faculty_day_vars(timetable, encoding, faculty, days)
+    days_list = sorted(days)
 
-    # iterate through a truth table of section_day combinations that are actually possible
-    for combo in get_unique_section_day_patterns(timetable, faculty, section_day_list, days):
-        # figure out which days are scheduled for this combo
-        scheduled_days = set()
-        for (is_scheduled, (_, day)) in zip(combo, section_day_list):
-            if is_scheduled:
-                scheduled_days.add(day)
+    # Iterate through a truth table of day combinations that are actually possible
+    for combo in get_unique_day_patterns(timetable, faculty, days):
+        # Count days off in this pattern
+        days_off = combo.count(False)
 
-        # is this the right number of days off?
-        if len(days) - len(scheduled_days) == desired_days_off:
+        # If this pattern has the correct number of days off, we're good
+        if days_off == desired_days_off:
             continue
 
-        # encode that this should not happen without a hallpass
+        # Encode that this should not happen without a hallpass
         clause = {hallpass}
-        for (is_scheduled, key) in zip(combo, section_day_list):
-            var = section_day_to_var[key]
+        for day, is_scheduled in zip(days_list, combo):
+            var = day_to_var[day]
             if is_scheduled:
                 clause.add(-var)
             else:

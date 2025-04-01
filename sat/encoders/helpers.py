@@ -1,5 +1,7 @@
 from itertools import product
 
+from typing import Callable
+
 from data import TimetableData, FacultyName, TimeSlotName, SectionName, Priority
 from data import Time, Duration, Days, Day
 from encoding import Encoding
@@ -57,6 +59,78 @@ def make_faculty_section_day_vars(
             encoding.add_clause({-time_var, var})
     
     return section_day_to_var
+
+def make_faculty_day_vars(
+    timetable: TimetableData,
+    encoding: Encoding,
+    faculty: FacultyName,
+    days_to_check: Days
+) -> dict[Day, int]:
+    """
+    Create variables that represent whether a faculty member teaches on specific days.
+    
+    For each day in days_to_check, creates a variable that will be true if and only if
+    at least one of the faculty member's sections is scheduled on that day.
+    
+    Args:
+        timetable: The timetable data
+        encoding: The SAT encoding instance
+        faculty: The faculty name to create variables for
+        days_to_check: The set of days to consider
+        
+    Returns:
+        A dictionary mapping days to their corresponding SAT variables
+    """
+    # Create the set of day variables we'll return
+    day_to_var: dict[Day, int] = {}
+    
+    # Create mappings to help with encoding
+    var_to_section_time_vars: dict[int, set[int]] = {}
+    
+    # Initialize day variables
+    for day in days_to_check:
+        var = encoding.new_var()
+        day_to_var[day] = var
+        var_to_section_time_vars[var] = set()
+    
+    # For each section taught by this faculty
+    for section_name in timetable.faculty[faculty].sections:
+        section = timetable.sections[section_name]
+        
+        # For each day of interest
+        for day in days_to_check:
+            
+            # For each time slot available to this section
+            for time_slot_name in section.available_time_slots:
+                time_slot = timetable.time_slots[time_slot_name]
+                
+                # But only the ones that cover this day
+                if day not in time_slot.days:
+                    continue
+                
+                # Record this for encoding
+                time_var = encoding.section_time_vars[(section_name, time_slot_name)]
+                var_to_section_time_vars[day_to_var[day]].add(time_var)
+    
+    # Add the clauses for each day variable
+    for (day_var, section_time_vars) in var_to_section_time_vars.items():
+        if not section_time_vars:
+            # If there are no possible section-time assignments for this day,
+            # this variable must be false
+            encoding.add_clause({-day_var})
+            continue
+        
+        # Encode day_var -> (time_slot_1 OR time_slot_2 OR ...)
+        # i.e. !day_var OR time_slot_1 OR time_slot_2 OR ...
+        encoding.add_clause({-day_var} | section_time_vars)
+        
+        # Encode: (any of the time slots) -> day_var
+        # i.e.: (!time_slot_1 AND !time_slot_2 AND ...) OR day_var
+        # i.e.: (!time_slot_1 OR day_var) AND (!time_slot_2 OR day_var) AND ...
+        for time_var in section_time_vars:
+            encoding.add_clause({-time_var, day_var})
+    
+    return day_to_var
 
 def make_faculty_time_slot_vars(
     timetable: TimetableData,
@@ -279,6 +353,69 @@ def get_unique_section_day_patterns(
     # Convert back to lists for the return value
     return [list(pattern) for pattern in unique_patterns]
 
+def get_unique_day_patterns(
+    timetable: TimetableData,
+    faculty: FacultyName,
+    days_to_check: Days
+) -> list[list[bool]]:
+    """
+    Generate a list of unique day scheduling patterns for a faculty member.
+
+    This function finds all possible valid time slot combinations for a faculty member,
+    converts each to a pattern of which days have classes scheduled,
+    and returns the unique patterns.
+
+    Args:
+        timetable: The timetable data containing sections, faculty, and time slot information
+        faculty: The name of the faculty member
+        days_to_check: The set of days to consider
+
+    Returns:
+        A list of unique boolean lists, where each boolean represents whether a day
+        in days_to_check has at least one section scheduled (in the same order as days_to_check)
+    """
+    # Validate inputs
+    assert faculty in timetable.faculty, f"Faculty {faculty} not found in timetable"
+    assert days_to_check, f"Empty days_to_check for faculty {faculty}"
+    
+    # Generate all valid time slot combinations for this faculty
+    all_combos = get_faculty_time_slot_combos(timetable, faculty, days_to_check)
+
+    # If no valid combinations, return an empty list
+    if not all_combos:
+        return []
+
+    # Convert days_to_check to a sorted list for consistent indexing
+    days_list = sorted(days_to_check)
+    
+    # Track unique patterns (using tuples for hashability)
+    unique_patterns = set()
+
+    # Process each combination
+    for combo in all_combos:
+        # Create a result array filled with False initially
+        result = [False] * len(days_list)
+
+        # Process each section-time slot pair in the combination
+        valid_combo = True
+        for section, time_slot_name in combo:
+            # Ensure both section and time slot exist
+            assert section in timetable.sections, f"Section {section} not found in timetable"
+            assert time_slot_name in timetable.time_slots, f"Time slot {time_slot_name} not found in timetable"
+
+            time_slot = timetable.time_slots[time_slot_name]
+            
+            # Mark days as scheduled
+            for i, day in enumerate(days_list):
+                if day in time_slot.days:
+                    result[i] = True
+        
+        # Add this pattern to the unique set (as a tuple for hashability)
+        unique_patterns.add(tuple(result))
+
+    # Convert back to lists for the return value
+    return [list(pattern) for pattern in unique_patterns]
+
 def get_time_slot_clusters(
     timetable: TimetableData, 
     time_slots: set[TimeSlotName], 
@@ -358,3 +495,209 @@ def get_time_slot_clusters(
     clusters.append((current_cluster_start, current_cluster_end))
     
     return clusters
+
+def get_faculty_day_patterns(
+    timetable: TimetableData,
+    faculty: FacultyName,
+    days_to_check: Days,
+    max_gap_within_cluster: Duration
+) -> list[tuple[Day, set[tuple[TimeSlotName, bool]], list[tuple[Time, Time]]]]:
+    """
+    Generate all possible faculty teaching patterns with day-specific time clusters.
+    
+    For each day in days_to_check, this function identifies all unique combinations
+    of time slots that could be assigned to the faculty on that day, along with
+    the resulting time clusters for each combination.
+    
+    A time cluster is a continuous block of teaching time where gaps between adjacent
+    time slots are <= max_gap_within_cluster.
+    
+    Args:
+        timetable: The timetable data containing sections, faculty, and time slots
+        faculty: The name of the faculty member
+        days_to_check: The set of days to consider
+        max_gap_within_cluster: The maximum allowable gap between time slots in a cluster
+        
+    Returns:
+        A list of tuples where each tuple contains:
+        - Day: A specific day from days_to_check
+        - set[tuple[TimeSlotName, bool]]: Set of (time_slot, is_used) pairs for all relevant time slots
+        - list[tuple[Time, Time]]: A list of (start_time, end_time) tuples representing
+          teaching clusters for this pattern
+    """
+    # Validate inputs
+    assert faculty in timetable.faculty, f"Faculty {faculty} not found in timetable"
+    assert days_to_check, f"Empty days_to_check for faculty {faculty}"
+    assert max_gap_within_cluster.minutes >= 0, f"Negative max_gap_within_cluster for faculty {faculty}"
+    
+    # Generate all valid time slot combinations for this faculty
+    all_combos = get_faculty_time_slot_combos(timetable, faculty, days_to_check)
+    
+    # If no valid combinations, return an empty list
+    if not all_combos:
+        return []
+    
+    # Get all potential time slots for this faculty for each day
+    day_to_potential_time_slots: dict[Day, set[TimeSlotName]] = {}
+    for day in days_to_check:
+        day_to_potential_time_slots[day] = set()
+        
+    for section_name in timetable.faculty[faculty].sections:
+        section = timetable.sections[section_name]
+        for time_slot_name in section.available_time_slots:
+            time_slot = timetable.time_slots[time_slot_name]
+            # Add to each day this time slot covers
+            for day in days_to_check:
+                if day in time_slot.days:
+                    day_to_potential_time_slots[day].add(time_slot_name)
+    
+    # Process each day to find unique time slot patterns and their clusters
+    result = []
+    
+    for day in sorted(days_to_check):
+        # Skip days with no potential time slots
+        if not day_to_potential_time_slots[day]:
+            continue
+            
+        # Track patterns we've already processed for this day (using frozensets for hashability)
+        seen_patterns = set()
+        
+        # Process each possible faculty time slot combination
+        for combo in all_combos:
+            # Get the set of time slots used in this combo
+            combo_time_slots = {ts for _, ts in combo}
+            
+            # Create a set of (time_slot, is_used) pairs for all potential time slots on this day
+            day_pattern = set()
+            for ts_name in day_to_potential_time_slots[day]:
+                is_used = ts_name in combo_time_slots
+                day_pattern.add((ts_name, is_used))
+            
+            # Create a hashable representation of this pattern
+            pattern_key = frozenset(day_pattern)
+            
+            # Skip if we've already processed this pattern
+            if pattern_key in seen_patterns:
+                continue
+                
+            # Add to seen patterns
+            seen_patterns.add(pattern_key)
+            
+            # Get the set of time slots actually used on this day in this pattern
+            used_time_slots = {ts for ts, used in day_pattern if used}
+            
+            # Skip if no time slots are used on this day
+            if not used_time_slots:
+                continue
+            
+            # Get the clusters for this day's time slots
+            clusters = get_time_slot_clusters(timetable, used_time_slots, day, max_gap_within_cluster)
+            
+            # Add this entry to the result
+            result.append((day, day_pattern, clusters))
+    
+    return result
+
+def encode_faculty_cluster_helper(
+    timetable: TimetableData,
+    encoding: Encoding,
+    faculty: FacultyName,
+    days: Days,
+    max_gap: Duration,
+    priority: Priority,
+    violation_counter: Callable[[list[tuple[Time, Time]], Day], int],
+    description_generator: Callable[[int, Day], str]
+) -> None:
+    """
+    Helper function for encoding faculty cluster constraints.
+    
+    This function handles the common structure of faculty cluster constraints,
+    using callback functions to determine violations based on specific criteria
+    and generate appropriate descriptions.
+    
+    Args:
+        timetable: The timetable data
+        encoding: The SAT encoding instance
+        faculty: The faculty member's name
+        days: The set of days to check
+        max_gap: Maximum gap duration to consider within a cluster
+        priority: The priority level of this constraint
+        violation_counter: A callback function that takes a list of clusters (each a
+                          tuple of (start_time, end_time)) and a day, and returns the 
+                          number of violations detected according to the specific constraint
+        description_generator: A callback function that takes a violation number and a day,
+                              and returns a descriptive string for the hallpass variable
+    """
+    # Validate inputs
+    assert faculty in timetable.faculty, f"Faculty {faculty} not found in timetable"
+    assert days, f"Empty days_to_check for faculty {faculty}"
+    assert max_gap.minutes >= 0, f"Negative max gap within cluster for faculty {faculty}"
+    
+    # Create faculty time slot variables for each day
+    faculty_time_slot_vars = make_faculty_time_slot_vars(timetable, encoding, faculty, days)
+    
+    # Skip if no time slots are available for this faculty
+    if not faculty_time_slot_vars:
+        return
+    
+    # Dictionary to store hallpass variables: (day, violation_number) -> hallpass_var
+    hallpass_vars: dict[tuple[Day, int], int] = {}
+    
+    # Local helper function to get or create hallpass variables
+    def get_hallpass(day: Day, n: int) -> int:
+        """Get or create a hallpass variable for a specific day and violation number."""
+        if (day, n) in hallpass_vars:
+            return hallpass_vars[(day, n)]
+        
+        # Create a new hallpass variable
+        hallpass = encoding.new_var()
+        encoding.hallpass.add(hallpass)
+        
+        # Generate description using the provided callback
+        description = description_generator(n, day)
+        encoding.problems[hallpass] = f'{priority}: {faculty} {description}'
+        
+        hallpass_vars[(day, n)] = hallpass
+        return hallpass
+    
+    # Get all potential day patterns with clusters
+    day_patterns = get_faculty_day_patterns(timetable, faculty, days, max_gap)
+    
+    # Process each day pattern
+    for day, pattern, clusters in day_patterns:
+        # Use the provided callback to determine violations
+        violation_count = violation_counter(clusters, day)
+        
+        # Skip if no violations in this pattern
+        if violation_count <= 0:
+            continue
+        
+        # Build the base clause (the pattern literals)
+        base_clause = set()
+        
+        # For each (time_slot, is_used) pair in the pattern
+        for time_slot_name, is_used in pattern:
+            # Skip if this time slot isn't relevant to this faculty on this day
+            if time_slot_name not in faculty_time_slot_vars:
+                continue
+                
+            var = faculty_time_slot_vars[time_slot_name]
+            
+            # Add the appropriate literal to the base clause
+            if is_used:
+                # If the time slot is used in this pattern, add !var to clause
+                base_clause.add(-var)
+            else:
+                # If the time slot is not used in this pattern, add var to clause
+                base_clause.add(var)
+        
+        # For each violation in this pattern, create a clause
+        for i in range(1, violation_count + 1):
+            # Get the appropriate hallpass variable
+            hallpass = get_hallpass(day, i)
+            
+            # Create a clause with the base literals plus this hallpass
+            clause = base_clause | {hallpass}
+            
+            # Add the clause to the encoding
+            encoding.add_clause(clause)

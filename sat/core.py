@@ -67,6 +67,10 @@ def encode_constraints(
     from encoders.faculty_days_off import encode_faculty_days_off
     from encoders.faculty_evenly_spread import encode_faculty_evenly_spread
     from encoders.time_pattern import encode_time_pattern_match
+    from encoders.faculty_cluster_too_long import encode_faculty_cluster_too_long
+    from encoders.faculty_cluster_too_short import encode_faculty_cluster_too_short
+    from encoders.faculty_gap_too_long import encode_faculty_gap_too_long
+    from encoders.faculty_gap_too_short import encode_faculty_gap_too_short
 
     # Collect all hallpass variables for this priority level
     encoding.hallpass.clear()
@@ -97,6 +101,18 @@ def encode_constraints(
         elif isinstance(constraint, TimePatternMatch):
             encode_time_pattern_match(timetable, encoding, priority, constraint)
 
+        elif isinstance(constraint, FacultyClusterTooLong):
+            encode_faculty_cluster_too_long(timetable, encoding, priority, constraint)
+
+        elif isinstance(constraint, FacultyClusterTooShort):
+            encode_faculty_cluster_too_short(timetable, encoding, priority, constraint)
+
+        elif isinstance(constraint, FacultyGapTooLong):
+            encode_faculty_gap_too_long(timetable, encoding, priority, constraint)
+
+        elif isinstance(constraint, FacultyGapTooShort):
+            encode_faculty_gap_too_short(timetable, encoding, priority, constraint)
+
         # Add cases for other constraint types as they are implemented
         elif isinstance(constraint, FacultyNoRoomSwitch):
             if constraint not in _already_reported:
@@ -107,30 +123,6 @@ def encode_constraints(
         elif isinstance(constraint, FacultyTooManyRooms):
             if constraint not in _already_reported:
                 print(f"        Skipping unimplemented constraint: FacultyTooManyRooms for {constraint.faculty}")
-                _already_reported.add(constraint)
-            continue
-
-        elif isinstance(constraint, FacultyGapTooLong):
-            if constraint not in _already_reported:
-                print(f"        Skipping unimplemented constraint: FacultyGapTooLong for {constraint.faculty}")
-                _already_reported.add(constraint)
-            continue
-
-        elif isinstance(constraint, FacultyGapTooShort):
-            if constraint not in _already_reported:
-                print(f"        Skipping unimplemented constraint: FacultyGapTooShort for {constraint.faculty}")
-                _already_reported.add(constraint)
-            continue
-
-        elif isinstance(constraint, FacultyClusterTooLong):
-            if constraint not in _already_reported:
-                print(f"        Skipping unimplemented constraint: FacultyClusterTooLong for {constraint.faculty}")
-                _already_reported.add(constraint)
-            continue
-
-        elif isinstance(constraint, FacultyClusterTooShort):
-            if constraint not in _already_reported:
-                print(f"        Skipping unimplemented constraint: FacultyClusterTooShort for {constraint.faculty}")
                 _already_reported.add(constraint)
             continue
 
