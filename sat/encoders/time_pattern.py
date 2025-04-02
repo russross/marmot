@@ -35,7 +35,7 @@ def encode_time_pattern_match(
 
     hallpass = encoding.new_var()
     encoding.hallpass.add(hallpass)
-    encoding.problems[hallpass] = f'{priority}: {" and ".join(constraint.sections)} should have the same time pattern'
+    encoding.problems[hallpass] = (priority, f'{" and ".join(constraint.sections)} should have the same time pattern')
         
     # Get all possible time patterns for these sections
     # A time pattern is a tuple of (number of days, duration)

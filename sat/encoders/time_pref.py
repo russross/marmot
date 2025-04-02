@@ -29,7 +29,7 @@ def encode_time_slot_preference(
     
     hallpass = encoding.new_var()
     encoding.hallpass.add(hallpass)
-    encoding.problems[hallpass] = f'{priority}: {section} should not be at {time_slot}'
+    encoding.problems[hallpass] = (priority, f'{section} should not be at {time_slot}')
 
     # Verify section and time slot exist
     assert section in timetable.sections, f"Section {section} in time preference not found"

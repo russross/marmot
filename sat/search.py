@@ -21,7 +21,7 @@ def solve_timetable(
     solver_name: str = "cd", 
     max_time_seconds: int = 3600, 
     verbose: bool = False
-) -> Optional[tuple[Placement, set[str]]]:
+) -> Optional[tuple[Placement, set[tuple[int, str]]]]:
     """
     Solve the timetabling problem using iterative SAT solving.
     
@@ -91,7 +91,7 @@ def solve_at_priority_level(
     solver_name: str,
     remaining_time: float,
     verbose: bool
-) -> tuple[bool, int, Optional[tuple[Placement, set[str]]]]:
+) -> tuple[bool, int, Optional[tuple[Placement, set[tuple[int, str]]]]]:
     """
     Solve for a specific priority level, finding minimum violations.
     

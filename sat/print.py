@@ -8,7 +8,7 @@ similar to the format used in the Rust version.
 from data import TimetableData
 from encoding import Placement
 
-def print_schedule(timetable: TimetableData, schedule: tuple[Placement, set[str]]) -> None:
+def print_schedule(timetable: TimetableData, schedule: tuple[Placement, set[tuple[int, str]]]) -> None:
     """
     Print the schedule in a grid format.
     
@@ -95,6 +95,5 @@ def print_schedule(timetable: TimetableData, schedule: tuple[Placement, set[str]
         if room is None:
             print(f"{section} at {time_slot} with no room")
 
-    problem_list = sorted(problems, key=lambda elt: int(elt[:elt.index(':')]))
-    for elt in problem_list:
-        print(elt)
+    for (priority, msg) in sorted(problems):
+        print(f'{priority:2}: {msg}')

@@ -25,7 +25,7 @@ def encode_anti_conflict(
     
     hallpass = encoding.new_var()
     encoding.hallpass.add(hallpass)
-    encoding.problems[hallpass] = f'{priority}: {single} should be at the same as {" or ".join(group)}'
+    encoding.problems[hallpass] = (priority, f'{single} should be at the same as {" or ".join(group)}')
 
     # Verify sections exist and have time slots
     assert single in timetable.sections, f"Single section {single} in anti-conflict not found"

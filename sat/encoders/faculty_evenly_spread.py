@@ -30,7 +30,7 @@ def encode_faculty_evenly_spread(
 
     hallpass = encoding.new_var()
     encoding.hallpass.add(hallpass)
-    encoding.problems[hallpass] = f'{priority}: {faculty} wants sections evenly spread across days'
+    encoding.problems[hallpass] = (priority, f'{faculty} wants sections evenly spread across days')
 
     # Validate inputs
     assert faculty in timetable.faculty, f"Faculty {faculty} not found in timetable"

@@ -35,7 +35,7 @@ def encode_faculty_days_off(
 
     hallpass = encoding.new_var()
     encoding.hallpass.add(hallpass)
-    encoding.problems[hallpass] = f'{priority}: {faculty} wants {desired_days_off} day{"" if desired_days_off == 1 else "s"} off'
+    encoding.problems[hallpass] = (priority, f'{faculty} wants {desired_days_off} day{"" if desired_days_off == 1 else "s"} off')
 
     # Validate inputs
     assert faculty in timetable.faculty, f"Faculty {faculty} not found in timetable"

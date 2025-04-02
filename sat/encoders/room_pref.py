@@ -29,7 +29,7 @@ def encode_room_preference(
     
     hallpass = encoding.new_var()
     encoding.hallpass.add(hallpass)
-    encoding.problems[hallpass] = f'{priority}: {section} should not be in {room}'
+    encoding.problems[hallpass] = (priority, f'{section} should not be in {room}')
 
     # Verify section and room exist
     assert section in timetable.sections, f"Section {section} in room preference not found"

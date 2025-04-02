@@ -25,7 +25,7 @@ def encode_conflict(
     
     hallpass = encoding.new_var()
     encoding.hallpass.add(hallpass)
-    encoding.problems[hallpass] = f'{priority}: {section_a} and {section_b} conflict'
+    encoding.problems[hallpass] = (priority, f'{section_a} and {section_b} conflict')
 
     # Verify sections exist
     assert section_a in timetable.sections, f"Section {section_a} in conflict not found"

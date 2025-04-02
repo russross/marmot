@@ -655,7 +655,7 @@ def encode_faculty_cluster_helper(
         
         # Generate description using the provided callback
         description = description_generator(n, day)
-        encoding.problems[hallpass] = f'{priority}: {faculty} {description}'
+        encoding.problems[hallpass] = (priority, f'{faculty} {description}')
         
         hallpass_vars[(day, n)] = hallpass
         return hallpass

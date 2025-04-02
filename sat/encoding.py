@@ -19,7 +19,7 @@ class Encoding:
         self.clauses: set[frozenset[int]] = set()
         self.section_room_vars = SectionRoomVars({})
         self.section_time_vars = SectionTimeVars({})
-        self.problems: dict[int, str] = {}
+        self.problems: dict[int, tuple[int, str]] = {}
         self.hallpass: set[int] = set()
 
     def new_var(self) -> int:
@@ -41,7 +41,7 @@ class Encoding:
         for (a, b) in combinations(literals, 2):
             self.add_clause({-a, -b})
 
-    def totalizer_at_most_k(self, literals: set[int], k: int) -> None:
+    def totalizer_at_most_k(self, literals: set[int], k: int, hallpass: Optional[int] = None) -> None:
         """
         Encodes the constraint that at most k literals in the input list can be true.
         Uses the Totalizer encoding (a recursive, tree-based unary sum encoding).
@@ -86,7 +86,10 @@ class Encoding:
         # This corresponds to negating the (k+1)-th output variable, which is
         # at index k in the 0-indexed list.
         # Since we checked k < n earlier, output_vars[k] is guaranteed to exist.
-        self.add_clause({-output_vars[k]})
+        if hallpass is None:
+            self.add_clause({-output_vars[k]})
+        else:
+            self.add_clause({-output_vars[k], hallpass})
 
 
     def _build_full_totalizer_tree(self, input_literals: list[int]) -> list[int]:

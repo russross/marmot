@@ -71,6 +71,8 @@ def encode_constraints(
     from encoders.faculty_cluster_too_short import encode_faculty_cluster_too_short
     from encoders.faculty_gap_too_long import encode_faculty_gap_too_long
     from encoders.faculty_gap_too_short import encode_faculty_gap_too_short
+    from encoders.faculty_no_room_switch import encode_faculty_no_room_switch
+    from encoders.faculty_too_many_rooms import encode_faculty_too_many_rooms
 
     # Collect all hallpass variables for this priority level
     encoding.hallpass.clear()
@@ -113,18 +115,11 @@ def encode_constraints(
         elif isinstance(constraint, FacultyGapTooShort):
             encode_faculty_gap_too_short(timetable, encoding, priority, constraint)
 
-        # Add cases for other constraint types as they are implemented
         elif isinstance(constraint, FacultyNoRoomSwitch):
-            if constraint not in _already_reported:
-                print(f"        Skipping unimplemented constraint: FacultyNoRoomSwitch for {constraint.faculty}")
-                _already_reported.add(constraint)
-            continue
+            encode_faculty_no_room_switch(timetable, encoding, priority, constraint)
 
         elif isinstance(constraint, FacultyTooManyRooms):
-            if constraint not in _already_reported:
-                print(f"        Skipping unimplemented constraint: FacultyTooManyRooms for {constraint.faculty}")
-                _already_reported.add(constraint)
-            continue
+            encode_faculty_too_many_rooms(timetable, encoding, priority, constraint)
 
         else:
             if constraint not in _already_reported:
@@ -277,7 +272,7 @@ def encode_room_conflict(
 def decode_solution(
     encoding: Encoding,
     model: list[int],
-) -> tuple[Placement, set[str]]:
+) -> tuple[Placement, set[tuple[int, str]]]:
     """
     Decode a SAT solution into a schedule.
     """
