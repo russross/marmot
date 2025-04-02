@@ -13,7 +13,7 @@ use self::solver::*;
 use std::collections::HashMap;
 use std::time::Instant;
 
-static DEFAULT_DB_PATH: &str = "timetable.db";
+static DEFAULT_DB_PATH: &str = "../data/timetable.db";
 
 fn main() {
     if let Err(e) = dispatch_subcommands() {

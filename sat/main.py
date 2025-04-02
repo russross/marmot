@@ -144,7 +144,7 @@ def print_data_summary(timetable: TimetableData) -> None:
 def main() -> None:
     """Main entry point for the Marmot SAT timetabling system."""
     parser = argparse.ArgumentParser(description="Marmot SAT-based timetabling system")
-    parser.add_argument("db_path", nargs="?", default="timetable.db", help="Path to the timetable database (default: timetable.db)")
+    parser.add_argument("db_path", nargs="?", default="../data/timetable.db", help="Path to the timetable database (default: ../data/timetable.db)")
     parser.add_argument("--solver", default="cd", choices=["cd", "g3", "g4", "m22", "mgh"], 
                         help="SAT solver to use: cd (Cadical), g3/g4 (Glucose), m22/mgh (MiniSat) (default: cd)")
     parser.add_argument("--time-limit", type=int, default=3600, 

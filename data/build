@@ -8,7 +8,7 @@ import courses
 import computing
 import computingfaculty
 
-DB_FILE = '../timetable.db'
+DB_FILE = 'timetable.db'
 
 print('deleting old database')
 try:
