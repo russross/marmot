@@ -23,29 +23,52 @@ def encode_faculty_cluster_too_long(
     A faculty cluster too long constraint specifies that a faculty member should not
     have continuous teaching blocks (clusters) that exceed a specified duration.
     
-    This function creates callback functions for violation detection and description
-    generation, then delegates to a helper function that handles the common encoding
-    structure for faculty cluster constraints.
+    This function checks for any higher-priority constraints of the same type and
+    adjusts the current constraint to avoid double-counting violations.
     """
     faculty = constraint.faculty
     days = constraint.days_to_check
     max_duration = constraint.duration
     max_gap = constraint.max_gap_within_cluster
 
+    # Find any constraints of the same type for this faculty
+    same_faculty_constraints = [
+        c for c in timetable.faculty_cluster_too_long
+        if c.faculty == faculty
+    ]
+    
+    # Ensure there are no duplicate constraints at the same priority level
+    same_priority_constraints = [
+        c for c in same_faculty_constraints
+        if c.priority == priority and c is not constraint
+    ]
+    assert not same_priority_constraints, f"Multiple faculty_cluster_too_long constraints for {faculty} at priority {priority}"
+    
+    # Find higher-priority constraints of the same type for this faculty
+    higher_priority_constraints = [
+        c for c in same_faculty_constraints
+        if c.priority < priority
+    ]
+    
+    # Get the durations of higher-priority constraints (if any)
+    higher_priority_durations = [c.duration for c in higher_priority_constraints]
+    
     # Validate specific inputs for this constraint type
     assert max_duration.minutes > 0, f"Non-positive maximum duration for faculty {faculty}"
     
-    # Create a function that detects "too long" clusters
+    # Create a function that detects "too long" clusters, only counting those
+    # that aren't already covered by higher-priority constraints
     def count_too_long_clusters(clusters: list[tuple[Time, Time]], day: Day) -> int:
         """
-        Count clusters that exceed the maximum duration.
+        Count clusters that exceed the maximum duration for this constraint,
+        but don't exceed the maximum duration of any higher-priority constraint.
         
         Args:
             clusters: List of (start_time, end_time) tuples representing time clusters
             day: The day being analyzed (not used in this detector but included for API consistency)
             
         Returns:
-            Number of clusters that exceed max_duration
+            Number of clusters that exceed max_duration but not any higher priority threshold
         """
         violation_count = 0
         
@@ -54,9 +77,14 @@ def encode_faculty_cluster_too_long(
             cluster_duration = end_time - start_time
             assert(type(cluster_duration) == Duration)
             
-            # Check if this cluster exceeds the maximum allowed duration
+            # Check if this cluster exceeds the maximum allowed duration for this constraint
             if cluster_duration > max_duration:
-                violation_count += 1
+                # Now check if it's already caught by a higher-priority constraint
+                already_caught = any(cluster_duration > higher_dur for higher_dur in higher_priority_durations)
+                
+                # Only count as a violation if not already caught by higher priority constraint
+                if not already_caught:
+                    violation_count += 1
         
         return violation_count
     
@@ -92,4 +120,3 @@ def encode_faculty_cluster_too_long(
         violation_counter=count_too_long_clusters,
         description_generator=generate_too_long_description
     )
-

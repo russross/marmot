@@ -24,29 +24,52 @@ def encode_faculty_gap_too_short(
     have gaps between teaching clusters that are shorter than a specified duration.
     Unlike the cluster too short constraint, there is no exception for the first violation.
     
-    This function creates callback functions for violation detection and description
-    generation, then delegates to a helper function that handles the common encoding
-    structure for faculty cluster constraints.
+    This function checks for any higher-priority constraints of the same type and
+    adjusts the current constraint to avoid double-counting violations.
     """
     faculty = constraint.faculty
     days = constraint.days_to_check
     min_gap_duration = constraint.duration
     max_gap_within_cluster = constraint.max_gap_within_cluster
 
+    # Find any constraints of the same type for this faculty
+    same_faculty_constraints = [
+        c for c in timetable.faculty_gap_too_short
+        if c.faculty == faculty
+    ]
+    
+    # Ensure there are no duplicate constraints at the same priority level
+    same_priority_constraints = [
+        c for c in same_faculty_constraints
+        if c.priority == priority and c is not constraint
+    ]
+    assert not same_priority_constraints, f"Multiple faculty_gap_too_short constraints for {faculty} at priority {priority}"
+    
+    # Find higher-priority constraints of the same type for this faculty
+    higher_priority_constraints = [
+        c for c in same_faculty_constraints
+        if c.priority < priority
+    ]
+    
+    # Get the durations of higher-priority constraints (if any)
+    higher_priority_durations = [c.duration for c in higher_priority_constraints]
+    
     # Validate specific inputs for this constraint type
     assert min_gap_duration.minutes > 0, f"Non-positive minimum gap duration for faculty {faculty}"
     
     # Create a function that detects "too short" gaps
     def count_too_short_gaps(clusters: list[tuple[Time, Time]], day: Day) -> int:
         """
-        Count gaps between clusters that are shorter than the minimum duration.
+        Count gaps between clusters that are shorter than the minimum duration,
+        only counting those that aren't already covered by higher-priority constraints.
         
         Args:
             clusters: List of (start_time, end_time) tuples representing time clusters
             day: The day being analyzed (not used in this detector but included for API consistency)
             
         Returns:
-            Number of gaps that are shorter than min_gap_duration
+            Number of gaps that are shorter than min_gap_duration but not already caught
+            by a higher priority constraint
         """
         violation_count = 0
         
@@ -65,7 +88,14 @@ def encode_faculty_gap_too_short(
             
             # Check if this gap is shorter than the minimum allowed duration
             if gap_duration < min_gap_duration:
-                violation_count += 1
+                # Now check if it's already caught by a higher-priority constraint
+                # For "too short" gaps, a higher priority constraint would have a LARGER minimum
+                # (i.e., it's more restrictive if it requires a longer minimum duration)
+                already_caught = any(gap_duration < higher_dur for higher_dur in higher_priority_durations)
+                
+                # Only count as a violation if not already caught by higher priority constraint
+                if not already_caught:
+                    violation_count += 1
         
         # Unlike cluster_too_short, we don't ignore the first violation for gaps
         return violation_count
