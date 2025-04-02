@@ -217,8 +217,7 @@ def get_faculty_time_slot_combos(timetable: TimetableData, faculty: FacultyName,
         representing a valid non-conflicting assignment
     """
     # Get the faculty object
-    if faculty not in timetable.faculty:
-        return set()
+    assert faculty in timetable.faculty, f'faculty {faculty} not found in input data'
 
     faculty_obj = timetable.faculty[faculty]
 
@@ -226,32 +225,30 @@ def get_faculty_time_slot_combos(timetable: TimetableData, faculty: FacultyName,
     faculty_sections = list(faculty_obj.sections)
 
     # If no sections, return an empty set
-    if not faculty_sections:
-        return set()
+    assert len(faculty_sections) > 0, f'no sections found for {faculty}'
 
     # Get time slots for each section
     section_time_slots = []
     for section_name in faculty_sections:
-        if section_name not in timetable.sections:
-            continue
+        assert section_name in timetable.sections
 
         section = timetable.sections[section_name]
-        if section.available_time_slots:
-            # Filter for time slots that include at least one day from days_to_check
-            valid_time_slots = []
-            for ts_name in section.available_time_slots:
-                time_slot = timetable.time_slots[ts_name]
-                # Check if this time slot meets on any of the days we're checking
-                if any(day in time_slot.days for day in days_to_check):
-                    valid_time_slots.append((section_name, ts_name))
+        assert section.available_time_slots
 
-            # Only add to section_time_slots if there are valid time slots
-            if valid_time_slots:
-                section_time_slots.append(valid_time_slots)
+        # Filter for time slots that include at least one day from days_to_check
+        valid_time_slots = []
+        for ts_name in section.available_time_slots:
+            time_slot = timetable.time_slots[ts_name]
+            # Check if this time slot meets on any of the days we're checking
+            if any(day in time_slot.days for day in days_to_check):
+                valid_time_slots.append((section_name, ts_name))
 
-    # If any section has no available time slots after filtering, return an empty set
-    if len(section_time_slots) < len(faculty_sections):
-        return set()
+        # Only add to section_time_slots if there are valid time slots
+        if valid_time_slots:
+            section_time_slots.append(valid_time_slots)
+
+    # this constraint should not exist if there is nothing to do
+    assert section_time_slots
 
     # Generate all possible combinations using itertools.product
     valid_combinations = set()
@@ -357,7 +354,7 @@ def get_unique_day_patterns(
     timetable: TimetableData,
     faculty: FacultyName,
     days_to_check: Days
-) -> list[list[bool]]:
+) -> list[dict[Day, bool]]:
     """
     Generate a list of unique day scheduling patterns for a faculty member.
 
@@ -371,13 +368,13 @@ def get_unique_day_patterns(
         days_to_check: The set of days to consider
 
     Returns:
-        A list of unique boolean lists, where each boolean represents whether a day
-        in days_to_check has at least one section scheduled (in the same order as days_to_check)
+        A list of dictionaries, where each dictionary maps a day to a boolean
+        indicating whether that day has at least one section scheduled
     """
     # Validate inputs
     assert faculty in timetable.faculty, f"Faculty {faculty} not found in timetable"
     assert days_to_check, f"Empty days_to_check for faculty {faculty}"
-    
+
     # Generate all valid time slot combinations for this faculty
     all_combos = get_faculty_time_slot_combos(timetable, faculty, days_to_check)
 
@@ -385,36 +382,33 @@ def get_unique_day_patterns(
     if not all_combos:
         return []
 
-    # Convert days_to_check to a sorted list for consistent indexing
-    days_list = sorted(days_to_check)
-    
-    # Track unique patterns (using tuples for hashability)
+    # Track unique patterns (using tuples of (day, is_scheduled) for hashability)
     unique_patterns = set()
 
     # Process each combination
     for combo in all_combos:
-        # Create a result array filled with False initially
-        result = [False] * len(days_list)
+        # Create a result dictionary with all days initially set to False (not scheduled)
+        result = {day: False for day in days_to_check}
 
         # Process each section-time slot pair in the combination
-        valid_combo = True
         for section, time_slot_name in combo:
             # Ensure both section and time slot exist
             assert section in timetable.sections, f"Section {section} not found in timetable"
             assert time_slot_name in timetable.time_slots, f"Time slot {time_slot_name} not found in timetable"
 
             time_slot = timetable.time_slots[time_slot_name]
-            
-            # Mark days as scheduled
-            for i, day in enumerate(days_list):
-                if day in time_slot.days:
-                    result[i] = True
-        
-        # Add this pattern to the unique set (as a tuple for hashability)
-        unique_patterns.add(tuple(result))
 
-    # Convert back to lists for the return value
-    return [list(pattern) for pattern in unique_patterns]
+            # Mark days as scheduled
+            for day in days_to_check:
+                if day in time_slot.days:
+                    result[day] = True
+
+        # Convert to a hashable representation and add to the unique set
+        pattern_tuple = tuple(sorted((day, is_scheduled) for day, is_scheduled in result.items()))
+        unique_patterns.add(pattern_tuple)
+
+    # Convert back to dictionaries for the return value
+    return [dict(pattern) for pattern in unique_patterns]
 
 def get_time_slot_clusters(
     timetable: TimetableData, 

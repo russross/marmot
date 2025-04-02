@@ -10,7 +10,7 @@ def build_faculty(db: DB) -> None:
         AvoidClassClusterLongerThan('2h45m'),
         AvoidGapBetweenClassClustersLongerThan('3h15m'),
         AvoidClassClusterShorterThan('1h50m'),
-        AvoidGapBetweenClassClustersLongerThan('1h45m'),
+        #AvoidGapBetweenClassClustersLongerThan('1h45m'),
         WantBackToBackClassesInTheSameRoom(),
         WantClassesPackedIntoAsFewRoomsAsPossible(),
     ]
@@ -20,7 +20,7 @@ def build_faculty(db: DB) -> None:
         AvoidClassClusterLongerThan('2h45m'),
         AvoidGapBetweenClassClustersLongerThan('3h15m'),
         AvoidClassClusterShorterThan('1h50m'),
-        AvoidGapBetweenClassClustersLongerThan('1h45m'),
+        #AvoidGapBetweenClassClustersLongerThan('1h45m'),
         WantBackToBackClassesInTheSameRoom(),
         WantClassesPackedIntoAsFewRoomsAsPossible(),
     ]

@@ -51,22 +51,36 @@ def encode_faculty_days_off(
     day_to_var = make_faculty_day_vars(timetable, encoding, faculty, days)
     days_list = sorted(days)
 
-    # Iterate through a truth table of day combinations that are actually possible
-    for combo in get_unique_day_patterns(timetable, faculty, days):
+    # Generate a truth table of all possible day combinations
+    # For n days, there are 2^n possible combinations
+    num_days = len(days_list)
+    num_combinations = 2**num_days
+    
+    # Iterate through all possible combinations
+    for combo_idx in range(num_combinations):
+        # Convert the index to a binary pattern of days
+        # For example, with 3 days, combo_idx=5 (binary 101) means
+        # days[0] is scheduled, days[1] is not scheduled, days[2] is scheduled
+        day_pattern = [(combo_idx >> i) & 1 == 1 for i in range(num_days)]
+        
         # Count days off in this pattern
-        days_off = combo.count(False)
-
+        days_off = day_pattern.count(False)
+        
         # If this pattern has the correct number of days off, we're good
         if days_off == desired_days_off:
             continue
-
-        # Encode that this should not happen without a hallpass
+            
+        # Encode that this pattern should not happen without a hallpass
         clause = {hallpass}
-        for day, is_scheduled in zip(days_list, combo):
+        for i, is_scheduled in enumerate(day_pattern):
+            day = days_list[i]
             var = day_to_var[day]
+            
+            # If the day is scheduled in this pattern, add -var to forbid it
+            # If the day is not scheduled in this pattern, add var to forbid it
             if is_scheduled:
                 clause.add(-var)
             else:
                 clause.add(var)
-
+                
         encoding.add_clause(clause)

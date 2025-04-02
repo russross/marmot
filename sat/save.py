@@ -138,7 +138,6 @@ def save_schedule(
         
         # Commit the transaction
         conn.execute("COMMIT")
-        print(f"Saved schedule with placement ID: {placement_id}")
         
         return placement_id
     

@@ -90,6 +90,134 @@ def make_faculty_room_time_vars(
     return room_time_to_var
 
 
+def get_back_to_back_section_pairs(
+    timetable: TimetableData,
+    faculty: FacultyName,
+    days_to_check: Days,
+    max_gap: Duration
+) -> list[tuple[Day, tuple[SectionName, SectionName], set[RoomName]]]:
+    """
+    Find all pairs of sections that are back-to-back on the same day for this faculty, 
+    along with their common valid rooms.
+    
+    Args:
+        timetable: The timetable data
+        faculty: The faculty name
+        days_to_check: The set of days to consider
+        max_gap: Maximum gap allowed between back-to-back time slots
+        
+    Returns:
+        A list of (day, (section1, section2), common_rooms) tuples where:
+        - day is a specific day where both time slots meet
+        - section1 ends before section2 starts
+        - the gap between them is <= max_gap
+        - common_rooms is the set of rooms both sections can use without preference conflicts
+    """
+    # Validate inputs
+    assert faculty in timetable.faculty, f"Faculty {faculty} not found in timetable"
+    assert days_to_check, f"Empty days_to_check for faculty {faculty}"
+    assert max_gap.minutes >= 0, f"Negative max_gap for faculty {faculty}"
+    
+    # Get all sections for this faculty
+    faculty_sections = list(timetable.faculty[faculty].sections)
+    
+    # Skip if faculty only has 0 or 1 section
+    if len(faculty_sections) <= 1:
+        return []
+    
+    result = []
+    
+    # For each pair of sections
+    for i, section_a in enumerate(faculty_sections):
+        for j in range(i+1, len(faculty_sections)):
+            section_b = faculty_sections[j]
+            
+            # Get section objects
+            section_a_obj = timetable.sections[section_a]
+            section_b_obj = timetable.sections[section_b]
+            
+            # Find rooms that both sections can use without preferences
+            common_rooms = set()
+            for room in section_a_obj.available_rooms & section_b_obj.available_rooms:
+                # Check if either section has a preference to avoid this room
+                has_preference = (
+                    room in section_a_obj.room_preferences or 
+                    room in section_b_obj.room_preferences
+                )
+                if not has_preference:
+                    common_rooms.add(room)
+            
+            # Skip if no common valid rooms
+            if not common_rooms:
+                continue
+            
+            # Get all time slots for each section
+            a_time_slots = [(ts_name, timetable.time_slots[ts_name]) 
+                           for ts_name in section_a_obj.available_time_slots]
+            b_time_slots = [(ts_name, timetable.time_slots[ts_name]) 
+                           for ts_name in section_b_obj.available_time_slots]
+            
+            # Check each day in days_to_check
+            for day in days_to_check:
+                # Get time slots that meet on this day
+                a_day_slots = [(ts_name, ts) for ts_name, ts in a_time_slots if day in ts.days]
+                b_day_slots = [(ts_name, ts) for ts_name, ts in b_time_slots if day in ts.days]
+                
+                # Skip if either section has no time slots on this day
+                if not a_day_slots or not b_day_slots:
+                    continue
+                
+                # Try all combinations for back-to-back schedulable pairs
+                for (ts_a_name, ts_a) in a_day_slots:
+                    a_end = ts_a.end_time
+                    
+                    for (ts_b_name, ts_b) in b_day_slots:
+                        b_start = ts_b.start_time
+                        
+                        # Check if a ends before b starts
+                        if a_end <= b_start:
+                            # Calculate the gap
+                            gap = b_start - a_end
+                            assert(type(gap) == Duration)
+                            
+                            # If the gap is within our max_gap, this pair is back-to-back
+                            if gap <= max_gap:
+                                result.append((day, (section_a, section_b), common_rooms))
+                                # Break after finding first valid pair for these sections on this day
+                                break
+                    
+                    # If we found a pair, no need to check other time slots for section a
+                    else:
+                        continue
+                    break
+                
+                # Check the reverse order (b before a)
+                for (ts_b_name, ts_b) in b_day_slots:
+                    b_end = ts_b.end_time
+                    
+                    for (ts_a_name, ts_a) in a_day_slots:
+                        a_start = ts_a.start_time
+                        
+                        # Check if b ends before a starts
+                        if b_end <= a_start:
+                            # Calculate the gap
+                            gap = a_start - b_end
+                            assert(type(gap) == Duration)
+                            
+                            # If the gap is within our max_gap, this pair is back-to-back
+                            if gap <= max_gap:
+                                result.append((day, (section_b, section_a), common_rooms))
+                                # Break after finding first valid pair for these sections on this day
+                                break
+                    
+                    # If we found a pair, no need to check other time slots for section b
+                    else:
+                        continue
+                    break
+    
+    return result
+
+
 def get_back_to_back_time_slot_pairs(
     timetable: TimetableData,
     faculty: FacultyName,
@@ -177,6 +305,9 @@ def encode_faculty_no_room_switch(
     gap between classes is <= max_gap_within_cluster. This function creates a hallpass
     variable and adds clauses to enforce that if the faculty member teaches in different
     rooms in back-to-back time slots, the hallpass variable must be true.
+    
+    The encoding considers whether the two sections actually have a common room they
+    can both use without violating room preferences.
     """
     faculty = constraint.faculty
     days = constraint.days_to_check
@@ -199,30 +330,98 @@ def encode_faculty_no_room_switch(
     if not faculty_room_time_vars:
         return
     
-    # Get all back-to-back time slot pairs
-    back_to_back_pairs = get_back_to_back_time_slot_pairs(timetable, faculty, days, max_gap)
+    # Get all back-to-back section pairs with their common valid rooms
+    back_to_back_section_pairs = get_back_to_back_section_pairs(timetable, faculty, days, max_gap)
     
-    # For each back-to-back time slot pair:
-    for day, (time_slot1, time_slot2) in back_to_back_pairs:
-        # Get all possible rooms for these time slots
-        rooms1 = {room for (room, ts) in faculty_room_time_vars if ts == time_slot1}
-        rooms2 = {room for (room, ts) in faculty_room_time_vars if ts == time_slot2}
+    # For each back-to-back section pair:
+    for day, (section1, section2), common_rooms in back_to_back_section_pairs:
+        # Skip if no common rooms (shouldn't happen due to filtering in get_back_to_back_section_pairs)
+        if not common_rooms:
+            continue
         
-        # For each pair of different rooms:
-        for room1 in rooms1:
-            for room2 in rooms2:
-                # Skip if it's the same room (no switch)
-                if room1 == room2:
+        # Get available time slots for these sections on this day
+        section1_time_slots = [ts for ts in timetable.sections[section1].available_time_slots 
+                              if day in timetable.time_slots[ts].days]
+        section2_time_slots = [ts for ts in timetable.sections[section2].available_time_slots 
+                              if day in timetable.time_slots[ts].days]
+        
+        # For each possible time slot assignment to these sections
+        for ts1 in section1_time_slots:
+            for ts2 in section2_time_slots:
+                # Skip if time slots don't form a back-to-back pair
+                if not is_back_to_back(timetable, ts1, ts2, max_gap):
                     continue
                 
-                # Get the corresponding variables
-                rt1_var = faculty_room_time_vars.get((room1, time_slot1))
-                rt2_var = faculty_room_time_vars.get((room2, time_slot2))
-                
-                # Skip if either variable doesn't exist (shouldn't happen but to be safe)
-                if rt1_var is None or rt2_var is None:
-                    continue
-                
-                # Encode: (faculty_room_time[room1, time1] AND faculty_room_time[room2, time2]) → hallpass
-                # Equivalent to: (!faculty_room_time[room1, time1] OR !faculty_room_time[room2, time2] OR hallpass)
-                encoding.add_clause({-rt1_var, -rt2_var, hallpass})
+                # For each possible room assignment, check if using different rooms
+                for room1 in timetable.sections[section1].available_rooms:
+                    for room2 in timetable.sections[section2].available_rooms:
+                        # Skip if it's the same room (no switch)
+                        if room1 == room2:
+                            continue
+                        
+                        # Skip if no common valid room exists
+                        if not common_rooms:
+                            continue
+                        
+                        # Get section-room and section-time variables
+                        sr1_var = encoding.section_room_vars.get((section1, room1))
+                        st1_var = encoding.section_time_vars.get((section1, ts1))
+                        sr2_var = encoding.section_room_vars.get((section2, room2))
+                        st2_var = encoding.section_time_vars.get((section2, ts2))
+                        
+                        # Skip if any variable doesn't exist
+                        if sr1_var is None or st1_var is None or sr2_var is None or st2_var is None:
+                            continue
+                        
+                        # Encode: (sr1 AND st1 AND sr2 AND st2) → hallpass
+                        # This means: if section1 is assigned room1 at time1 and section2 is assigned room2 at time2, 
+                        # then there must be a hallpass for this constraint
+                        # Equivalent to: (!sr1 OR !st1 OR !sr2 OR !st2 OR hallpass)
+                        encoding.add_clause({-sr1_var, -st1_var, -sr2_var, -st2_var, hallpass})
+
+
+def is_back_to_back(
+    timetable: TimetableData,
+    ts1: TimeSlotName,
+    ts2: TimeSlotName,
+    max_gap: Duration
+) -> bool:
+    """
+    Check if two time slots are back-to-back (within max_gap of each other).
+    
+    Args:
+        timetable: The timetable data
+        ts1: First time slot name
+        ts2: Second time slot name
+        max_gap: Maximum gap allowed between time slots
+        
+    Returns:
+        True if the time slots are back-to-back, False otherwise
+    """
+    # Get time slot objects
+    time_slot1 = timetable.time_slots[ts1]
+    time_slot2 = timetable.time_slots[ts2]
+    
+    # Get start and end times
+    start1 = time_slot1.start_time
+    end1 = time_slot1.end_time
+    start2 = time_slot2.start_time
+    end2 = time_slot2.end_time
+    
+    # Check if they share any days
+    common_days = time_slot1.days & time_slot2.days
+    if not common_days:
+        return False
+    
+    # Check if they are back-to-back
+    if end1 <= start2:
+        gap = start2 - end1
+        assert(type(gap) == Duration)
+        return gap <= max_gap
+    elif end2 <= start1:
+        gap = start1 - end2
+        assert(type(gap) == Duration)
+        return gap <= max_gap
+    
+    # Overlapping time slots are not back-to-back
+    return False
