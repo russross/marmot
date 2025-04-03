@@ -6,7 +6,7 @@ This module provides a function to encode a faculty days off constraint:
 ensuring faculty members have a specific number of days without classes.
 """
 
-from data import TimetableData, Priority
+from data import TimetableData, Priority, FacultyName, Day, Days
 from data import FacultyDaysOff
 from encoding import Encoding
 from encoders.helpers import *
@@ -84,3 +84,76 @@ def encode_faculty_days_off(
                 clause.add(var)
                 
         encoding.add_clause(clause)
+
+def make_faculty_day_vars(
+    timetable: TimetableData,
+    encoding: Encoding,
+    faculty: FacultyName,
+    days_to_check: Days
+) -> dict[Day, int]:
+    """
+    Create variables that represent whether a faculty member teaches on specific days.
+    
+    For each day in days_to_check, creates a variable that will be true if and only if
+    at least one of the faculty member's sections is scheduled on that day.
+    
+    Args:
+        timetable: The timetable data
+        encoding: The SAT encoding instance
+        faculty: The faculty name to create variables for
+        days_to_check: The set of days to consider
+        
+    Returns:
+        A dictionary mapping days to their corresponding SAT variables
+    """
+    # Create the set of day variables we'll return
+    day_to_var: dict[Day, int] = {}
+    
+    # Create mappings to help with encoding
+    var_to_section_time_vars: dict[int, set[int]] = {}
+    
+    # Initialize day variables
+    for day in days_to_check:
+        var = encoding.new_var()
+        day_to_var[day] = var
+        var_to_section_time_vars[var] = set()
+    
+    # For each section taught by this faculty
+    for section_name in timetable.faculty[faculty].sections:
+        section = timetable.sections[section_name]
+        
+        # For each day of interest
+        for day in days_to_check:
+            
+            # For each time slot available to this section
+            for time_slot_name in section.available_time_slots:
+                time_slot = timetable.time_slots[time_slot_name]
+                
+                # But only the ones that cover this day
+                if day not in time_slot.days:
+                    continue
+                
+                # Record this for encoding
+                time_var = encoding.section_time_vars[(section_name, time_slot_name)]
+                var_to_section_time_vars[day_to_var[day]].add(time_var)
+    
+    # Add the clauses for each day variable
+    for (day_var, section_time_vars) in var_to_section_time_vars.items():
+        if not section_time_vars:
+            # If there are no possible section-time assignments for this day,
+            # this variable must be false
+            encoding.add_clause({-day_var})
+            continue
+        
+        # Encode day_var -> (time_slot_1 OR time_slot_2 OR ...)
+        # i.e. !day_var OR time_slot_1 OR time_slot_2 OR ...
+        encoding.add_clause({-day_var} | section_time_vars)
+        
+        # Encode: (any of the time slots) -> day_var
+        # i.e.: (!time_slot_1 AND !time_slot_2 AND ...) OR day_var
+        # i.e.: (!time_slot_1 OR day_var) AND (!time_slot_2 OR day_var) AND ...
+        for time_var in section_time_vars:
+            encoding.add_clause({-time_var, day_var})
+    
+    return day_to_var
+
