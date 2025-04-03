@@ -34,8 +34,8 @@ def encode_faculty_evenly_spread(
 
     # Validate inputs
     assert faculty in timetable.faculty, f"Faculty {faculty} not found in timetable"
-    assert days, f"Empty days_to_check for faculty {faculty}"
     assert len(days) > 1, f"Need at least two days to spread out classes for faculty {faculty}"
+    assert len(timetable.faculty[faculty].sections) > 3, f'faculty {faculty} must have >3 sections to use evenly spread constraint'
 
     # get faculty sections and auxiliary variables
     #   (section_name, day) -> variable
@@ -84,7 +84,7 @@ def make_faculty_section_day_vars(
     days_to_check: Days
 ) -> dict[tuple[SectionName, Day], int]:
     """
-    Get or create variables that represent when a faculty member's sections are scheduled on specific days.
+    Create variables that represent when a faculty member's sections are scheduled on specific days.
     """
     
     # create the set of vars we return
@@ -104,7 +104,7 @@ def make_faculty_section_day_vars(
             for time_slot_name in section.available_time_slots:
                 time_slot = timetable.time_slots[time_slot_name]
 
-                # but only the ones that cover this day
+                # ignore time slots that are not in days_to_check
                 if day not in time_slot.days:
                     continue
 

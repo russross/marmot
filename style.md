@@ -111,3 +111,32 @@
     - How the constraint is mapped to CNF clauses
     - The meaning of any auxiliary variables created
     - The logical equivalence of the encoding (e.g., "Encode: A → B ⟺ ¬A ∨ B")
+
+*   The input data must be internally consistent. The encoders
+    should be strict about checking this. These are the kinds of
+    invariants that I want to enforce with asserts:
+
+    *   If a criterion refers to an entity (faculty, section, time
+        slot, room, etc.) then that entity must exist.
+    *   Faculty all have at least one section
+    *   Sections all have at least one time slot
+    *   Note: sections do NOT have to have any rooms
+    *   Any cross reference between data types must be valid. So,
+        for example, if a section references a TimeSlotName, that
+        time slot must exist
+    *   When a criterion encoder finds a time slot or room
+        associated with a section, the section time
+        variables/section room variables must exist.
+
+*   Not only that, but any criterion must be non-trivial. For example:
+
+    *   In a time pattern constraint, the data must make it possible
+        for sections in the list to have mismatched time patterns
+        (otherwise why add the criterion?).
+    *   If a faculty requests a days off criterion, they must have
+        at least two sections (otherwise the criterion cannot
+        possibly have any influence on the outcome)
+    *   If a faculty requests sections evenly spread, then they must
+        have at least 4 sections (under our definition there is no
+        way to fail the criterion with 3 or fewer).
+    *   etc.

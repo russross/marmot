@@ -148,6 +148,7 @@ def get_back_to_back_section_pairs(
                     common_rooms.add(room)
             
             # Skip if no common valid rooms
+            # note: this is legitimate because sections are not required to have rooms
             if not common_rooms:
                 continue
             
@@ -314,8 +315,7 @@ def encode_faculty_no_room_switch(
     max_gap = constraint.max_gap_within_cluster
     
     # Skip if faculty has only one section (can't have room switches)
-    if len(timetable.faculty[faculty].sections) <= 1:
-        return
+    assert len(timetable.faculty[faculty].sections) > 1, f'faculty {faculty} should not have no room switch criterion with < 2 sections'
     
     # Create a hallpass variable for this constraint
     hallpass = encoding.new_var()
@@ -325,10 +325,9 @@ def encode_faculty_no_room_switch(
     # Create faculty_room_time variables
     faculty_room_time_vars = make_faculty_room_time_vars(timetable, encoding, faculty, days)
     
-    # If no faculty_room_time variables were created, skip this constraint
+    # If no faculty_room_time variables were created, complain
     # (this happens if faculty has no sections, or no available rooms or time slots)
-    if not faculty_room_time_vars:
-        return
+    assert faculty_room_time_vars, f'{faculty} no room switch constraint found no rooms/time slots to consider'
     
     # Get all back-to-back section pairs with their common valid rooms
     back_to_back_section_pairs = get_back_to_back_section_pairs(timetable, faculty, days, max_gap)

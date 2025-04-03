@@ -30,6 +30,7 @@ def encode_conflict(
     # Verify sections exist
     assert section_a in timetable.sections, f"Section {section_a} in conflict not found"
     assert section_b in timetable.sections, f"Section {section_b} in conflict not found"
+    assert section_a != section_b, f'section {section_a} cannot conflict with itself'
     
     # Check each pair of potentially conflicting time slots
     for time_a in timetable.sections[section_a].available_time_slots:

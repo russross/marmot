@@ -31,6 +31,7 @@ def encode_anti_conflict(
     assert single in timetable.sections, f"Single section {single} in anti-conflict not found"
     assert timetable.sections[single].available_time_slots, f"Single section {single} has no available time slots"
     
+    assert len(group) > 0, f'anticonflict for {single} does not have any group sections'
     for group_section in group:
         assert group_section in timetable.sections, f"Group section {group_section} in anti-conflict not found"
     

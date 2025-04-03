@@ -45,6 +45,7 @@ def make_section_pattern_vars(
     
     # Scan all sections and their time slots
     for section_name in sections:
+        # we will let this be our check that section_name exists
         section = timetable.sections[section_name]
         
         for time_slot_name in section.available_time_slots:
@@ -116,11 +117,8 @@ def encode_time_pattern_match(
         timetable, encoding, constraint.sections
     )
     
-    # Check for potential data issues
-    if len(pattern_to_var) < 2:
-        print(f"Warning: TimePatternMatch constraint has fewer than 2 patterns for sections: {constraint.sections}", 
-              file=sys.stderr)
-        return  # If no patterns or only one pattern, constraint is trivially satisfied
+    # If no patterns or only one pattern, constraint is trivially satisfied
+    assert len(pattern_to_var) > 1, f"TimePatternMatch constraint trivial with fewer than 2 patterns for sections: {constraint.sections}"
     
     # Get the list of pattern variables
     pattern_vars = list(pattern_to_var.values())

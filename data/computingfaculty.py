@@ -86,7 +86,13 @@ def build_faculty(db: DB) -> None:
     db.make_faculty_section('Curtis Larsen', 'CS 6300-01', 'R1630+150', 'Smith 116')
     db.make_faculty_section('Curtis Larsen', 'CS 6350-01')
     db.faculty_preferences('Curtis Larsen', 'MT',
-        *default_prefs_oneday,
+        WantADayOff(),
+        AvoidClassClusterLongerThan('2h45m'),
+        AvoidGapBetweenClassClustersLongerThan('3h15m'),
+        AvoidClassClusterShorterThan('1h50m'),
+        AvoidGapBetweenClassClustersLongerThan('1h45m'),
+        WantBackToBackClassesInTheSameRoom(),
+        WantClassesPackedIntoAsFewRoomsAsPossible(),
     )
 
     db.make_faculty('DJ Holt', 'Computing', default_availability)
@@ -158,7 +164,7 @@ def build_faculty(db: DB) -> None:
     db.faculty_preferences('Lora Klein', 'MT',
         AvoidTimeSlot('MWF0900+50'),
         AvoidTimeSlot('MWF1000+50'),
-        WantClassesEvenlySpreadAcrossDays(),
+        #WantClassesEvenlySpreadAcrossDays(),
         AvoidTimeSlot('MWF1100+50'),
         AvoidTimeSlot('TR1330+75'),
         AvoidTimeSlot('TR1500+75'),
@@ -254,9 +260,9 @@ def build_faculty(db: DB) -> None:
         AvoidTimeSlot('TR1200+75'),
         AvoidTimeSlot('TR1330+75'),
         AvoidTimeSlot('TR1500+75'),
-        WantADayOff(),
-        AvoidGapBetweenClassClustersLongerThan('1h45m'),
-        AvoidClassClusterShorterThan('1h50m'),
-        AvoidClassClusterLongerThan('2h45m'),
+        #WantADayOff(),
+        #AvoidGapBetweenClassClustersLongerThan('1h45m'),
+        #AvoidClassClusterShorterThan('1h50m'),
+        #AvoidClassClusterLongerThan('2h45m'),
     )
 

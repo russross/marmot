@@ -39,6 +39,7 @@ def encode_faculty_days_off(
 
     # Validate inputs
     assert faculty in timetable.faculty, f"Faculty {faculty} not found in timetable"
+    assert len(timetable.faculty[faculty].sections) > 1, f'Faculty {faculty} must have multiple sections with a days off constraint'
     assert days, f"Empty days_to_check for faculty {faculty}"
     assert desired_days_off >= 0, f"Negative desired_days_off for faculty {faculty}"
     assert desired_days_off <= len(days), (

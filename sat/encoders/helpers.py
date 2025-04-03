@@ -440,6 +440,7 @@ def encode_faculty_cluster_helper(
     assert faculty in timetable.faculty, f"Faculty {faculty} not found in timetable"
     assert days, f"Empty days_to_check for faculty {faculty}"
     assert max_gap.minutes >= 0, f"Negative max gap within cluster for faculty {faculty}"
+    assert len(timetable.faculty[faculty].sections) > 1, f'faculty {faculty} must have multiple sections to be concerned about clusters and gaps'
     
     # Create faculty time slot variables for each day
     faculty_time_slot_vars = make_faculty_time_slot_vars(timetable, encoding, faculty, days)

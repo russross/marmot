@@ -41,6 +41,7 @@ def encode_faculty_too_many_rooms(
     # Validate inputs
     assert faculty in timetable.faculty, f"Faculty {faculty} not found in timetable"
     assert desired_max_rooms > 0, f"Non-positive desired_max_rooms for faculty {faculty}"
+    assert desired_max_rooms < len(timetable.faculty[faculty].sections), f'desired_max_rooms == # of sections for {faculty} with too many rooms criterion'
     
     # Get the faculty's sections
     faculty_sections = timetable.faculty[faculty].sections
