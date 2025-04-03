@@ -381,3 +381,95 @@ class TimetableData:
             self.faculty_cluster_too_long,
             self.time_pattern_matches
         )
+
+
+class Score(list[int]):
+    """
+    Represents a score as a list of violation counts at each priority level.
+
+    A score is better if it has fewer violations at the highest priority level
+    where the scores differ.
+    """
+    # Maximum number of priority levels
+    PRIORITY_LEVELS = 25
+
+    def __init__(self) -> None:
+        """Initialize a score with zero violations at all priority levels."""
+        super().__init__([0] * self.PRIORITY_LEVELS)
+
+    def inc_priority(self, priority: int) -> None:
+        """Increment the violation count at a specific priority level."""
+        if 0 <= priority < self.PRIORITY_LEVELS:
+            self[priority] += 1
+        else:
+            raise ValueError(f"Priority level {priority} out of range")
+
+    def dec_priority(self, priority: int) -> None:
+        """Decrement the violation count at a specific priority level."""
+        if 0 <= priority < self.PRIORITY_LEVELS:
+            self[priority] -= 1
+        else:
+            raise ValueError(f"Priority level {priority} out of range")
+
+    def is_zero(self) -> bool:
+        """Check if the score has zero violations at all priority levels."""
+        return all(count == 0 for count in self)
+
+    def sortable(self) -> str:
+        """
+        Generate a sortable string representation of the score.
+
+        Format: <<99×00,98×00,...>> where first number is inverted priority level
+        and second is the count of violations at that level.
+        Lower values sort first, so better scores come earlier.
+
+        Returns:
+            String representation for sorting scores
+        """
+        if self.is_zero():
+            return "<<00:00>>"
+
+        parts = []
+        for level, count in enumerate(self):
+            if count != 0:
+                parts.append(f"{99-level:02}×{count:02}")
+
+        return "<<" + ",".join(parts) + ">>"
+
+    def __str__(self) -> str:
+        """
+        Generate a human-readable string representation of the score.
+
+        Format: <0×1,5×2> where the first number is priority level and
+        the second is the count of violations at that level.
+
+        Returns:
+            String representation of the score
+        """
+        if self.is_zero():
+            return "zero"
+
+        parts = []
+        for level, count in enumerate(self):
+            if count != 0:
+                parts.append(f"{level}×{count}")
+
+        return "<" + ",".join(parts) + ">"
+
+@dataclass(frozen=True)
+class Placement:
+    """
+    Represents the placement of a section in a time slot and optionally a room.
+    """
+    time_slot: TimeSlotName
+    room: Optional[RoomName] = None
+
+
+@dataclass(frozen=True)
+class Schedule:
+    """
+    Represents a complete timetable schedule with assignments and constraint violations.
+    """
+    placements: Mapping[SectionName, Placement]
+    score: Score
+    problems: FrozenSet[tuple[Priority, str]]

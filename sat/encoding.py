@@ -1,6 +1,6 @@
 from itertools import combinations
 
-from data import TimetableData, SectionName, FacultyName, TimeSlotName, RoomName, Days, Day
+from data import TimetableData, SectionName, FacultyName, TimeSlotName, RoomName, Days, Day, Priority
 from typing import Optional, NewType, Union
 
 # section-room -> variable mapping
@@ -9,9 +9,6 @@ SectionRoomVars = NewType('SectionRoomVars', dict[tuple[SectionName, RoomName], 
 # section-time -> variable mapping
 SectionTimeVars = NewType('SectionTimeVars', dict[tuple[SectionName, TimeSlotName], int])
 
-# a placement is a generated schedule
-Placement = NewType('Placement', dict[SectionName, tuple[Optional[RoomName], TimeSlotName]])
-
 
 class Encoding:
     def __init__(self) -> None:
@@ -19,7 +16,7 @@ class Encoding:
         self.clauses: set[frozenset[int]] = set()
         self.section_room_vars = SectionRoomVars({})
         self.section_time_vars = SectionTimeVars({})
-        self.problems: dict[int, tuple[int, str]] = {}
+        self.problems: dict[int, tuple[Priority, str]] = {}
         self.hallpass: set[int] = set()
 
     def new_var(self) -> int:

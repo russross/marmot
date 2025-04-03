@@ -12,11 +12,12 @@ from data import SectionName, RoomName, TimeSlotName, Priority
 from data import Conflict, AntiConflict, RoomPreference, TimeSlotPreference, TimePatternMatch
 from data import FacultyDaysOff, FacultyEvenlySpread, FacultyNoRoomSwitch, FacultyTooManyRooms
 from data import FacultyGapTooLong, FacultyGapTooShort, FacultyClusterTooLong, FacultyClusterTooShort
-from encoding import Encoding, Placement
+from data import Placement, Schedule, Score
+from encoding import Encoding
 
 def create_sat_instance(
     timetable: TimetableData,
-    prior_violations: dict[Priority, int],
+    score_so_far: Score,
     current_priority: Priority,
     current_violations: int
 ) -> Encoding:
@@ -40,7 +41,7 @@ def create_sat_instance(
         priority = Priority(p)
 
         # Determine max violations allowed for this priority level
-        max_violations = prior_violations.get(priority, 0) if priority < current_priority else current_violations
+        max_violations = score_so_far[priority] if priority < current_priority else current_violations
 
         # Encode constraints at this priority level
         encode_constraints(timetable, encoding, priority, max_violations)
@@ -272,7 +273,7 @@ def encode_room_conflict(
 def decode_solution(
     encoding: Encoding,
     model: list[int],
-) -> tuple[Placement, set[tuple[int, str]]]:
+) -> Schedule:
     """
     Decode a SAT solution into a schedule.
     """
@@ -282,7 +283,7 @@ def decode_solution(
 
     section_to_room = {}
     section_to_time_slot = {}
-    problems = set()
+    problems: set[tuple[Priority, str]] = set()
 
     # Process all positive variable assignments
     for var in model:
@@ -300,12 +301,21 @@ def decode_solution(
         elif var in encoding.problems:
             problems.add(encoding.problems[var])
 
-    # Construct the placement
-    placement = Placement({})
-    for (section, time_slot) in section_to_time_slot.items():
-        if section in section_to_room:
-            placement[section] = (section_to_room[section], time_slot)
-        else:
-            placement[section] = (None, time_slot)
+    # Construct the placements mapping
+    placements = {}
+    score = Score()
     
-    return (placement, problems)
+    for section, time_slot in section_to_time_slot.items():
+        maybe_room = section_to_room.get(section)  # Will be None if not assigned
+        placements[section] = Placement(time_slot=time_slot, room=maybe_room)
+
+    # Update score based on problems
+    for priority, _ in problems:
+        score.inc_priority(priority)
+
+    # Create and return the Schedule object
+    return Schedule(
+        placements=placements,
+        score=score,
+        problems=frozenset(problems)
+    )
