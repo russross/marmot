@@ -145,16 +145,14 @@ def main() -> None:
     """Main entry point for the Marmot SAT timetabling system."""
     parser = argparse.ArgumentParser(description="Marmot SAT-based timetabling system")
     parser.add_argument("db_path", nargs="?", default="../data/timetable.db", help="Path to the timetable database (default: ../data/timetable.db)")
-    parser.add_argument("--solver", default="cd", choices=["cd", "g3", "g4", "m22", "mgh"], 
-                        help="SAT solver to use: cd (Cadical), g3/g4 (Glucose), m22/mgh (MiniSat) (default: cd)")
+    parser.add_argument("--solver", default="kissat",
+                        help="SAT solver executable to use (default: kissat). Common values: cadical, glucose3, glucose4, minisat22, minisat-gh")
     parser.add_argument("--time-limit", type=int, default=3600, 
                         help="Time limit in seconds (default: 3600)")
     parser.add_argument("--summary-only", action="store_true", 
                         help="Only print data summary without solving")
     parser.add_argument("--limit-priority", type=int, 
                         help="Limit solving to up to this priority level")
-    parser.add_argument("--verbose", action="store_true",
-                        help="Print detailed output")
     args = parser.parse_args()
     
     try:
@@ -170,7 +168,7 @@ def main() -> None:
               f"{len(constraints)} constraints across {len(priorities)} priority levels")
         
         # Print detailed data summary if requested
-        if args.verbose or args.summary_only:
+        if args.summary_only:
             print_data_summary(timetable)
         
         if args.summary_only:
@@ -183,8 +181,7 @@ def main() -> None:
         schedule = solve_timetable(
             timetable=timetable,
             solver_name=args.solver,
-            max_time_seconds=args.time_limit,
-            verbose=args.verbose
+            max_time_seconds=args.time_limit
         )
         
         solve_time = time.time() - start_time

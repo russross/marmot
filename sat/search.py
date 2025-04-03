@@ -8,25 +8,22 @@ for the minimum number of violations at each priority level.
 from typing import Optional
 import time
 
-from pysat.solvers import Solver  # type: ignore
-
 from core import create_sat_instance, decode_solution
 from data import TimetableData, Schedule, Score, Priority
+from solver import solve_with_external_solver
 
 def solve_timetable(
     timetable: TimetableData,
-    solver_name: str = "cd",
-    max_time_seconds: int = 3600,
-    verbose: bool = False
+    solver_name: str,
+    max_time_seconds: int
 ) -> Optional[Schedule]:
     """
     Solve the timetabling problem using iterative SAT solving.
 
     Args:
         timetable: The timetable data
-        solver_name: The SAT solver to use (default: "cd" for Cadical)
+        solver_name: The SAT solver executable to use
         max_time_seconds: Maximum time to spend solving in seconds
-        verbose: Whether to print detailed progress information
 
     Returns:
         The best schedule found or None if no feasible schedule was found
@@ -59,8 +56,7 @@ def solve_timetable(
             priority,
             max_violations,
             solver_name,
-            max_time_seconds - (time.time() - start_time),
-            verbose
+            max_time_seconds - (time.time() - start_time)
         )
 
         if success:
@@ -89,8 +85,7 @@ def solve_at_priority_level(
     priority: Priority,
     max_violations: Score,
     solver_name: str,
-    remaining_time: float,
-    verbose: bool
+    remaining_time: float
 ) -> tuple[bool, Optional[Schedule]]:
     """
     Solve for a specific priority level, finding minimum violations.
@@ -99,9 +94,8 @@ def solve_at_priority_level(
         timetable: The timetable data
         priority: The priority level to solve for
         max_violations: Score object tracking maximum allowed violations, modified in place
-        solver_name: The SAT solver to use
+        solver_name: The SAT solver executable to use
         remaining_time: Time remaining in seconds
-        verbose: Whether to print detailed progress information
     
     Returns:
         (success, schedule): Success flag and resulting schedule
@@ -129,13 +123,16 @@ def solve_at_priority_level(
         
         print(f"    priority {priority}, violations={max_violations[priority]} solving encoding with {encoding.last_var} variables and {len(encoding.clauses)} clauses")
         
-        # Solve the SAT instance
-        solver = Solver(name=solver_name, bootstrap_with=encoding.clauses)
-        solved = solver.solve()
+        # call the SAT solver backend
+        timeout = remaining_time - (time.time() - start_time)
+        model = solve_with_external_solver(
+            encoding, 
+            solver_name, 
+            timeout_seconds=int(timeout)
+        )
         
-        if solved:
+        if model is not None:
             # We've found a solution with this many violations
-            model = solver.get_model()
             schedule = decode_solution(encoding, model)
         else:
             # Increment violations at this priority level and try again
@@ -144,8 +141,5 @@ def solve_at_priority_level(
             # Make a note if we fail to satisfy hard constraints
             if priority == 0 and schedule is None:
                 print(f"    could not find a solution using only hard constraints")
-                
-        # Clean up the solver
-        solver.delete()
     
     return True, schedule
