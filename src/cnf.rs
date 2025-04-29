@@ -3,19 +3,19 @@ use std::collections::{HashMap, HashSet};
 pub struct Encoding {
     // the last variable ID used
     pub last_var: i32,
-    
+
     // collection of clauses in the encoding
     pub clauses: Vec<Vec<i32>>,
-    
+
     // maps (section, room) pairs to variable IDs
     pub section_room_vars: HashMap<(usize, usize), i32>,
-    
+
     // maps (section, time slot) pairs to variable IDs
     pub section_time_vars: HashMap<(usize, usize), i32>,
-    
+
     // maps variable IDs to problem descriptions with priority levels
     pub problems: HashMap<i32, (u8, String)>,
-    
+
     // gathered set of "hallpass" variables that are allowed to violate certain constraints
     // this is reset as each priority level is encoded
     pub hallpass: HashSet<i32>,
@@ -93,7 +93,11 @@ impl Encoding {
                 return;
             } else {
                 // Should not happen with non-empty literals
-                panic!("Internal Error: Totalizer tree construction failed. Expected {} outputs, got {}", n, output_vars.len());
+                panic!(
+                    "Internal Error: Totalizer tree construction failed. Expected {} outputs, got {}",
+                    n,
+                    output_vars.len()
+                );
             }
         }
 
@@ -138,7 +142,7 @@ impl Encoding {
     fn merge_full_totalizer_nodes(&mut self, left_outputs: &[i32], right_outputs: &[i32]) -> Vec<i32> {
         let n_left = left_outputs.len();
         let n_right = right_outputs.len();
-        
+
         // number of output vars needed
         // the maximum possible sum from this node is n_left + n_right.
         let max_output_index = n_left + n_right;
@@ -155,12 +159,12 @@ impl Encoding {
         for i in 0..=n_left {
             for j in 0..=n_right {
                 let target_sum = i + j;
-                
+
                 // skip if the target sum is 0 (no constraint needed)
                 if target_sum == 0 {
                     continue;
                 }
-                
+
                 // ensure the target sum does not exceed the bounds of the created output vars
                 // should not happen if max_output_index = n_left + n_right
                 if target_sum > max_output_index {
@@ -205,10 +209,10 @@ impl Encoding {
 
         // Create a mapping from our variable indices to kissat variables
         let mut var_map = Vec::with_capacity(self.last_var as usize + 1);
-        
+
         // Initialize with a placeholder for variable 0 (not used in our encoding)
         var_map.push(solver.var());
-        
+
         // Create variables in the kissat solver
         for i in 1..=self.last_var {
             let v = solver.var();
@@ -222,18 +226,18 @@ impl Encoding {
         // Add all clauses to the solver
         for clause in &self.clauses {
             let mut kissat_clause = Vec::with_capacity(clause.len());
-            
+
             for &lit in clause {
-                let var_idx = lit.abs() as usize;
-                
+                let var_idx = lit.unsigned_abs() as usize;
+
                 // ensure the variable index is valid
                 if var_idx >= var_map.len() || var_idx == 0 {
                     return Err(format!("Invalid variable index: {}", var_idx));
                 }
-                
+
                 // get the corresponding kissat variable
                 let var = var_map[var_idx];
-                
+
                 // determine if this is a positive or negative literal
                 if lit > 0 {
                     kissat_clause.push(var); // positive literal
@@ -241,7 +245,7 @@ impl Encoding {
                     kissat_clause.push(!var); // negative literal
                 }
             }
-            
+
             // add the clause to the solver
             solver.add(&kissat_clause);
         }
@@ -251,24 +255,24 @@ impl Encoding {
             Some(solution) => {
                 // problem is satisfiable, extract the true variables
                 let mut true_vars = HashSet::new();
-                
+
                 // Add each true variable to the HashSet
-                for i in 1..=self.last_var as usize {
-                    match solution.get(var_map[i]) {
+                for (i, elt) in var_map.iter().enumerate().take(self.last_var as usize + 1).skip(1) {
+                    match solution.get(*elt) {
                         Some(true) => {
                             // add the variable to the set if it's true
                             true_vars.insert(i as i32);
-                        },
+                        }
                         Some(false) | None => (), // skip false or don't care values
                     }
                 }
-                
+
                 Ok(Some(true_vars))
-            },
+            }
             None => {
                 // unsatisfiable
                 Ok(None)
-            },
+            }
         }
     }
 }

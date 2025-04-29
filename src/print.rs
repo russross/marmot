@@ -93,14 +93,14 @@ pub fn print_problems(input: &Input, schedule: &Schedule) {
         }
     }
     lst.sort_unstable_by(|a, b| {
-        if a.0 != b.0 && (a.0 < START_LEVEL_FOR_PREFERENCES || b.0 < START_LEVEL_FOR_PREFERENCES) || true {
+        if a.0 != b.0 && (a.0 < START_LEVEL_FOR_PREFERENCES || b.0 < START_LEVEL_FOR_PREFERENCES) {
             a.0.cmp(&b.0)
         } else {
             a.1.cmp(&b.1)
         }
     });
     for (priority, msg) in lst {
-        if priority < START_LEVEL_FOR_PREFERENCES || true {
+        if priority < START_LEVEL_FOR_PREFERENCES {
             println!("{priority:2}: {msg}");
         } else {
             println!("{msg}");

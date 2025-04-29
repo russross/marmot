@@ -7,31 +7,31 @@ use super::score::*;
 pub enum SatCriterion {
     // A soft conflict constraint: two sections cannot be scheduled at overlapping times
     Conflict {
-        sections: [usize; 2],  // Indices of the two sections
+        sections: [usize; 2], // Indices of the two sections
         priority: u8,
     },
-    
+
     // An anti-conflict: one section must be scheduled at the same time as one from a group
     AntiConflict {
-        single: usize,  // Index of the single section
-        group: Vec<usize>,  // Indices of the group sections
+        single: usize,     // Index of the single section
+        group: Vec<usize>, // Indices of the group sections
         priority: u8,
     },
-    
+
     // A preference to avoid a specific room for a section
     RoomPreference {
         section: usize,
         room: usize,
         priority: u8,
     },
-    
+
     // A preference to avoid a specific time slot for a section
     TimeSlotPreference {
         section: usize,
         time_slot: usize,
         priority: u8,
     },
-    
+
     // A preference for a faculty member to have a specific number of days off
     FacultyDaysOff {
         faculty: usize,
@@ -39,14 +39,14 @@ pub enum SatCriterion {
         desired_days_off: usize,
         priority: u8,
     },
-    
+
     // A preference for a faculty member's classes to be evenly spread across days
     FacultyEvenlySpread {
         faculty: usize,
         days_to_check: Days,
         priority: u8,
     },
-    
+
     // A preference for a faculty member to not have to switch rooms between back-to-back classes
     FacultyNoRoomSwitch {
         faculty: usize,
@@ -54,14 +54,14 @@ pub enum SatCriterion {
         max_gap_within_cluster: Duration,
         priority: u8,
     },
-    
+
     // A preference for a faculty member to not have classes in too many different rooms
     FacultyTooManyRooms {
         faculty: usize,
         desired_max_rooms: usize,
         priority: u8,
     },
-    
+
     // A gap between class clusters that is too long in a faculty member's schedule
     FacultyGapTooLong {
         faculty: usize,
@@ -70,7 +70,7 @@ pub enum SatCriterion {
         max_gap_within_cluster: Duration,
         priority: u8,
     },
-    
+
     // A gap between class clusters that is too short in a faculty member's schedule
     FacultyGapTooShort {
         faculty: usize,
@@ -79,7 +79,7 @@ pub enum SatCriterion {
         max_gap_within_cluster: Duration,
         priority: u8,
     },
-    
+
     // A cluster of classes that is too long in a faculty member's schedule
     FacultyClusterTooLong {
         faculty: usize,
@@ -88,7 +88,7 @@ pub enum SatCriterion {
         max_gap_within_cluster: Duration,
         priority: u8,
     },
-    
+
     // A cluster of classes that is too short in a faculty member's schedule
     FacultyClusterTooShort {
         faculty: usize,
@@ -97,7 +97,7 @@ pub enum SatCriterion {
         max_gap_within_cluster: Duration,
         priority: u8,
     },
-    
+
     // A constraint that all sections in the group should have the same time pattern
     TimePatternMatch {
         sections: Vec<usize>,
@@ -135,20 +135,18 @@ pub struct SatCriteria {
 impl SatCriteria {
     // Create an empty SatCriteria
     pub fn new() -> Self {
-        Self {
-            criteria_by_priority: Vec::new(),
-        }
+        Self { criteria_by_priority: Vec::new() }
     }
 
     // Add a criterion to the appropriate priority level, expanding the vector if needed
     pub fn add_criterion(&mut self, criterion: SatCriterion) {
         let priority = criterion.priority() as usize;
-        
+
         // Ensure we have enough priority levels
         if priority >= self.criteria_by_priority.len() {
             self.criteria_by_priority.resize_with(priority + 1, Vec::new);
         }
-        
+
         // Add the criterion to the appropriate level
         self.criteria_by_priority[priority].push(criterion);
     }
@@ -156,7 +154,7 @@ impl SatCriteria {
     // Convert Input into SatCriteria
     pub fn from_input(input: &Input) -> Result<Self> {
         let mut criteria = Self::new();
-        
+
         // Add hard conflicts as priority level 0 constraints
         for (section_i, section) in input.sections.iter().enumerate() {
             for &other_section_i in &section.hard_conflicts {
@@ -174,30 +172,23 @@ impl SatCriteria {
         for criterion in &input.criteria {
             match criterion {
                 Criterion::SoftConflict { priority, sections } => {
-                    criteria.add_criterion(SatCriterion::Conflict {
-                        sections: *sections,
-                        priority: *priority,
-                    });
-                },
-                
+                    criteria.add_criterion(SatCriterion::Conflict { sections: *sections, priority: *priority });
+                }
+
                 Criterion::AntiConflict { priority, single, group } => {
                     criteria.add_criterion(SatCriterion::AntiConflict {
                         single: *single,
                         group: group.clone(),
                         priority: *priority,
                     });
-                },
-                
+                }
+
                 Criterion::RoomPreference { section, rooms_with_priorities } => {
                     for &RoomWithPriority { room, priority } in rooms_with_priorities {
-                        criteria.add_criterion(SatCriterion::RoomPreference {
-                            section: *section,
-                            room,
-                            priority,
-                        });
+                        criteria.add_criterion(SatCriterion::RoomPreference { section: *section, room, priority });
                     }
-                },
-                
+                }
+
                 Criterion::TimeSlotPreference { section, time_slots_with_priorities } => {
                     for &TimeSlotWithPriority { time_slot, priority } in time_slots_with_priorities {
                         criteria.add_criterion(SatCriterion::TimeSlotPreference {
@@ -206,11 +197,11 @@ impl SatCriteria {
                             priority,
                         });
                     }
-                },
-                
+                }
+
                 Criterion::FacultyPreference {
                     faculty,
-                    sections: _,  // We'll get these from the Faculty struct
+                    sections: _, // We'll get these from the Faculty struct
                     days_to_check,
                     days_off,
                     evenly_spread,
@@ -228,7 +219,7 @@ impl SatCriteria {
                             priority: *priority,
                         });
                     }
-                    
+
                     // Faculty evenly spread
                     if let Some(priority) = evenly_spread {
                         criteria.add_criterion(SatCriterion::FacultyEvenlySpread {
@@ -237,7 +228,7 @@ impl SatCriteria {
                             priority: *priority,
                         });
                     }
-                    
+
                     // Faculty no room switch
                     if let Some(priority) = no_room_switch {
                         criteria.add_criterion(SatCriterion::FacultyNoRoomSwitch {
@@ -247,7 +238,7 @@ impl SatCriteria {
                             priority: *priority,
                         });
                     }
-                    
+
                     // Faculty too many rooms
                     if let Some((priority, desired)) = too_many_rooms {
                         criteria.add_criterion(SatCriterion::FacultyTooManyRooms {
@@ -256,7 +247,7 @@ impl SatCriteria {
                             priority: *priority,
                         });
                     }
-                    
+
                     // Process distribution intervals
                     for interval in distribution_intervals {
                         match interval {
@@ -268,7 +259,7 @@ impl SatCriteria {
                                     max_gap_within_cluster: *max_gap_within_cluster,
                                     priority: *priority,
                                 });
-                            },
+                            }
                             DistributionInterval::GapTooShort { priority, duration } => {
                                 criteria.add_criterion(SatCriterion::FacultyGapTooShort {
                                     faculty: *faculty,
@@ -277,7 +268,7 @@ impl SatCriteria {
                                     max_gap_within_cluster: *max_gap_within_cluster,
                                     priority: *priority,
                                 });
-                            },
+                            }
                             DistributionInterval::ClusterTooLong { priority, duration } => {
                                 criteria.add_criterion(SatCriterion::FacultyClusterTooLong {
                                     faculty: *faculty,
@@ -286,7 +277,7 @@ impl SatCriteria {
                                     max_gap_within_cluster: *max_gap_within_cluster,
                                     priority: *priority,
                                 });
-                            },
+                            }
                             DistributionInterval::ClusterTooShort { priority, duration } => {
                                 criteria.add_criterion(SatCriterion::FacultyClusterTooShort {
                                     faculty: *faculty,
@@ -295,17 +286,17 @@ impl SatCriteria {
                                     max_gap_within_cluster: *max_gap_within_cluster,
                                     priority: *priority,
                                 });
-                            },
+                            }
                         }
                     }
-                },
-                
+                }
+
                 Criterion::SectionsWithDifferentTimePatterns { priority, sections } => {
                     criteria.add_criterion(SatCriterion::TimePatternMatch {
                         sections: sections.clone(),
                         priority: *priority,
                     });
-                },
+                }
             }
         }
 
@@ -315,11 +306,7 @@ impl SatCriteria {
     // Get all criteria at a specific priority level
     pub fn criteria_at_priority(&self, priority: u8) -> &[SatCriterion] {
         let priority = priority as usize;
-        if priority < self.criteria_by_priority.len() {
-            &self.criteria_by_priority[priority]
-        } else {
-            &[]
-        }
+        if priority < self.criteria_by_priority.len() { &self.criteria_by_priority[priority] } else { &[] }
     }
 
     // Get the maximum priority level
@@ -330,17 +317,18 @@ impl SatCriteria {
 
     // Iterate through all priority levels
     pub fn priorities(&self) -> impl Iterator<Item = u8> + '_ {
-        (0..self.criteria_by_priority.len()).filter_map(move |p| {
-            if !self.criteria_by_priority[p].is_empty() {
-                Some(p as u8)
-            } else {
-                None
-            }
-        })
+        (0..self.criteria_by_priority.len())
+            .filter_map(move |p| if !self.criteria_by_priority[p].is_empty() { Some(p as u8) } else { None })
     }
 
     // Total number of criteria at all priority levels
     pub fn total_criteria_count(&self) -> usize {
         self.criteria_by_priority.iter().map(|v| v.len()).sum()
+    }
+}
+
+impl Default for SatCriteria {
+    fn default() -> Self {
+        Self::new()
     }
 }
