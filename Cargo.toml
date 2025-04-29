@@ -12,7 +12,5 @@ debug = true
 [dependencies]
 fastrand = "2.3.0"
 itertools = "0.14.0"
-rustsat = "0.6.4"
-rustsat-cadical = "0.4.4"
-rustsat-kissat = "0.3.4"
+kissat = "0.1.0"
 sqlite = "0.36.1"

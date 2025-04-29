@@ -132,6 +132,14 @@ impl ops::Sub for Time {
     }
 }
 
+impl std::fmt::Display for Time {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let hours = self.minutes / 60;
+        let mins = self.minutes % 60;
+        write!(f, "{:02}:{:02}", hours, mins)
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Duration {
     pub minutes: u16,
@@ -232,7 +240,7 @@ impl Iterator for DaysIter {
         while self.current_day < 7 {
             let day = self.current_day;
             self.current_day += 1;
-            
+
             // If this bit is set, return the day
             if self.days & (1 << day) != 0 {
                 return Some(day);
@@ -247,10 +255,7 @@ impl IntoIterator for Days {
     type IntoIter = DaysIter;
 
     fn into_iter(self) -> Self::IntoIter {
-        DaysIter {
-            days: self.days,
-            current_day: 0,
-        }
+        DaysIter { days: self.days, current_day: 0 }
     }
 }
 

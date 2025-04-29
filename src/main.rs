@@ -1,14 +1,16 @@
+pub mod cnf;
 pub mod error;
 pub mod input;
 pub mod print;
-pub mod sat;
-pub mod sat_encoding;
+pub mod sat_criteria;
+pub mod sat_encoders;
+pub mod sat_solver;
 pub mod score;
 pub mod solver;
 use self::error::Result;
 use self::input::*;
 use self::print::*;
-use self::sat::*;
+use self::sat_solver::*;
 use self::solver::*;
 use std::collections::HashMap;
 use std::time::Instant;
@@ -51,9 +53,9 @@ fn dispatch_subcommands() -> Result<()> {
 
         Ok(Opts::Sat(config)) => {
             let input = load_input(&config.db_path, &[])?;
-            let _schedule = generate_schedule(&input, &config.solver)?;
-            //print_schedule(&input, &schedule);
-            //print_problems(&input, &schedule);
+            let schedule = generate_schedule(&input)?;
+            print_schedule(&input, &schedule);
+            print_problems(&input, &schedule);
             Ok(())
         }
 
@@ -149,7 +151,6 @@ fn parse_args() -> Result<Opts> {
         "sat" => {
             let mut opts = SatOpts::default();
             parser.string("-d", "--db-path", &mut opts.db_path)?;
-            parser.string("-s", "--solver", &mut opts.solver)?;
             parser.leftover()?;
             Ok(Opts::Sat(opts))
         }
@@ -227,12 +228,11 @@ impl Default for GenOpts {
 
 pub struct SatOpts {
     pub db_path: String,
-    pub solver: String,
 }
 
 impl Default for SatOpts {
     fn default() -> Self {
-        Self { db_path: DEFAULT_DB_PATH.to_string(), solver: "cadical".to_string() }
+        Self { db_path: DEFAULT_DB_PATH.to_string() }
     }
 }
 
@@ -315,10 +315,6 @@ fn print_usage(command: Option<String>) {
             eprintln!();
             eprintln!("Options:");
             eprintln!("  -d, --db-path <path>           Database path (default: {})", default.db_path);
-            eprintln!(
-                "  -s, --solver <name>            SAT solver to use: kissat or cadical (default: {})",
-                default.solver
-            );
         }
 
         Some("dfs") => {
