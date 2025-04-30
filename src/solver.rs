@@ -22,6 +22,7 @@ pub struct Schedule {
     pub room_placements: Vec<RoomPlacements>,
     pub penalties: Vec<Vec<Penalty>>,
     pub score: Score,
+    pub optimum_score_prefix: Vec<ScoreLevel>,
 }
 
 // placement details of a single section
@@ -80,7 +81,7 @@ impl Schedule {
             penalties.push(Vec::new());
         }
 
-        Schedule { placements, room_placements, penalties, score }
+        Schedule { placements, room_placements, penalties, score, optimum_score_prefix: Vec::new() }
     }
 
     pub fn is_placed(&self, section: usize) -> bool {
@@ -207,6 +208,15 @@ impl Schedule {
         }
 
         if found { Some((time_based, with_taboo)) } else { None }
+    }
+
+    pub fn first_non_optimum_priority(&self) -> u8 {
+        for (i, &target) in self.optimum_score_prefix.iter().enumerate() {
+            if self.score.levels[i] > target {
+                return i as u8;
+            }
+        }
+        self.optimum_score_prefix.len() as u8
     }
 }
 
@@ -911,6 +921,9 @@ pub fn try_one_move(input: &Input, schedule: &mut Schedule, candidate_move: &Mov
 }
 
 pub fn step_down(input: &Input, schedule: &mut Schedule, walk: &mut Walk) -> bool {
+    // do not prioritize scores that we know we cannot improve
+    let first_non_optimum_priority = schedule.first_non_optimum_priority();
+
     // gather a list of potential moves with their local scores
 
     // for each section
@@ -945,7 +958,10 @@ pub fn step_down(input: &Input, schedule: &mut Schedule, walk: &mut Walk) -> boo
                     }
                 };
 
-                candidates.push((schedule.placements[section].score.first_nonzero(), candidate));
+                candidates.push((
+                    schedule.placements[section].score.first_non_optimum(first_non_optimum_priority),
+                    candidate,
+                ));
             }
         }
     }

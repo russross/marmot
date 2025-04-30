@@ -1,3 +1,4 @@
+use super::SatOpts;
 use super::cnf::Encoding;
 use super::error::{Result, err};
 use super::input::*;
@@ -14,7 +15,7 @@ use std::time::Instant;
 // This function encodes the scheduling problem as a SAT instance, solves it using an
 // incremental approach to minimize violations at each priority level, and then constructs
 // a schedule from the solution.
-pub fn generate_schedule(input: &Input) -> Result<Schedule> {
+pub fn generate_schedule(config: &SatOpts, input: &Input) -> Result<Schedule> {
     let start_time = Instant::now();
     println!("Starting SAT-based schedule generation");
 
@@ -31,6 +32,7 @@ pub fn generate_schedule(input: &Input) -> Result<Schedule> {
 
     // the best schedule so far
     let mut best = None;
+    let mut placement_id = None;
     println!("Searching for minimal score:");
 
     // Process each priority level in order
@@ -41,7 +43,7 @@ pub fn generate_schedule(input: &Input) -> Result<Schedule> {
             continue;
         }
 
-        // Solve at this priority level, updating max_violations in place
+        // solve at this priority level, updating max_violations in place
         best = solve_at_priority_level(input, &sat_criteria, priority, &mut max_violations)?;
         if best.is_none() {
             if priority == 0 {
@@ -50,6 +52,19 @@ pub fn generate_schedule(input: &Input) -> Result<Schedule> {
             println!("  Failed to find solution at priority level {}, keeping best schedule so far", priority);
             break;
         }
+
+        // save after each priority level
+        let msg = if priority == max_priority {
+            "SAT generated: complete".to_string()
+        } else {
+            format!("SAT generated: up to priority level {}", priority)
+        };
+        let Some(schedule) = &mut best else {
+            unreachable!("best schedule cannot be none");
+        };
+        schedule.optimum_score_prefix = schedule.score.levels[..=priority as usize].to_vec();
+        print!("\r");
+        placement_id = Some(save_schedule(&config.db_path, input, schedule, msg.as_str(), placement_id)?);
     }
     println!("\r{}    ", max_violations);
 

@@ -1,4 +1,4 @@
-use super::error::Result;
+use super::error::{Result, err};
 use super::score::*;
 use super::solver::*;
 use sqlite::{Connection, OpenFlags, State, Value};
@@ -1035,6 +1035,8 @@ pub fn save_schedule(
     db.execute("PRAGMA foreign_keys = ON")?;
     db.execute("PRAGMA busy_timeout = 10000")?;
     db.execute("BEGIN")?;
+    let optimum_score_prefix_json =
+        format!("[{}]", schedule.optimum_score_prefix.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(","));
     let root_id = if let Some(id) = existing_id {
         // delete old schedule with this id and update base record
         let mut stmt = db.prepare(
@@ -1057,28 +1059,31 @@ pub fn save_schedule(
             "UPDATE placements
             SET score = ?,
             sort_score = ?,
+            optimum_score_prefix = ?,
             comment = ?,
             modified_at = DATETIME('now', 'localtime')
             WHERE placement_id = ?",
         )?;
         stmt.bind((1, format!("{}", schedule.score).as_str()))?;
         stmt.bind((2, schedule.score.sortable().as_str()))?;
-        stmt.bind((3, comment))?;
-        stmt.bind((4, id))?;
-        while stmt.next()? != State::Done {
-            // no return rows expected
+        stmt.bind((3, optimum_score_prefix_json.as_str()))?;
+        stmt.bind((4, comment))?;
+        stmt.bind((5, id))?;
+        if stmt.next()? != State::Done {
+            panic!("no rows expected for update");
         }
         id
     } else {
         // create new base record and capture id
         let mut stmt = db.prepare(
-            "INSERT INTO placements (score, sort_score, comment, created_at, modified_at)
-            VALUES (?, ?, ?, DATETIME('now', 'localtime'), DATETIME('now', 'localtime'))
+            "INSERT INTO placements (score, sort_score, optimum_score_prefix, comment, created_at, modified_at)
+            VALUES (?, ?, ?, ?, DATETIME('now', 'localtime'), DATETIME('now', 'localtime'))
             RETURNING placement_id",
         )?;
         stmt.bind((1, format!("{}", schedule.score).as_str()))?;
         stmt.bind((2, schedule.score.sortable().as_str()))?;
-        stmt.bind((3, comment))?;
+        stmt.bind((3, optimum_score_prefix_json.as_str()))?;
+        stmt.bind((4, comment))?;
         let mut id = -1;
         while stmt.next()? == State::Row {
             id = stmt.read(0)?;
@@ -1114,6 +1119,7 @@ pub fn save_schedule(
                 LEVEL_FOR_UNPLACED_SECTION,
                 format!("{} is not placed", input.sections[section].name),
                 vec![section],
+                input.sections[section].faculty.clone(),
             ));
         }
     }
@@ -1121,12 +1127,20 @@ pub fn save_schedule(
         for penalty in penalty_list {
             let (priority, msg) = penalty.get_score_message(input, schedule);
             let sections = penalty.get_sections(input);
-            penalties.push((priority, msg, sections));
+            let mut faculty = Vec::new();
+            for &section in &sections {
+                for &elt in &input.sections[section].faculty {
+                    faculty.push(elt);
+                }
+            }
+            faculty.sort_unstable();
+            faculty.dedup();
+            penalties.push((priority, msg, sections, faculty));
         }
     }
 
     // insert them
-    for (priority, msg, sections) in penalties {
+    for (priority, msg, sections, faculty) in penalties {
         let mut stmt = db.prepare(
             "INSERT INTO placement_penalties (placement_id, priority, message)
                 VALUES (?, ?, ?) RETURNING placement_penalty_id",
@@ -1146,8 +1160,20 @@ pub fn save_schedule(
             )?;
             stmt.bind((1, id))?;
             stmt.bind((2, input.sections[section].name.as_str()))?;
-            while stmt.next()? != State::Done {
-                // no return rows expected
+            if stmt.next()? != State::Done {
+                panic!("no results expected from insert");
+            }
+        }
+
+        for f in faculty {
+            let mut stmt = db.prepare(
+                "INSERT INTO placement_penalty_faculty (placement_penalty_id, faculty)
+                    VALUES (?, ?)",
+            )?;
+            stmt.bind((1, id))?;
+            stmt.bind((2, input.faculty[f].name.as_str()))?;
+            if stmt.next()? != State::Done {
+                panic!("no results expected from insert");
             }
         }
     }
@@ -1167,27 +1193,37 @@ pub fn load_schedule(
     db.execute("PRAGMA temp_store = memory")?;
     db.execute("PRAGMA mmap_size = 100000000")?;
 
-    let placement_id = match maybe_placement_id {
-        Some(id) => id,
-        None => {
-            // find the best-scoring schedule already in the DB
-            let mut stmt = db.prepare(
-                "SELECT placement_id
-                FROM placements
-                ORDER BY sort_score, modified_at DESC
-                LIMIT 1",
-            )?;
-            let mut id = None;
-            while stmt.next()? == State::Row {
-                let found_id: i64 = stmt.read(0)?;
-                id = Some(found_id);
-            }
-            let Some(id) = id else {
-                return Err("no placement found in the database".into());
-            };
-            id
-        }
+    let placement_id: i64;
+    let saved_score: String;
+    let optimum_score_prefix_json: String;
+
+    // find the best-scoring schedule already in the DB
+    // or a specific ID as requested
+    let mut stmt = db.prepare(
+        "SELECT placement_id, score, optimum_score_prefix
+        FROM placements
+        WHERE placement_id = ? OR ?
+        ORDER BY sort_score, modified_at DESC
+        LIMIT 1",
+    )?;
+    let (q_id, q_override) = if let Some(id) = maybe_placement_id {
+        (id, 0) // search on the given id
+    } else {
+        (0, 1) // search by sort score
     };
+    stmt.bind((1, q_id))?;
+    stmt.bind((2, q_override))?;
+
+    if let State::Row = stmt.next()? {
+        placement_id = stmt.read(0)?;
+        saved_score = stmt.read(1)?;
+        optimum_score_prefix_json = stmt.read(2)?;
+    } else {
+        return Err("no placement found in the database".into());
+    };
+    if stmt.next()? != State::Done {
+        panic!("multiple rows returned from single-row query");
+    }
 
     let mut stmt = db.prepare(
         "SELECT modified_at
@@ -1238,5 +1274,34 @@ pub fn load_schedule(
         let _undo = move_section(input, schedule, section, time_slot, &maybe_room);
     }
 
+    // does the generated score match the saved score?
+    if format!("{}", schedule.score) != saved_score {
+        return err(format!(
+            "for placement with ID {} the saved score of {} does not match the computed score of {}",
+            placement_id, saved_score, schedule.score
+        ));
+    }
+
+    // parse the SAT-proved score prefix
+    schedule.optimum_score_prefix = parse_score_array(&optimum_score_prefix_json)?;
+
     Ok(())
+}
+
+fn parse_score_array(json_str: &str) -> Result<Vec<ScoreLevel>> {
+    // check if the string starts with '[' and ends with ']'
+    if !json_str.starts_with('[') || !json_str.ends_with(']') {
+        return err("saved optimum score prefix is not a JSON array");
+    }
+
+    // remove brackets and split on commas
+    let mut result = Vec::new();
+    for item in json_str[1..json_str.len() - 1].split(',') {
+        match item.trim().parse::<i16>() {
+            Ok(value) => result.push(value as ScoreLevel),
+            Err(_) => return err(format!("Failed to parse '{}' as i16", item)),
+        }
+    }
+
+    Ok(result)
 }

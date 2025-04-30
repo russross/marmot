@@ -117,6 +117,15 @@ impl Score {
         self.levels.len() as u8
     }
 
+    pub fn first_non_optimum(&self, ignore_up_to: u8) -> u8 {
+        for (i, &val) in self.levels.iter().enumerate().skip(ignore_up_to as usize) {
+            if val != 0 {
+                return i as u8;
+            }
+        }
+        self.levels.len() as u8
+    }
+
     pub fn sortable(&self) -> String {
         // make a string that sorts better scores earlier
         let mut s = String::new();

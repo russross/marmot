@@ -83,23 +83,46 @@ pub fn print_problems(input: &Input, schedule: &Schedule) {
     let mut lst = Vec::new();
     for (section, placement) in schedule.placements.iter().enumerate() {
         if placement.time_slot.is_none() {
-            lst.push((LEVEL_FOR_UNPLACED_SECTION, format!("{} is not placed", input.sections[section].name)));
+            lst.push((
+                LEVEL_FOR_UNPLACED_SECTION,
+                String::new(),
+                format!("{} is not placed", input.sections[section].name),
+            ));
             continue;
         }
     }
     for penalty_list in &schedule.penalties {
         for penalty in penalty_list {
-            lst.push(penalty.get_score_message(input, schedule));
+            let mut faculty = Vec::new();
+            for section in penalty.get_sections(input) {
+                for &elt in &input.sections[section].faculty {
+                    faculty.push(elt);
+                }
+            }
+            faculty.sort_unstable();
+            faculty.dedup();
+            let (priority, msg) = penalty.get_score_message(input, schedule);
+
+            // curriculum conflicts are displayed once, preferences are per-faculty
+            if faculty.is_empty() || priority < START_LEVEL_FOR_PREFERENCES {
+                lst.push((priority, String::new(), msg));
+            } else {
+                for elt in faculty {
+                    lst.push((priority, input.faculty[elt].name.clone(), msg.clone()));
+                }
+            }
         }
     }
     lst.sort_unstable_by(|a, b| {
         if a.0 != b.0 && (a.0 < START_LEVEL_FOR_PREFERENCES || b.0 < START_LEVEL_FOR_PREFERENCES) {
             a.0.cmp(&b.0)
-        } else {
+        } else if a.1 != b.1 {
             a.1.cmp(&b.1)
+        } else {
+            a.0.cmp(&b.0)
         }
     });
-    for (priority, msg) in lst {
+    for (priority, _faculty, msg) in lst {
         if priority < START_LEVEL_FOR_PREFERENCES {
             println!("{priority:2}: {msg}");
         } else {

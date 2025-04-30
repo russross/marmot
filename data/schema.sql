@@ -341,6 +341,7 @@ CREATE TABLE placements (
     placement_id                INTEGER PRIMARY KEY,
     score                       TEXT NOT NULL,
     sort_score                  TEXT NOT NULL,
+    optimum_score_prefix        TEXT NOT NULL,
     comment                     TEXT NOT NULL,
     created_at                  TEXT NOT NULL,
     modified_at                 TEXT NOT NULL
@@ -376,6 +377,15 @@ CREATE TABLE placement_penalty_sections (
     PRIMARY KEY (placement_penalty_id, section),
     FOREIGN KEY (placement_penalty_id) REFERENCES placement_penalties (placement_penalty_id) ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (section) REFERENCES sections (section) ON DELETE CASCADE ON UPDATE CASCADE
+) WITHOUT ROWID;
+
+CREATE TABLE placement_penalty_faculty (
+    placement_penalty_id        INTEGER NOT NULL,
+    faculty                     TEXT NOT NULL,
+
+    PRIMARY KEY (placement_penalty_id, faculty),
+    FOREIGN KEY (placement_penalty_id) REFERENCES placement_penalties (placement_penalty_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (faculty) REFERENCES faculty (faculty) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
 
 
