@@ -12,7 +12,7 @@ use std::ops;
 //
 
 pub type ScoreLevel = i16;
-pub const PRIORITY_LEVELS: usize = 25;
+pub const PRIORITY_LEVELS: usize = 26;
 pub const LEVEL_FOR_UNPLACED_SECTION: u8 = 0;
 pub const LEVEL_FOR_HARD_CONFLICT: u8 = 0;
 pub const START_LEVEL_FOR_PREFERENCES: u8 = 10;

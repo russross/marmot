@@ -9,8 +9,10 @@ def build_pre(db: DB) -> None:
     db.make_room('Smith 109', 32, ['flex'])
     db.make_room('Smith 112', 24, ['macs'])
     db.make_room('Smith 113', 24, ['pcs'])
-    db.make_room('Smith 116', 38, [])
-    db.make_room('Smith 117', 38, [])
+    db.make_room('Smith 116', 38, ['stadium'])
+    db.make_room('Smith 117', 38, ['stadium'])
+    db.make_building('Holland')
+    db.make_room('Holland 469', 40, [])
 
     print('building core time slots')
 
@@ -38,13 +40,11 @@ def build_pre(db: DB) -> None:
     db.make_time_slot('R1630+150', ['3 credit early evening'])
 
     print('adding special case courses and sections')
-    db.make_course('Computing', 'CS 6300', 'Principles of Artificial Intelligence')
-    db.make_course('Computing', 'CS 6310', 'Foundations of Machine Learning')
-    db.make_course('Computing', 'CS 6350', 'Artificial Intelligence and Machine Learning Project 1')
-    db.make_course('Computing', 'IT 3700', 'Cybersecurity Analytics')
-    db.make_course('Computing', 'SA 1400', 'Fundamentals of Programming (Success)')
-    db.make_section_with_no_faculty('MATH 2050-01', 'MW1330+75')
-    db.make_section_with_no_faculty('MATH 3400-01', 'TR1030+75')
+    db.make_course('Computing', 'CS 6310', 'Foundations of Machine Learning')    
+    db.make_course('Computing', 'CS 6330', 'Programming for Machine Learning in Life Sciences')
+    db.make_course('Computing', 'CS 6350', 'Artificial Intelligence and Machine Learning Project 1')    
+    db.make_course('Computing', 'IT 1800', 'Forensics')
+    db.make_section_with_no_faculty('MATH 3400-01', 'TR0900+75')
 
 def build_post(db: DB) -> None:
     print('building computing conflicts')
@@ -151,6 +151,9 @@ def build_post(db: DB) -> None:
     db.make_conflict('Information Technology', 'only need one math class', None, 'reduce',
         ['MATH 1040', 'MATH 1050'])
 
+    db.add_anti_conflict(5, 'CS 4600-01', ['CS 4600-02', 'CS 4600-03'])
+    db.add_anti_conflict(5, 'CS 4600-02', ['CS 4600-01', 'CS 4600-03'])
+    db.add_anti_conflict(5, 'CS 4600-03', ['CS 4600-01', 'CS 4600-02'])
     db.add_anti_conflict(5, 'CS 1030-01', ['CS 1400'])
 
     db.make_conflict('Computer Science', 'spread out CS 1400', 5, 'boost',
@@ -158,6 +161,4 @@ def build_post(db: DB) -> None:
     db.make_conflict('Computer Science', 'spread out CS 1410', 5, 'boost',
         ['CS 1410-01', 'CS 1410-02'])
     db.make_conflict('Information Technology', 'spread out IT 1100', 5, 'boost',
-        ['IT 1100-01', 'IT 1100-02', 'IT 1100-03'])
-    db.make_conflict('Software Engineering', 'spread out SE 1400', 5, 'boost',
-        ['SE 1400-01', 'SE 1400-02', 'SE 1400-03'])
+        ['IT 1100-01', 'IT 1100-02'])

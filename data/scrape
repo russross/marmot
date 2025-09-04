@@ -9,10 +9,9 @@ prefixes = {
     'MATH':     'Math',
     'SD':       'Computing',
     'SE':       'Computing',
-    'SET':      'Computing',
 } 
 
-pages = [ 'cs', 'it', 'math', 'sd', 'se', 'set' ]
+pages = [ 'cs', 'it', 'math', 'sd', 'se' ]
 
 courses = {}
 

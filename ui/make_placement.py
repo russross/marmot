@@ -7,7 +7,7 @@ import os
 import sys
 import sqlite3
 
-DB_FILE = '../timetable.db'
+DB_FILE = '../data/timetable.db'
 
 if len(sys.argv) != 2:
     print(f'Usage: {sys.argv[0]} <placement_id>', file=sys.stderr)
@@ -15,7 +15,7 @@ if len(sys.argv) != 2:
 
 id = int(sys.argv[1])
 
-db = sqlite3.connect(DB_FILE)
+db = sqlite3.connect(f"file:{DB_FILE}?mode=ro", uri=True)
 db.execute('PRAGMA busy_timeout = 10000')
 db.execute('PRAGMA temp_store = MEMORY')
 db.execute('PRAGMA mmap_size = 100000000')

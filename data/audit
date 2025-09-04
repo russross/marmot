@@ -3,8 +3,8 @@
 import sqlite3
 import sys
 
-DB_FILE = '../timetable.db'
-CURRENT_TERM = 'fall'
+DB_FILE = 'timetable.db'
+CURRENT_TERM = 'spring'
 DEPARTMENTS = ['Computing']
 
 db = sqlite3.connect(DB_FILE)

@@ -105,7 +105,7 @@ CREATE TABLE faculty_availability (
     CHECK (start_time >= 0 AND start_time % 5 = 0),
     CHECK (duration > 0 AND duration % 5 = 0),
     CHECK (start_time + duration < 24*60),
-    CHECK (availability_priority IS NULL OR availability_priority >= 10 AND availability_priority < 25),
+    CHECK (availability_priority IS NULL OR availability_priority >= 10 AND availability_priority < 26),
 
     PRIMARY KEY (faculty, day_of_week, start_time),
     FOREIGN KEY (faculty) REFERENCES faculty (faculty) ON DELETE CASCADE ON UPDATE CASCADE
@@ -125,13 +125,13 @@ CREATE TABLE faculty_preferences (
         REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE('$'||days_to_check,
             '$M','$'), '$T','$'), '$W','$'), '$R','$'), '$F','$'), '$S','$'), '$U','$') = '$'),
     CHECK (days_off IS NULL OR days_off >= 0 AND days_off < 7),
-    CHECK (days_off_priority IS NULL OR days_off_priority >= 10 AND days_off_priority < 25),
+    CHECK (days_off_priority IS NULL OR days_off_priority >= 10 AND days_off_priority < 26),
     CHECK (days_off_priority IS NULL AND days_off IS NULL OR days_off_priority IS NOT NULL AND days_off IS NOT NULL),
     CHECK (days_off_priority IS NULL OR LENGTH(days_to_check) > 1),
-    CHECK (evenly_spread_priority IS NULL OR evenly_spread_priority >= 10 AND evenly_spread_priority < 25),
+    CHECK (evenly_spread_priority IS NULL OR evenly_spread_priority >= 10 AND evenly_spread_priority < 26),
     CHECK (evenly_spread_priority IS NULL OR LENGTH(days_to_check) > 1),
-    CHECK (no_room_switch_priority IS NULL OR no_room_switch_priority >= 10 AND no_room_switch_priority < 25),
-    CHECK (too_many_rooms_priority IS NULL OR too_many_rooms_priority >= 10 AND too_many_rooms_priority < 25),
+    CHECK (no_room_switch_priority IS NULL OR no_room_switch_priority >= 10 AND no_room_switch_priority < 26),
+    CHECK (too_many_rooms_priority IS NULL OR too_many_rooms_priority >= 10 AND too_many_rooms_priority < 26),
     CHECK (max_gap_within_cluster >= 0 AND max_gap_within_cluster < 120),
 
     FOREIGN KEY (faculty) REFERENCES faculty (faculty) ON DELETE CASCADE ON UPDATE CASCADE
@@ -147,7 +147,7 @@ CREATE TABLE faculty_preference_intervals (
     -- or    gap     longer  than 105 minutes with priority 11
 
     CHECK (interval_minutes > 0 AND interval_minutes < 24*60),
-    CHECK (interval_priority IS NULL OR interval_priority >= 10 AND interval_priority < 25),
+    CHECK (interval_priority IS NULL OR interval_priority >= 10 AND interval_priority < 26),
 
     PRIMARY KEY (faculty, is_cluster, is_too_short, interval_minutes),
     FOREIGN KEY (faculty) REFERENCES faculty_preferences (faculty)
@@ -211,7 +211,7 @@ CREATE TABLE section_room_tags (
     room_tag                    TEXT NOT NULL,
     room_priority               INTEGER,
 
-    CHECK (room_priority IS NULL OR room_priority >= 10 AND room_priority < 25),
+    CHECK (room_priority IS NULL OR room_priority >= 10 AND room_priority < 26),
 
     PRIMARY KEY (section, room_tag),
     FOREIGN KEY (section) REFERENCES sections (section) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -223,7 +223,7 @@ CREATE TABLE section_time_slot_tags (
     time_slot_tag               TEXT NOT NULL,
     time_slot_priority          INTEGER,
 
-    CHECK (time_slot_priority IS NULL OR time_slot_priority >= 10 AND time_slot_priority < 25),
+    CHECK (time_slot_priority IS NULL OR time_slot_priority >= 10 AND time_slot_priority < 26),
 
     PRIMARY KEY (section, time_slot_tag),
     FOREIGN KEY (section) REFERENCES sections (section) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -285,7 +285,7 @@ CREATE TABLE time_pattern_matches (
     time_pattern_match_name     TEXT PRIMARY KEY,
     time_pattern_match_priority INTEGER NOT NULL,
 
-    CHECK (time_pattern_match_priority >= 10 AND time_pattern_match_priority < 25)
+    CHECK (time_pattern_match_priority >= 10 AND time_pattern_match_priority < 26)
 ) WITHOUT ROWID;
 
 CREATE TABLE time_pattern_match_sections (
@@ -366,7 +366,7 @@ CREATE TABLE placement_penalties (
     priority                    INTEGER NOT NULL,
     message                     TEXT NOT NULL,
 
-    CHECK (priority >= 0 AND priority < 25),
+    CHECK (priority >= 0 AND priority < 26),
     FOREIGN KEY (placement_id) REFERENCES placements (placement_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
