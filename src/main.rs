@@ -119,6 +119,84 @@ fn dispatch_subcommands() -> Result<()> {
             Ok(())
         }
 
+        Ok(Opts::Tweak(config)) => {
+            let input = load_input(&config.db_path, &[])?;
+            let mut schedule = Schedule::new(&input);
+            load_schedule(
+                &config.db_path,
+                &input,
+                &mut schedule,
+                if config.starting_id == 0 { None } else { Some(config.starting_id) },
+            )?;
+
+            let mut parsed_tweaks = Vec::new();
+            for tweak in &config.tweaks {
+                // Look up section by name
+                let section_idx = input.sections.iter().position(|s| s.name == tweak.section)
+                    .ok_or_else(|| format!("Section '{}' not found", tweak.section))?;
+
+                // Look up time slot by name
+                let time_slot_idx = input.time_slots.iter().position(|ts| ts.name == tweak.time_slot)
+                    .ok_or_else(|| format!("Time slot '{}' not found", tweak.time_slot))?;
+
+                // Look up room by name, handle "-" as no room
+                let room_idx = if tweak.room == "-" {
+                    None
+                } else {
+                    Some(input.rooms.iter().position(|r| r.name == tweak.room)
+                        .ok_or_else(|| format!("Room '{}' not found", tweak.room))?)
+                };
+
+                parsed_tweaks.push((section_idx, time_slot_idx, room_idx));
+            }
+
+            // Validate tweaks
+            for (section_idx, time_slot_idx, room_idx) in &parsed_tweaks {
+                let section = &input.sections[*section_idx];
+                
+                // Check if time slot is valid for this section
+                if !section.time_slots.iter().any(|ts| ts.time_slot == *time_slot_idx) {
+                    return Err(format!("Time slot '{}' is not valid for section '{}'", 
+                        input.time_slots[*time_slot_idx].name, section.name).into());
+                }
+
+                // Check if room assignment is valid
+                match room_idx {
+                    Some(room) => {
+                        if !section.rooms.iter().any(|r| r.room == *room) {
+                            return Err(format!("Room '{}' is not valid for section '{}'", 
+                                input.rooms[*room].name, section.name).into());
+                        }
+                    }
+                    None => {
+                        if !section.rooms.is_empty() {
+                            return Err(format!("Section '{}' requires a room, cannot use '-'", section.name).into());
+                        }
+                    }
+                }
+            }
+
+            // Apply tweaks
+            for (section_idx, time_slot_idx, room_idx) in &parsed_tweaks {
+                let _undo = move_section(&input, &mut schedule, *section_idx, *time_slot_idx, room_idx);
+            }
+
+            // Create comment describing the tweaks
+            let tweak_descriptions: Vec<String> = config.tweaks.iter()
+                .map(|t| format!("{}→{},{}", t.section, t.room, t.time_slot))
+                .collect();
+            let comment = format!("tweaked from schedule {} ({})", 
+                config.starting_id, tweak_descriptions.join("; "));
+
+            // Save the new schedule
+            save_schedule(&config.db_path, &input, &schedule, &comment, None)?;
+
+            // Print the result
+            print_schedule(&input, &schedule);
+            print_problems(&input, &schedule);
+            Ok(())
+        }
+
         Err(msg) => {
             print_usage(std::env::args().nth(1));
             Err(msg)
@@ -180,6 +258,18 @@ fn parse_args() -> Result<Opts> {
             Ok(Opts::Dump(opts))
         }
 
+        "tweak" => {
+            let mut opts = TweakOpts::default();
+            parser.string("-d", "--db-path", &mut opts.db_path)?;
+            parser.int64("-i", "--id", &mut opts.starting_id)?;
+            while parser.tweak_specs("-t", "--tweak", &mut opts.tweaks)? {}
+            if opts.tweaks.is_empty() {
+                return Err("Error: at least one tweak must be specified with -t/--tweak".into());
+            }
+            parser.leftover()?;
+            Ok(Opts::Tweak(opts))
+        }
+
         cmd => Err(format!("Error: unknown command \"{}\"", cmd).into()),
     }
 }
@@ -190,6 +280,7 @@ enum Opts {
     Dfs(DfsOpts),
     Print(PrintOpts),
     Dump(DumpOpts),
+    Tweak(TweakOpts),
 }
 
 pub struct GenOpts {
@@ -257,11 +348,30 @@ impl Default for DumpOpts {
     }
 }
 
+#[derive(Debug)]
+pub struct TweakSpec {
+    pub section: String,
+    pub room: String,
+    pub time_slot: String,
+}
+
+pub struct TweakOpts {
+    pub db_path: String,
+    pub starting_id: i64,
+    pub tweaks: Vec<TweakSpec>,
+}
+
 pub struct DfsOpts {
     pub db_path: String,
     pub starting_id: i64,
     pub dfs_depth: usize,
     pub repeat: bool,
+}
+
+impl Default for TweakOpts {
+    fn default() -> Self {
+        Self { db_path: DEFAULT_DB_PATH.to_string(), starting_id: 0, tweaks: Vec::new() }
+    }
 }
 
 impl Default for DfsOpts {
@@ -348,6 +458,19 @@ fn print_usage(command: Option<String>) {
             eprintln!("  -d, --db-path <path>           Database path (default: {})", default.db_path);
         }
 
+        Some("tweak") => {
+            let default = TweakOpts::default();
+            eprintln!("Usage: marmot tweak [options]");
+            eprintln!();
+            eprintln!("Options:");
+            eprintln!("  -d, --db-path <path>           Database path (default: {})", default.db_path);
+            eprintln!("  -i, --id <int>                 ID of schedule to start from (0 to use best in DB)");
+            eprintln!("  -t, --tweak <section,room,time> Move a section to specified room and time (repeatable)");
+            eprintln!();
+            eprintln!("Examples:");
+            eprintln!("  marmot tweak -i 123 -t \"CS 3400-01,Smith 108,MWF0900+50\" -t \"MATH 3400-01,-,TR1030+75\"");
+        }
+
         _ => {
             eprintln!("Usage: marmot <command> [options]");
             eprintln!();
@@ -357,6 +480,7 @@ fn print_usage(command: Option<String>) {
             eprintln!("  dfs        Try to improve a schedule using bounded DFS");
             eprintln!("  print      Print a schedule to the console");
             eprintln!("  dump       Dump the input data to the console");
+            eprintln!("  tweak      Make manual adjustments to an existing schedule");
             eprintln!();
             eprintln!("For more help run: marmot <command> -h");
         }
@@ -465,5 +589,22 @@ impl CliParser {
         }
 
         Ok(())
+    }
+
+    fn tweak_specs(&mut self, short: &str, long: &str, tweaks: &mut Vec<TweakSpec>) -> Result<bool> {
+        if let Some((key, val)) = self.pair(short, long) {
+            let parts: Vec<&str> = val.split(',').collect();
+            if parts.len() != 3 {
+                return Err(format!("Error parsing option {}: expected 3 comma-separated values (section,room,time), got {}", key, parts.len()).into());
+            }
+            tweaks.push(TweakSpec {
+                section: parts[0].to_string(),
+                room: parts[1].to_string(),
+                time_slot: parts[2].to_string(),
+            });
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
