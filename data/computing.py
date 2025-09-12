@@ -13,27 +13,36 @@ def build_pre(db: DB) -> None:
     db.make_room('Smith 117', 38, ['stadium'])
     db.make_building('Holland')
     db.make_room('Holland 469', 40, [])
+    db.make_building('SET')
+    db.make_room('SET 105a', 30, [])
+    db.make_room('SET 105b', 30, [])
+    db.make_room('SET 105c', 30, [])
+    db.make_building('SUCCESS')
+    db.make_room('SUCCESS 100', 30, [])
+    db.make_building('Snow')
+    db.make_room('Snow 3050', 30, [])
+    db.make_room('Snow 3400', 30, [])
 
     print('building core time slots')
 
-    db.make_time_slot('MWF0800+50', ['3 credit bell schedule', 'MWF 3×50 bell schedule'])
+    db.make_time_slot('MWF0800+50', [])
     db.make_time_slot('MWF0900+50', ['3 credit bell schedule', 'MWF 3×50 bell schedule'])
     db.make_time_slot('MWF1000+50', ['3 credit bell schedule', 'MWF 3×50 bell schedule'])
     db.make_time_slot('MWF1100+50', ['3 credit bell schedule', 'MWF 3×50 bell schedule'])
     db.make_time_slot('MW1200+75', ['3 credit bell schedule', '2×75 bell schedule', 'MW 2×75 bell schedule'])
     db.make_time_slot('MW1330+75', ['3 credit bell schedule', '2×75 bell schedule', 'MW 2×75 bell schedule'])
     db.make_time_slot('MW1500+75', ['3 credit bell schedule', '2×75 bell schedule', 'MW 2×75 bell schedule'])
-    db.make_time_slot('MW1630+75', ['3 credit bell schedule', '2×75 bell schedule', 'MW 2×75 bell schedule'])
+    db.make_time_slot('MW1630+75', [])
     db.make_time_slot('TR0900+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
     db.make_time_slot('TR1030+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
     db.make_time_slot('TR1200+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
     db.make_time_slot('TR1330+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
     db.make_time_slot('TR1500+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
-    db.make_time_slot('TR1630+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
-    db.make_time_slot('R1800+150', ['1×150 evening'])
-    db.make_time_slot('T1800+150', ['1×150 evening'])
-    db.make_time_slot('W1800+150', ['1×150 evening'])
-    db.make_time_slot('T1630+100', ['2 credit early evening'])
+    db.make_time_slot('TR1630+75', [])
+    db.make_time_slot('M1800+150', ['3 credit evening'])
+    db.make_time_slot('T1800+150', ['3 credit evening'])
+    db.make_time_slot('R1800+150', ['3 credit evening'])
+    db.make_time_slot('W1800+150', ['3 credit evening'])
     db.make_time_slot('M1630+150', ['3 credit early evening'])
     db.make_time_slot('T1630+150', ['3 credit early evening'])
     db.make_time_slot('W1630+150', ['3 credit early evening'])
@@ -43,8 +52,9 @@ def build_pre(db: DB) -> None:
     db.make_course('Computing', 'CS 6310', 'Foundations of Machine Learning')    
     db.make_course('Computing', 'CS 6330', 'Programming for Machine Learning in Life Sciences')
     db.make_course('Computing', 'CS 6350', 'Artificial Intelligence and Machine Learning Project 1')    
-    db.make_course('Computing', 'IT 1800', 'Forensics')
-    db.make_section_with_no_faculty('MATH 3400-01', 'TR0900+75')
+    #db.make_course('Computing', 'IT 1800', 'Forensics')
+    db.make_section_with_no_faculty('MATH 3050-01', 'MW1330+75', 'Snow 3050')
+    db.make_section_with_no_faculty('MATH 3400-01', 'TR1030+75', 'Snow 3400')
 
 def build_post(db: DB) -> None:
     print('building computing conflicts')
@@ -101,12 +111,12 @@ def build_post(db: DB) -> None:
         'SE 1400', 'CS 2450', 'SE 3010', 'SE 3020', 'SE 3100', 'SE 3150', 'SE 3200', 'SE 3400',
         'SE 4200', 'SE 4600', 'MATH 1100', 'MATH 1210', 'MATH 2050',
         'CS 4300', 'CS 4400', 'CS 4320', 'CS 4410'])
-    db.make_conflict('Software Engineering', 'Virtual reality track', 5, 'boost',
+    db.make_conflict('Software Engineering', 'Game development track', 5, 'boost',
         ['CS 1030', 'CS 1400', 'CS 1410', 'CS 2100', 'CS 2420', 'CS 2810', 'CS 3005',
         'CS 3150', 'CS 3510', 'CS 4307', 'IT 2300', 'IT 1100',
         'SE 1400', 'CS 2450', 'SE 3010', 'SE 3020', 'SE 3100', 'SE 3150', 'SE 3200', 'SE 3400',
         'SE 4200', 'SE 4600', 'MATH 1100', 'MATH 1210', 'MATH 2050',
-        'CS 3500', 'CS 4995', 'CS 4996'])
+        'CS 3500', 'CS 3600', 'CS 4995'])
     db.make_conflict('Software Engineering', 'only need one of AI/data mining', None, 'reduce',
         ['CS 4300', 'CS 4400'])
     db.make_conflict('Software Engineering', 'only need one database class', None, 'reduce',
@@ -155,6 +165,8 @@ def build_post(db: DB) -> None:
     db.add_anti_conflict(5, 'CS 4600-02', ['CS 4600-01', 'CS 4600-03'])
     db.add_anti_conflict(5, 'CS 4600-03', ['CS 4600-01', 'CS 4600-02'])
     db.add_anti_conflict(5, 'CS 1030-01', ['CS 1400'])
+    db.add_multiple_section_override('CS 4600', 1)
+    db.add_multiple_section_override('SE 4600', 1)
 
     db.make_conflict('Computer Science', 'spread out CS 1400', 5, 'boost',
         ['CS 1400-01', 'CS 1400-02', 'CS 1400-03'])

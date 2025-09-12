@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Marmot Schedule Viewer</title>
+    <title>Marmot viewer</title>
     <script src="placement.js" defer></script>
 
     <style>
@@ -11,11 +11,8 @@
         --grid-columns: 1;
         --grid-rows: 1;
         --cell-width-em: 11em;
-        --cell-height-em: 0.3em; /* Start at 60% of original 0.5em */
-
-        /* LCH color variables for section backgrounds. Hue is set dynamically in JS. */
-        --l: 45; /* Lightness */
-        --c: 80; /* Chroma */
+        --cell-height-em: 1em;
+        --header-height: 5em; /* Default header height */
       }
 
       body {
@@ -23,7 +20,8 @@
         line-height: 1.5;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
         background-color: #f8f9fa;
-        padding-top: 4em; /* Space for the header */
+        padding-top: var(--header-height); /* Space for the header, now dynamic */
+        transition: padding-top 0.2s ease-out;
       }
       
       header {
@@ -37,7 +35,14 @@
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-start;
+      }
+
+      #title-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5em;
       }
 
       #view-title {
@@ -46,12 +51,55 @@
         color: #343a40;
       }
 
+      #active-filters-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5em;
+      }
+
+      .filter-tag {
+        display: inline-flex;
+        align-items: center;
+        background-color: #e9ecef;
+        color: #495057;
+        padding: 0.25em 0.75em;
+        border-radius: 1em;
+        font-size: 0.9em;
+        border: 1px solid #ced4da;
+      }
+
+      .filter-tag button {
+        margin-left: 0.5em;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        font-size: 1.2em;
+        line-height: 1;
+        color: #868e96;
+        font-weight: bold;
+      }
+      .filter-tag button:hover {
+        color: #343a40;
+      }
+      .filter-tag small {
+        color: #868e96;
+        margin-left: 0.3em;
+      }
+
+      #controls-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.5em;
+        font-size: 12px;
+        color: #495057;
+        padding-top: 0.5em;
+      }
       #sizing-controls {
         display: flex;
         align-items: center;
         gap: 0.5em;
-        font-size: 12px;
-        color: #495057;
       }
       #sizing-controls label {
         display: flex;
@@ -62,15 +110,88 @@
         width: 80px;
       }
 
+      #color-controls button {
+        background-color: #e9ecef;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        padding: 2px 8px;
+        cursor: pointer;
+        font-size: 1em; /* Match parent font-size */
+      }
+      #color-controls button:hover {
+        background-color: #dee2e6;
+      }
+      
+      /* --- Tab Styles --- */
+      #main-content-wrapper {
+        padding: 0 1em 1em 1em;
+      }
+      #view-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        border-bottom: 2px solid #dee2e6;
+        margin-bottom: 1em;
+        /* Initially hidden, shown by JS when needed */
+        display: none;
+      }
+      .tab-button {
+        padding: 0.5em 1em;
+        cursor: pointer;
+        background-color: transparent;
+        border: none;
+        border-bottom: 3px solid transparent;
+        font-size: 1em;
+        color: #495057;
+        margin-bottom: -2px;
+        transition: all 0.2s;
+      }
+      .tab-button:hover:not(:disabled) {
+        background-color: #e9ecef;
+      }
+      .tab-button.active {
+        font-weight: bold;
+        color: #343a40;
+        border-color: #495057;
+      }
+      .tab-button:disabled {
+        color: #adb5bd;
+        cursor: not-allowed;
+      }
+      
+      /* --- Problems Tab Specific Styles --- */
+      .tab-button.problems-tab {
+          margin-left: auto; /* Push it to the right */
+          color: #c92a2a;
+          border-bottom-color: transparent;
+      }
+      .tab-button.problems-tab:hover:not(:disabled) {
+          background-color: #fff5f5;
+      }
+      .tab-button.problems-tab.active {
+          color: #a61e1e;
+          border-color: #c92a2a;
+          background-color: #fff5f5;
+      }
+      
+      #tab-panels .tab-panel {
+        display: none;
+      }
+      #tab-panels .tab-panel.active {
+        display: block;
+      }
+      
+      #schedule-container {
+        overflow-x: auto; /* Allows horizontal scrolling if content is too wide */
+      }
+
 
       /* Main grid container for the schedule */
       #schedule {
         display: grid;
-        grid-gap: 5px;
+        grid-gap: 2px; /* Reduced gap for tighter scaling */
         grid-template-columns: auto repeat(var(--grid-columns), var(--cell-width-em));
         grid-template-rows: auto repeat(var(--grid-rows), var(--cell-height-em));
         width: max-content;
-        padding: 1em;
       }
 
       /* Styles for the time labels (e.g., "M 9:00 am") on the left */
@@ -78,7 +199,7 @@
         grid-column: 1;
         position: sticky;
         left: 0;
-        background-color: rgba(248, 249, 250, 0.9);
+        background-color: rgba(248, 249, 250, 0.95);
         z-index: 10;
         margin: 0;
         padding-right: 1em;
@@ -90,9 +211,9 @@
         grid-row: 1;
         text-align: center;
         position: sticky;
-        top: 4em; /* Adjust for fixed header */
-        background-color: rgba(248, 249, 250, 0.9);
-        z-index: 10;
+        top: 0; /* Stick to the top of the scroll container */
+        background-color: rgba(248, 249, 250, 0.95);
+        z-index: 100; /* Increased z-index */
         margin: 0;
         padding: 10px 5px 5px;
       }
@@ -112,6 +233,8 @@
         color: white;
         transition: opacity 0.3s ease-in-out, filter 0.3s ease-in-out;
         overflow: hidden;
+        position: relative;
+        z-index: 5;
       }
 
       .section h3,
@@ -131,14 +254,33 @@
         filter: grayscale(50%);
       }
 
-      /* Container for penalty report at the bottom of the page */
-      #penalties {
+      .hourly-line {
+          border-top: 1px dashed #ced4da;
+          z-index: 1;
+      }
+      .grid-separator {
+          background-color: #868e96;
+          z-index: 2;
+      }
+      .building-separator {
+          width: 2px;
+          justify-self: start;
+          margin-left: -1px; /* Centered in 2px gap */
+      }
+      .day-separator {
+          height: 2px;
+          align-self: start;
+          margin-top: -1px; /* Centered in 2px gap */
+      }
+      
+      /* Container for penalty report, now inside a tab */
+      #penalties-container {
         padding: 1em 2em;
         max-width: 80ch;
         margin: 0 auto;
       }
 
-      #penalties h2 {
+      #penalties-container h2 {
         border-bottom: 1px solid #ccc;
         padding-bottom: 0.25em;
       }
@@ -207,7 +349,7 @@
         color: #868e96;
         margin-left: 0.5em;
         font-style: italic;
-      }
+       }
 
       /* --- Custom Tooltip/Info Box --- */
       #info-popup {
@@ -239,14 +381,33 @@
 
 <body>
     <header>
-      <h1 id="view-title">Full Schedule</h1>
-      <div id="sizing-controls">
-        <label>Width <input type="range" id="width-slider" min="5" max="20" step="0.5"></label>
-        <label>Height <input type="range" id="height-slider" min="1" max="10" step="0.1"></label>
+      <div id="title-container">
+        <h1 id="view-title">Full Timetable</h1>
+        <div id="active-filters-container"></div>
+      </div>
+      <div id="controls-container">
+        <div id="sizing-controls">
+          <label>Width <input type="range" id="width-slider" min="5" max="20" step="0.5"></label>
+          <label>Height <input type="range" id="height-slider" min="0.1" max="5" step="0.1"></label>
+        </div>
+        <div id="color-controls">
+            <button id="new-colors-btn">New colors</button>
+        </div>
       </div>
     </header>
 
-    <div id="schedule"></div>
+    <div id="main-content-wrapper">
+        <div id="view-tabs"></div>
+        <div id="tab-panels">
+            <div id="schedule-container" class="tab-panel">
+                <div id="schedule"></div>
+            </div>
+            <div id="penalties-container" class="tab-panel">
+                <!-- Problems list will be rendered here -->
+            </div>
+        </div>
+    </div>
+
     <div id="info-popup"></div>
 
     <div id="search-container">
@@ -254,8 +415,6 @@
         <input type="text" id="search-box" placeholder="Search instructor, course, room...">
         <ul id="autocomplete-list"></ul>
     </div>
-
-    <div id="penalties"></div>
 
     <script>
       /**
@@ -269,15 +428,17 @@
         DAY_NAME_MAP: { M: 'Monday', T: 'Tuesday', W: 'Wednesday', R: 'Thursday', F: 'Friday', S: 'Saturday', U: 'Sunday' },
 
         // --- DOM ELEMENT REFERENCES ---
-        scheduleContainer: null, penaltiesContainer: null, infoPopup: null, viewTitle: null,
+        scheduleContainer: null, scheduleGrid: null, penaltiesContainer: null, infoPopup: null, viewTitle: null, viewTabs: null,
         searchContainer: null, searchInput: null, autocompleteList: null, dragHandle: null,
-        widthSlider: null, heightSlider: null,
+        widthSlider: null, heightSlider: null, activeFiltersContainer: null,
 
         // --- STATE & PROCESSED DATA ---
-        allRooms: [], allPrefixes: [], sections: [],
+        allRooms: [], allPrefixes: [], sections: [], activeDay: null, allProblemsCount: 0,
         rowKeyMap: {}, // Maps a time slot (e.g., "M480") to a grid row index
         searchIndex: [], // Holds all searchable items for autocomplete
         currentSuggestions: [], activeSuggestionIndex: -1,
+        activeFilters: [], // Holds multiple filter criteria
+        useConsistentColors: false, prefixColorMap: {},
 
         /**
          * Main initialization function.
@@ -287,15 +448,31 @@
             console.error("Error: The placement.js data file is missing or did not load correctly.");
             return;
           }
-          this.scheduleContainer = document.getElementById('schedule');
-          this.penaltiesContainer = document.getElementById('penalties');
+          this.scheduleContainer = document.getElementById('schedule-container');
+          this.scheduleGrid = document.getElementById('schedule');
+          this.penaltiesContainer = document.getElementById('penalties-container');
           this.infoPopup = document.getElementById('info-popup');
           this.viewTitle = document.getElementById('view-title');
+          this.activeFiltersContainer = document.getElementById('active-filters-container');
+          this.viewTabs = document.getElementById('view-tabs');
           
           this.processData(window.placement);
           this.initSearch();
-          this.initSizingControls();
-          this.render(null); // Initial render of the full schedule
+          this.initControls();
+          this.generatePrefixColors();
+
+          // Stage the initial view by hard-coding a filter for the Smith building
+          const initialFilter = {
+            label: 'Smith',
+            type: 'building',
+            value: 'Smith'
+          };
+          this.activeFilters.push(initialFilter);
+          this.render(); // Initial render of the full schedule
+          window.addEventListener('resize', () => {
+              this.adjustLayoutForHeader();
+              this.calculateAndApplyInitialSizing(); // Recalculate on resize
+          });
         },
 
         /**
@@ -303,11 +480,13 @@
          */
         processData: function(rawScheduleData) {
           const prefixSet = new Set(), roomSet = new Set();
+          this.allProblemsCount = 0;
           for (const section of rawScheduleData) {
             if (section.is_placed) {
               this.sections.push(section);
               roomSet.add(section.room);
               section.prefixes.forEach(p => prefixSet.add(p));
+              this.allProblemsCount += section.problems.length;
             }
           }
           this.allPrefixes = [...prefixSet].sort((a, b) => this.utils.calculateHashCode(a) - this.utils.calculateHashCode(b));
@@ -321,9 +500,8 @@
           const box = document.createElement('div');
           box.className = 'section';
 
-          const prefixIndex = this.allPrefixes.indexOf(section.prefixes[0]);
-          const hue = Math.round(320 * (prefixIndex / this.allPrefixes.length) + 145) % 360;
-          box.style.backgroundColor = `lch(var(--l) var(--c) ${hue})`;
+          const color = this.prefixColorMap[section.prefixes[0]] || 'lch(50 70 250)';
+          box.style.backgroundColor = color;
           
           let detailText = '';
           if (viewType === 'weekly-instructor') {
@@ -360,24 +538,26 @@
                 title = `Known issues (priorities ${minScore}–${maxScore})`;
             }
 
-            const problemsHtml = section.problems.map(p => `<li>[${p.score}] ${p.message}</li>`).join('');
+            const sortedProblems = [...section.problems].sort((a, b) => a.score - b.score);
+            const problemsHtml = sortedProblems.map(p => `<li>[${p.score}] ${p.message}</li>`).join('');
             this.infoPopup.innerHTML = `<h4>${title}</h4><ul>${problemsHtml}</ul>`;
 
-            // Position the popup near the mouse cursor, avoiding screen edges.
+            // Make the popup visible to measure its dimensions
+            this.infoPopup.style.display = 'block';
             const popupRect = this.infoPopup.getBoundingClientRect();
-            let x = event.clientX + 15;
-            let y = event.clientY + 15;
+
+            let x = event.pageX + 15;
+            let y = event.pageY + 15;
             
-            if (x + popupRect.width > window.innerWidth) {
-                x = event.clientX - popupRect.width - 15;
+            if (event.clientX + 15 + popupRect.width > window.innerWidth) {
+                x = event.pageX - popupRect.width - 15;
             }
-            if (y + popupRect.height > window.innerHeight) {
-                y = event.clientY - popupRect.height - 15;
+            if (event.clientY + 15 + popupRect.height > window.innerHeight) {
+                y = event.pageY - popupRect.height - 15;
             }
             
             this.infoPopup.style.left = `${x}px`;
             this.infoPopup.style.top = `${y}px`;
-            this.infoPopup.style.display = 'block';
         },
 
         hideInfoPopup: function() {
@@ -387,17 +567,13 @@
         /**
          * Renders the lists of known issues at the bottom of the page.
          */
-        renderPenalties: function(filter, activeSections) {
+        renderPenalties: function(activeSections) {
             this.penaltiesContainer.innerHTML = '';
-            this.penaltiesContainer.style.display = 'block';
+            let problemsFound = false;
 
-            if (filter && filter.type === 'room') {
-                this.penaltiesContainer.style.display = 'none';
-                return;
-            }
-
+            const hasInstructorFilter = this.activeFilters.some(f => f.type === 'instructor');
             const activeSectionNames = new Set(activeSections.flatMap(s => s.names));
-            
+
             const createList = (title, problems, checkFaded) => {
                 const uniqueProblems = problems.reduce((acc, problem) => {
                     if (!acc.find(p => p.message === problem.message)) acc.push(problem);
@@ -405,7 +581,8 @@
                 }, []);
                 
                 if (uniqueProblems.length === 0) return;
-
+                
+                problemsFound = true;
                 const titleEl = document.createElement('h2');
                 titleEl.textContent = title;
                 this.penaltiesContainer.appendChild(titleEl);
@@ -430,14 +607,19 @@
                 section.problems.map(problem => ({ ...problem, section }))
             );
 
-            if (filter && filter.type === 'instructor') {
-                const facultyProblems = allProblems.filter(p => 
-                    p.score >= 10 && p.section.instructors.includes(filter.value)
+            if (hasInstructorFilter) {
+                const activeProblems = activeSections.flatMap(section => 
+                    section.problems.map(problem => ({ ...problem, section }))
                 );
-                createList('Faculty Preferences', facultyProblems, false);
+                const facultyProblems = activeProblems.filter(p => p.score >= 10);
+                createList('Visible Faculty Preferences', facultyProblems, false);
             } else {
                 const curriculumProblems = allProblems.filter(p => p.score < 10);
                 createList('Curriculum Issues', curriculumProblems, true);
+            }
+            
+            if (!problemsFound) {
+                this.penaltiesContainer.innerHTML = '<p style="text-align: center; color: #868e96; padding: 2em;">There are no known issues for the current selection.</p>';
             }
         },
 
@@ -461,50 +643,139 @@
                     this.autocompleteList.style.display = 'none';
                 }
             });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && e.target.tagName !== 'INPUT') {
+                    this.searchInput.focus();
+                }
+            });
         },
         
-        /**
-         * Initializes sizing controls, loads settings from cookies, and adds event listeners.
-         */
-        initSizingControls: function() {
+        initControls: function() {
             this.widthSlider = document.getElementById('width-slider');
             this.heightSlider = document.getElementById('height-slider');
+            const newColorsBtn = document.getElementById('new-colors-btn');
 
-            const savedWidth = this.utils.getCookie('scheduleWidth') || 11;
-            const savedHeight = this.utils.getCookie('scheduleHeight') || 3;
+            // --- Sizing controls ---
+            const savedWidth = this.utils.getCookie('scheduleWidth');
+            const savedHeight = this.utils.getCookie('scheduleHeight');
 
-            this.widthSlider.value = savedWidth;
-            this.heightSlider.value = savedHeight;
+            if (savedWidth && savedHeight) {
+                this.widthSlider.value = parseFloat(savedWidth);
+                this.heightSlider.value = parseFloat(savedHeight);
+                this.applySizing(this.widthSlider.value, this.heightSlider.value);
+            } else {
+                setTimeout(() => this.calculateAndApplyInitialSizing(), 0);
+            }
             
-            this.applySizing(savedWidth, savedHeight);
-
             this.widthSlider.addEventListener('input', () => {
-                const newWidth = this.widthSlider.value;
-                this.applySizing(newWidth, this.heightSlider.value);
-                this.utils.setCookie('scheduleWidth', newWidth, 365);
+                this.applySizing(this.widthSlider.value, this.heightSlider.value);
+                this.utils.setCookie('scheduleWidth', this.widthSlider.value, 14);
+            });
+            this.heightSlider.addEventListener('input', () => {
+                this.applySizing(this.widthSlider.value, this.heightSlider.value);
+                this.utils.setCookie('scheduleHeight', this.heightSlider.value, 14);
             });
 
-            this.heightSlider.addEventListener('input', () => {
-                const newHeight = this.heightSlider.value;
-                this.applySizing(this.widthSlider.value, newHeight);
-                this.utils.setCookie('scheduleHeight', newHeight, 365);
+            // --- Color controls ---
+            this.useConsistentColors = false; // Start with randomized colors by default.
+
+            newColorsBtn.addEventListener('click', () => {
+                this.useConsistentColors = false; // Switch to random mode
+                this.generatePrefixColors();    // Generate new random colors
+                this.render();                  // Re-render the schedule with them
             });
+        },
+
+        generatePrefixColors: function() {
+            this.prefixColorMap = {};
+            const hueOffset = Math.random() * 360;
+            let l, c;
+
+            // randomize lightness and chroma but keep them consistent
+            // across a single color scheme
+            if (this.useConsistentColors) {
+                l = 45;
+                c = 80;
+            } else {
+                l = 30 + Math.random() * 40; // Lightness between 30-70
+                c = 30 + Math.random() * 80; // Chroma between 30-110
+            }
+
+            this.allPrefixes.forEach((prefix, index) => {
+                let h;
+                if (this.useConsistentColors) {
+                    h = Math.round(320 * (index / this.allPrefixes.length) + 145) % 360;
+                } else {
+                    const baseHue = (360 * index / this.allPrefixes.length);
+                    h = (baseHue + hueOffset) % 360;
+                }
+                this.prefixColorMap[prefix] = `lch(${l} ${c} ${h})`;
+            });
+        },
+
+        calculateAndApplyInitialSizing: function() {
+            let maxDuration = 0;
+            let maxRooms = 0;
+
+            const timeRanges = this.findTimeRange(this.DAYS_TO_SHOW, this.sections);
+            timeRanges.forEach(([day, start, end]) => {
+                const duration = end - start;
+                if (duration > maxDuration) maxDuration = duration;
+            });
+
+            this.DAYS_TO_SHOW.forEach(day => {
+                const roomsOnDay = new Set(this.sections.filter(s => {
+                    const timeInfo = this.utils.parseTimeSlot(s.time_slot);
+                    return timeInfo && timeInfo.days.includes(day);
+                }).map(s => s.room));
+                if (roomsOnDay.size > maxRooms) maxRooms = roomsOnDay.size;
+            });
+
+            if (maxDuration === 0 || maxRooms === 0) { // No classes, use defaults
+                this.applySizing(this.widthSlider.value || 8, this.heightSlider.value || 1);
+                return;
+            }
+            
+            this.adjustLayoutForHeader();
+
+            const headerHeight = document.querySelector('header').offsetHeight;
+            const tabsHeight = this.viewTabs.offsetHeight;
+            const tabsMarginBottom = this.viewTabs.style.display !== 'none' ? parseFloat(getComputedStyle(this.viewTabs).marginBottom) : 0;
+            
+            const scrollbarAllowance = 20;
+            const bottomBuffer = 20; 
+
+            const totalVerticalOffset = headerHeight + tabsHeight + tabsMarginBottom + scrollbarAllowance + bottomBuffer;
+            const availableHeight = window.innerHeight - totalVerticalOffset;
+            
+            const timeLabelWidth = 80; 
+            const availableWidth = window.innerWidth - timeLabelWidth - 40; 
+
+            const fontSize = parseFloat(getComputedStyle(document.body).fontSize);
+            const gridGap = 2; 
+            const totalRows = maxDuration / 5;
+
+            let targetHeight = totalRows > 0 ? (availableHeight - (totalRows - 1) * gridGap) / (totalRows * 0.125 * fontSize) : 1;
+            let targetWidth = maxRooms > 0 ? (availableWidth - (maxRooms - 1) * gridGap) / (maxRooms * fontSize) : 10;
+
+            const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
+            targetWidth = clamp(targetWidth, parseFloat(this.widthSlider.min), parseFloat(this.widthSlider.max));
+            targetHeight = clamp(targetHeight, parseFloat(this.heightSlider.min), parseFloat(this.heightSlider.max));
+
+            this.widthSlider.value = targetWidth;
+            this.heightSlider.value = targetHeight;
+            this.applySizing(targetWidth, targetHeight);
         },
         
-        /**
-         * Applies width and height settings to the grid via CSS variables.
-         */
         applySizing: function(width, height) {
             document.documentElement.style.setProperty('--cell-width-em', `${width}em`);
-            document.documentElement.style.setProperty('--cell-height-em', `${height / 10}em`);
+            document.documentElement.style.setProperty('--cell-height-em', `${0.125 * height}em`);
         },
 
-        /**
-         * Pre-processes data to create a searchable index for autocomplete.
-         */
         buildSearchIndex: function() {
             const instructors = new Set(), prefixes = new Set(), courses = new Set(),
-                  buildings = new Set(), rooms = new Set(), days = new Set(Object.keys(this.DAY_MAP));
+                  buildings = new Set(), rooms = new Set();
                   
             this.sections.forEach(s => {
                 s.instructors.forEach(i => instructors.add(i));
@@ -523,30 +794,33 @@
             addToIndex(courses, 'course');
             addToIndex(buildings, 'building');
             addToIndex(rooms, 'room');
-            addToIndex(days, 'day');
         },
 
-        /**
-         * Handles user input in the search box to show autocomplete suggestions.
-         */
         handleSearchInput: function() {
             const query = this.searchInput.value.toLowerCase();
             if (!query) {
                 this.updateAutocompleteUI([]);
-                this.render(null); // Reset on empty input
                 return;
             }
             
-            const suggestions = this.searchIndex.filter(item => 
-                item.label.toLowerCase().includes(query)
-            ).slice(0, 100);
+            const suggestions = this.searchIndex
+                .filter(item => item.label.toLowerCase().includes(query))
+                .sort((a, b) => {
+                    const aLabel = a.label.toLowerCase();
+                    const bLabel = b.label.toLowerCase();
+                    const aIsPrefix = aLabel.startsWith(query);
+                    const bIsPrefix = bLabel.startsWith(query);
+                    if (aIsPrefix && !bIsPrefix) return -1;
+                    if (!aIsPrefix && bIsPrefix) return 1;
+                    const lengthDiff = a.label.length - b.label.length;
+                    if (lengthDiff !== 0) return lengthDiff;
+                    return aLabel.localeCompare(bLabel);
+                })
+                .slice(0, 100);
 
             this.updateAutocompleteUI(suggestions);
         },
         
-        /**
-         * Updates the autocomplete suggestion list in the DOM.
-         */
         updateAutocompleteUI: function(suggestions) {
             this.autocompleteList.innerHTML = '';
             this.currentSuggestions = suggestions;
@@ -568,40 +842,28 @@
             this.setActiveSuggestion(0);
         },
 
-        /**
-         * Handles keyboard navigation (arrows, enter, escape) for autocomplete.
-         */
         handleKeyDown: function(e) {
+            if (e.key === 'Enter' && this.searchInput.value === '') {
+                e.preventDefault();
+                this.activeFilters = [];
+                this.render();
+                return;
+            }
+            
             if (this.autocompleteList.style.display === 'none') return;
 
             switch (e.key) {
-                case 'ArrowDown':
-                    e.preventDefault();
-                    this.setActiveSuggestion(this.activeSuggestionIndex + 1);
-                    break;
-                case 'ArrowUp':
-                    e.preventDefault();
-                    this.setActiveSuggestion(this.activeSuggestionIndex - 1);
-                    break;
+                case 'ArrowDown': e.preventDefault(); this.setActiveSuggestion(this.activeSuggestionIndex + 1); break;
+                case 'ArrowUp': e.preventDefault(); this.setActiveSuggestion(this.activeSuggestionIndex - 1); break;
                 case 'Enter':
                     e.preventDefault();
-                    if (this.activeSuggestionIndex > -1) {
-                       this.selectSuggestion(this.activeSuggestionIndex);
-                    } else if (this.currentSuggestions.length > 0) {
-                        this.selectSuggestion(0);
-                    } else if(this.searchInput.value === '') {
-                        this.render(null);
-                    }
+                    if (this.activeSuggestionIndex > -1) { this.selectSuggestion(this.activeSuggestionIndex); } 
+                    else if (this.currentSuggestions.length > 0) { this.selectSuggestion(0); }
                     break;
-                case 'Escape':
-                    this.autocompleteList.style.display = 'none';
-                    break;
+                case 'Escape': this.autocompleteList.style.display = 'none'; break;
             }
         },
         
-        /**
-         * Sets the active (highlighted) suggestion in the list.
-         */
         setActiveSuggestion: function(index) {
             const items = this.autocompleteList.querySelectorAll('li');
             if (!items.length) return;
@@ -618,87 +880,207 @@
             items[index].scrollIntoView({ block: 'nearest' });
         },
 
-        /**
-         * Finalizes a selection from the autocomplete list.
-         */
         selectSuggestion: function(index) {
             if (index < 0 || index >= this.currentSuggestions.length) return;
             const suggestion = this.currentSuggestions[index];
-            this.searchInput.value = suggestion.label;
-            this.autocompleteList.style.display = 'none';
-            this.render(suggestion);
+            this.addFilter(suggestion);
             this.searchInput.focus();
-            this.searchInput.select();
         },
         
-        /**
-         * Updates the main H1 title based on the current filter.
-         */
-        updateTitle: function(filter) {
-            if (!filter) {
-                this.viewTitle.textContent = 'Full Schedule';
+        addFilter: function(newFilter) {
+            if (!this.activeFilters.some(f => f.type === newFilter.type && f.value === newFilter.value)) {
+                this.activeFilters.push(newFilter);
+                this.render();
+            }
+            this.searchInput.value = '';
+            this.updateAutocompleteUI([]);
+        },
+
+        removeFilter: function(filterToRemove) {
+            this.activeFilters = this.activeFilters.filter(f => !(f.type === filterToRemove.type && f.value === filterToRemove.value));
+            this.render();
+        },
+
+        renderActiveFilters: function() {
+            this.activeFiltersContainer.innerHTML = '';
+            
+            const typeOrder = { 'day': 1, 'building': 2, 'room': 3, 'prefix': 4, 'course': 5, 'instructor': 6 };
+            const sortedFilters = [...this.activeFilters].sort((a, b) => {
+                const orderA = typeOrder[a.type] || 99;
+                const orderB = typeOrder[b.type] || 99;
+                if (orderA !== orderB) return orderA - orderB;
+                return a.label.localeCompare(b.label);
+            });
+
+            sortedFilters.forEach(filter => {
+                const tag = document.createElement('div');
+                tag.className = 'filter-tag';
+                tag.innerHTML = `<span>${filter.label}<small>(${filter.type})</small></span>`;
+                const removeBtn = document.createElement('button');
+                removeBtn.innerHTML = '&times;';
+                removeBtn.title = 'Remove filter';
+                removeBtn.onclick = () => this.removeFilter(filter);
+                tag.appendChild(removeBtn);
+                this.activeFiltersContainer.appendChild(tag);
+            });
+        },
+
+        updateTitle: function() {
+            if (this.activeFilters.length === 0) {
+                this.viewTitle.textContent = 'Full Timetable';
                 return;
             }
-            let title = 'Schedule';
-            switch (filter.type) {
-                case 'instructor': title = `Schedule for ${filter.value}`; break;
-                case 'prefix': title = `Schedule for ${filter.value} classes`; break;
-                case 'course': title = `Schedule for ${filter.value}`; break;
-                case 'building': title = `Schedule for the ${filter.value} building`; break;
-                case 'room': title = `Schedule for ${filter.value}`; break;
-                case 'day': title = `Schedule for ${filter.value}`; break;
+            if (this.activeFilters.length === 1) {
+                const filter = this.activeFilters[0];
+                let title = 'Timetable';
+                switch (filter.type) {
+                    case 'instructor': title = `Timetable for ${filter.value}`; break;
+                    case 'prefix': title = `Timetable for ${filter.value} classes`; break;
+                    case 'course': title = `Timetable for ${filter.value}`; break;
+                    case 'building': title = `Timetable for the ${filter.value} building`; break;
+                    case 'room': title = `Timetable for ${filter.value}`; break;
+                    case 'day': title = `Timetable for ${filter.value}`; break;
+                }
+                this.viewTitle.textContent = title;
+            } else {
+                this.viewTitle.textContent = 'Filtered Timetable';
             }
-            this.viewTitle.textContent = title;
         },
 
-        /** Re-renders the entire grid based on the filter. Acts as a dispatcher. */
-        render: function(filter) {
-            this.updateTitle(filter);
-            if (filter && (filter.type === 'instructor' || filter.type === 'room')) {
-                this.renderWeeklyView(filter);
+        adjustLayoutForHeader: function() {
+            const header = document.querySelector('header');
+            if (!header) return;
+            const headerHeight = header.offsetHeight;
+            document.documentElement.style.setProperty('--header-height', `${headerHeight}px`);
+        },
+
+        render: function() {
+            this.renderActiveFilters();
+            setTimeout(() => this.adjustLayoutForHeader(), 0); 
+            this.updateTitle();
+
+            if (this.activeFilters.length === 1 && (this.activeFilters[0].type === 'instructor' || this.activeFilters[0].type === 'room')) {
+                this.renderWeeklyView(this.activeFilters[0]);
             } else {
-                this.renderRoomView(filter);
+                this.renderRoomView();
             }
+            this.searchInput.focus();
         },
         
-        /** Renders the schedule with rooms as columns. */
-        renderRoomView: function(filter) {
-            let sectionsToDisplay = this.sections;
-            let daysToFilter = null;
+        getFilteredSections: function() {
+            if (this.activeFilters.length === 0) return this.sections;
+            const dayFilters = new Set();
+            const roomFilters = new Set();
+            const courseRelatedFilters = [];
 
-            if (filter && filter.type === 'day') {
-                daysToFilter = this.DAY_MAP[filter.value];
-                sectionsToDisplay = this.sections.filter(s => {
-                    const timeInfo = this.utils.parseTimeSlot(s.time_slot);
-                    return timeInfo && timeInfo.days.includes(daysToFilter);
+            this.activeFilters.forEach(f => {
+                switch (f.type) {
+                    case 'day': dayFilters.add(this.DAY_MAP[f.value]); break;
+                    case 'room': roomFilters.add(f.value); break;
+                    case 'building':
+                        this.allRooms.forEach(room => { if (room.startsWith(f.value + ' ')) roomFilters.add(room); });
+                        break;
+                    case 'instructor': case 'prefix': case 'course': courseRelatedFilters.push(f); break;
+                }
+            });
+
+            let filtered = this.sections;
+            if (courseRelatedFilters.length > 0) {
+                filtered = filtered.filter(s => courseRelatedFilters.some(f => this.checkMatch(s, f)));
+            }
+            if (roomFilters.size > 0) {
+                filtered = filtered.filter(section => roomFilters.has(section.room));
+            }
+            if (dayFilters.size > 0) {
+                filtered = filtered.filter(section => {
+                    const timeInfo = this.utils.parseTimeSlot(section.time_slot);
+                    return timeInfo && timeInfo.days.some(day => dayFilters.has(day));
                 });
             }
-            
-            const matchingSections = filter ? sectionsToDisplay.filter(s => this.checkMatch(s, filter)) : sectionsToDisplay;
-            let roomsToDisplay, daysToDisplay;
-
-            if (filter) {
-                const visibleRooms = new Set(matchingSections.map(s => s.room));
-                 if (daysToFilter) {
-                    daysToDisplay = [daysToFilter];
-                } else {
-                    const visibleDays = new Set(matchingSections.flatMap(s => this.utils.parseTimeSlot(s.time_slot)?.days || []));
-                    daysToDisplay = this.DAYS_TO_SHOW.filter(d => visibleDays.has(d));
-                }
-                roomsToDisplay = this.allRooms.filter(r => visibleRooms.has(r));
-            } else {
-                roomsToDisplay = this.allRooms;
-                daysToDisplay = this.DAYS_TO_SHOW;
-            }
-            
-            this.scheduleContainer.innerHTML = '';
-            this.buildRoomViewGrid(roomsToDisplay, daysToDisplay);
-            this.populateRoomViewGrid(filter, roomsToDisplay, daysToDisplay);
-            this.renderPenalties(filter, matchingSections);
+            return filtered;
         },
 
-        /** Renders the schedule with days of the week as columns. */
+        renderRoomView: function() {
+            const courseRelatedFilters = this.activeFilters.filter(f => ['instructor', 'prefix', 'course'].includes(f.type));
+            const sectionsToConsider = courseRelatedFilters.length > 0
+                ? this.sections.filter(s => courseRelatedFilters.some(f => this.checkMatch(s, f)))
+                : this.sections;
+            
+            const dayFilters = this.activeFilters.filter(f => f.type === 'day').map(f => this.DAY_MAP[f.value]);
+            const visibleDaysSet = new Set(sectionsToConsider.flatMap(s => this.utils.parseTimeSlot(s.time_slot)?.days || []));
+            const daysToDisplay = this.DAYS_TO_SHOW.filter(d => visibleDaysSet.has(d) && (dayFilters.length === 0 || dayFilters.includes(d)));
+
+            const roomFilters = this.activeFilters.filter(f => f.type === 'room' || f.type === 'building');
+            const visibleRoomsSet = new Set(sectionsToConsider.map(s => s.room));
+            const roomsToDisplay = this.allRooms.filter(r => {
+                const inVisibleSet = visibleRoomsSet.has(r);
+                if (roomFilters.length === 0) return inVisibleSet;
+                return inVisibleSet && roomFilters.some(f => this.checkMatch({ room: r }, f));
+            });
+
+            const highlightedSections = this.getFilteredSections();
+            const highlightedSectionSet = new Set(highlightedSections);
+
+            this.viewTabs.style.display = 'flex';
+            this.viewTabs.innerHTML = '';
+            
+            // If the current activeDay is no longer valid, pick a new one.
+            if (!this.activeDay || (!daysToDisplay.includes(this.activeDay) && this.activeDay !== 'Problems')) {
+                this.activeDay = daysToDisplay.length > 0 ? daysToDisplay[0] : 'Problems';
+            }
+
+
+            daysToDisplay.forEach(day => {
+                const tab = document.createElement('button');
+                tab.className = 'tab-button';
+                tab.textContent = this.DAY_NAME_MAP[day];
+                if (day === this.activeDay) tab.classList.add('active');
+                tab.onclick = () => {
+                    this.activeDay = day;
+                    this.renderRoomView(); 
+                };
+                this.viewTabs.appendChild(tab);
+            });
+            
+            const problemsTab = document.createElement('button');
+            problemsTab.className = 'tab-button problems-tab';
+            problemsTab.textContent = 'Known issues';
+            if (this.allProblemsCount === 0) {
+                problemsTab.disabled = true;
+            }
+            if (this.activeDay === 'Problems') problemsTab.classList.add('active');
+            problemsTab.onclick = () => {
+                this.activeDay = 'Problems';
+                this.renderRoomView();
+            };
+            this.viewTabs.appendChild(problemsTab);
+            
+            if (this.activeDay === 'Problems') {
+                this.scheduleContainer.classList.remove('active');
+                this.penaltiesContainer.classList.add('active');
+                this.renderPenalties(highlightedSections);
+            } else {
+                this.penaltiesContainer.classList.remove('active');
+                this.scheduleContainer.classList.add('active');
+                
+                const sectionsForGrid = this.sections.filter(section => {
+                    const timeInfo = this.utils.parseTimeSlot(section.time_slot);
+                    return timeInfo && roomsToDisplay.includes(section.room) && timeInfo.days.includes(this.activeDay);
+                });
+
+                this.scheduleGrid.innerHTML = '';
+                if (sectionsForGrid.length > 0 && roomsToDisplay.length > 0) {
+                  this.buildRoomViewGrid(roomsToDisplay, this.activeDay);
+                  this.populateRoomViewGrid(sectionsForGrid, highlightedSectionSet, roomsToDisplay, this.activeDay);
+                }
+            }
+        },
+
         renderWeeklyView: function(filter) {
+            this.viewTabs.style.display = 'none'; 
+            this.scheduleContainer.classList.add('active');
+            this.penaltiesContainer.classList.remove('active');
+
             const sectionsToDisplay = this.sections.filter(s => this.checkMatch(s, filter));
             
             const weekDays = ['M', 'T', 'W', 'R', 'F'];
@@ -710,77 +1092,95 @@
 
             let daysToDisplay = [];
             if (daysWithClasses.has('U')) daysToDisplay.push('U');
-            daysToDisplay.push(...weekDays);
+            daysToDisplay.push(...weekDays.filter(d => daysWithClasses.has(d)));
             if (daysWithClasses.has('S')) daysToDisplay.push('S');
-
-            this.scheduleContainer.innerHTML = '';
+            
+            this.scheduleGrid.innerHTML = '';
             this.buildWeeklyViewGrid(daysToDisplay, sectionsToDisplay);
             this.populateWeeklyViewGrid(daysToDisplay, sectionsToDisplay, `weekly-${filter.type}`);
-            this.renderPenalties(filter, sectionsToDisplay);
         },
 
-        buildRoomViewGrid: function(roomsToDisplay, daysToDisplay) {
-            const timeRangeByDay = this.findTimeRange(daysToDisplay, this.sections);
-            this.scheduleContainer.style.setProperty('--grid-columns', roomsToDisplay.length);
+        buildRoomViewGrid: function(roomsToDisplay, dayToDisplay) {
+            const timeRangeByDay = this.findTimeRange([dayToDisplay], this.sections);
+            this.scheduleGrid.style.setProperty('--grid-columns', roomsToDisplay.length);
+            
+            let lastBuilding = null;
             roomsToDisplay.forEach((room, index) => {
                 const roomHeader = document.createElement('div');
                 roomHeader.className = 'room-name';
                 roomHeader.textContent = room;
                 roomHeader.style.gridColumn = index + 2;
-                this.scheduleContainer.appendChild(roomHeader);
+
+                if (index > 0 && room.split(' ')[0] !== lastBuilding) {
+                    const separator = document.createElement('div');
+                    separator.className = 'grid-separator building-separator';
+                    separator.style.gridRow = '1 / -1';
+                    separator.style.gridColumn = index + 2;
+                    this.scheduleGrid.appendChild(separator);
+                }
+                lastBuilding = room.split(' ')[0];
+                this.scheduleGrid.appendChild(roomHeader);
             });
+
             this.rowKeyMap = {};
             let currentRow = 1;
-            for (const [day, startMinutes, endMinutes] of timeRangeByDay) {
-                if (daysToDisplay.includes(day)) {
-                    for (let t = startMinutes; t < endMinutes; t += 5) {
-                        this.rowKeyMap[day + t] = ++currentRow;
-                        if (t % 60 === 0) {
-                            const timeLabel = document.createElement('div');
-                            timeLabel.className = 'time-name';
-                            timeLabel.innerHTML = this.utils.formatRoomViewTimeLabel(day, t);
-                            timeLabel.style.gridRow = `${currentRow} / span 12`;
-                            this.scheduleContainer.appendChild(timeLabel);
-                        }
+            if (timeRangeByDay.length > 0) {
+                const [day, startMinutes, endMinutes] = timeRangeByDay[0];
+                for (let t = startMinutes; t < endMinutes; t += 5) {
+                    this.rowKeyMap[day + t] = ++currentRow;
+                    if (t % 60 === 0) {
+                        const hourlyLine = document.createElement('div');
+                        hourlyLine.className = 'hourly-line';
+                        hourlyLine.style.gridRow = currentRow;
+                        hourlyLine.style.gridColumn = '2 / -1';
+                        this.scheduleGrid.appendChild(hourlyLine);
+                        
+                        const timeLabel = document.createElement('div');
+                        timeLabel.className = 'time-name';
+                        timeLabel.innerHTML = this.utils.formatWeeklyViewTimeLabel(t); // Just show time, not day
+                        timeLabel.style.gridRow = `${currentRow} / span 12`;
+                        this.scheduleGrid.appendChild(timeLabel);
                     }
                 }
             }
-            this.scheduleContainer.style.setProperty('--grid-rows', currentRow - 1);
+            this.scheduleGrid.style.setProperty('--grid-rows', currentRow - 1);
         },
         
-        populateRoomViewGrid: function(filter, roomsToDisplay, daysToDisplay) {
-            this.sections.forEach(section => {
-                if (!roomsToDisplay.includes(section.room)) return;
+        populateRoomViewGrid: function(sectionsToDisplay, highlightedSectionSet, roomsToDisplay, dayToDisplay) {
+            const hasCourseFilters = this.activeFilters.some(f => ['instructor', 'prefix', 'course'].includes(f.type));
+
+            sectionsToDisplay.forEach(section => {
                 const timeInfo = this.utils.parseTimeSlot(section.time_slot);
-                if (!timeInfo || !timeInfo.days.some(day => daysToDisplay.includes(day))) return;
+                if (!timeInfo || !timeInfo.days.includes(dayToDisplay)) return;
                 
-                const isMatch = filter ? this.checkMatch(section, filter) : true;
-                for (const day of timeInfo.days) {
-                    if (daysToDisplay.includes(day)) {
-                        const sectionEl = this.createSectionElement(section, timeInfo, 'room-view');
-                        if (!isMatch) sectionEl.classList.add('faded');
-                        const startRow = this.rowKeyMap[day + timeInfo.start_minutes];
-                        if (startRow === undefined) continue;
-                        const rowSpan = timeInfo.duration / 5;
-                        const colIndex = roomsToDisplay.indexOf(section.room) + 2;
-                        sectionEl.style.gridColumn = colIndex;
-                        sectionEl.style.gridRow = `${startRow} / span ${rowSpan}`;
-                        this.scheduleContainer.appendChild(sectionEl);
-                    }
-                }
+                const isMatch = !hasCourseFilters || highlightedSectionSet.has(section);
+                
+                const sectionEl = this.createSectionElement(section, timeInfo, 'room-view');
+                if (!isMatch) sectionEl.classList.add('faded');
+                
+                const startRow = this.rowKeyMap[dayToDisplay + timeInfo.start_minutes];
+                if (startRow === undefined) return;
+                
+                const rowSpan = timeInfo.duration / 5;
+                const colIndex = roomsToDisplay.indexOf(section.room) + 2;
+                if (colIndex < 2) return;
+
+                sectionEl.style.gridColumn = colIndex;
+                sectionEl.style.gridRow = `${startRow} / span ${rowSpan}`;
+                this.scheduleGrid.appendChild(sectionEl);
             });
         },
 
         buildWeeklyViewGrid: function(daysToDisplay, sectionsToDisplay) {
             const timeRanges = this.findTimeRange(daysToDisplay, sectionsToDisplay);
-            this.scheduleContainer.style.setProperty('--grid-columns', daysToDisplay.length);
+            this.scheduleGrid.style.setProperty('--grid-columns', daysToDisplay.length);
 
             daysToDisplay.forEach((day, index) => {
                 const dayHeader = document.createElement('div');
                 dayHeader.className = 'room-name';
                 dayHeader.textContent = this.DAY_NAME_MAP[day];
                 dayHeader.style.gridColumn = index + 2;
-                this.scheduleContainer.appendChild(dayHeader);
+                this.scheduleGrid.appendChild(dayHeader);
             });
 
             this.rowKeyMap = {};
@@ -791,15 +1191,21 @@
                 for (let t = startMinutes; t < endMinutes; t += 5) {
                     this.rowKeyMap[t] = ++currentRow;
                     if (t % 60 === 0) {
+                        const hourlyLine = document.createElement('div');
+                        hourlyLine.className = 'hourly-line';
+                        hourlyLine.style.gridRow = currentRow;
+                        hourlyLine.style.gridColumn = '2 / -1';
+                        this.scheduleGrid.appendChild(hourlyLine);
+
                         const timeLabel = document.createElement('div');
                         timeLabel.className = 'time-name';
                         timeLabel.innerHTML = this.utils.formatWeeklyViewTimeLabel(t);
                         timeLabel.style.gridRow = `${currentRow} / span 12`;
-                        this.scheduleContainer.appendChild(timeLabel);
+                        this.scheduleGrid.appendChild(timeLabel);
                     }
                 }
             }
-            this.scheduleContainer.style.setProperty('--grid-rows', currentRow - 1);
+            this.scheduleGrid.style.setProperty('--grid-rows', currentRow - 1);
         },
 
         populateWeeklyViewGrid: function(daysToDisplay, sectionsToDisplay, viewType) {
@@ -815,13 +1221,12 @@
                         const colIndex = daysToDisplay.indexOf(day) + 2;
                         sectionEl.style.gridColumn = colIndex;
                         sectionEl.style.gridRow = `${startRow} / span ${rowSpan}`;
-                        this.scheduleContainer.appendChild(sectionEl);
+                        this.scheduleGrid.appendChild(sectionEl);
                     }
                 }
             });
         },
         
-        /** Checks if a section matches the current filter criteria. */
         checkMatch: function(section, filter) {
             const { type, value } = filter;
             switch(type) {
@@ -838,7 +1243,6 @@
             }
         },
 
-        /** Implements drag-and-drop for the search box. */
         makeDraggable: function() {
             let offsetX, offsetY, isDragging = false;
             this.dragHandle.addEventListener('mousedown', (e) => {
@@ -865,7 +1269,6 @@
             });
         },
 
-        /** Determines the time range for each day to size the grid. */
         findTimeRange: function(days, sections) {
           const rangeByDay = {};
           for (const section of sections) {
@@ -889,7 +1292,6 @@
           return result;
         },
 
-        // --- UTILITY FUNCTIONS ---
         utils: {
           setCookie: function(name, value, days) {
               let expires = "";
@@ -934,11 +1336,6 @@
               range_label: `${s.h}:${s.m}${sa}&ndash;${e.h}:${e.m} ${e.a}`
             };
           },
-          formatRoomViewTimeLabel: function(day, totalMinutes) {
-              let hour = Math.floor(totalMinutes / 60), ampm = hour < 12 ? 'am' : 'pm';
-              hour %= 12; if (hour === 0) hour = 12;
-              return `${day}&nbsp;${hour}:00&nbsp;${ampm}`;
-          },
           formatWeeklyViewTimeLabel: function(totalMinutes) {
               let hour = Math.floor(totalMinutes / 60), ampm = hour < 12 ? 'am' : 'pm';
               hour %= 12; if (hour === 0) hour = 12;
@@ -952,4 +1349,3 @@
     </script>
 </body>
 </html>
-

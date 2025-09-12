@@ -123,7 +123,7 @@ pub fn print_problems(input: &Input, schedule: &Schedule) {
         }
     });
     for (priority, _faculty, msg) in lst {
-        if priority < START_LEVEL_FOR_PREFERENCES {
+        if priority < START_LEVEL_FOR_PREFERENCES || true {
             println!("{priority:2}: {msg}");
         } else {
             println!("{msg}");
