@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+
+import sqlite3
+import sys
+
+DB_FILE = 'timetable.db'
+CURRENT_TERM = 'spring'
+DEPARTMENTS = ['Computing']
+
+db = sqlite3.connect(DB_FILE)
+
+# check for courses that are missing but should be in rotation
+placeholders = ', '.join(['?']*len(DEPARTMENTS))
+query = '''
+    SELECT department, course, course_name
+    FROM courses
+    NATURAL JOIN course_rotations
+    NATURAL LEFT OUTER JOIN sections
+    WHERE term = ? AND department IN (PLACEHOLDERS) AND section IS NULL
+    ORDER BY department, course'''.replace('PLACEHOLDERS', placeholders)
+rows = db.execute(query, [CURRENT_TERM] + DEPARTMENTS).fetchall()
+if len(rows) > 0:
+    print()
+    s = f'Missing courses that should have a {CURRENT_TERM} section:'
+    print(s)
+    print('-' * len(s))
+    for (department, course, course_name) in rows:
+        print(f'{course}: {course_name} ({department})')
+
+# check for sections that should have a time slot but are
+# squeezed out by faculty availability
+query = '''
+    SELECT department, course_name, section
+    FROM sections_to_be_scheduled
+    NATURAL JOIN courses
+    NATURAL LEFT OUTER JOIN time_slots_available_to_sections
+    WHERE department IN (PLACEHOLDERS) AND time_slot IS NULL
+    ORDER BY department, section'''.replace('PLACEHOLDERS', placeholders)
+rows = db.execute(query, DEPARTMENTS).fetchall()
+if len(rows) > 0:
+    print()
+    s = 'Sections where faculty availability precludes all assigned time slots'
+    print(s)
+    print('-' * len(s))
+    for (department, course_name, section) in rows:
+        print(f'{section}: {course_name} ({department})')
+
+# check for sections where every time slot ends up with a penalty
+query = '''
+    SELECT department, section, course_name
+    FROM time_slots_available_to_sections
+    NATURAL JOIN sections
+    NATURAL JOIN courses
+    WHERE department IN (PLACEHOLDERS)
+    GROUP BY department, section, course_name
+    HAVING COUNT(1) = COUNT(time_slot_priority)
+    ORDER BY department, section'''.replace('PLACEHOLDERS', placeholders)
+rows = db.execute(query, DEPARTMENTS).fetchall()
+if len(rows) > 0:
+    print()
+    s = 'Sections where every available time slot has a penalty'
+    print(s)
+    print('-' * len(s))
+    for (department, section, course_name) in rows:
+        print(f'{section}: {course_name} ({department})')
+
+# check for sections where every room has a penalty
+query = '''
+    SELECT department, section, course_name
+    FROM rooms_available_to_sections
+    NATURAL JOIN sections
+    NATURAL JOIN courses
+    WHERE department IN (PLACEHOLDERS)
+    GROUP BY department, section, course_name
+    HAVING COUNT(1) = COUNT(room_priority)
+    ORDER BY department, section'''.replace('PLACEHOLDERS', placeholders)
+rows = db.execute(query, DEPARTMENTS).fetchall()
+if len(rows) > 0:
+    print()
+    s = 'Sections where every available room has a penalty'
+    print(s)
+    print('-' * len(s))
+    for (department, section, course_name) in rows:
+        print(f'{section}: {course_name} ({department})')
+
+# check for sections with rooms but no times
+# check for sections with time slots but no rooms, noting suspicious instances
+# check for faculty with no sections
+# check for sections with no faculty
+# note sections with multiple faculty
+# note cross listings
+# check section numbers for sequencing, online, evening, etc.
+# note room popularity
+# note time slot popularity
+# note faculty assigned outside their department

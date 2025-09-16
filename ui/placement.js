@@ -25,8 +25,8 @@ window.placement = [
             "Ren Quinn"
         ],
         "is_placed": true,
-        "room": "Smith 109",
-        "time_slot": "MW1500+75",
+        "room": "Smith 108",
+        "time_slot": "MWF1000+50",
         "problems": []
     },
     {
@@ -40,8 +40,8 @@ window.placement = [
             "Ren Quinn"
         ],
         "is_placed": true,
-        "room": "Smith 108",
-        "time_slot": "MWF1000+50",
+        "room": "Smith 109",
+        "time_slot": "MW1500+75",
         "problems": []
     },
     {
@@ -102,12 +102,7 @@ window.placement = [
         "is_placed": true,
         "room": "Smith 116",
         "time_slot": "MWF0900+50",
-        "problems": [
-            {
-                "score": 10,
-                "message": "Bart Stander wants a day off but did not get one"
-            }
-        ]
+        "problems": []
     },
     {
         "names": [
@@ -137,12 +132,7 @@ window.placement = [
         "is_placed": true,
         "room": "Smith 116",
         "time_slot": "MWF1100+50",
-        "problems": [
-            {
-                "score": 10,
-                "message": "Bart Stander wants a day off but did not get one"
-            }
-        ]
+        "problems": []
     },
     {
         "names": [
@@ -295,10 +285,6 @@ window.placement = [
             {
                 "score": 7,
                 "message": "CS 3510-01 and CS 3600-01 both meet at MWF1000+50"
-            },
-            {
-                "score": 10,
-                "message": "Bart Stander wants a day off but did not get one"
             }
         ]
     },
@@ -369,11 +355,15 @@ window.placement = [
         ],
         "is_placed": true,
         "room": "Smith 113",
-        "time_slot": "TR1200+75",
+        "time_slot": "MW1330+75",
         "problems": [
             {
-                "score": 10,
-                "message": "Bart Stander wants a day off but did not get one"
+                "score": 6,
+                "message": "CS 4550-01 and MATH 3050-01 both meet at MW1330+75"
+            },
+            {
+                "score": 2,
+                "message": "CS 4550-01 and SE 3200-01 both meet at MW1330+75"
             }
         ]
     },
@@ -771,6 +761,10 @@ window.placement = [
         "problems": [
             {
                 "score": 6,
+                "message": "CS 4550-01 and MATH 3050-01 both meet at MW1330+75"
+            },
+            {
+                "score": 6,
                 "message": "MATH 3050-01 and SE 3200-01 both meet at MW1330+75"
             }
         ]
@@ -902,6 +896,10 @@ window.placement = [
         "room": "Smith 109",
         "time_slot": "MW1330+75",
         "problems": [
+            {
+                "score": 2,
+                "message": "CS 4550-01 and SE 3200-01 both meet at MW1330+75"
+            },
             {
                 "score": 6,
                 "message": "MATH 3050-01 and SE 3200-01 both meet at MW1330+75"

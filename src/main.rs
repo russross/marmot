@@ -185,8 +185,7 @@ fn dispatch_subcommands() -> Result<()> {
             let tweak_descriptions: Vec<String> = config.tweaks.iter()
                 .map(|t| format!("{}→{},{}", t.section, t.room, t.time_slot))
                 .collect();
-            let comment = format!("tweaked from schedule {} ({})", 
-                config.starting_id, tweak_descriptions.join("; "));
+            let comment = format!("tweaked: {}", tweak_descriptions.join("; "));
 
             // Save the new schedule
             save_schedule(&config.db_path, &input, &schedule, &comment, None)?;
