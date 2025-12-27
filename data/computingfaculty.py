@@ -204,18 +204,13 @@ def build_faculty(db: DB) -> None:
         AvoidTimeSlot('MWF0900+50'),
     )
 
-    db.make_faculty('Russ Ross', 'Computing', default_availability)
+    db.make_faculty('Russ Ross', 'Computing', [TimeInterval('MTWR', '1200', '1630')])
     db.make_faculty_section('Russ Ross', 'CS 2810-01', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Russ Ross', 'CS 2810-02', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Russ Ross', 'CS 3410-01', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Russ Ross', 'CS 4307-01', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Russ Ross', 'CS 4800R-02')
     db.faculty_preferences('Russ Ross', 'MT',
-        AvoidTimeSlot('MWF0900+50'),
-        AvoidTimeSlot('MWF1000+50'),
-        AvoidTimeSlot('MWF1100+50'),
-        AvoidTimeSlot('TR0900+75'),
-        AvoidTimeSlot('TR1030+75'),
         WantClassesEvenlySpreadAcrossDays(),
         WantBackToBackClassesInTheSameRoom(),
         WantClassesPackedIntoAsFewRoomsAsPossible(),

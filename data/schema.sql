@@ -411,13 +411,13 @@ END;
 
 CREATE TRIGGER holidays_in_range_insert
 AFTER INSERT ON holidays
-WHEN (SELECT COUNT(1) FROM terms, holidays WHERE holiday <= start_date OR holiday >= end_date) > 1
+WHEN (SELECT COUNT(1) FROM terms, holidays WHERE holiday <= start_date OR holiday >= end_date) > 0
 BEGIN
     SELECT RAISE(ABORT, 'holidays must be during the term');
 END;
 CREATE TRIGGER holidays_in_range_update
 AFTER UPDATE ON holidays
-WHEN (SELECT COUNT(1) FROM terms, holidays WHERE holiday <= start_date OR holiday >= end_date) > 1
+WHEN (SELECT COUNT(1) FROM terms, holidays WHERE holiday <= start_date OR holiday >= end_date) > 0
 BEGIN
     SELECT RAISE(ABORT, 'holidays must be during the term');
 END;
@@ -618,15 +618,23 @@ CREATE VIEW sections_to_be_scheduled (department, course, section, secondary_sec
 --       * there are no assigned faculty
 CREATE VIEW time_slots_available_to_sections (department, section, time_slot, time_slot_priority) AS
     WITH per_faculty (department, section, faculty, time_slot, time_slot_priority) AS (
-        SELECT DISTINCT department, section, faculty, time_slot,
-            CASE WHEN time_slot_priority IS NULL THEN faculty_time_slot_priority
-                 WHEN faculty_time_slot_priority IS NULL THEN time_slot_priority
-                 ELSE MIN(time_slot_priority, faculty_time_slot_priority) END
+        SELECT department, section, faculty, time_slot,
+            MIN(
+                CASE 
+                    WHEN time_slot_priority IS NULL THEN faculty_time_slot_priority
+                    WHEN faculty_time_slot_priority IS NULL THEN time_slot_priority
+                    ELSE CASE 
+                        WHEN time_slot_priority < faculty_time_slot_priority THEN time_slot_priority 
+                        ELSE faculty_time_slot_priority 
+                    END
+                END
+            )
         FROM sections_to_be_scheduled
         NATURAL JOIN section_time_slot_tags
         NATURAL JOIN time_slots_time_slot_tags
         NATURAL JOIN faculty_sections
         NATURAL JOIN time_slots_available_to_faculty
+        GROUP BY department, section, faculty, time_slot
     ),
 
     group_faculty (department, section, time_slot, time_slot_priority, faculty_assigned) AS (
@@ -778,61 +786,85 @@ CREATE VIEW undiscounted_conflict_pairs (department_a, course_a, section_a, depa
     -- expand conflict_courses cliques
     -- note: does NOT create conflicts between sections within a course
     WITH paired_conflict_courses_courses AS (
-        SELECT conflicts.program, conflicts.conflict_name, conflict_priority, boost_priority, s1.section AS section_a, s2.section AS section_b
+        SELECT conflicts.program, conflicts.conflict_name, conflict_priority, boost_priority,
+            COALESCE(x1.primary_section, s1.section) AS section_a,
+            COALESCE(x2.primary_section, s2.section) AS section_b
         FROM conflicts
         JOIN conflict_courses c1
             ON  c1.program                                      =  conflicts.program
             AND c1.conflict_name                                =  conflicts.conflict_name
         JOIN sections s1
             ON  s1.course                                       =  c1.course
+        LEFT OUTER JOIN cross_listing_sections x1
+            ON  x1.section                                      =  s1.section
         JOIN conflict_courses c2
             ON  c2.program                                      =  conflicts.program
             AND c2.conflict_name                                =  conflicts.conflict_name
         JOIN sections s2
             ON  s2.course                                       =  c2.course
+        LEFT OUTER JOIN cross_listing_sections x2
+            ON  x2.section                                      =  s2.section
         WHERE   c2.course                                       <> c1.course
     ),
 
     -- expand conflict_sections cliques
     paired_conflict_sections_sections AS (
-        SELECT conflicts.program, conflicts.conflict_name, conflict_priority, boost_priority, s1.section AS section_a, s2.section AS section_b
+        SELECT conflicts.program, conflicts.conflict_name, conflict_priority, boost_priority,
+            COALESCE(x1.primary_section, s1.section) AS section_a,
+            COALESCE(x2.primary_section, s2.section) AS section_b
         FROM conflicts
         JOIN conflict_sections s1
             ON  s1.program                                      =  conflicts.program
             AND s1.conflict_name                                =  conflicts.conflict_name
+        LEFT OUTER JOIN cross_listing_sections x1
+            ON  x1.section                                      =  s1.section
         JOIN conflict_sections s2
             ON  s2.program                                      =  conflicts.program
             AND s2.conflict_name                                =  conflicts.conflict_name
+        LEFT OUTER JOIN cross_listing_sections x2
+            ON  x2.section                                      =  s2.section
         WHERE   s2.section                                      <> s1.section
     ),
 
     -- expand conflict_sections -> conflict_courses
     paired_conflict_sections_courses AS (
-        SELECT conflicts.program, conflicts.conflict_name, conflict_priority, boost_priority, s1.section AS section_a, s2.section AS section_b
+        SELECT conflicts.program, conflicts.conflict_name, conflict_priority, boost_priority,
+            COALESCE(x1.primary_section, s1.section) AS section_a,
+            COALESCE(x2.primary_section, s2.section) AS section_b
         FROM conflicts
         JOIN conflict_sections s1
             ON  s1.program                                      =  conflicts.program
             AND s1.conflict_name                                =  conflicts.conflict_name
+        LEFT OUTER JOIN cross_listing_sections x1
+            ON  x1.section                                      =  s1.section
         JOIN conflict_courses c2
             ON  c2.program                                      =  conflicts.program
             AND c2.conflict_name                                =  conflicts.conflict_name
         JOIN sections s2
             ON  s2.course                                       =  c2.course
+        LEFT OUTER JOIN cross_listing_sections x2
+            ON  x2.section                                      =  s2.section
         WHERE   s2.section                                      <> s1.section
     ),
 
     -- expand conflict_courses -> conflict_sections
     paired_conflict_courses_sections AS (
-        SELECT conflicts.program, conflicts.conflict_name, conflict_priority, boost_priority, s1.section AS section_a, s2.section AS section_b
+        SELECT conflicts.program, conflicts.conflict_name, conflict_priority, boost_priority,
+            COALESCE(x1.primary_section, s1.section) AS section_a,
+            COALESCE(x2.primary_section, s2.section) AS section_b
         FROM conflicts
         JOIN conflict_courses c1
             ON  c1.program                                      =  conflicts.program
             AND c1.conflict_name                                =  conflicts.conflict_name
         JOIN sections s1
             ON  s1.course                                       =  c1.course
+        LEFT OUTER JOIN cross_listing_sections x1
+            ON  x1.section                                      =  s1.section
         JOIN conflict_sections s2
             ON  s2.program                                      =  conflicts.program
             AND s2.conflict_name                                =  conflicts.conflict_name
+        LEFT OUTER JOIN cross_listing_sections x2
+            ON  x2.section                                      =  s2.section
         WHERE   s2.section                                      <> s1.section
     ),
 
@@ -930,6 +962,8 @@ CREATE VIEW prereq_transitive_closure (course, prereq) AS
 -- a list of the number of sections of each course with multiple sections
 -- includes online, etc., and computed value is overriden by
 -- multiple_section_overrides
+-- note: we include unscheduled/online sections on purpose to discount conflicts
+--       when students have alternative ways to take the course
 --
 -- note: use multiple_section_overrides to handle
 --       cross listings, anticonflicts, etc.
