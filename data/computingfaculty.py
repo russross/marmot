@@ -190,10 +190,10 @@ def build_faculty(db: DB) -> None:
     )
 
     db.make_faculty('Russ Ross', 'Computing', default_availability)
-    db.make_faculty_section('Russ Ross', 'CS 2810-01', '3 credit bell schedule', 'flex', 'stadium')
-    db.make_faculty_section('Russ Ross', 'CS 2810-02', '3 credit bell schedule', 'flex', 'stadium')
-    db.make_faculty_section('Russ Ross', 'CS 3400-01', '3 credit bell schedule', 'flex', 'stadium')
-    db.make_faculty_section('Russ Ross', 'CS 3520-01', '3 credit bell schedule', 'flex', 'stadium')
+    db.make_faculty_section('Russ Ross', 'CS 2810-01', '3 credit bell schedule', 'Smith 108', 'Smith 109', 'stadium')
+    db.make_faculty_section('Russ Ross', 'CS 2810-02', '3 credit bell schedule', 'Smith 108', 'Smith 109', 'stadium')
+    db.make_faculty_section('Russ Ross', 'CS 3400-01', '3 credit bell schedule', 'Smith 108', 'Smith 109', 'stadium')
+    db.make_faculty_section('Russ Ross', 'CS 3520-01', '3 credit bell schedule', 'Smith 108', 'Smith 109', 'stadium')
     db.make_faculty_section('Russ Ross', 'CS 4800R-02')
     db.faculty_preferences('Russ Ross', 'MT',
         AvoidTimeSlot('MWF0900+50'),
