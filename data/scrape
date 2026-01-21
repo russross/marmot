@@ -1,4 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run -q --script
+# /// script
+# dependencies = [
+#     "pyquery",
+# ]
+# ///
 
 from pyquery import PyQuery as pq
 import re
@@ -17,6 +22,8 @@ courses = {}
 
 def crawl_prefix(prefix):
     page = pq(url=f'https://catalog.utahtech.edu/courses/{prefix}/')
+    # download from newcatalog as cs.html, etc., and use the following:
+    #page = pq(url=f'file:///home/russ/Downloads/{prefix}.html')
     for div in page('.courseblock'):
         title = pq(div).find('p.courseblocktitle strong')[0]
         (course, title, hours) = title.text_content().split('.  ')
