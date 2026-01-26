@@ -2188,11 +2188,6 @@ pub fn encode_faculty_no_room_switch(
                             continue;
                         }
 
-                        // Skip if none of the rooms is in common_rooms
-                        if !common_rooms.contains(&room1) && !common_rooms.contains(&room2) {
-                            continue;
-                        }
-
                         // Get section-room and section-time variables
                         if !encoding.section_room_vars.contains_key(&(section1, room1))
                             || !encoding.section_time_vars.contains_key(&(section1, ts1))

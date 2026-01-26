@@ -1,0 +1,496 @@
+#!/usr/bin/env python3
+
+ID = 1
+PREVIOUS_FILE = 'previous.csv'
+NEW_CSV = 'updated.csv'
+DB_FILE = '../data/timetable.db'
+
+# Room capacities for scheduled classes
+CAPACITY_MAP = {
+    'Smith 107': '32',
+    'Smith 108': '32',
+    'Smith 109': '32',
+    'Smith 112': '24',
+    'Smith 113': '24',
+    'Smith 116': '38',
+    'Smith 117': '38',
+}
+
+# Capacities for individual/independent study sections (default is 10)
+INDIVIDUAL_CAPACITY_MAP = {
+}
+
+# Credits for courses that aren't the default 3 credits
+# Keys are course prefixes matched against start of full course (e.g., "CS 4800R")
+CREDITS_MAP = {
+    'CS 4800R':  '1',
+    'CS 4920R':  '1',
+    'CS 4991R':  '0.5',
+    'CS 4992R':  '1',
+    'IT 1500':   '1',
+    'IT 4991R':  '2',
+    'SET 1000':  '1',
+}
+
+# LEC type overrides (default is LEC for lectures/online, INV for individual, LAB for labs)
+# Keys can be course numbers (e.g., "4920R") or "SUBJECT COURSE" (e.g., "SET 1000")
+LEC_TYPE_MAP = {
+    '4920':     'INT',   # Internships
+    '4920R':    'INT',   # Internships
+    'SE 4930R': 'INT',   # Software Entrepreneurial Exploration is like an internship
+    'SET 1000': 'LAB',   # Lab sections
+}
+
+# Valid subject prefixes (others will cause an error)
+VALID_SUBJECTS = {'CS', 'IT', 'SD', 'SE', 'SET', 'ZZ'}
+
+# Section prefixes to skip entirely (not our department)
+SKIP_SECTION_PREFIXES = {'MATH'}
+
+# Room prefixes to skip (not real classrooms)
+SKIP_ROOM_PREFIXES = {'SUCCESS'}
+
+# Room name transformations: prefix -> replacement
+# If a room starts with the key, replace that prefix with the value
+ROOM_TRANSFORMS = {
+    'SET 105':  'SET 105',      # Normalize variations like "SET 105A"
+    'Holland ': 'HCC ',         # "Holland 123" -> "HCC 123"
+}
+
+# Courses to skip in previous schedule (mark as SKIP instead of DELETE)
+SKIP_COURSES = {
+    ('IT', '4060'),
+    ('IT', '4070'),
+}
+
+# Section suffixes that should be skipped
+SKIP_SECTION_SUFFIXES = ('S', 'J', 'X')
+
+# Last names that indicate placeholder faculty (case-insensitive)
+# These faculty get blank name fields, but are noted in team-teach annotations
+PLACEHOLDER_LAST_NAMES = {'hire', 'adjunct', 'faculty'}
+
+FACULTY_IDS = {
+    'Bart Stander':     '00003379',
+    'Brayden Connole':  '00525693',
+    'Carol Stander':    '00004136',
+    'Curtis Larsen':    '00003064',
+    'Philip Daley':     '00227773',
+    'DJ Holt':          '00005694',
+    'Eric Pedersen':    '00002139',
+    'Jay Sneddon':      '00336758',
+    'Jeff Compas':      '00509394',
+    'Joe Francom':      '00003177',
+    'Lora Klein':       '00264610',
+    'Matt Kearl':       '00117731',
+    'Phil Daley':       '00227773',
+    'Ren Quinn':        '00171908',
+    'Russ Ross':        '00051975',
+    'Yuanfei Sun':      '00525373',
+}
+
+# columns
+CRN=0
+FID=1
+LNAME=2
+FNAME=3
+SUBJECT=6
+COURSE=7
+SECTION=8
+TITLE=9
+CAMPUS=10
+ACTIVE=11
+LEC=12
+DELIVERY=13
+SESSION=14
+CREDITS=15
+WLF=16
+BUD=17
+DAYS=19
+BEGTIME=20
+ENDTIME=21
+CAP=22
+ENROLL=23
+WAITCAP=24
+WAITACT=25
+BLDG=26
+ROOM=27
+XLIST=28
+
+import csv
+import json
+import sys
+import sqlite3
+
+def get_old(filename):
+    result = []
+    with open(filename) as fp:
+        reader = csv.reader(fp)
+        for row in reader:
+            result.append(row[:XLIST+1])
+    print(f'read previous schedule with {len(result)} rows')
+    return result
+
+def is_placeholder_faculty(name):
+    """Check if faculty name is a placeholder based on last name."""
+    if name is None:
+        return False
+    parts = name.replace('.', ' ').split()
+    if parts:
+        last = parts[-1].lower()
+        if last in PLACEHOLDER_LAST_NAMES:
+            return True
+    return False
+
+def get_new(filename, id):
+    db = sqlite3.connect(filename)
+
+    # Check if the placement ID exists
+    placement_exists = db.execute(
+        'SELECT 1 FROM placement_sections WHERE placement_id = ? LIMIT 1',
+        (id,)).fetchone()
+    if not placement_exists:
+        print(f'Error: Placement with ID {id} not found in database')
+        sys.exit(1)
+
+    # Get course titles for later use
+    course_titles = {}
+    for (course, title) in db.execute('SELECT course, course_name FROM courses'):
+        course_titles[course] = title
+
+    # Get all sections with their instructors grouped
+    rows = db.execute('''
+        SELECT section, room, time_slot, GROUP_CONCAT(faculty) as instructors
+        FROM placement_sections
+        NATURAL FULL OUTER JOIN faculty_sections
+        WHERE placement_id = ? OR placement_id IS NULL
+        GROUP BY section, room, time_slot
+        ORDER BY section''', (id,)).fetchall()
+    lst = []
+    for (section, room, time_slot, instructors_str) in rows:
+        # Skip sections from other departments
+        if any(section.startswith(prefix) for prefix in SKIP_SECTION_PREFIXES):
+            continue
+        # Skip non-classroom rooms
+        if room is not None and any(room.startswith(prefix) for prefix in SKIP_ROOM_PREFIXES):
+            continue
+        # Apply room name transformations
+        if room is not None:
+            for prefix, replacement in ROOM_TRANSFORMS.items():
+                if room.startswith(prefix):
+                    room = replacement + room[len(prefix):]
+                    break
+
+        # Parse instructors (placeholder faculty handled later by is_placeholder_faculty)
+        instructors = instructors_str.split(',') if instructors_str else [None]
+
+        # Separate real faculty from placeholders
+        real_faculty = [f for f in instructors if f and not is_placeholder_faculty(f)]
+        placeholder_faculty = [f for f in instructors if f and is_placeholder_faculty(f)]
+
+        # Determine primary instructor and team teach annotation
+        if real_faculty:
+            primary = real_faculty[0]
+            # Other real faculty + all placeholders go in xlist annotation
+            others = real_faculty[1:] + placeholder_faculty
+        elif placeholder_faculty:
+            # No real faculty, use first placeholder
+            primary = placeholder_faculty[0]
+            others = placeholder_faculty[1:]
+        else:
+            primary = None
+            others = []
+
+        # Build xlist annotation for team teaching
+        xlist = ''
+        for other in others:
+            if other:
+                # Format name: "First Last" from "First.Last" or "First Last"
+                if '.' in other:
+                    parts = other.split('.')
+                else:
+                    parts = other.split()
+                name = ' '.join(parts)
+                if xlist:
+                    xlist += '; '
+                xlist += f'team teach w/{name}'
+
+        # Get course title
+        course_key = section[:section.index('-')]  # e.g., "CS 1400" from "CS 1400-01"
+        title = course_titles.get(course_key, '')
+
+        lst.append( (primary, section, room, time_slot, xlist, title) )
+        if section.startswith('CS 4600-'):
+            lst.append( (primary, 'SE' + section[2:], room, time_slot, xlist, title) )
+    print(f'read placement {id} with {len(lst)} placements')
+    return lst
+
+def split_fields(row):
+    (raw_instructor, raw_course, raw_room, raw_time, xlist_annotation, course_title) = row
+
+    # skip sections that are included just to force conflicts
+    # but are not actually ours
+    if raw_time is not None and raw_room is None:
+        # PATCH
+        if raw_course == 'SE 4990-01':
+            raw_room = ''
+        else:
+            return None
+
+    out = [''] * (XLIST+1)
+    out[XLIST] = xlist_annotation  # Set team teach annotation
+
+    if raw_instructor is None:
+        (fname, lname) = ('', '')
+    elif '.' in raw_instructor:
+        (fname, lname) = raw_instructor.split('.')
+    elif ' ' in raw_instructor:
+        (fname, lname) = raw_instructor.split()
+    else:
+        (fname, lname) = (raw_instructor, '')
+    if fname == 'adjunct':
+        (fname, lname) = (lname, '')
+    if fname == 'unknown':
+        (fname, lname) = ('', '')
+    # Skip placeholder faculty in the output (leave name fields blank)
+    if is_placeholder_faculty(raw_instructor):
+        (fname, lname) = ('', '')
+    if f'{fname} {lname}' in FACULTY_IDS:
+        out[FID] = FACULTY_IDS[f'{fname} {lname}']
+    (out[FNAME], out[LNAME]) = (fname, lname)
+    # Store course title from database for use in merge
+    out.append(course_title)  # Temporary field at end, will be removed in merge
+
+    space = raw_course.index(' ')
+    hyphen = raw_course.index('-')
+    subject = raw_course[:space]
+    course = raw_course[space+1:hyphen]
+    section_n = raw_course[hyphen+1:]
+    if subject not in VALID_SUBJECTS:
+        print(repr(row))
+        print('unknown course prefix:', row)
+        sys.exit(1)
+    out[SUBJECT] = subject
+    out[COURSE] = course
+    out[SECTION] = section_n
+    credits = get_credits(raw_course)
+
+    if raw_room is not None and raw_time is None:
+        print(f'section {raw_course} has room {raw_room} but no time')
+        sys.exit(1)
+    elif raw_room is None and raw_time is not None:
+        print(f'section {raw_course} has time slot {raw_time} but no room')
+        sys.exit(1)
+    elif raw_room is None and raw_time is None:
+        # online/individual
+        if section_n.startswith('4'):
+            # online
+            out[CAP] = '40'
+            out[BLDG] = 'ONLINE'
+            out[CAMPUS] = 'O01'
+            out[LEC] = 'LEC'
+            out[WLF] = credits
+            out[DELIVERY] = 'I'
+        else:
+            # individual
+            out[CAP] = get_capacity_individual(raw_course)
+            out[CAMPUS] = 'A01'
+            out[LEC] = 'INV'
+            out[WLF] = '0'
+            out[DELIVERY] = 'P'
+    else:
+        # lecture class
+        if raw_room != '':
+            (building, room) = raw_room.split()
+            out[BLDG] = building.upper()
+            out[ROOM] = room
+            if raw_room in CAPACITY_MAP:
+                out[CAP] = CAPACITY_MAP[raw_room]
+            else:
+                print('unknown room capacity:', row)
+                sys.exit(1)
+        (out[DAYS], out[BEGTIME], out[ENDTIME]) = split_time(raw_time)
+        out[CAMPUS] = 'A01'
+        out[LEC] = 'LEC'
+        out[DELIVERY] = 'P'
+        out[WLF] = credits
+
+    # Apply LEC type overrides (check course number, then "SUBJECT COURSE")
+    if course in LEC_TYPE_MAP:
+        out[LEC] = LEC_TYPE_MAP[course]
+    elif f'{subject} {course}' in LEC_TYPE_MAP:
+        out[LEC] = LEC_TYPE_MAP[f'{subject} {course}']
+
+    # Internships have 0 WLF
+    if out[LEC] == 'INT':
+        out[WLF] = '0'
+
+    if section_n.endswith('A'):
+        out[SESSION] = '6'
+    elif section_n.endswith('B'):
+        out[SESSION] = '7'
+    else:
+        out[SESSION] = '1'
+
+    out[ACTIVE] = 'A'
+    out[CREDITS] = credits
+    out[BUD] = 'BA'
+    out[ENROLL] = '0'
+    out[WAITCAP] = '10'
+    out[WAITACT] = '0'
+
+    return out
+
+def merge(past, future):
+    out = [past[0]]
+    out[0].append('')
+    past = past[1:]
+    end_marker = future[-1][:]
+    end_marker[COURSE] = '9999'
+    past.append(end_marker)
+
+    # Extract the temporary course_title field from future rows
+    # It's appended after XLIST during split_fields
+    db_titles = {}
+    for frow in future:
+        if len(frow) > XLIST + 1:
+            course_key = (frow[SUBJECT], frow[COURSE])
+            db_titles[course_key] = frow.pop()  # Remove and save
+
+    for (i, frow) in enumerate(future):
+        this_course = (frow[SUBJECT], frow[COURSE])
+        next_section = None
+        if i+1 < len(future) and (future[i+1][SUBJECT], future[i+1][COURSE]) == this_course:
+            next_section = future[i+1][SECTION]
+        prow = past[0]
+
+        # skip over leftovers from previous course
+        while (prow[SUBJECT], prow[COURSE]) < this_course:
+            if prow[CRN] == '' or skip_row(prow[SUBJECT], prow[COURSE], prow[SECTION]):
+                prow.append('SKIP')
+            else:
+                prow.append('DELETE')
+            out.append(prow)
+            past = past[1:]
+            prow = past[0]
+
+        # any sections to be deleted, e.g., an old 03 before 40
+        while (prow[SUBJECT], prow[COURSE]) == this_course and prow[SECTION][0] < frow[SECTION][0]:
+            prow.append('DELETE')
+            out.append(prow)
+            past = past[1:]
+            prow = past[0]
+
+        # Look for best matching section in same course
+        # First try exact match, then try any unmatched section
+        matched = False
+        if (prow[SUBJECT], prow[COURSE]) == this_course:
+            if sections_match(prow[SECTION], frow[SECTION]):
+                # exact match
+                frow[CRN] = prow[CRN]
+                frow[TITLE] = prow[TITLE] if prow[TITLE] else db_titles.get(this_course, '')
+                frow.append(diff(prow, frow))
+                out.append(frow)
+                past = past[1:]
+                matched = True
+            else:
+                # Look ahead for unmatched old sections of the same course
+                # that could be matched to this new section
+                # Count how many new sections we have left for this course
+                new_sections_remaining = 1
+                for j in range(i+1, len(future)):
+                    if (future[j][SUBJECT], future[j][COURSE]) == this_course:
+                        new_sections_remaining += 1
+                    else:
+                        break
+
+                # Count old sections for this course
+                old_sections = []
+                for j, p in enumerate(past):
+                    if (p[SUBJECT], p[COURSE]) == this_course:
+                        old_sections.append((j, p))
+                    elif (p[SUBJECT], p[COURSE]) > this_course:
+                        break
+
+                # If there's exactly one old section and one new section for this course,
+                # treat them as a match with modified section number
+                if len(old_sections) == 1 and new_sections_remaining == 1:
+                    _, match_prow = old_sections[0]
+                    frow[CRN] = match_prow[CRN]
+                    frow[TITLE] = match_prow[TITLE] if match_prow[TITLE] else db_titles.get(this_course, '')
+                    frow.append(diff(match_prow, frow))
+                    out.append(frow)
+                    past = past[1:]
+                    matched = True
+
+        if not matched:
+            # Fill in title from database if missing
+            if not frow[TITLE]:
+                frow[TITLE] = db_titles.get(this_course, '')
+            frow.append('INSERT')
+            out.append(frow)
+
+    return out[:-1]
+
+def sections_match(a, b):
+    (a, b) = (str(a).upper(), str(b).upper())
+    return a == b or '0'+a == b or a == '0'+b
+
+def skip_row(subject, course, section):
+    if (subject, course) in SKIP_COURSES:
+        return True
+    if section.endswith(SKIP_SECTION_SUFFIXES):
+        return True
+    return False
+
+def get_credits(course):
+    for prefix, credits in CREDITS_MAP.items():
+        if course.startswith(prefix):
+            return credits
+    return '3'
+
+def get_capacity_individual(course):
+    return INDIVIDUAL_CAPACITY_MAP.get(course, '10')
+
+def split_time(time_slot):
+    days = ''
+    plus = time_slot.index('+')
+    for (index, ch) in enumerate(time_slot):
+        if ch.isdigit():
+            (days, start) = (time_slot[:index], time_slot[index:plus])
+            break
+    minutes = int(time_slot[plus+1:], 10)
+    start_hour = int(start[:2], 10)
+    start_minute = int(start[2:], 10)
+    end = start_minute + minutes
+    end_hour = start_hour + end//60
+    end_minute = end%60
+    end = f'{end_hour:02d}{end_minute:02d}'
+    return (days, start, end)
+    
+
+def diff(left, right):
+    key = '....'
+    for i in range(4, len(left)):
+        (a, b) = (str(left[i]), str(right[i]))
+        l = max(len(a), len(b))
+        (a, b) = (a.rjust(l, '0'), b.rjust(l, '0'))
+        if a == b:
+            key += '.'
+        else:
+            key += '*'
+    return key
+
+def main():
+    old = get_old(PREVIOUS_FILE)
+    new = [split_fields(row) for row in get_new(DB_FILE, ID)]
+    new = [row for row in new if row is not None]
+    new.append(split_fields(('', 'ZZ 1111-11', 'Smith 109', 'MWF0700+50', '', '')))
+    new.sort(key=lambda row: (row[SUBJECT], row[COURSE], row[SECTION], row[DAYS] if len(row[DAYS]) > 1 else '~'+row[DAYS], row[BEGTIME]))
+    out = merge(old, new)
+    with open(NEW_CSV, 'w') as fp:
+        writer = csv.writer(fp, delimiter='\t', quoting=csv.QUOTE_ALL)
+        for row in out:
+            writer.writerow(row)
+
+main()
