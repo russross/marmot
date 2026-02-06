@@ -20,6 +20,30 @@ pages = [ 'cs', 'it', 'math', 'sd', 'se' ]
 
 courses = {}
 
+CONCURRENT_PREREQ_RE = re.compile(
+    r'can be (?:concurrently enrolled|taken concurrently)',
+    re.IGNORECASE,
+)
+
+def parse_requisite_section(desc_html, labels):
+    start = -1
+    for label in labels:
+        start = desc_html.find(label)
+        if start >= 0:
+            break
+    if start < 0:
+        return ('', [])
+
+    section = desc_html[start:]
+    section = section[section.find(':') + 1:]
+    section = section[:section.find('.')]
+
+    links = []
+    for elt in pq(section).find('a.bubblelink.code'):
+        links.append((elt.text, elt.tail or ''))
+
+    return (section, links)
+
 def crawl_prefix(prefix):
     page = pq(url=f'https://catalog.utahtech.edu/courses/{prefix}/')
     # download from newcatalog as cs.html, etc., and use the following:
@@ -31,25 +55,18 @@ def crawl_prefix(prefix):
 
         desc = pq(div).find('p.courseblockdesc')
         desc_html = desc.html()
-        pre_start = desc_html.find('Prerequisites:')
-        if pre_start < 0: pre_start = desc_html.find('Prerequisite:')
-        if pre_start >= 0:
-            pre = desc_html[pre_start:]
-            pre = pre[pre.find(':'):]
-            pre = pre[:pre.find('.')]
-            pre = [ elt.text for elt in pq(pre).find('a.bubblelink.code') ]
-        else:
-            pre = []
+        (_, pre_pairs) = parse_requisite_section(desc_html, ['Prerequisites:', 'Prerequisite:'])
+        pre = [code for (code, _) in pre_pairs]
 
-        co_start = desc_html.find('Corequisites:')
-        if co_start < 0: co_start = desc_html.find('Corequisite:')
-        if co_start >= 0:
-            co = desc_html[co_start:]
-            co = co[co.find(':'):]
-            co = co[:co.find('.')]
-            co = [ elt.text for elt in pq(co).find('a.bubblelink.code') ]
-        else:
-            co = []
+        (_, co_pairs) = parse_requisite_section(desc_html, ['Corequisites:', 'Corequisite:'])
+        co = [code for (code, _) in co_pairs]
+
+        # Some prereqs are annotated as allowed concurrent enrollment.
+        # These should be modeled as both prereq and coreq.
+        for (code, tail) in pre_pairs:
+            if CONCURRENT_PREREQ_RE.search(tail):
+                if code not in co:
+                    co.append(code)
 
         match = re.search(r'\. (FA)?(?:, )?(SP)?(?:, )?(SU)?\.<br/>', desc_html)
         if match: (fa, sp, su) = (match.group(1) == 'FA', match.group(2) == 'SP', match.group(3) == 'SU')
@@ -78,9 +95,7 @@ for page in pages:
 #
 
 patches = {
-    'CS 2810': { 'co' : ['CS 1410'] },
     'CS 4600': { 'pre': ['CS 2420', 'CS 2810', 'CS 3005'] },
-    'IT 2400': { 'co': ['IT 1100', 'IT 1500'] },
     'IT 4600': { 'pre': ['CS 1410', 'IT 2400'] },
     'SE 4600': { 'pre': ['CS 2420', 'CS 2450', 'CS 2810', 'CS 3005', 'SE 1400', 'SE 3200'] },
     'MATH 2250': { 'pre': ['MATH 1220'] },
