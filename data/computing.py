@@ -186,6 +186,13 @@ def build_post(db: DB) -> None:
         'CS 2450',
         'SE 3100', 'SE 3150',
     ])
+    db.make_conflict('Data Science', 'all tracks combined', 7, 'boost', [
+        # all track courses (students complete two tracks)
+        'CS 2450',
+        'CS 3005', 'CS 3150', 'CS 3410',
+        'CS 4307', 'CS 4300', 'CS 4320',
+        'SE 3100', 'SE 3150',
+    ])
 
     #
     # SE degree
@@ -266,7 +273,6 @@ def build_post(db: DB) -> None:
         'SE 4200', 'SE 4600',
         'MATH 1100', 'MATH 1210', # one calc class
         'MATH 2050',
-        'SE 3010', # mobile app dev?
 
         # data science track
         'CS 4300', 'CS 4400', # ai or data mining
@@ -284,7 +290,6 @@ def build_post(db: DB) -> None:
         'SE 4200', 'SE 4600',
         'MATH 1100', 'MATH 1210', # one calc class
         'MATH 2050',
-        'SE 3010', # mobile app dev?
 
         # game development track
         'CS 3500', 'CS 3600',
@@ -318,7 +323,7 @@ def build_post(db: DB) -> None:
         'CS 1400', 'CS 1410',
         'IT 1100', 'IT 1200', 'IT 1500',
         'IT 2150', 'IT 2300', 'IT 2400', 'IT 2700',
-        'IT 3100', 'IT 3400', 'IT 3500',
+        'IT 3100', 'IT 3400', 'IT 3510',
         'IT 4600',
         'MATH 1040', 'MATH 1050',
     ])
@@ -327,7 +332,7 @@ def build_post(db: DB) -> None:
         'CS 1400', 'CS 1410',
         'IT 1100', 'IT 1200', 'IT 1500',
         'IT 2150', 'IT 2300', 'IT 2400', 'IT 2700',
-        'IT 3100', 'IT 3400', 'IT 3500',
+        'IT 3100', 'IT 3400', 'IT 3510',
         'IT 4600',
         'MATH 1040', 'MATH 1050',
 
@@ -342,7 +347,7 @@ def build_post(db: DB) -> None:
         'CS 1400', 'CS 1410',
         'IT 1100', 'IT 1200', 'IT 1500',
         'IT 2150', 'IT 2300', 'IT 2400', 'IT 2700',
-        'IT 3100', 'IT 3400', 'IT 3500',
+        'IT 3100', 'IT 3400', 'IT 3510',
         'IT 4600',
         'MATH 1040', 'MATH 1050',
 
@@ -350,33 +355,35 @@ def build_post(db: DB) -> None:
         'CS 2450',
         'IT 3110', 'IT 3300', 'IT 4200',
     ])
-    db.make_conflict('Information Technology', 'DevOps requirements vs core electives', 5, 'boost', [
+    db.make_conflict('Information Technology', 'DevOps requirements vs DevOps core electives', 5, 'boost', [
         # core requirements
         'CS 1400', 'CS 1410',
         'IT 1100', 'IT 1200', 'IT 1500',
         'IT 2150', 'IT 2300', 'IT 2400', 'IT 2700',
-        'IT 3100', 'IT 3400', 'IT 3500',
+        'IT 3100', 'IT 3400', 'IT 3510',
         'IT 4600',
         'MATH 1040', 'MATH 1050',
 
-        # core electives
-        'IT 3110', 'IT 3300', 'IT 3710',
-        'IT 4100', 'IT 4200', 'IT 4310', 'IT 4400', 'IT 4510', 'IT 4920R',
+        # DevOps core electives
+        'IT 4100', 'IT 4310', 'IT 4400', 'IT 4510', 'IT 4920R',
         'CS 2450',
     ])
 
+    # only need one math class
+    db.make_conflict('Information Technology', 'only need one math class', None, 'reduce',
+        ['MATH 1040', 'MATH 1050'])
+
     # Cybersecurity
-    db.make_conflict('Information Technology', 'Cybersecurity requirements', 3, 'boost', [
+    db.make_program('Cybersecurity', 'Computing')
+    db.make_conflict('Cybersecurity', 'core requirements', 1, 'boost', [
         'CS 1400', 'CS 1410', 'CS 2420',
-        'IT 1100', 'IT 1500',
+        'IT 1100', 'IT 1500', 'IT 2150',
         'IT 2400', 'IT 2600', 'IT 2700', 'IT 2750',
         'IT 3100', 'IT 3110', 'IT 3400', 'IT 3700', 'IT 3710',
         'IT 4510', 'IT 4600', 'IT 4700',
         'MATH 1040', 'MATH 1050',
     ])
-
-    # only need one math class
-    db.make_conflict('Information Technology', 'only need one math class', None, 'reduce',
+    db.make_conflict('Cybersecurity', 'only need one math class', None, 'reduce',
         ['MATH 1040', 'MATH 1050'])
 
 
