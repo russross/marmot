@@ -11,7 +11,7 @@ import re
 prefixes = {
     'CS':       'Computing',
     'IT':       'Computing',
-    'MATH':     'Math',
+    'MATH':     'Mathematics',
     'SD':       'Computing',
     'SE':       'Computing',
 } 

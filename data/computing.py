@@ -2,44 +2,7 @@ import queries
 from queries import *
 
 def build_pre(db: DB) -> None:
-    print('building smith building and classrooms')
-    db.make_building('Smith')
-    db.make_room('Smith 107', 32, ['flex'])
-    db.make_room('Smith 108', 32, ['flex'])
-    db.make_room('Smith 109', 32, ['flex'])
-    db.make_room('Smith 112', 24, ['macs'])
-    db.make_room('Smith 113', 24, ['pcs'])
-    db.make_room('Smith 116', 38, ['stadium'])
-    db.make_room('Smith 117', 38, ['stadium'])
-
-    print('building core time slots')
-
-    db.make_time_slot('MWF0800+50', [])
-    db.make_time_slot('MWF0900+50', ['3 credit bell schedule', 'MWF 3×50 bell schedule'])
-    db.make_time_slot('MWF1000+50', ['3 credit bell schedule', 'MWF 3×50 bell schedule'])
-    db.make_time_slot('MWF1100+50', ['3 credit bell schedule', 'MWF 3×50 bell schedule'])
-    db.make_time_slot('MW1200+75', ['3 credit bell schedule', '2×75 bell schedule', 'MW 2×75 bell schedule'])
-    db.make_time_slot('MW1330+75', ['3 credit bell schedule', '2×75 bell schedule', 'MW 2×75 bell schedule'])
-    db.make_time_slot('MW1500+75', ['3 credit bell schedule', '2×75 bell schedule', 'MW 2×75 bell schedule'])
-    db.make_time_slot('MW1630+75', [])
-
-    db.make_time_slot('TR0900+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
-    db.make_time_slot('TR1030+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
-    db.make_time_slot('TR1200+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
-    db.make_time_slot('TR1330+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
-    db.make_time_slot('TR1500+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
-    db.make_time_slot('TR1630+75', [])
-
-    db.make_time_slot('M1630+150', ['3 credit early evening'])
-    db.make_time_slot('T1630+150', ['3 credit early evening'])
-    db.make_time_slot('W1630+150', ['3 credit early evening'])
-    db.make_time_slot('R1630+150', ['3 credit early evening'])
-    db.make_time_slot('M1800+150', ['3 credit evening'])
-    db.make_time_slot('T1800+150', ['3 credit evening'])
-    db.make_time_slot('R1800+150', ['3 credit evening'])
-    db.make_time_slot('W1800+150', ['3 credit evening'])
-
-    print('adding special case courses and sections')
+    print('adding special case computing courses')
     db.make_course('Computing', 'SA 1400', 'Success CS 1400')
     db.make_course('Computing', 'CS 6300', 'Principles of Artificial Intelligence')    
     db.make_course('Computing', 'CS 6310', 'Foundations of Machine Learning')    
@@ -47,8 +10,6 @@ def build_pre(db: DB) -> None:
     db.make_course('Computing', 'CS 6330', 'Programming for Machine Learning in Life Sciences')
     db.make_course('Computing', 'CS 6331', 'Machine Learning for Life Sciences')
     db.make_course('Computing', 'CS 6350', 'Artificial Intelligence and Machine Learning Project 1')    
-    #db.make_section_with_no_faculty('MATH 2050-01', 'MW1330+75')
-    #db.make_section_with_no_faculty('MATH 3400-01', 'TR1030+75')
 
 def build_post(db: DB) -> None:
     print('building computing conflicts')

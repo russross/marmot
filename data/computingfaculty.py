@@ -23,7 +23,7 @@ def build_faculty(db: DB) -> None:
     db.make_faculty_section('Syed Ali', 'IT 1100-01', '3 credit bell schedule', 'flex', 'pcs')
     db.make_faculty_section('Syed Ali', 'IT 1100-02', '3 credit bell schedule', 'flex', 'pcs')
     db.make_faculty_section('Syed Ali', 'IT 1200-40')
-    db.make_faculty_section('Syed Ali', 'IT 3500-01', '3 credit bell schedule', 'flex', 'stadium', 'pcs')
+    db.make_faculty_section('Syed Ali', 'IT 3510-01', '3 credit bell schedule', 'flex', 'stadium', 'pcs')
     db.make_faculty_section('Syed Ali', 'IT 4991R-01', 'T1630+100', 'W1630+100', 'R1630+100', 'flex')
     db.faculty_preferences('Syed Ali', 'MT',
         DoNotWantADayOff(),
