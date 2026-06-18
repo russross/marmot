@@ -56,7 +56,7 @@ starting point.
 
 Faculty are then invited to specify their schedule preferences by
 creating a list of requests in descending order of priority. Marmot
-attempts to accomodate as many as possible, weighting everyone's top
+attempts to accommodate as many as possible, weighting everyone's top
 priority equally, everyone's second priority equally, etc.
 
 Here are the specific requests a faculty can put in their list,
@@ -71,8 +71,7 @@ of representative days if circumstances call for it.
 
 *   WantADayOff(): prefer to have sections on Monday or Tuesday but
     not both. Typically, this implies having all classes on MWF or
-    all classes on TR. This request imposes more restrictions than
-    most, so it consumes two priority slots.
+    all classes on TR.
 *   DoNotWantADayOff(): prefer to have sections on both days (and by
     implication on all days of the week).
 *   WantClassesEvenlySpreadAcrossDays(): prefer to have the same
@@ -117,6 +116,10 @@ without a break. A “gap” is a span of time between two clusters
     request. The faculty can specify multiple such requests, but
     they will be considered in descending levels of priority against
     the requests of other faculty.
+*   UnavailableTimeSlot('TR1500+75'): make a concrete time slot
+    unavailable. This is a hard exclusion, not a soft preference.
+    If a section is explicitly assigned to that slot, the unavailable
+    request still wins and the audit should catch the conflict.
 
 
 ### Section-specific requests
@@ -125,7 +128,8 @@ without a break. A “gap” is a span of time between two clusters
     prefer that a specific section avoid one or more time slots
     (including groups of time slots as in the example). Typically
     used to ensure a section has, for example, a 2×75 pattern vs a
-    3×50 pattern (as in this example for SE 1400-03).
+    3×50 pattern (as in this example for SE 1400-03). This only
+    affects time slots already allowed for that section.
 *   UseSameTimePattern(['CS 2450-01', 'CS 2450-02']): prefer that
     both sections of the same course have the same time pattern,
     e.g., both are on 2×75 patterns or 3×50 patterns. This does not
@@ -136,20 +140,18 @@ This last one requires a little extra explanation:
 
 *   AvoidSectionInRooms('CS 3150-01', ['Smith 116']): prefer to
     avoid having a section in a specific room without making it
-    impossible. Unlike other constraints, this one does **not** “use
-    up” a priority slot. You place it in your list of priorities to
-    show where it should rank compared to other preferences, but it
-    shares a priority level with the preference that follows.
+    impossible. This uses a priority slot like other faculty
+    preferences.
 
-This is best viewed as a way of *expanding* the room options for a
-section. Consider a faculty who prefers to teach in a flex room and
-would normally specify that as a requirement for a section. When
-push comes to shove, the faculty may prefer teaching the section in
-a room they do not really like over ending up with, say, a 9:00 AM
-class. Specifying an AvoidSectionInRooms preference lower on the
-list than the AvoidTimeSlot preference for 9:00 AM the system will
-give the system a better chance of honoring the 9:00 AM request by
-using the undesirable room assignment as an escape valve.
+This does not expand the room options for a section. The section's
+room tags define the allowed rooms, and AvoidSectionInRooms only
+adds a soft penalty to the intersection between its tags and the
+section's allowed rooms.
+
+The same rule applies to section-specific time requests: list every
+room or time pattern that should remain possible on the section
+itself, then use AvoidSectionInRooms or AvoidSectionInTimeSlots to
+mark the less desirable subset.
 
 
 Examples
@@ -279,8 +281,8 @@ avoiding the MWF 09:00–09:50 slot. The order matters.
         AvoidSectionInRooms('IT 2300-01', ['pcs', 'Smith 116']),
 
 She would really prefer to have IT 1100-01 in the pcs room and
-IT 2300-01 in a flex room, but she is willing to expand that set of
-rooms if that is what it takes to avoid the morning time slots.
+IT 2300-01 in a flex room, but the other listed rooms remain
+available as lower-priority choices.
 
         AvoidTimeSlot('MW1200+75'),
         AvoidTimeSlot('TR1200+75'),
@@ -317,12 +319,12 @@ just like online classes and internship classes.
 
     db.make_faculty_section('Ren Quinn', 'CS 4991R-50', 'R1900+50', 'Smith 116')
 
-This is an evening class with a non-standard time slot. When he
-specifies an explicit time slot like this, that time is added to his
-availability (since `default_availability` would not normally let
-him be scheduled after 4:30 PM). Note that there is no `'3 credit
-bell schedule'` listed so this class is fully constrained into this
-time slot. This is a typical way to handle evening classes.
+This is an evening class with a non-standard time slot. An explicit
+section time like this is allowed for that section even though
+`default_availability` would not normally let him be scheduled after
+4:30 PM. Note that there is no `'3 credit bell schedule'` listed, so
+this class is fully constrained into this time slot. This is a
+typical way to handle evening classes.
 
     db.make_faculty_section('Ren Quinn', 'CS 4992R-01', 'F1300+50', 'Smith 109')
 
@@ -332,7 +334,7 @@ This Friday afternoon class is similar.
         AvoidSectionInRooms('CS 3150-01', ['Smith 116']),
 
 Ren does not really want CS 3150-01 in Smith 116, but is willing to
-allow it. This does not use up a priority slot as discussed earlier.
+allow it. This uses a priority slot like other faculty preferences.
 
         DoNotWantADayOff(),
 

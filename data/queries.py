@@ -124,7 +124,7 @@ class UseSameTimePattern(FacultyPreferences):
 
 
 class TimeInterval:
-    def __init__(self, days: str, start_time: str|int, end_time: str|int, priority: int = PRIORITY_LEVELS):
+    def __init__(self, days: str, start_time: str|int, end_time: str|int):
         assert(len(days) > 0)
         if type(start_time) == str:
             assert(len(start_time) == 4)
@@ -150,7 +150,7 @@ class TimeInterval:
         prev = -1
         for day in days.upper():
             i = 'MTWRFSU'.index(day, prev+1)
-            intervals.append( (day, start, end, priority) )
+            intervals.append( (day, start, end) )
         self.intervals = intervals
 
 def parse_minutes(duration: str|int) -> int:
@@ -253,56 +253,48 @@ class DB:
             return
 
         week = 'MTWRFSU'
-        all_intervals = [ [ -1 for interval in range(24*60//5) ] for day in range(7) ]
+        all_intervals = [ [ False for interval in range(24*60//5) ] for day in range(7) ]
 
-        # note: priority of -1 means unavailable, PRIORITY_LEVELS means no penalty
-        def merge_interval(day_letter: str, start_time: int, end_time: int, priority: int) -> None:
+        def merge_interval(day_letter: str, start_time: int, end_time: int) -> None:
             nonlocal week, all_intervals
             day_n = week.index(day_letter)
             for interval in range(start_time//5, end_time//5):
-                if all_intervals[day_n][interval] >= 0:
-                    all_intervals[day_n][interval] = min(all_intervals[day_n][interval], priority)
-                else:
-                    all_intervals[day_n][interval] = priority
+                all_intervals[day_n][interval] = True
 
         # get existing intervals from the db
-        rows = self.db.execute('SELECT day_of_week, start_time, duration, availability_priority FROM faculty_availability WHERE faculty = ?', (faculty,)).fetchall()
-        for (day_letter, start_time, duration, maybe_priority) in rows:
-            if maybe_priority is None:
-                priority = PRIORITY_LEVELS
-            else:
-                priority = maybe_priority
-            merge_interval(day_letter, start_time, start_time+duration, priority)
+        rows = self.db.execute('SELECT day_of_week, start_time, duration FROM faculty_availability WHERE faculty = ?', (faculty,)).fetchall()
+        for (day_letter, start_time, duration) in rows:
+            merge_interval(day_letter, start_time, start_time+duration)
 
         # merge the new intervals we were given
         for avail in available:
-            for (day_letter, start_time, end_time, priority) in avail.intervals:
-                merge_interval(day_letter, start_time, end_time, priority)
+            for (day_letter, start_time, end_time) in avail.intervals:
+                merge_interval(day_letter, start_time, end_time)
 
         # consolidate everything into database format
         entries = []
         for (letter, intervals) in zip(week, all_intervals):
             start_minute = 0
-            prev = -1
-            for (minute, priority) in zip(range(0, 24*60, 5), intervals):
-                if priority == prev:
+            prev = False
+            for (minute, available) in zip(range(0, 24*60, 5), intervals):
+                if available == prev:
                     continue
-                if prev >= 0:
+                if prev:
                     # end of a range
-                    entries.append((letter, start_minute, minute, prev))
-                if priority >= 0:
+                    entries.append((letter, start_minute, minute))
+                if available:
                     start_minute = minute
-                prev = priority
-            if prev >= 0:
-                entries.append((letter, start_minute, minute, prev))
+                prev = available
+            if prev:
+                entries.append((letter, start_minute, minute))
 
         # blow away old intervals
         self.db.execute('DELETE FROM faculty_availability WHERE faculty = ?', (faculty,))
 
         # insert new
-        for (letter, start_minute, end_minute, priority) in entries:
+        for (letter, start_minute, end_minute) in entries:
             duration = end_minute - start_minute
-            self.db.execute('INSERT INTO faculty_availability VALUES (?, ?, ?, ?, ?)', (faculty, letter, start_minute, duration, None if priority == PRIORITY_LEVELS else priority))
+            self.db.execute('INSERT INTO faculty_availability VALUES (?, ?, ?, ?)', (faculty, letter, start_minute, duration))
 
     @rollback_on_exception
     def make_faculty(self, faculty: str, department: str, available: list[TimeInterval]) -> None:
@@ -331,9 +323,6 @@ class DB:
                 case WantADayOff(p):
                     days_off = 1
                     days_off_priority = next_priority(p)
-
-                    # day off request uses two priority slots
-                    next_priority(None)
                 case DoNotWantADayOff(p):
                     days_off = 0
                     days_off_priority = next_priority(p)
@@ -341,7 +330,7 @@ class DB:
                     evenly_spread_priority = next_priority(p)
                 case WantBackToBackClassesInTheSameRoom(p):
                     no_room_switch_priority = next_priority(p)
-                case WantClassesPackedIntoAsFewRoomsAsPossible(n):
+                case WantClassesPackedIntoAsFewRoomsAsPossible(p):
                     too_many_rooms_priority = next_priority(p)
                 case AvoidGapBetweenClassClustersShorterThan(minutes, p):
                     assert(type(minutes) == int)
@@ -360,36 +349,36 @@ class DB:
                     rows = self.db.execute('SELECT days, start_time, duration FROM time_slots WHERE time_slot = ?', (time_slot,)).fetchall()
                     if len(rows) != 1:
                         raise RuntimeError(f'preference {elt} is invalid because {time_slot} is not a valid time slot')
-                    (days, start_time, duration) = rows[0]
-                    interval = TimeInterval(days, start_time, start_time+duration, next_priority(p))
-                    self._update_availability(faculty, [interval])
+                    once = next_priority(p)
+                    self.db.execute('INSERT OR IGNORE INTO faculty_time_slot_preferences VALUES (?, ?, ?)', (faculty, time_slot, once))
+                    self.db.execute(
+                        'UPDATE faculty_time_slot_preferences SET time_slot_priority = MIN(time_slot_priority, ?) WHERE faculty = ? AND time_slot = ?',
+                        (once, faculty, time_slot))
                 case AvoidSectionInTimeSlots(section, time_slot_tags, p):
                     once = next_priority(p)
                     for tag in time_slot_tags:
-                        self.db.execute('DELETE FROM section_time_slot_tags WHERE section = ? AND time_slot_tag = ?', (section, tag))
-                        self.db.execute('INSERT INTO section_time_slot_tags VALUES (?, ?, ?)', (section, tag, once))
+                        self.db.execute('INSERT OR IGNORE INTO faculty_section_time_slot_preferences VALUES (?, ?, ?, ?)', (faculty, section, tag, once))
+                        self.db.execute(
+                            'UPDATE faculty_section_time_slot_preferences SET time_slot_priority = MIN(time_slot_priority, ?) WHERE faculty = ? AND section = ? AND time_slot_tag = ?',
+                            (once, faculty, section, tag))
                 case AvoidSectionInRooms(section, room_tags, p):
-                    # section/room requests do not "use up" a priority slot
-                    if p is None:
-                        once = priority + 1
-                    else:
-                        once = p
+                    once = next_priority(p)
                     for tag in room_tags:
-                        self.db.execute('DELETE FROM section_room_tags WHERE section = ? AND room_tag = ?', (section, tag))
-                        self.db.execute('INSERT INTO section_room_tags VALUES (?, ?, ?)', (section, tag, once))
+                        self.db.execute('INSERT OR IGNORE INTO faculty_section_room_preferences VALUES (?, ?, ?, ?)', (faculty, section, tag, once))
+                        self.db.execute(
+                            'UPDATE faculty_section_room_preferences SET room_priority = MIN(room_priority, ?) WHERE faculty = ? AND section = ? AND room_tag = ?',
+                            (once, faculty, section, tag))
                 case UnavailableTimeSlot(time_slot):
                     # it has to be an existing time slot, so check it and let the db do the parsing
                     rows = self.db.execute('SELECT days, start_time, duration FROM time_slots WHERE time_slot = ?', (time_slot,)).fetchall()
                     if len(rows) != 1:
                         raise RuntimeError(f'preference {elt} is invalid because {time_slot} is not a valid time slot')
-                    (days, start_time, duration) = rows[0]
-                    interval = TimeInterval(days, start_time, start_time+duration, -1)
-                    self._update_availability(faculty, [interval])
+                    self.db.execute('INSERT OR IGNORE INTO faculty_unavailable_time_slots VALUES (?, ?)', (faculty, time_slot))
                 case UseSameTimePattern(sections, p):
                     sections.sort()
-                    self.db.execute('INSERT INTO time_pattern_matches VALUES (?, ?)', (sections[0], next_priority(p)))
+                    self.db.execute('INSERT INTO faculty_time_pattern_matches VALUES (?, ?, ?)', (faculty, sections[0], next_priority(p)))
                     for section in sections:
-                        self.db.execute('INSERT INTO time_pattern_match_sections VALUES (?, ?)', (sections[0], section))
+                        self.db.execute('INSERT INTO faculty_time_pattern_match_sections VALUES (?, ?, ?)', (faculty, sections[0], section))
                 case _:
                     raise RuntimeError(f'unimplemented faculty preference: {elt}')
 
@@ -411,8 +400,8 @@ class DB:
         self.db.execute('INSERT INTO courses VALUES (?, ?, ?)', (course, department, course_name))
 
     @rollback_on_exception
-    def add_course_rotation(self, course: str, term: str) -> None:
-        self.db.execute('INSERT INTO course_rotations VALUES (?, ?)', (course, term))
+    def add_course_rotation(self, course: str, rotation: str) -> None:
+        self.db.execute('INSERT INTO course_rotations VALUES (?, ?)', (course, rotation))
 
     @rollback_on_exception
     def add_prereqs(self, course: str, prereqs: list[str]) -> None:
@@ -428,13 +417,6 @@ class DB:
     def make_section_with_no_faculty(self, section: str, *tags: str) -> None:
         self.db.execute('INSERT INTO sections VALUES (?)', (section, ))
         for tag in tags:
-            colon = tag.find(':')
-            if colon >= 0:
-                priority = int(tag[colon+1:])
-                tag = tag[:colon]
-            else:
-                priority = 0
-
             (room_tags,) = self.db.execute('SELECT COUNT(1) FROM room_tags WHERE room_tag = ?', (tag,)).fetchone()
             (time_slot_tags,) = self.db.execute('SELECT COUNT(1) FROM time_slot_tags WHERE time_slot_tag = ?', (tag,)).fetchone()
             if room_tags == 0 and time_slot_tags == 0:
@@ -446,27 +428,13 @@ class DB:
                 raise RuntimeError(f'section {section} tag "{tag}" found as both room_tag and time_slot_tag, unable to proceed')
 
             if room_tags > 0:
-                self.db.execute('INSERT INTO section_room_tags VALUES (?, ?, ?)', (section, tag, None if priority == 0 else priority))
+                self.db.execute('INSERT INTO section_room_tags VALUES (?, ?)', (section, tag))
             elif time_slot_tags > 0:
-                self.db.execute('INSERT INTO section_time_slot_tags VALUES (?, ?, ?)', (section, tag, None if priority == 0 else priority))
+                self.db.execute('INSERT INTO section_time_slot_tags VALUES (?, ?)', (section, tag))
 
     @rollback_on_exception
     def assign_faculty_to_existing_section(self, faculty: str, section: str) -> None:
         self.db.execute('INSERT INTO faculty_sections VALUES (?, ?)', (faculty, section))
-
-        # add time slots to faculty availability if applicable
-        # this adds any time slot tag that name a specific time slot to the faculty availability
-        rows = self.db.execute(
-            '''SELECT days, start_time, duration
-            FROM section_time_slot_tags
-            NATURAL JOIN time_slots_time_slot_tags
-            NATURAL JOIN time_slots
-            WHERE time_slot_tag = time_slot
-            AND section = ?''', (section,)).fetchall()
-        intervals = [TimeInterval(days, start_time, start_time+duration) 
-            for (days, start_time, duration) in rows]
-        if len(intervals) > 0:
-            self._update_availability(faculty, intervals)
 
     @rollback_on_exception
     def make_faculty_section(self, faculty: str, section: str, *tags: str) -> None:
@@ -518,5 +486,5 @@ class DB:
                 self.db.execute('INSERT INTO conflict_sections VALUES (?, ?, ?)', (program, conflict_name, elt))
 
     @rollback_on_exception
-    def add_multiple_section_override(self, course: str, section_count: int) -> None:
-        self.db.execute('INSERT INTO multiple_section_overrides VALUES (?, ?)', (course, section_count))
+    def add_multiple_section_override(self, course: str, override_section_count: int) -> None:
+        self.db.execute('INSERT INTO multiple_section_overrides VALUES (?, ?)', (course, override_section_count))

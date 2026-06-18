@@ -85,8 +85,8 @@ def build_faculty(db: DB) -> None:
     db.make_faculty('Joe Francom', 'Computing', default_availability)
     db.make_faculty_section('Joe Francom', 'IT 1500-40A')
     db.make_faculty_section('Joe Francom', 'IT 1500-41B')
-    db.make_faculty_section('Joe Francom', 'IT 3300-01', '3 credit bell schedule', 'flex')
-    db.make_faculty_section('Joe Francom', 'SE 3200-01', '3 credit bell schedule', 'flex')
+    db.make_faculty_section('Joe Francom', 'IT 3300-01', '3 credit bell schedule', 'flex', 'stadium', 'Smith 112', 'Smith 113')
+    db.make_faculty_section('Joe Francom', 'SE 3200-01', '3 credit bell schedule', 'flex', 'stadium', 'Smith 112', 'Smith 113')
     db.faculty_preferences('Joe Francom', 'MT',
         WantADayOff(),
         AvoidSectionInRooms('IT 3300-01', ['stadium']),

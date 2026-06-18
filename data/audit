@@ -16,7 +16,7 @@ query = '''
     FROM courses
     NATURAL JOIN course_rotations
     NATURAL LEFT OUTER JOIN sections
-    WHERE term = ? AND department IN (PLACEHOLDERS) AND section IS NULL
+    WHERE rotation = ? AND department IN (PLACEHOLDERS) AND section IS NULL
     ORDER BY department, course'''.replace('PLACEHOLDERS', placeholders)
 rows = db.execute(query, [CURRENT_TERM] + DEPARTMENTS).fetchall()
 if len(rows) > 0:
@@ -82,6 +82,61 @@ if len(rows) > 0:
     print('-' * len(s))
     for (department, section, course_name) in rows:
         print(f'{section}: {course_name} ({department})')
+
+# check for section-specific time preferences that do not overlap the
+# section's actual allowed times. These are valid input, but they have no
+# effect and usually indicate a stale or mistyped preference.
+query = '''
+    SELECT c.department, pref.faculty, pref.section, pref.time_slot_tag
+    FROM faculty_section_time_slot_preferences AS pref
+    JOIN sections AS s ON s.section = pref.section
+    JOIN courses AS c ON c.course = s.course
+    LEFT OUTER JOIN time_slots_time_slot_tags AS pref_slots
+        ON pref_slots.time_slot_tag = pref.time_slot_tag
+    LEFT OUTER JOIN section_time_slot_tags AS section_tags
+        ON section_tags.section = pref.section
+    LEFT OUTER JOIN time_slots_time_slot_tags AS section_slots
+        ON  section_slots.time_slot_tag = section_tags.time_slot_tag
+        AND section_slots.time_slot = pref_slots.time_slot
+    WHERE c.department IN (PLACEHOLDERS)
+    GROUP BY c.department, pref.faculty, pref.section, pref.time_slot_tag
+    HAVING COUNT(section_slots.time_slot) = 0
+    ORDER BY c.department, pref.section, pref.faculty, pref.time_slot_tag'''.replace('PLACEHOLDERS', placeholders)
+rows = db.execute(query, DEPARTMENTS).fetchall()
+if len(rows) > 0:
+    print()
+    s = 'Section time preferences with no matching assigned time slots'
+    print(s)
+    print('-' * len(s))
+    for (department, faculty, section, time_slot_tag) in rows:
+        print(f'{section}: {faculty} avoids {time_slot_tag} but it matches no assigned time slot ({department})')
+
+# check for section-specific room preferences that do not overlap the
+# section's actual allowed rooms.
+query = '''
+    SELECT c.department, pref.faculty, pref.section, pref.room_tag
+    FROM faculty_section_room_preferences AS pref
+    JOIN sections AS s ON s.section = pref.section
+    JOIN courses AS c ON c.course = s.course
+    LEFT OUTER JOIN rooms_room_tags AS pref_rooms
+        ON pref_rooms.room_tag = pref.room_tag
+    LEFT OUTER JOIN section_room_tags AS section_tags
+        ON section_tags.section = pref.section
+    LEFT OUTER JOIN rooms_room_tags AS section_rooms
+        ON  section_rooms.room_tag = section_tags.room_tag
+        AND section_rooms.room = pref_rooms.room
+    WHERE c.department IN (PLACEHOLDERS)
+    GROUP BY c.department, pref.faculty, pref.section, pref.room_tag
+    HAVING COUNT(section_rooms.room) = 0
+    ORDER BY c.department, pref.section, pref.faculty, pref.room_tag'''.replace('PLACEHOLDERS', placeholders)
+rows = db.execute(query, DEPARTMENTS).fetchall()
+if len(rows) > 0:
+    print()
+    s = 'Section room preferences with no matching assigned rooms'
+    print(s)
+    print('-' * len(s))
+    for (department, faculty, section, room_tag) in rows:
+        print(f'{section}: {faculty} avoids {room_tag} but it matches no assigned room ({department})')
 
 # check section numbers for sequencing, online, evening, etc.
 query = '''

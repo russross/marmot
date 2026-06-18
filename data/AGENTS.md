@@ -23,6 +23,10 @@ Input does not go directly into Rust source. The workflow is:
 3. `schema.sql` defines views such as `sections_to_be_scheduled`, `time_slots_available_to_sections`, `conflict_pairs`, and `anti_conflict_pairs`.
 4. The Rust solver reads those views from SQLite. The real contract is the database contents, not the Python source layout.
 
+The raw tables preserve provenance where practical. The Rust-facing views are
+allowed to be lossy because they are solver inputs, but avoid collapsing
+different input sources in base tables.
+
 ## What counts as a scheduleable section
 
 A section is only scheduled if it has at least one time-slot tag after all input is loaded.
@@ -46,7 +50,7 @@ The current computing input uses four layers of data.
 
 - `make_department(department)`
 - `make_course(department, course, course_name)`
-- `add_course_rotation(course, term)`
+- `add_course_rotation(course, rotation)`
 - optionally prereqs/coreqs
 
 This establishes the course catalog used by sections and program-conflict rules.
@@ -87,7 +91,8 @@ Also in `data/computingfaculty.py`, each faculty member gets:
 
 - `faculty_preferences(faculty, days_to_check, *preferences)`
 
-These are soft preferences, not hard requirements, unless the preference changes availability directly.
+These are soft preferences, not hard requirements, unless the preference records
+hard unavailability.
 
 ## Strings and naming conventions
 
@@ -161,23 +166,20 @@ Examples:
 - `db.make_faculty_section('Lora Klein', 'SA 1400-01', 'TR0930+80')`
 - `db.make_faculty_section('Curtis Larsen', 'CS 6300-50', 'T1800+150', 'W1800+150', 'R1800+150', 'Smith 116')`
 
-### Optional priorities on section tags
+Section tags do not carry soft priorities. They only define the allowed rooms
+and time slots for a section. Use `AvoidSectionInRooms(...)` and
+`AvoidSectionInTimeSlots(...)` for soft section-specific restrictions.
 
-Tags can be suffixed with `:N`, for example `tag:12`.
+Implementation details:
 
-- `0` or omitted means the tag is fully allowed.
-- nonzero values create a soft penalty at that priority if the solver uses that room or time slot.
-
-This is stored in:
-
-- `section_room_tags.room_priority`
-- `section_time_slot_tags.time_slot_priority`
-
-Current computing input mostly leaves base section tags unprioritized and adds softer avoid rules later through faculty preferences.
+- `section_room_tags` and `section_time_slot_tags` are pure allowed-set tables.
+- `faculty_section_room_preferences` and `faculty_section_time_slot_preferences` store faculty-authored soft restrictions for assigned sections.
+- Section-specific preferences do not add rooms or times to a section. The views apply them only to the concrete room/time intersection between the section tags and the preference tags.
+- Multiple positive priorities for the same effective room/time collapse with `MIN(priority)`.
 
 ## Faculty availability input
 
-Availability is passed as a list of `TimeInterval(days, start, end, priority=25)`.
+Availability is passed as a list of `TimeInterval(days, start, end)`.
 
 Example default used in computing:
 
@@ -187,13 +189,25 @@ Example default used in computing:
 This means:
 
 - faculty are available at those times
-- if a priority less than 25 is attached, the time is available but carries a soft penalty
-- unavailable time is represented by not covering it, or by explicitly subtracting it later with `UnavailableTimeSlot`
+- soft time penalties are stored separately by `AvoidTimeSlot`
+- unavailable time is represented by not covering it, or by explicitly excluding a concrete slot with `UnavailableTimeSlot`
 
 Faculty availability intersects with section time tags. A time slot is available to a section only if:
 
 - the section is allowed in that slot, and
 - every assigned faculty member is available for the entire slot
+- no assigned faculty member has marked the concrete slot unavailable
+
+An explicit section time slot makes the assigned faculty available for that
+section at that time, but `UnavailableTimeSlot(...)` still excludes it.
+
+Implementation details:
+
+- `faculty_availability` stores base teaching ranges only.
+- `faculty_time_slot_preferences` stores concrete slots from `AvoidTimeSlot`.
+- `faculty_unavailable_time_slots` stores concrete slots from `UnavailableTimeSlot`.
+- `assign_faculty_to_existing_section(...)` must not mutate availability. The explicit-section-time exception is applied in `time_slots_available_to_sections`.
+- `time_slots_available_to_faculty` intentionally does not know about section-specific explicit time slots.
 
 ## Faculty preference system
 
@@ -205,8 +219,6 @@ Priority behavior in `queries.py`:
 
 - faculty preference priorities live in the range `10..25`
 - if a preference omits `priority=...`, priorities are assigned in list order starting at `10`
-- `WantADayOff()` consumes two priority slots
-- `AvoidSectionInRooms(...)` does not consume a slot; it shares the next priority level unless explicitly given one
 - faculty preference rows only reach the solver for faculty who have at least one scheduleable section in `sections_to_be_scheduled`
 - `days_to_check` must contain at least two representative days for day-distribution preferences; `faculty_preferences(..., 'M', ...)` is not valid for `WantADayOff()`, `DoNotWantADayOff()`, or `WantClassesEvenlySpreadAcrossDays()`
 
@@ -228,7 +240,7 @@ Priority behavior in `queries.py`:
 
 - `WantBackToBackClassesInTheSameRoom()`
   Penalizes room switches inside a same-day teaching cluster.
-  It only matters for back-to-back section pairs that can share at least one room with no room-priority penalty.
+  It only matters for back-to-back section pairs that can share at least one room with no room preference penalty.
 
 - `WantClassesPackedIntoAsFewRoomsAsPossible()`
   Prefers using as few distinct rooms as possible across a faculty member's scheduled sections.
@@ -263,16 +275,28 @@ Durations may be integers in minutes or strings like `2h45m`.
 
 - `AvoidSectionInTimeSlots(section, [time_slot_or_tag, ...])`
   Makes the listed time slots or time-slot tags undesirable for that specific section at the chosen preference priority.
-  Tags must resolve to existing time-slot tags or concrete time slots; invalid concrete slots raise an input error.
+  Tags must resolve to existing time-slot tags or concrete time slots. The preference applies only to the intersection with the section's allowed time slots.
 
 - `AvoidSectionInRooms(section, [room_or_tag, ...])`
-  Makes the listed rooms or room tags undesirable for that specific section.
-  Unlike most faculty preferences, this does not consume a priority slot.
+  Makes the listed rooms or room tags undesirable for that specific section at the chosen preference priority.
+  The preference applies only to the intersection with the section's allowed rooms.
 
 - `UseSameTimePattern([section_a, section_b, ...])`
   Adds a soft rule that the listed sections should use the same time pattern.
   In practice this compares section time patterns, not specific start times alone.
   Only use this when there are at least two sections and at least two distinct candidate time patterns across them; otherwise the SAT encoder treats it as invalid/trivial input.
+
+`UseSameTimePattern` is stored in `faculty_time_pattern_matches` and
+`faculty_time_pattern_match_sections` so the source faculty remains visible.
+Compatibility views named `time_pattern_matches` and
+`time_pattern_match_sections` keep the Rust input unchanged.
+
+## Auditing input
+
+Run `data/audit` after rebuilding. In addition to general data checks, it
+reports section-specific Avoid preferences that do not intersect any assigned
+room or time. Those are not build errors because a broad or stale tag can be
+harmless, but they usually mean the preference has no effect.
 
 ## Department-wide conflict input
 
@@ -325,7 +349,7 @@ This is a niche mechanism. It is not the same as ordinary conflict avoidance.
 - `add_cross_listing(primary, sections)`
   Secondary cross-listed sections inherit scheduling from the primary section and may not carry their own room/time/faculty rows.
 
-- `add_multiple_section_override(course, section_count)`
+- `add_multiple_section_override(course, override_section_count)`
   Adjusts how curriculum-conflict discounts are computed for courses with multiple sections.
 
 These matter if new input starts using them, but they are not central to the current computing workflow.
