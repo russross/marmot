@@ -1,4 +1,3 @@
-
 Kissat SAT solver
 =================
 
@@ -12,6 +11,8 @@ in Rust.
 This crate builds the entire source code of Kissat, and provides a safe
 interface over it.
 
-This version is currently tied to the version of kissat that was submitted to
-sc2021.
+Wrapper version 0.2.0 vendors Kissat release 4.0.4, upstream tag
+`rel-4.0.4`, commit `8af8e56f174b778aef3aa45af9f739b2a5f492c2`.
 
+The upstream release metadata and license are retained in the `kissat`
+directory.

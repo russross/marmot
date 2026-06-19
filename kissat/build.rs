@@ -3,14 +3,7 @@ extern crate cc;
 use std::fs;
 
 pub fn main() {
-    let excluded = [
-        "application.c",
-        "build.c",
-        "handle.c",
-        "main.c",
-        "parse.c",
-        "witness.c",
-    ];
+    let excluded = ["application.c", "build.c", "handle.c", "main.c", "parse.c", "witness.c"];
     let files = fs::read_dir("kissat/src")
         .expect("Cannot find 'kissat' directory")
         .filter_map(Result::ok)

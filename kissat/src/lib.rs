@@ -27,6 +27,8 @@ use std::mem;
 use std::ops::Not;
 use std::os::raw::c_int;
 
+const MAX_VAR_ID: c_int = (1 << 30) - 1;
+
 #[repr(C)]
 struct kissat {
     _unused: [u8; 0],
@@ -72,8 +74,8 @@ impl Solver {
 
     /// Create a new literal
     pub fn var(&mut self) -> Var {
+        assert!(self.n_vars < MAX_VAR_ID);
         let id = self.n_vars + 1;
-        assert!(id != 1 << 28);
         self.n_vars = id;
         Var { id }
     }
