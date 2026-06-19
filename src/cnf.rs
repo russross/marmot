@@ -211,13 +211,10 @@ impl Encoding {
         let mut solver = kissat::Solver::with_configuration(kissat::Configuration::Plain);
 
         // Create a mapping from our variable indices to kissat variables
-        let mut var_map = Vec::with_capacity(self.last_var as usize + 1);
-
-        // Initialize with a placeholder for variable 0 (not used in our encoding)
-        var_map.push(solver.var());
+        let mut var_map = Vec::with_capacity(self.last_var as usize);
 
         // Create variables in the kissat solver
-        for _ in 1..=self.last_var {
+        for _ in 0..self.last_var {
             var_map.push(solver.var());
         }
 
@@ -229,12 +226,12 @@ impl Encoding {
                 let var_idx = lit.unsigned_abs() as usize;
 
                 // ensure the variable index is valid
-                if var_idx >= var_map.len() || var_idx == 0 {
+                if var_idx == 0 || var_idx > var_map.len() {
                     return Err(format!("Invalid variable index: {}", var_idx));
                 }
 
                 // get the corresponding kissat variable
-                let var = var_map[var_idx];
+                let var = var_map[var_idx - 1];
 
                 // determine if this is a positive or negative literal
                 if lit > 0 {
@@ -255,10 +252,10 @@ impl Encoding {
                 let mut true_vars = HashSet::new();
 
                 // Add each true variable to the HashSet
-                for (i, elt) in var_map.iter().enumerate().take(self.last_var as usize + 1).skip(1) {
-                    if let Some(true) = solution.get(*elt) {
+                for (i, var) in var_map.iter().enumerate() {
+                    if let Some(true) = solution.get(*var) {
                         // add the variable to the set if it's true
-                        true_vars.insert(i as i32);
+                        true_vars.insert((i + 1) as i32);
                     }
                 }
 
