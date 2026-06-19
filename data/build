@@ -47,15 +47,6 @@ mathematics.build_post(db)
 
 db.db.commit()
 
-
-print('materializing views')
-db.db.execute('ANALYZE')
-db.db.execute('INSERT INTO conflict_pairs_materialized SELECT * FROM conflict_pairs')
-db.db.execute('INSERT INTO anti_conflict_pairs_materialized SELECT * FROM anti_conflict_pairs')
-db.db.execute('INSERT INTO time_slots_used_by_departments_materialized SELECT * FROM time_slots_used_by_departments')
-db.db.execute('INSERT INTO time_slots_available_to_sections_materialized SELECT * FROM time_slots_available_to_sections')
-db.db.commit()
-
 db.db.execute('VACUUM')
 db.db.execute('ANALYZE')
 

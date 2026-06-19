@@ -132,19 +132,30 @@ fn dispatch_subcommands() -> Result<()> {
             let mut parsed_tweaks = Vec::new();
             for tweak in &config.tweaks {
                 // Look up section by name
-                let section_idx = input.sections.iter().position(|s| s.name == tweak.section)
+                let section_idx = input
+                    .sections
+                    .iter()
+                    .position(|s| s.name == tweak.section)
                     .ok_or_else(|| format!("Section '{}' not found", tweak.section))?;
 
                 // Look up time slot by name
-                let time_slot_idx = input.time_slots.iter().position(|ts| ts.name == tweak.time_slot)
+                let time_slot_idx = input
+                    .time_slots
+                    .iter()
+                    .position(|ts| ts.name == tweak.time_slot)
                     .ok_or_else(|| format!("Time slot '{}' not found", tweak.time_slot))?;
 
                 // Look up room by name, handle "-" as no room
                 let room_idx = if tweak.room == "-" {
                     None
                 } else {
-                    Some(input.rooms.iter().position(|r| r.name == tweak.room)
-                        .ok_or_else(|| format!("Room '{}' not found", tweak.room))?)
+                    Some(
+                        input
+                            .rooms
+                            .iter()
+                            .position(|r| r.name == tweak.room)
+                            .ok_or_else(|| format!("Room '{}' not found", tweak.room))?,
+                    )
                 };
 
                 parsed_tweaks.push((section_idx, time_slot_idx, room_idx));
@@ -153,19 +164,25 @@ fn dispatch_subcommands() -> Result<()> {
             // Validate tweaks
             for (section_idx, time_slot_idx, room_idx) in &parsed_tweaks {
                 let section = &input.sections[*section_idx];
-                
+
                 // Check if time slot is valid for this section
                 if !section.time_slots.iter().any(|ts| ts.time_slot == *time_slot_idx) {
-                    return Err(format!("Time slot '{}' is not valid for section '{}'", 
-                        input.time_slots[*time_slot_idx].name, section.name).into());
+                    return Err(format!(
+                        "Time slot '{}' is not valid for section '{}'",
+                        input.time_slots[*time_slot_idx].name, section.name
+                    )
+                    .into());
                 }
 
                 // Check if room assignment is valid
                 match room_idx {
                     Some(room) => {
                         if !section.rooms.iter().any(|r| r.room == *room) {
-                            return Err(format!("Room '{}' is not valid for section '{}'", 
-                                input.rooms[*room].name, section.name).into());
+                            return Err(format!(
+                                "Room '{}' is not valid for section '{}'",
+                                input.rooms[*room].name, section.name
+                            )
+                            .into());
                         }
                     }
                     None => {
@@ -182,9 +199,8 @@ fn dispatch_subcommands() -> Result<()> {
             }
 
             // Create comment describing the tweaks
-            let tweak_descriptions: Vec<String> = config.tweaks.iter()
-                .map(|t| format!("{}→{},{}", t.section, t.room, t.time_slot))
-                .collect();
+            let tweak_descriptions: Vec<String> =
+                config.tweaks.iter().map(|t| format!("{}→{},{}", t.section, t.room, t.time_slot)).collect();
             let comment = format!("tweaked: {}", tweak_descriptions.join("; "));
 
             // Save the new schedule
@@ -594,7 +610,12 @@ impl CliParser {
         if let Some((key, val)) = self.pair(short, long) {
             let parts: Vec<&str> = val.split(',').collect();
             if parts.len() != 3 {
-                return Err(format!("Error parsing option {}: expected 3 comma-separated values (section,room,time), got {}", key, parts.len()).into());
+                return Err(format!(
+                    "Error parsing option {}: expected 3 comma-separated values (section,room,time), got {}",
+                    key,
+                    parts.len()
+                )
+                .into());
             }
             tweaks.push(TweakSpec {
                 section: parts[0].to_string(),

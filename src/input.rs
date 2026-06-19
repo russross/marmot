@@ -374,7 +374,7 @@ pub fn load_time_slots(db: &Connection, departments: &[String]) -> Result<(Vec<T
     let mut stmt = db.prepare(format!(
         "
             SELECT DISTINCT time_slot, days, start_time, duration
-            FROM time_slots_used_by_departments_materialized
+            FROM time_slots_used_by_departments
             {}
             ORDER BY first_day, start_time, duration, duration * LENGTH(days)",
         dept_in
@@ -410,9 +410,9 @@ pub fn load_time_slot_conflicts(
         "
             SELECT time_slot_a, time_slot_b
             FROM conflicting_time_slots
-            JOIN time_slots_used_by_departments_materialized AS ts_a
+            JOIN time_slots_used_by_departments AS ts_a
                 ON  time_slot_a = ts_a.time_slot
-            JOIN time_slots_used_by_departments_materialized AS ts_b
+            JOIN time_slots_used_by_departments AS ts_b
                 ON  time_slot_b = ts_b.time_slot
             {}",
         dept_in
@@ -484,7 +484,7 @@ pub fn load_sections(
         let mut stmt = db.prepare(format!(
             "
                 SELECT DISTINCT section, time_slot, time_slot_priority
-                FROM time_slots_available_to_sections_materialized
+                FROM time_slots_available_to_sections
                 {}
                 ORDER BY section",
             dept_in
@@ -603,7 +603,7 @@ pub fn load_conflicts(
     let mut stmt = db.prepare(format!(
         "
             SELECT DISTINCT section_a, section_b, priority
-            FROM conflict_pairs_materialized
+            FROM conflict_pairs
             WHERE section_a < section_b
             {}
             ORDER BY section_a, section_b",

@@ -266,6 +266,8 @@ CREATE TABLE sections (
     FOREIGN KEY (course) REFERENCES courses (course) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
 
+CREATE INDEX sections_course ON sections (course, section);
+
 -- Section tags define allowed rooms only. Soft room penalties are not stored
 -- here because they are faculty-authored preferences, not changes to the
 -- section's allowed set.
@@ -301,6 +303,8 @@ CREATE TABLE faculty_sections (
     FOREIGN KEY (faculty) REFERENCES faculty (faculty) ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (section) REFERENCES sections (section) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
+
+CREATE INDEX faculty_sections_section ON faculty_sections (section, faculty);
 
 -- Section tags define which rooms/times are possible. These tables record
 -- faculty-authored soft restrictions against those possible choices. The tag
@@ -903,13 +907,6 @@ CREATE VIEW time_slots_available_to_sections (department, section, time_slot, ti
     NATURAL LEFT OUTER JOIN faculty_sections
     WHERE faculty IS NULL;
 
-CREATE TABLE time_slots_available_to_sections_materialized (
-    department                  TEXT,
-    section                     TEXT,
-    time_slot                   TEXT,
-    time_slot_priority
-);
-
 -- The rooms that a section can be assigned to and the associated soft
 -- priority. Room tags define the allowed set; faculty-section preferences
 -- apply only to the intersection between the preference tag and allowed rooms.
@@ -964,15 +961,6 @@ CREATE VIEW time_slots_used_by_departments (department, time_slot, days, start_t
     SELECT DISTINCT department, time_slot, days, start_time, duration, first_day
     FROM time_slots_available_to_sections
     NATURAL JOIN time_slots;
-
-CREATE TABLE time_slots_used_by_departments_materialized (
-    department                  TEXT,
-    time_slot                   TEXT,
-    days                        TEXT,
-    start_time                  INTEGER,
-    duration                    INTEGER,
-    first_day                   INTEGER
-);
 
 -- General faculty availability by time slot. This view does not include the
 -- explicit-section-time exception because that exception depends on which
@@ -1361,14 +1349,6 @@ CREATE VIEW conflict_pairs (department_a, section_a, department_b, section_b, pr
     FROM merged
     GROUP BY department_a, section_a, department_b, section_b;
 
-CREATE TABLE conflict_pairs_materialized (
-    department_a                TEXT,
-    section_a                   TEXT,
-    department_b                TEXT,
-    section_b                   TEXT,
-    priority                    INTEGER
-);
-
 -- Anti-conflicts are the opposite of ordinary conflicts: the single section
 -- should be scheduled at the same concrete time as at least one section in the
 -- group. Raw rules are expressed against original section/course names, so the
@@ -1398,13 +1378,5 @@ CREATE VIEW anti_conflict_pairs (single_department, single_section, group_depart
         ON  anti_conflict_courses.anti_conflict_single      = anti_conflicts.anti_conflict_single
     JOIN sections_to_be_scheduled                           AS group_sections
         ON  group_sections.course                           = anti_conflict_courses.anti_conflict_course;
-
-CREATE TABLE anti_conflict_pairs_materialized (
-    single_department           TEXT,
-    single_section              TEXT,
-    group_department            TEXT,
-    group_section               TEXT,
-    priority                    INTEGER
-);
 
 COMMIT;
