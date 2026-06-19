@@ -205,7 +205,10 @@ impl Encoding {
     // - `Ok(None)` if the problem is unsatisfiable
     // - `Err(String)` if an error occurs during solving
     pub fn solve(&self) -> Result<Option<HashSet<i32>>, String> {
-        let mut solver = kissat::Solver::new();
+        // Kissat 4's default preprocessing spends about three seconds on each of these dense,
+        // structured CNFs. This optimization loop creates a fresh solver for every bound, while
+        // the plain configuration solves the same instances directly without that repeated cost.
+        let mut solver = kissat::Solver::with_configuration(kissat::Configuration::Plain);
 
         // Create a mapping from our variable indices to kissat variables
         let mut var_map = Vec::with_capacity(self.last_var as usize + 1);

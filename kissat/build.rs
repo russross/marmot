@@ -17,7 +17,6 @@ pub fn main() {
     cc::Build::new()
         .define("COMPACT", None)
         .define("NDEBUG", None)
-        .define("NOPTIONS", None)
         .define("NPROOFS", None)
         .define("QUIET", None)
         .files(files)

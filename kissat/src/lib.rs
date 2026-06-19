@@ -25,7 +25,7 @@
 
 use std::mem;
 use std::ops::Not;
-use std::os::raw::c_int;
+use std::os::raw::{c_char, c_int};
 
 const MAX_VAR_ID: c_int = (1 << 30) - 1;
 
@@ -36,10 +36,26 @@ struct kissat {
 
 extern "C" {
     fn kissat_init() -> *mut kissat;
+    fn kissat_set_configuration(solver: *mut kissat, name: *const c_char) -> c_int;
     fn kissat_add(solver: *mut kissat, lit: c_int);
     fn kissat_solve(solver: *mut kissat) -> c_int;
     fn kissat_value(solver: *mut kissat, lit: c_int) -> c_int;
     fn kissat_release(solver: *mut kissat);
+}
+
+/// A built-in Kissat solver configuration.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Configuration {
+    /// Disable advanced preprocessing and use stable CDCL search.
+    Plain,
+}
+
+impl Configuration {
+    fn name(self) -> *const c_char {
+        match self {
+            Self::Plain => b"plain\0".as_ptr().cast(),
+        }
+    }
 }
 
 /// A single literal or its negation
@@ -70,6 +86,15 @@ impl Solver {
             assert!(!p.is_null());
             Solver { p, n_vars: 0 }
         }
+    }
+
+    /// Create a new solver instance using a built-in configuration.
+    pub fn with_configuration(configuration: Configuration) -> Solver {
+        let solver = Solver::new();
+        unsafe {
+            assert_eq!(kissat_set_configuration(solver.p, configuration.name()), 1);
+        }
+        solver
     }
 
     /// Create a new literal
