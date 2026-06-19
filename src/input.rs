@@ -1,3 +1,5 @@
+#![allow(clippy::collapsible_if)]
+
 use super::error::{Result, err};
 use super::score::*;
 use super::solver::*;

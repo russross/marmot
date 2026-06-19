@@ -1,4 +1,5 @@
 #![allow(clippy::too_many_arguments)]
+#![allow(clippy::collapsible_if)]
 
 use super::cnf::Encoding;
 use super::error::{Result, err};

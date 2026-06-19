@@ -123,11 +123,9 @@ pub fn print_problems(input: &Input, schedule: &Schedule) {
         }
     });
     for (priority, _faculty, msg) in lst {
-        if priority < START_LEVEL_FOR_PREFERENCES || true {
-            println!("{priority:2}: {msg}");
-        } else {
-            println!("{msg}");
-        }
+        // To omit priority numbers for preferences, print only `msg` when
+        // `priority >= START_LEVEL_FOR_PREFERENCES`.
+        println!("{priority:2}: {msg}");
     }
 }
 
@@ -263,16 +261,16 @@ pub fn sec_to_string(seconds: u64) -> String {
     if seconds < 60 {
         return format!("{}s", seconds);
     }
-    if seconds < 3600 && seconds % 60 == 0 {
+    if seconds < 3600 && seconds.is_multiple_of(60) {
         return format!("{}m", seconds / 60);
     }
     if seconds < 3600 {
         return format!("{}m{:02}s", seconds / 60, seconds % 60);
     }
-    if seconds % 3600 == 0 {
+    if seconds.is_multiple_of(3600) {
         return format!("{}h", seconds / 3600);
     }
-    if seconds % 60 == 0 {
+    if seconds.is_multiple_of(60) {
         return format!("{}h{}m", seconds / 3600, (seconds % 3600) / 60);
     }
     format!("{}h{:02}m{:02}s", seconds / 3600, (seconds % 3600) / 60, seconds % 60)

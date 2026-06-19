@@ -1,3 +1,5 @@
+#![allow(clippy::collapsible_if)]
+
 use super::input::*;
 use super::score::*;
 use super::*;
@@ -473,7 +475,7 @@ pub fn solve(
             last_seconds = elapsed;
 
             // time for an update?
-            if elapsed % config.update_seconds == 0 {
+            if elapsed.is_multiple_of(config.update_seconds) {
                 println!(
                     "{}: best {}, home {}, bias {}, ranged [{},{}] steps away from home since last report",
                     sec_to_string(elapsed),

@@ -258,12 +258,9 @@ impl Encoding {
 
                 // Add each true variable to the HashSet
                 for (i, elt) in var_map.iter().enumerate().take(self.last_var as usize + 1).skip(1) {
-                    match solution.get(*elt) {
-                        Some(true) => {
-                            // add the variable to the set if it's true
-                            true_vars.insert(i as i32);
-                        }
-                        Some(false) | None => (), // skip false or don't care values
+                    if let Some(true) = solution.get(*elt) {
+                        // add the variable to the set if it's true
+                        true_vars.insert(i as i32);
                     }
                 }
 
