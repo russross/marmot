@@ -214,13 +214,8 @@ impl Encoding {
         var_map.push(solver.var());
 
         // Create variables in the kissat solver
-        for i in 1..=self.last_var {
-            let v = solver.var();
-            if i == 1 {
-                // we need something at index 0, which is unused
-                var_map.push(v);
-            }
-            var_map.push(v);
+        for _ in 1..=self.last_var {
+            var_map.push(solver.var());
         }
 
         // Add all clauses to the solver
