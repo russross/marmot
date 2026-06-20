@@ -71,10 +71,6 @@ impl Encoding {
             // Constraint is trivially true, no clauses needed.
             return;
         }
-        if literals.is_empty() {
-            // No literals to constrain, nothing to do.
-            return;
-        }
         if k == 0 {
             // If k=0, all literals must be false. Add unit clauses.
             for &lit in literals {
@@ -86,117 +82,77 @@ impl Encoding {
             return;
         }
 
-        // Build the full totalizer tree recursively.
-        // The result is a list of n output variables representing the unary sum.
-        // output_vars[i] means "at least i+1 literals are true".
-        let output_vars = self.build_full_totalizer_tree(literals);
+        let output_count = k + 1;
+        let mut sorted_literals = literals.to_vec();
+        sorted_literals.sort_unstable();
+        let output_vars = self.build_bounded_totalizer_tree(&sorted_literals, output_count);
 
-        // Ensure the output_vars list has the expected length n
-        if output_vars.len() != n {
-            // This case should ideally not be reached if literals is not empty
-            if literals.is_empty() {
-                // If input was empty, output is empty, k>=0 is trivial
-                return;
-            } else {
-                // Should not happen with non-empty literals
-                panic!(
-                    "Internal Error: Totalizer tree construction failed. Expected {} outputs, got {}",
-                    n,
-                    output_vars.len()
-                );
-            }
-        }
-
-        // Add the final constraint: "not (at least k+1 literals are true)"
-        // This corresponds to negating the (k+1)-th output variable, which is
-        // at index k in the 0-indexed list.
-        // Since we checked k < n earlier, output_vars[k] is guaranteed to exist.
+        // At least k+1 true inputs force output_vars[k] true, so forbidding that
+        // output enforces the upper bound. Other output assignments are irrelevant.
         match hallpass {
             Some(h) => self.add_clause(vec![-output_vars[k], h]),
             None => self.add_clause(vec![-output_vars[k]]),
         }
     }
 
-    // build the full totalizer tree recursively
-    fn build_full_totalizer_tree(&mut self, input_literals: &[i32]) -> Vec<i32> {
+    // Build a totalizer tree with only the outputs needed to detect the bound.
+    fn build_bounded_totalizer_tree(&mut self, input_literals: &[i32], output_limit: usize) -> Vec<i32> {
         let n = input_literals.len();
 
-        // base Case: If only one literal, the sum is just that literal itself.
+        // Base case: if only one literal, the sum is just that literal itself.
         if n == 1 {
             return vec![input_literals[0]];
         }
 
-        // handle empty input case within recursion if needed
         if n == 0 {
             return Vec::new();
         }
 
-        // recursive step: split literals and build subtrees
         let mid = n / 2;
         let left_lits = &input_literals[..mid];
         let right_lits = &input_literals[mid..];
 
-        // recursively build the full trees for children
-        let left_outputs = self.build_full_totalizer_tree(left_lits);
-        let right_outputs = self.build_full_totalizer_tree(right_lits);
+        let left_outputs = self.build_bounded_totalizer_tree(left_lits, output_limit);
+        let right_outputs = self.build_bounded_totalizer_tree(right_lits, output_limit);
 
-        // merge the results from left and right subtrees without k-pruning
-        self.merge_full_totalizer_nodes(&left_outputs, &right_outputs)
+        self.merge_bounded_totalizer_nodes(&left_outputs, &right_outputs, output_limit)
     }
 
-    // merge the outputs of two child nodes in the totalizer tree
-    fn merge_full_totalizer_nodes(&mut self, left_outputs: &[i32], right_outputs: &[i32]) -> Vec<i32> {
+    // Merge the lower-bound implications from two child totalizers.
+    fn merge_bounded_totalizer_nodes(
+        &mut self,
+        left_outputs: &[i32],
+        right_outputs: &[i32],
+        output_limit: usize,
+    ) -> Vec<i32> {
         let n_left = left_outputs.len();
         let n_right = right_outputs.len();
+        let output_count = (n_left + n_right).min(output_limit);
 
-        // number of output vars needed
-        // the maximum possible sum from this node is n_left + n_right.
-        let max_output_index = n_left + n_right;
-
-        // create fresh output variables for this merge node for the full sum
-        let mut current_outputs = Vec::with_capacity(max_output_index);
-        for _ in 0..max_output_index {
+        let mut current_outputs = Vec::with_capacity(output_count);
+        for _ in 0..output_count {
             current_outputs.push(self.new_var());
         }
 
-        // add merging clauses (implements adder logic)
-        // formula: (a_i AND b_j) => c_{i+j}  which is equivalent to
-        // cnf: (~a_i OR ~b_j OR c_{i+j})
         for i in 0..=n_left {
             for j in 0..=n_right {
                 let target_sum = i + j;
 
-                // skip if the target sum is 0 (no constraint needed)
-                if target_sum == 0 {
+                if target_sum == 0 || target_sum > output_count {
                     continue;
                 }
 
-                // ensure the target sum does not exceed the bounds of the created output vars
-                // should not happen if max_output_index = n_left + n_right
-                if target_sum > max_output_index {
-                    continue;
-                }
-
-                // clause: ~a_i V ~b_j V c_{i+j}
                 let mut clause = Vec::new();
 
-                // add ~a_i if i > 0
                 if i > 0 {
-                    // left_outputs[i-1] represents "at least i"
                     clause.push(-left_outputs[i - 1]);
                 }
 
-                // add ~b_j if j > 0
                 if j > 0 {
-                    // right_outputs[j-1] represents "at least j"
                     clause.push(-right_outputs[j - 1]);
                 }
 
-                // add c_{i+j}
-                // current_outputs[target_sum-1] represents "at least target_sum"
                 clause.push(current_outputs[target_sum - 1]);
-
-                // Add the clause to the solver
                 self.add_clause(clause);
             }
         }
