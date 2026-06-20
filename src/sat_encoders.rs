@@ -1731,7 +1731,8 @@ pub fn encode_faculty_evenly_spread(
 ) -> Result<()> {
     // Add the problem to the encoding
     let faculty_name = &input.faculty[faculty].name;
-    let hallpass = encoding.new_hallpass(priority, format!("{} wants sections evenly spread across days", faculty_name));
+    let hallpass =
+        encoding.new_hallpass(priority, format!("{} wants sections evenly spread across days", faculty_name));
 
     // Validate inputs
     if faculty >= input.faculty.len() {
@@ -2092,8 +2093,8 @@ pub fn encode_faculty_no_room_switch(
 
     // Add the problem to the encoding
     let faculty_name = &input.faculty[faculty].name;
-    let hallpass =
-        encoding.new_hallpass(priority, format!("{} should not switch rooms between back-to-back classes", faculty_name));
+    let hallpass = encoding
+        .new_hallpass(priority, format!("{} should not switch rooms between back-to-back classes", faculty_name));
 
     // Create faculty_room_time variables
     let faculty_room_time_vars = make_faculty_room_time_vars(input, encoding, faculty, days_to_check)?;
@@ -2164,11 +2165,36 @@ pub fn encode_faculty_no_room_switch(
                         let sr2_var = encoding.section_room_vars[&(section2, room2)];
                         let st2_var = encoding.section_time_vars[&(section2, ts2)];
 
-                        // Encode: (sr1 AND st1 AND sr2 AND st2) → hallpass
-                        // This means: if section1 is in room1 at time1 and section2 is in room2 at time2,
-                        // then there must be a hallpass for this constraint
-                        // Equivalent to: (!sr1 OR !st1 OR !sr2 OR !st2 OR hallpass)
-                        encoding.add_clause(vec![-sr1_var, -st1_var, -sr2_var, -st2_var, hallpass]);
+                        // A wider pair is not consecutive when another assigned class lies
+                        // entirely between it on this day. Those assignment variables make
+                        // the clause true and leave the adjacent pairs to enforce room use.
+                        let time1 = &input.time_slots[ts1];
+                        let time2 = &input.time_slots[ts2];
+                        let (earlier_end, later_start) = if time1.start_time <= time2.start_time {
+                            (time1.start_time + time1.duration, time2.start_time)
+                        } else {
+                            (time2.start_time + time2.duration, time1.start_time)
+                        };
+                        let mut clause = vec![-sr1_var, -st1_var, -sr2_var, -st2_var];
+                        for &other_section in &input.faculty[faculty].sections {
+                            if other_section == section1 || other_section == section2 {
+                                continue;
+                            }
+                            for option in &input.sections[other_section].time_slots {
+                                let other = &input.time_slots[option.time_slot];
+                                let other_end = other.start_time + other.duration;
+                                if other.days.contains(day)
+                                    && other.start_time >= earlier_end
+                                    && other_end <= later_start
+                                    && let Some(&var) =
+                                        encoding.section_time_vars.get(&(other_section, option.time_slot))
+                                {
+                                    clause.push(var);
+                                }
+                            }
+                        }
+                        clause.push(hallpass);
+                        encoding.add_clause(clause);
                     }
                 }
             }
@@ -2303,4 +2329,71 @@ fn encode_faculty_too_many_rooms(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::faculty_preferences::FacultyPreferencePriorityPolicy;
+    use crate::input::{Faculty, Room, Section, Time, TimeSlot, TimeSlotWithOptionalPriority};
+
+    fn section(name: &str, time_slot: usize, rooms: &[usize]) -> Section {
+        Section {
+            name: name.to_string(),
+            rooms: rooms.iter().map(|&room| RoomWithOptionalPriority { room, priority: None }).collect(),
+            time_slots: vec![TimeSlotWithOptionalPriority { time_slot, priority: None }],
+            faculty: vec![0],
+            hard_conflicts: vec![],
+            criteria: vec![],
+            neighbors: vec![],
+        }
+    }
+
+    #[test]
+    fn no_room_switch_clause_allows_an_intervening_class() {
+        let monday = Days::parse("M").unwrap();
+        let input = Input {
+            term_name: "test".to_string(),
+            rooms: vec![Room { name: "A".to_string() }, Room { name: "B".to_string() }],
+            time_slots: (0..3)
+                .map(|index| TimeSlot {
+                    name: format!("T{index}"),
+                    days: monday,
+                    start_time: Time::new(index * 50),
+                    duration: Duration::new(50),
+                })
+                .collect(),
+            faculty: vec![Faculty { name: "Faculty".to_string(), sections: vec![0, 1, 2] }],
+            sections: vec![section("A", 0, &[0, 1]), section("B", 1, &[]), section("C", 2, &[0, 1])],
+            criteria: vec![],
+            faculty_preference_priority_policy: FacultyPreferencePriorityPolicy::Stated,
+            time_slot_conflicts: vec![vec![true, false, false], vec![false, true, false], vec![false, false, true]],
+        };
+        let mut encoding = Encoding::new();
+        for section in 0..3 {
+            let time_var = encoding.new_var();
+            encoding.section_time_vars.insert((section, section), time_var);
+            for room in input.sections[section].rooms.iter().map(|option| option.room) {
+                let room_var = encoding.new_var();
+                encoding.section_room_vars.insert((section, room), room_var);
+            }
+        }
+        let intervening_time = encoding.section_time_vars[&(1, 1)];
+        let first_time = encoding.section_time_vars[&(0, 0)];
+        let last_time = encoding.section_time_vars[&(2, 2)];
+        let first_room = encoding.section_room_vars[&(0, 0)];
+        let last_room = encoding.section_room_vars[&(2, 1)];
+
+        encode_faculty_no_room_switch(&input, &mut encoding, 10, 0, monday, Duration::new(50)).unwrap();
+        let hallpass = *encoding.hallpasses[&10].iter().next().unwrap();
+
+        assert!(encoding.clauses.iter().any(|clause| {
+            clause.contains(&-first_time)
+                && clause.contains(&-last_time)
+                && clause.contains(&-first_room)
+                && clause.contains(&-last_room)
+                && clause.contains(&intervening_time)
+                && clause.contains(&hallpass)
+        }));
+    }
 }

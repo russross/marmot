@@ -1,6 +1,7 @@
 #![allow(clippy::collapsible_if)]
 
 use super::error::{Result, err};
+use super::faculty_preferences::{FacultyPreferencePriorityPolicy, rebalance_faculty_preferences};
 use super::score::*;
 use super::solver::*;
 use sqlite::{Connection, OpenFlags, State, Value};
@@ -30,6 +31,7 @@ pub struct Input {
     pub faculty: Vec<Faculty>,
     pub sections: Vec<Section>,
     pub criteria: Vec<Criterion>,
+    pub faculty_preference_priority_policy: FacultyPreferencePriorityPolicy,
 
     // matrix of which time slots overlap which for fast lookup
     pub time_slot_conflicts: Vec<Vec<bool>>,
@@ -307,7 +309,17 @@ impl Faculty {
     }
 }
 
-pub fn load_input(db_path: &str, departments: &[String]) -> Result<Input> {
+pub fn load_input(
+    db_path: &str,
+    departments: &[String],
+    faculty_preference_priority_policy: FacultyPreferencePriorityPolicy,
+    show_faculty_preference_priorities: bool,
+) -> Result<Input> {
+    if show_faculty_preference_priorities
+        && faculty_preference_priority_policy == FacultyPreferencePriorityPolicy::Stated
+    {
+        return err("--show-faculty-preference-priorities requires faculty preference balancing");
+    }
     print!("loading input data");
     let start = Instant::now();
 
@@ -329,7 +341,7 @@ pub fn load_input(db_path: &str, departments: &[String]) -> Result<Input> {
     let (mut sections, section_index, mut criteria) = load_sections(&db, &room_index, &time_slot_index, departments)?;
     load_conflicts(&db, &mut sections, &section_index, &mut criteria, departments)?;
     load_anti_conflicts(&db, &sections, &section_index, &mut criteria, departments)?;
-    load_time_pattern_matches(&db, &sections, &section_index, &mut criteria, departments)?;
+    load_time_pattern_matches(&db, &faculty_index, &section_index, &mut criteria, departments)?;
     load_faculty_section_assignments(
         &db,
         &mut faculty,
@@ -339,11 +351,224 @@ pub fn load_input(db_path: &str, departments: &[String]) -> Result<Input> {
         &mut criteria,
         departments,
     )?;
+    if faculty_preference_priority_policy == FacultyPreferencePriorityPolicy::EntropyBalancedV1 {
+        expand_bundled_faculty_preferences(&mut criteria);
+        load_owned_room_time_preferences(
+            &db,
+            &faculty,
+            &faculty_index,
+            &section_index,
+            &room_index,
+            &time_slot_index,
+            &mut criteria,
+            departments,
+        )?;
+    } else {
+        load_collapsed_room_time_preferences(&sections, &mut criteria);
+    }
 
     compute_neighbors(&mut sections, &criteria);
     println!(" took {}ms", start.elapsed().as_millis());
 
-    Ok(Input { term_name, rooms, time_slots, faculty, sections, criteria, time_slot_conflicts })
+    let mut input = Input {
+        term_name,
+        rooms,
+        time_slots,
+        faculty,
+        sections,
+        criteria,
+        faculty_preference_priority_policy,
+        time_slot_conflicts,
+    };
+    if faculty_preference_priority_policy == FacultyPreferencePriorityPolicy::EntropyBalancedV1 {
+        rebalance_faculty_preferences(&mut input, show_faculty_preference_priorities)?;
+    }
+
+    Ok(input)
+}
+
+fn load_collapsed_room_time_preferences(sections: &[Section], criteria: &mut Vec<Criterion>) {
+    for (section_index, section) in sections.iter().enumerate() {
+        let rooms_with_priorities: Vec<RoomWithPriority> = section
+            .rooms
+            .iter()
+            .filter_map(|option| option.priority.map(|priority| RoomWithPriority { room: option.room, priority }))
+            .collect();
+        if !rooms_with_priorities.is_empty() {
+            criteria.push(Criterion::RoomPreference { section: section_index, rooms_with_priorities });
+        }
+
+        let time_slots_with_priorities: Vec<TimeSlotWithPriority> = section
+            .time_slots
+            .iter()
+            .filter_map(|option| {
+                option.priority.map(|priority| TimeSlotWithPriority { time_slot: option.time_slot, priority })
+            })
+            .collect();
+        if !time_slots_with_priorities.is_empty() {
+            criteria.push(Criterion::TimeSlotPreference { section: section_index, time_slots_with_priorities });
+        }
+    }
+}
+
+fn expand_bundled_faculty_preferences(criteria: &mut Vec<Criterion>) {
+    let mut expanded = Vec::with_capacity(criteria.len());
+    for criterion in criteria.drain(..) {
+        let Criterion::FacultyPreference {
+            faculty,
+            sections,
+            days_to_check,
+            days_off,
+            evenly_spread,
+            no_room_switch,
+            too_many_rooms,
+            max_gap_within_cluster,
+            distribution_intervals,
+        } = criterion
+        else {
+            expanded.push(criterion);
+            continue;
+        };
+
+        let mut push = |priority: u8, kind: FacultyPreferenceKind| {
+            expanded.push(Criterion::OwnedFacultyPreference(FacultyPreference {
+                faculty,
+                sections: sections.clone(),
+                stated_priority: priority,
+                priority,
+                kind,
+            }));
+        };
+        if let Some((priority, desired)) = days_off {
+            push(priority, FacultyPreferenceKind::DaysOff { days_to_check, desired });
+        }
+        if let Some(priority) = evenly_spread {
+            push(priority, FacultyPreferenceKind::EvenlySpread { days_to_check });
+        }
+        if let Some(priority) = no_room_switch {
+            push(priority, FacultyPreferenceKind::NoRoomSwitch { days_to_check, max_gap: max_gap_within_cluster });
+        }
+        if let Some((priority, desired_max_rooms)) = too_many_rooms {
+            push(priority, FacultyPreferenceKind::TooManyRooms { desired_max_rooms });
+        }
+        for interval in distribution_intervals {
+            let (priority, kind) = match interval {
+                DistributionInterval::GapTooLong { priority, duration } => (
+                    priority,
+                    FacultyPreferenceKind::GapTooLong { days_to_check, duration, max_gap: max_gap_within_cluster },
+                ),
+                DistributionInterval::GapTooShort { priority, duration } => (
+                    priority,
+                    FacultyPreferenceKind::GapTooShort { days_to_check, duration, max_gap: max_gap_within_cluster },
+                ),
+                DistributionInterval::ClusterTooLong { priority, duration } => (
+                    priority,
+                    FacultyPreferenceKind::ClusterTooLong { days_to_check, duration, max_gap: max_gap_within_cluster },
+                ),
+                DistributionInterval::ClusterTooShort { priority, duration } => (
+                    priority,
+                    FacultyPreferenceKind::ClusterTooShort { days_to_check, duration, max_gap: max_gap_within_cluster },
+                ),
+            };
+            push(priority, kind);
+        }
+    }
+    *criteria = expanded;
+}
+
+#[allow(clippy::too_many_arguments)]
+fn load_owned_room_time_preferences(
+    db: &Connection,
+    faculty_list: &[Faculty],
+    faculty_index: &HashMap<String, usize>,
+    section_index: &HashMap<String, usize>,
+    room_index: &HashMap<String, usize>,
+    time_slot_index: &HashMap<String, usize>,
+    criteria: &mut Vec<Criterion>,
+    departments: &[String],
+) -> Result<()> {
+    let dept_in = dept_clause(departments, &["department".into()], true);
+    let mut stmt = db.prepare(format!(
+        "SELECT DISTINCT faculty, section, preference_priority, room
+         FROM faculty_room_preferences_to_be_scheduled
+         {dept_in}
+         ORDER BY faculty, section, preference_priority, room"
+    ))?;
+    stmt.bind_iter(as_values(departments))?;
+    let mut current: Option<(usize, usize, u8, Vec<usize>)> = None;
+    while stmt.next()? == State::Row {
+        let faculty_name: String = stmt.read(0)?;
+        let section_name: String = stmt.read(1)?;
+        let priority = stmt.read::<i64, _>(2)? as u8;
+        let room_name: String = stmt.read(3)?;
+        let faculty = *faculty_index.get(&faculty_name).ok_or(format!("unknown faculty {faculty_name}"))?;
+        let section = *section_index.get(&section_name).ok_or(format!("unknown section {section_name}"))?;
+        let room = *room_index.get(&room_name).ok_or(format!("unknown room {room_name}"))?;
+        if !matches!(&current, Some((f, s, p, _)) if *f == faculty && *s == section && *p == priority) {
+            if let Some((old_faculty, old_section, old_priority, rooms)) = current.take() {
+                criteria.push(Criterion::OwnedFacultyPreference(FacultyPreference {
+                    faculty: old_faculty,
+                    sections: faculty_list[old_faculty].sections.clone(),
+                    stated_priority: old_priority,
+                    priority: old_priority,
+                    kind: FacultyPreferenceKind::AvoidRooms { section: old_section, rooms },
+                }));
+            }
+            current = Some((faculty, section, priority, Vec::new()));
+        }
+        current.as_mut().unwrap().3.push(room);
+    }
+    if let Some((faculty, section, priority, rooms)) = current {
+        criteria.push(Criterion::OwnedFacultyPreference(FacultyPreference {
+            faculty,
+            sections: faculty_list[faculty].sections.clone(),
+            stated_priority: priority,
+            priority,
+            kind: FacultyPreferenceKind::AvoidRooms { section, rooms },
+        }));
+    }
+
+    let mut stmt = db.prepare(format!(
+        "SELECT DISTINCT faculty, section, preference_priority, time_slot
+         FROM faculty_time_preferences_to_be_scheduled
+         {dept_in}
+         ORDER BY faculty, section, preference_priority, time_slot"
+    ))?;
+    stmt.bind_iter(as_values(departments))?;
+    let mut current: Option<(usize, usize, u8, Vec<usize>)> = None;
+    while stmt.next()? == State::Row {
+        let faculty_name: String = stmt.read(0)?;
+        let section_name: String = stmt.read(1)?;
+        let priority = stmt.read::<i64, _>(2)? as u8;
+        let time_slot_name: String = stmt.read(3)?;
+        let faculty = *faculty_index.get(&faculty_name).ok_or(format!("unknown faculty {faculty_name}"))?;
+        let section = *section_index.get(&section_name).ok_or(format!("unknown section {section_name}"))?;
+        let time_slot = *time_slot_index.get(&time_slot_name).ok_or(format!("unknown time slot {time_slot_name}"))?;
+        if !matches!(&current, Some((f, s, p, _)) if *f == faculty && *s == section && *p == priority) {
+            if let Some((old_faculty, old_section, old_priority, time_slots)) = current.take() {
+                criteria.push(Criterion::OwnedFacultyPreference(FacultyPreference {
+                    faculty: old_faculty,
+                    sections: faculty_list[old_faculty].sections.clone(),
+                    stated_priority: old_priority,
+                    priority: old_priority,
+                    kind: FacultyPreferenceKind::AvoidTimeSlots { section: old_section, time_slots },
+                }));
+            }
+            current = Some((faculty, section, priority, Vec::new()));
+        }
+        current.as_mut().unwrap().3.push(time_slot);
+    }
+    if let Some((faculty, section, priority, time_slots)) = current {
+        criteria.push(Criterion::OwnedFacultyPreference(FacultyPreference {
+            faculty,
+            sections: faculty_list[faculty].sections.clone(),
+            stated_priority: priority,
+            priority,
+            kind: FacultyPreferenceKind::AvoidTimeSlots { section, time_slots },
+        }));
+    }
+
+    Ok(())
 }
 
 // load all rooms
@@ -478,7 +703,7 @@ pub fn load_sections(
 ) -> Result<(Vec<Section>, HashMap<String, usize>, Vec<Criterion>)> {
     let mut sections = Vec::new();
     let mut section_index = HashMap::new();
-    let mut criteria = Vec::new();
+    let criteria = Vec::new();
 
     // load and create sections and their time slots
     {
@@ -563,31 +788,6 @@ pub fn load_sections(
             sections[*index.unwrap()]
                 .rooms
                 .push(RoomWithOptionalPriority { room, priority: priority.map(|elt| elt as u8) });
-        }
-    }
-
-    // create the scoring criteria for time slot and room preferences
-    // and create unplaced criteria
-    for (section_i, section) in sections.iter_mut().enumerate() {
-        let rooms_with_priorities: Vec<RoomWithPriority> = section
-            .rooms
-            .iter()
-            .filter_map(|RoomWithOptionalPriority { room, priority }| {
-                priority.map(|p| RoomWithPriority { room: *room, priority: p })
-            })
-            .collect();
-        if !rooms_with_priorities.is_empty() {
-            criteria.push(Criterion::RoomPreference { section: section_i, rooms_with_priorities });
-        }
-        let time_slots_with_priorities: Vec<TimeSlotWithPriority> = section
-            .time_slots
-            .iter()
-            .filter_map(|TimeSlotWithOptionalPriority { time_slot, priority }| {
-                priority.map(|p| TimeSlotWithPriority { time_slot: *time_slot, priority: p })
-            })
-            .collect();
-        if !time_slots_with_priorities.is_empty() {
-            criteria.push(Criterion::TimeSlotPreference { section: section_i, time_slots_with_priorities });
         }
     }
 
@@ -697,7 +897,7 @@ pub fn load_anti_conflicts(
 
 pub fn load_time_pattern_matches(
     db: &Connection,
-    _sections: &[Section],
+    faculty_index: &HashMap<String, usize>,
     section_index: &HashMap<String, usize>,
     criteria: &mut Vec<Criterion>,
     departments: &[String],
@@ -705,55 +905,59 @@ pub fn load_time_pattern_matches(
     let dept_in = dept_clause(departments, &["department".into()], true);
     let mut stmt = db.prepare(format!(
         "
-            SELECT DISTINCT time_pattern_match_name, time_pattern_match_priority, time_pattern_match_section
-            FROM time_pattern_matches
-            NATURAL JOIN time_pattern_match_sections
-            JOIN sections_to_be_scheduled
-                ON time_pattern_match_section = section
+            SELECT DISTINCT faculty, preference_name, preference_priority, section
+            FROM faculty_time_pattern_preferences_to_be_scheduled
             {}
-            ORDER BY time_pattern_match_name, time_pattern_match_priority, time_pattern_match_section",
+            ORDER BY faculty, preference_name, preference_priority, section",
         dept_in
     ))?;
     stmt.bind_iter(as_values(departments))?;
 
-    let mut criterion = None;
+    let mut criterion: Option<(String, usize, u8, Vec<usize>)> = None;
     while stmt.next()? == State::Row {
-        let new_group_name: String = stmt.read(0)?;
-        let pri: i64 = stmt.read(1)?;
-        let section_name: String = stmt.read(2)?;
+        let faculty_name: String = stmt.read(0)?;
+        let group_name: String = stmt.read(1)?;
+        let pri: i64 = stmt.read(2)?;
+        let section_name: String = stmt.read(3)?;
+        let faculty = *faculty_index
+            .get(&faculty_name)
+            .ok_or(format!("time pattern preference references unknown faculty {faculty_name}"))?;
         let section = *section_index
             .get(&section_name)
-            .ok_or(format!("time pattern match {new_group_name} references unknown section {section_name}"))?;
+            .ok_or(format!("time pattern match {group_name} references unknown section {section_name}"))?;
+        let key = format!("{faculty_name}\0{group_name}");
 
-        // existing group?
         match &mut criterion {
-            Some((name, Criterion::SectionsWithDifferentTimePatterns { sections, .. })) if *name == *new_group_name => {
+            Some((name, _, _, sections)) if *name == key => {
                 sections.push(section);
             }
             _ => {
-                // close out the last one and start a new one
-                if let Some((_, mut elt)) = criterion {
-                    if let Criterion::SectionsWithDifferentTimePatterns { sections, .. } = &mut elt {
-                        if sections.len() > 1 {
-                            criteria.push(elt);
-                        }
-                    }
+                if let Some((_, old_faculty, old_priority, sections)) = criterion
+                    && sections.len() > 1
+                {
+                    criteria.push(Criterion::OwnedFacultyPreference(FacultyPreference {
+                        faculty: old_faculty,
+                        sections: sections.clone(),
+                        stated_priority: old_priority,
+                        priority: old_priority,
+                        kind: FacultyPreferenceKind::TimePatternMatch { sections },
+                    }));
                 }
-                criterion = Some((
-                    new_group_name,
-                    Criterion::SectionsWithDifferentTimePatterns { priority: pri as u8, sections: vec![section] },
-                ));
+                criterion = Some((key, faculty, pri as u8, vec![section]));
             }
         }
     }
 
-    // close the final one out
-    if let Some((_, mut elt)) = criterion {
-        if let Criterion::SectionsWithDifferentTimePatterns { sections, .. } = &mut elt {
-            if sections.len() > 1 {
-                criteria.push(elt);
-            }
-        }
+    if let Some((_, faculty, priority, sections)) = criterion
+        && sections.len() > 1
+    {
+        criteria.push(Criterion::OwnedFacultyPreference(FacultyPreference {
+            faculty,
+            sections: sections.clone(),
+            stated_priority: priority,
+            priority,
+            kind: FacultyPreferenceKind::TimePatternMatch { sections },
+        }));
     }
 
     Ok(())
@@ -1062,6 +1266,7 @@ pub fn save_schedule(
             SET score = ?,
             sort_score = ?,
             optimum_score_prefix = ?,
+            faculty_preference_priority_policy = ?,
             comment = ?,
             modified_at = DATETIME('now', 'localtime')
             WHERE placement_id = ?",
@@ -1069,8 +1274,9 @@ pub fn save_schedule(
         stmt.bind((1, format!("{}", schedule.score).as_str()))?;
         stmt.bind((2, schedule.score.sortable().as_str()))?;
         stmt.bind((3, optimum_score_prefix_json.as_str()))?;
-        stmt.bind((4, comment))?;
-        stmt.bind((5, id))?;
+        stmt.bind((4, input.faculty_preference_priority_policy.database_name()))?;
+        stmt.bind((5, comment))?;
+        stmt.bind((6, id))?;
         if stmt.next()? != State::Done {
             panic!("no rows expected for update");
         }
@@ -1078,14 +1284,17 @@ pub fn save_schedule(
     } else {
         // create new base record and capture id
         let mut stmt = db.prepare(
-            "INSERT INTO placements (score, sort_score, optimum_score_prefix, comment, created_at, modified_at)
-            VALUES (?, ?, ?, ?, DATETIME('now', 'localtime'), DATETIME('now', 'localtime'))
+            "INSERT INTO placements
+                (score, sort_score, optimum_score_prefix, faculty_preference_priority_policy,
+                 comment, created_at, modified_at)
+            VALUES (?, ?, ?, ?, ?, DATETIME('now', 'localtime'), DATETIME('now', 'localtime'))
             RETURNING placement_id",
         )?;
         stmt.bind((1, format!("{}", schedule.score).as_str()))?;
         stmt.bind((2, schedule.score.sortable().as_str()))?;
         stmt.bind((3, optimum_score_prefix_json.as_str()))?;
-        stmt.bind((4, comment))?;
+        stmt.bind((4, input.faculty_preference_priority_policy.database_name()))?;
+        stmt.bind((5, comment))?;
         let mut id = -1;
         while stmt.next()? == State::Row {
             id = stmt.read(0)?;
@@ -1129,14 +1338,14 @@ pub fn save_schedule(
         for penalty in penalty_list {
             let (priority, msg) = penalty.get_score_message(input, schedule);
             let sections = penalty.get_sections(input);
-            let mut faculty = Vec::new();
-            for &section in &sections {
-                for &elt in &input.sections[section].faculty {
-                    faculty.push(elt);
+            let mut faculty = penalty.faculty().map_or_else(Vec::new, |owner| vec![owner]);
+            if faculty.is_empty() {
+                for &section in &sections {
+                    faculty.extend_from_slice(&input.sections[section].faculty);
                 }
+                faculty.sort_unstable();
+                faculty.dedup();
             }
-            faculty.sort_unstable();
-            faculty.dedup();
             penalties.push((priority, msg, sections, faculty));
         }
     }
@@ -1204,7 +1413,8 @@ pub fn load_schedule(
     let mut stmt = db.prepare(
         "SELECT placement_id, score, optimum_score_prefix
         FROM placements
-        WHERE placement_id = ? OR ?
+        WHERE faculty_preference_priority_policy = ?
+          AND (placement_id = ? OR ?)
         ORDER BY sort_score, modified_at DESC
         LIMIT 1",
     )?;
@@ -1213,15 +1423,20 @@ pub fn load_schedule(
     } else {
         (0, 1) // search by sort score
     };
-    stmt.bind((1, q_id))?;
-    stmt.bind((2, q_override))?;
+    stmt.bind((1, input.faculty_preference_priority_policy.database_name()))?;
+    stmt.bind((2, q_id))?;
+    stmt.bind((3, q_override))?;
 
     if let State::Row = stmt.next()? {
         placement_id = stmt.read(0)?;
         saved_score = stmt.read(1)?;
         optimum_score_prefix_json = stmt.read(2)?;
     } else {
-        return Err("no placement found in the database".into());
+        return Err(format!(
+            "no placement found for faculty preference priority policy {}",
+            input.faculty_preference_priority_policy.database_name()
+        )
+        .into());
     };
     if stmt.next()? != State::Done {
         panic!("multiple rows returned from single-row query");

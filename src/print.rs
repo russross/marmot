@@ -93,14 +93,14 @@ pub fn print_problems(input: &Input, schedule: &Schedule) {
     }
     for penalty_list in &schedule.penalties {
         for penalty in penalty_list {
-            let mut faculty = Vec::new();
-            for section in penalty.get_sections(input) {
-                for &elt in &input.sections[section].faculty {
-                    faculty.push(elt);
+            let mut faculty = penalty.faculty().map_or_else(Vec::new, |owner| vec![owner]);
+            if faculty.is_empty() {
+                for section in penalty.get_sections(input) {
+                    faculty.extend_from_slice(&input.sections[section].faculty);
                 }
+                faculty.sort_unstable();
+                faculty.dedup();
             }
-            faculty.sort_unstable();
-            faculty.dedup();
             let (priority, msg) = penalty.get_score_message(input, schedule);
 
             // curriculum conflicts are displayed once, preferences are per-faculty

@@ -63,9 +63,6 @@ def build_faculty(db: DB) -> None:
     db.make_faculty('Matthew S Smith', 'Mathematics', default_availability)
     db.make_faculty_section('Matthew S Smith', 'MATH 0900-50', 'MW1800+100', 'snow math rooms')
     db.make_faculty_section('Matthew S Smith', 'MATH 1060-04', 'MW1630+75', 'snow math rooms')
-    db.faculty_preferences('Matthew S Smith', 'MT',
-        *reduced_default_prefs,
-    )
 
     db.make_faculty('Buna Sambandham', 'Mathematics', default_availability)
     db.make_faculty_section('Buna Sambandham', 'MATH 0980-02', '4 credit bell schedule', 'snow math rooms')

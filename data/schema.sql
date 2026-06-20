@@ -464,9 +464,12 @@ CREATE TABLE placements (
     score                       TEXT NOT NULL,
     sort_score                  TEXT NOT NULL,
     optimum_score_prefix        TEXT NOT NULL,
+    faculty_preference_priority_policy TEXT NOT NULL DEFAULT 'stated',
     comment                     TEXT NOT NULL,
     created_at                  TEXT NOT NULL,
-    modified_at                 TEXT NOT NULL
+    modified_at                 TEXT NOT NULL,
+
+    CHECK (faculty_preference_priority_policy IN ('stated', 'entropy-balanced-v1'))
 );
 
 CREATE TABLE placement_sections (
@@ -488,7 +491,9 @@ CREATE TABLE placement_penalties (
     priority                    INTEGER NOT NULL,
     message                     TEXT NOT NULL,
 
-    CHECK (priority >= 0 AND priority < 26),
+    -- Generated priorities are governed by Rust's MAX_PRIORITY. Input-side
+    -- preference tables retain their stricter independently managed bounds.
+    CHECK (priority >= 0 AND priority <= 255),
     FOREIGN KEY (placement_id) REFERENCES placements (placement_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -705,6 +710,60 @@ CREATE VIEW time_pattern_match_sections (time_pattern_match_name, time_pattern_m
     SELECT CAST(LENGTH(faculty) AS TEXT) || ':' || faculty || time_pattern_match_name,
            time_pattern_match_section
     FROM faculty_time_pattern_match_sections;
+
+-- Faculty-owned preferences expanded to the concrete solver options they can
+-- penalize. These views retain provenance so independent preferences from
+-- instructors sharing a section do not collapse into one minimum priority.
+CREATE VIEW faculty_time_preferences_to_be_scheduled
+        (faculty, department, section, time_slot, preference_priority) AS
+    SELECT pref.faculty, scheduled.department, scheduled.section,
+           pref.time_slot, pref.time_slot_priority
+    FROM faculty_time_slot_preferences AS pref
+    JOIN faculty_sections_to_be_scheduled AS scheduled
+        ON scheduled.faculty = pref.faculty
+    JOIN time_slots_available_to_sections AS available
+        ON available.section = scheduled.section
+        AND available.time_slot = pref.time_slot
+
+    UNION
+
+    SELECT pref.faculty, scheduled.department, scheduled.section,
+           concrete.time_slot, pref.time_slot_priority
+    FROM faculty_section_time_slot_preferences AS pref
+    JOIN faculty_sections_to_be_scheduled AS scheduled
+        ON scheduled.faculty = pref.faculty
+        AND scheduled.section = pref.section
+    JOIN time_slots_time_slot_tags AS concrete
+        ON concrete.time_slot_tag = pref.time_slot_tag
+    JOIN time_slots_available_to_sections AS available
+        ON available.section = scheduled.section
+        AND available.time_slot = concrete.time_slot;
+
+CREATE VIEW faculty_room_preferences_to_be_scheduled
+        (faculty, department, section, room, preference_priority) AS
+    SELECT pref.faculty, scheduled.department, scheduled.section,
+           concrete.room, pref.room_priority
+    FROM faculty_section_room_preferences AS pref
+    JOIN faculty_sections_to_be_scheduled AS scheduled
+        ON scheduled.faculty = pref.faculty
+        AND scheduled.section = pref.section
+    JOIN rooms_room_tags AS concrete
+        ON concrete.room_tag = pref.room_tag
+    JOIN rooms_available_to_sections AS available
+        ON available.section = scheduled.section
+        AND available.room = concrete.room;
+
+CREATE VIEW faculty_time_pattern_preferences_to_be_scheduled
+        (faculty, department, preference_name, preference_priority, section) AS
+    SELECT pattern.faculty, scheduled.department,
+           pattern.time_pattern_match_name, pattern.time_pattern_match_priority,
+           member.time_pattern_match_section
+    FROM faculty_time_pattern_matches AS pattern
+    JOIN faculty_time_pattern_match_sections AS member
+        ON member.faculty = pattern.faculty
+        AND member.time_pattern_match_name = pattern.time_pattern_match_name
+    JOIN sections_to_be_scheduled AS scheduled
+        ON scheduled.section = member.time_pattern_match_section;
 
 
 -- Every pair of time slots that overlap on at least one day and overlap in

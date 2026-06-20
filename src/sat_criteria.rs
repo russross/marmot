@@ -297,6 +297,101 @@ impl SatCriteria {
                         priority: *priority,
                     });
                 }
+
+                Criterion::OwnedFacultyPreference(preference) => {
+                    let priority = preference.priority;
+                    let faculty = preference.faculty;
+                    match &preference.kind {
+                        FacultyPreferenceKind::AvoidRooms { section, rooms } => {
+                            for &room in rooms {
+                                criteria.add_criterion(SatCriterion::RoomPreference {
+                                    section: *section,
+                                    room,
+                                    priority,
+                                });
+                            }
+                        }
+                        FacultyPreferenceKind::AvoidTimeSlots { section, time_slots } => {
+                            for &time_slot in time_slots {
+                                criteria.add_criterion(SatCriterion::TimeSlotPreference {
+                                    section: *section,
+                                    time_slot,
+                                    priority,
+                                });
+                            }
+                        }
+                        FacultyPreferenceKind::DaysOff { days_to_check, desired } => {
+                            criteria.add_criterion(SatCriterion::FacultyDaysOff {
+                                faculty,
+                                days_to_check: *days_to_check,
+                                desired_days_off: *desired,
+                                priority,
+                            });
+                        }
+                        FacultyPreferenceKind::EvenlySpread { days_to_check } => {
+                            criteria.add_criterion(SatCriterion::FacultyEvenlySpread {
+                                faculty,
+                                days_to_check: *days_to_check,
+                                priority,
+                            });
+                        }
+                        FacultyPreferenceKind::NoRoomSwitch { days_to_check, max_gap } => {
+                            criteria.add_criterion(SatCriterion::FacultyNoRoomSwitch {
+                                faculty,
+                                days_to_check: *days_to_check,
+                                max_gap_within_cluster: *max_gap,
+                                priority,
+                            });
+                        }
+                        FacultyPreferenceKind::TooManyRooms { desired_max_rooms } => {
+                            criteria.add_criterion(SatCriterion::FacultyTooManyRooms {
+                                faculty,
+                                desired_max_rooms: *desired_max_rooms,
+                                priority,
+                            });
+                        }
+                        FacultyPreferenceKind::GapTooLong { days_to_check, duration, max_gap } => {
+                            criteria.add_criterion(SatCriterion::FacultyGapTooLong {
+                                faculty,
+                                days_to_check: *days_to_check,
+                                duration: *duration,
+                                max_gap_within_cluster: *max_gap,
+                                priority,
+                            });
+                        }
+                        FacultyPreferenceKind::GapTooShort { days_to_check, duration, max_gap } => {
+                            criteria.add_criterion(SatCriterion::FacultyGapTooShort {
+                                faculty,
+                                days_to_check: *days_to_check,
+                                duration: *duration,
+                                max_gap_within_cluster: *max_gap,
+                                priority,
+                            });
+                        }
+                        FacultyPreferenceKind::ClusterTooLong { days_to_check, duration, max_gap } => {
+                            criteria.add_criterion(SatCriterion::FacultyClusterTooLong {
+                                faculty,
+                                days_to_check: *days_to_check,
+                                duration: *duration,
+                                max_gap_within_cluster: *max_gap,
+                                priority,
+                            });
+                        }
+                        FacultyPreferenceKind::ClusterTooShort { days_to_check, duration, max_gap } => {
+                            criteria.add_criterion(SatCriterion::FacultyClusterTooShort {
+                                faculty,
+                                days_to_check: *days_to_check,
+                                duration: *duration,
+                                max_gap_within_cluster: *max_gap,
+                                priority,
+                            });
+                        }
+                        FacultyPreferenceKind::TimePatternMatch { sections } => {
+                            criteria
+                                .add_criterion(SatCriterion::TimePatternMatch { sections: sections.clone(), priority });
+                        }
+                    }
+                }
             }
         }
 

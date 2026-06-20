@@ -12,10 +12,13 @@ use std::ops;
 //
 
 pub type ScoreLevel = i16;
-pub const PRIORITY_LEVELS: usize = 26;
+pub const MAX_PRIORITY: u8 = 25;
+pub const PRIORITY_LEVELS: usize = MAX_PRIORITY as usize + 1;
 pub const LEVEL_FOR_UNPLACED_SECTION: u8 = 0;
 pub const LEVEL_FOR_HARD_CONFLICT: u8 = 0;
 pub const START_LEVEL_FOR_PREFERENCES: u8 = 10;
+
+const _: () = assert!(START_LEVEL_FOR_PREFERENCES <= MAX_PRIORITY);
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Score {
@@ -58,6 +61,31 @@ pub enum Criterion {
         priority: u8,
         sections: Vec<usize>,
     },
+    OwnedFacultyPreference(FacultyPreference),
+}
+
+#[derive(Clone)]
+pub struct FacultyPreference {
+    pub faculty: usize,
+    pub sections: Vec<usize>,
+    pub stated_priority: u8,
+    pub priority: u8,
+    pub kind: FacultyPreferenceKind,
+}
+
+#[derive(Clone)]
+pub enum FacultyPreferenceKind {
+    AvoidRooms { section: usize, rooms: Vec<usize> },
+    AvoidTimeSlots { section: usize, time_slots: Vec<usize> },
+    DaysOff { days_to_check: Days, desired: usize },
+    EvenlySpread { days_to_check: Days },
+    NoRoomSwitch { days_to_check: Days, max_gap: Duration },
+    TooManyRooms { desired_max_rooms: usize },
+    GapTooLong { days_to_check: Days, duration: Duration, max_gap: Duration },
+    GapTooShort { days_to_check: Days, duration: Duration, max_gap: Duration },
+    ClusterTooLong { days_to_check: Days, duration: Duration, max_gap: Duration },
+    ClusterTooShort { days_to_check: Days, duration: Duration, max_gap: Duration },
+    TimePatternMatch { sections: Vec<usize> },
 }
 
 #[derive(Clone)]
@@ -71,19 +99,75 @@ pub enum DistributionInterval {
 // a single change to the score due to a section's placement
 #[derive(Clone)]
 pub enum Penalty {
-    SoftConflict { priority: u8, sections: [usize; 2] },
-    AntiConflict { priority: u8, single: usize, group: Vec<usize> },
-    RoomPreference { priority: u8, section: usize, room: usize },
-    TimeSlotPreference { priority: u8, section: usize, time_slot: usize },
-    ClusterTooShort { priority: u8, faculty: usize, duration: Duration },
-    ClusterTooLong { priority: u8, faculty: usize, duration: Duration },
-    GapTooShort { priority: u8, faculty: usize, duration: Duration },
-    GapTooLong { priority: u8, faculty: usize, duration: Duration },
-    DaysOff { priority: u8, faculty: usize, desired: usize, actual: usize },
-    DaysEvenlySpread { priority: u8, faculty: usize },
-    RoomSwitch { priority: u8, faculty: usize, sections: [usize; 2], rooms: [usize; 2] },
-    RoomCount { priority: u8, faculty: usize, desired: usize, actual: usize },
-    SectionsWithDifferentTimePatterns { priority: u8, sections: Vec<usize>, time_slots: Vec<usize> },
+    SoftConflict {
+        priority: u8,
+        sections: [usize; 2],
+    },
+    AntiConflict {
+        priority: u8,
+        single: usize,
+        group: Vec<usize>,
+    },
+    RoomPreference {
+        priority: u8,
+        faculty: Option<usize>,
+        section: usize,
+        room: usize,
+    },
+    TimeSlotPreference {
+        priority: u8,
+        faculty: Option<usize>,
+        section: usize,
+        time_slot: usize,
+    },
+    ClusterTooShort {
+        priority: u8,
+        faculty: usize,
+        duration: Duration,
+    },
+    ClusterTooLong {
+        priority: u8,
+        faculty: usize,
+        duration: Duration,
+    },
+    GapTooShort {
+        priority: u8,
+        faculty: usize,
+        duration: Duration,
+    },
+    GapTooLong {
+        priority: u8,
+        faculty: usize,
+        duration: Duration,
+    },
+    DaysOff {
+        priority: u8,
+        faculty: usize,
+        desired: usize,
+        actual: usize,
+    },
+    DaysEvenlySpread {
+        priority: u8,
+        faculty: usize,
+    },
+    RoomSwitch {
+        priority: u8,
+        faculty: usize,
+        sections: [usize; 2],
+        rooms: [usize; 2],
+    },
+    RoomCount {
+        priority: u8,
+        faculty: usize,
+        desired: usize,
+        actual: usize,
+    },
+    SectionsWithDifferentTimePatterns {
+        priority: u8,
+        faculty: Option<usize>,
+        sections: Vec<usize>,
+        time_slots: Vec<usize>,
+    },
 }
 
 impl Score {
@@ -250,6 +334,8 @@ impl Criterion {
             Criterion::FacultyPreference { sections, .. } => sections.clone(),
 
             Criterion::SectionsWithDifferentTimePatterns { sections, .. } => sections.clone(),
+
+            Criterion::OwnedFacultyPreference(preference) => preference.sections.clone(),
         }
     }
 
@@ -307,7 +393,7 @@ impl Criterion {
                     for &RoomWithPriority { room, priority } in rooms_with_priorities {
                         if room == my_room {
                             // record the priority and stop looking
-                            return vec![Penalty::RoomPreference { priority, section: *section, room }];
+                            return vec![Penalty::RoomPreference { priority, faculty: None, section: *section, room }];
                         }
                     }
                 }
@@ -320,7 +406,12 @@ impl Criterion {
                     for &TimeSlotWithPriority { time_slot, priority } in time_slots_with_priorities {
                         if time_slot == my_time_slot {
                             // record the priority and stop looking
-                            return vec![Penalty::TimeSlotPreference { priority, section: *section, time_slot }];
+                            return vec![Penalty::TimeSlotPreference {
+                                priority,
+                                faculty: None,
+                                section: *section,
+                                time_slot,
+                            }];
                         }
                     }
                 }
@@ -452,7 +543,7 @@ impl Criterion {
                         sections.iter().filter_map(|&section| schedule.placements[section].room).collect();
                     rooms.sort_unstable();
                     rooms.dedup();
-                    if rooms.len() != desired {
+                    if rooms.len() > desired {
                         penalties.push(Penalty::RoomCount {
                             priority,
                             faculty: *faculty,
@@ -565,6 +656,7 @@ impl Criterion {
                 if patterns.len() > 1 {
                     vec![Penalty::SectionsWithDifferentTimePatterns {
                         priority: *priority,
+                        faculty: None,
                         sections: scheduled_sections,
                         time_slots,
                     }]
@@ -572,6 +664,8 @@ impl Criterion {
                     Vec::new()
                 }
             }
+
+            Criterion::OwnedFacultyPreference(preference) => preference.check(input, schedule),
         }
     }
 
@@ -699,12 +793,204 @@ impl Criterion {
                 }
                 write!(&mut s, " to have the same time pattern").unwrap();
             }
+
+            Criterion::OwnedFacultyPreference(preference) => {
+                s.push_str(&preference.debug(input));
+            }
         }
         s
     }
 }
 
+impl FacultyPreference {
+    pub fn description(&self, input: &Input) -> String {
+        let faculty = &input.faculty[self.faculty].name;
+        let description = match &self.kind {
+            FacultyPreferenceKind::AvoidRooms { section, rooms } => format!(
+                "avoid {} for {}",
+                rooms.iter().map(|&room| input.rooms[room].name.as_str()).collect::<Vec<_>>().join(", "),
+                input.sections[*section].name
+            ),
+            FacultyPreferenceKind::AvoidTimeSlots { section, time_slots } => format!(
+                "avoid {} for {}",
+                time_slots
+                    .iter()
+                    .map(|&time_slot| input.time_slots[time_slot].name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                input.sections[*section].name
+            ),
+            FacultyPreferenceKind::DaysOff { desired, .. } => {
+                format!("have exactly {desired} representative day{} off", if *desired == 1 { "" } else { "s" })
+            }
+            FacultyPreferenceKind::EvenlySpread { .. } => "spread classes evenly across days".to_string(),
+            FacultyPreferenceKind::NoRoomSwitch { .. } => "avoid room switches between consecutive classes".to_string(),
+            FacultyPreferenceKind::TooManyRooms { desired_max_rooms } => {
+                format!("use at most {desired_max_rooms} rooms")
+            }
+            FacultyPreferenceKind::GapTooLong { duration, .. } => format!("avoid gaps longer than {duration}"),
+            FacultyPreferenceKind::GapTooShort { duration, .. } => format!("avoid gaps shorter than {duration}"),
+            FacultyPreferenceKind::ClusterTooLong { duration, .. } => {
+                format!("avoid clusters longer than {duration}")
+            }
+            FacultyPreferenceKind::ClusterTooShort { duration, .. } => {
+                format!("avoid clusters shorter than {duration}")
+            }
+            FacultyPreferenceKind::TimePatternMatch { sections } => format!(
+                "use one time pattern for {}",
+                sections.iter().map(|&section| input.sections[section].name.as_str()).collect::<Vec<_>>().join(", ")
+            ),
+        };
+        format!("{faculty} wants to {description}")
+    }
+
+    fn debug(&self, input: &Input) -> String {
+        format!("{} (stated {}): {}", self.priority, self.stated_priority, self.description(input))
+    }
+
+    pub fn check(&self, input: &Input, schedule: &Schedule) -> Vec<Penalty> {
+        match &self.kind {
+            FacultyPreferenceKind::AvoidRooms { section, rooms } => {
+                let Some(room) = schedule.placements[*section].room else {
+                    return Vec::new();
+                };
+                if rooms.contains(&room) {
+                    vec![Penalty::RoomPreference {
+                        priority: self.priority,
+                        faculty: Some(self.faculty),
+                        section: *section,
+                        room,
+                    }]
+                } else {
+                    Vec::new()
+                }
+            }
+            FacultyPreferenceKind::AvoidTimeSlots { section, time_slots } => {
+                let Some(time_slot) = schedule.placements[*section].time_slot else {
+                    return Vec::new();
+                };
+                if time_slots.contains(&time_slot) {
+                    vec![Penalty::TimeSlotPreference {
+                        priority: self.priority,
+                        faculty: Some(self.faculty),
+                        section: *section,
+                        time_slot,
+                    }]
+                } else {
+                    Vec::new()
+                }
+            }
+            FacultyPreferenceKind::TimePatternMatch { sections } => {
+                let criterion = Criterion::SectionsWithDifferentTimePatterns {
+                    priority: self.priority,
+                    sections: sections.clone(),
+                };
+                criterion
+                    .check(input, schedule)
+                    .into_iter()
+                    .map(|penalty| match penalty {
+                        Penalty::SectionsWithDifferentTimePatterns { priority, sections, time_slots, .. } => {
+                            Penalty::SectionsWithDifferentTimePatterns {
+                                priority,
+                                faculty: Some(self.faculty),
+                                sections,
+                                time_slots,
+                            }
+                        }
+                        _ => unreachable!("time-pattern criterion returned an unrelated penalty"),
+                    })
+                    .collect()
+            }
+            kind => {
+                let mut days_off = None;
+                let mut evenly_spread = None;
+                let mut no_room_switch = None;
+                let mut too_many_rooms = None;
+                let mut days_to_check = Days { days: 0 };
+                let mut max_gap_within_cluster = Duration::new(0);
+                let mut distribution_intervals = Vec::new();
+
+                match *kind {
+                    FacultyPreferenceKind::DaysOff { days_to_check: days, desired } => {
+                        days_to_check = days;
+                        days_off = Some((self.priority, desired));
+                    }
+                    FacultyPreferenceKind::EvenlySpread { days_to_check: days } => {
+                        days_to_check = days;
+                        evenly_spread = Some(self.priority);
+                    }
+                    FacultyPreferenceKind::NoRoomSwitch { days_to_check: days, max_gap } => {
+                        days_to_check = days;
+                        max_gap_within_cluster = max_gap;
+                        no_room_switch = Some(self.priority);
+                    }
+                    FacultyPreferenceKind::TooManyRooms { desired_max_rooms } => {
+                        too_many_rooms = Some((self.priority, desired_max_rooms));
+                    }
+                    FacultyPreferenceKind::GapTooLong { days_to_check: days, duration, max_gap } => {
+                        days_to_check = days;
+                        max_gap_within_cluster = max_gap;
+                        distribution_intervals
+                            .push(DistributionInterval::GapTooLong { priority: self.priority, duration });
+                    }
+                    FacultyPreferenceKind::GapTooShort { days_to_check: days, duration, max_gap } => {
+                        days_to_check = days;
+                        max_gap_within_cluster = max_gap;
+                        distribution_intervals
+                            .push(DistributionInterval::GapTooShort { priority: self.priority, duration });
+                    }
+                    FacultyPreferenceKind::ClusterTooLong { days_to_check: days, duration, max_gap } => {
+                        days_to_check = days;
+                        max_gap_within_cluster = max_gap;
+                        distribution_intervals
+                            .push(DistributionInterval::ClusterTooLong { priority: self.priority, duration });
+                    }
+                    FacultyPreferenceKind::ClusterTooShort { days_to_check: days, duration, max_gap } => {
+                        days_to_check = days;
+                        max_gap_within_cluster = max_gap;
+                        distribution_intervals
+                            .push(DistributionInterval::ClusterTooShort { priority: self.priority, duration });
+                    }
+                    FacultyPreferenceKind::AvoidRooms { .. }
+                    | FacultyPreferenceKind::AvoidTimeSlots { .. }
+                    | FacultyPreferenceKind::TimePatternMatch { .. } => unreachable!(),
+                }
+
+                Criterion::FacultyPreference {
+                    faculty: self.faculty,
+                    sections: self.sections.clone(),
+                    days_to_check,
+                    days_off,
+                    evenly_spread,
+                    no_room_switch,
+                    too_many_rooms,
+                    max_gap_within_cluster,
+                    distribution_intervals,
+                }
+                .check(input, schedule)
+            }
+        }
+    }
+}
+
 impl Penalty {
+    pub fn faculty(&self) -> Option<usize> {
+        match *self {
+            Penalty::RoomPreference { faculty, .. }
+            | Penalty::TimeSlotPreference { faculty, .. }
+            | Penalty::SectionsWithDifferentTimePatterns { faculty, .. } => faculty,
+            Penalty::ClusterTooShort { faculty, .. }
+            | Penalty::ClusterTooLong { faculty, .. }
+            | Penalty::GapTooShort { faculty, .. }
+            | Penalty::GapTooLong { faculty, .. }
+            | Penalty::DaysOff { faculty, .. }
+            | Penalty::DaysEvenlySpread { faculty, .. }
+            | Penalty::RoomSwitch { faculty, .. }
+            | Penalty::RoomCount { faculty, .. } => Some(faculty),
+            Penalty::SoftConflict { .. } | Penalty::AntiConflict { .. } => None,
+        }
+    }
+
     pub fn get_priority(&self) -> u8 {
         match *self {
             Penalty::SoftConflict { priority, .. } => priority,
@@ -807,7 +1093,18 @@ impl Penalty {
                 (*priority, format!("{} should be at the same time as {}", input.sections[*single].name, group_names))
             }
 
-            &Penalty::RoomPreference { priority, section, room } => match input.sections[section].faculty.len() {
+            &Penalty::RoomPreference { priority, faculty: Some(faculty), section, room } => (
+                priority,
+                format!(
+                    "{} is assigned to teach {} in {}",
+                    input.faculty[faculty].name, input.sections[section].name, input.rooms[room].name
+                ),
+            ),
+
+            &Penalty::RoomPreference { priority, faculty: None, section, room } => match input.sections[section]
+                .faculty
+                .len()
+            {
                 0 => (priority, format!("{} is assigned to {}", input.sections[section].name, input.rooms[room].name)),
                 1 => (
                     priority,
@@ -835,7 +1132,15 @@ impl Penalty {
                 }
             },
 
-            &Penalty::TimeSlotPreference { priority, section, time_slot } => {
+            &Penalty::TimeSlotPreference { priority, faculty: Some(faculty), section, time_slot } => (
+                priority,
+                format!(
+                    "{} is scheduled to teach {} at {}",
+                    input.faculty[faculty].name, input.sections[section].name, input.time_slots[time_slot].name
+                ),
+            ),
+
+            &Penalty::TimeSlotPreference { priority, faculty: None, section, time_slot } => {
                 match input.sections[section].faculty.len() {
                     0 => (
                         priority,
@@ -930,43 +1235,51 @@ impl Penalty {
                 ),
             ),
 
-            Penalty::SectionsWithDifferentTimePatterns { priority, sections, time_slots } => (*priority, {
-                let mut faculty = Vec::new();
-                for &section in sections {
-                    faculty.extend_from_slice(&input.sections[section].faculty);
-                }
-                faculty.sort();
-                faculty.dedup();
-
-                let first_section = &input.sections[sections[0]].name;
-                let first_time_slot = &input.time_slots[time_slots[0]].name;
-                let sections = &sections[1..];
-                let time_slots = &time_slots[1..];
-
-                let mut s = match faculty.len() {
-                    0 => format!("{} is scheduled at {}", first_section, first_time_slot),
-                    1 => format!(
-                        "{} is scheduled to teach {} at {}",
-                        input.faculty[faculty[0]].name, first_section, first_time_slot
-                    ),
-                    _ => {
-                        let mut names = String::new();
-                        let mut sep = "";
-                        for &i in &faculty {
-                            write!(&mut names, "{}{}", sep, input.faculty[i].name).unwrap();
-                            sep = " and ";
+            Penalty::SectionsWithDifferentTimePatterns { priority, faculty: owner, sections, time_slots } => {
+                (*priority, {
+                    let mut faculty = owner.map_or_else(Vec::new, |faculty| vec![faculty]);
+                    if faculty.is_empty() {
+                        for &section in sections {
+                            faculty.extend_from_slice(&input.sections[section].faculty);
                         }
-                        format!("{} are scheduled to teach {} at {}", names, first_section, first_time_slot)
+                        faculty.sort();
+                        faculty.dedup();
                     }
-                };
 
-                for (section, time_slot) in std::iter::zip(sections, time_slots) {
-                    write!(&mut s, " and {} at {}", input.sections[*section].name, input.time_slots[*time_slot].name)
+                    let first_section = &input.sections[sections[0]].name;
+                    let first_time_slot = &input.time_slots[time_slots[0]].name;
+                    let sections = &sections[1..];
+                    let time_slots = &time_slots[1..];
+
+                    let mut s = match faculty.len() {
+                        0 => format!("{} is scheduled at {}", first_section, first_time_slot),
+                        1 => format!(
+                            "{} is scheduled to teach {} at {}",
+                            input.faculty[faculty[0]].name, first_section, first_time_slot
+                        ),
+                        _ => {
+                            let mut names = String::new();
+                            let mut sep = "";
+                            for &i in &faculty {
+                                write!(&mut names, "{}{}", sep, input.faculty[i].name).unwrap();
+                                sep = " and ";
+                            }
+                            format!("{} are scheduled to teach {} at {}", names, first_section, first_time_slot)
+                        }
+                    };
+
+                    for (section, time_slot) in std::iter::zip(sections, time_slots) {
+                        write!(
+                            &mut s,
+                            " and {} at {}",
+                            input.sections[*section].name, input.time_slots[*time_slot].name
+                        )
                         .unwrap();
-                }
-                write!(&mut s, " but they have different time patterns").unwrap();
-                s
-            }),
+                    }
+                    write!(&mut s, " but they have different time patterns").unwrap();
+                    s
+                })
+            }
         }
     }
 }

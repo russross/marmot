@@ -340,8 +340,7 @@ fn encode_constraints(
     }
 
     // Collect hallpass variables to avoid borrow conflicts
-    let hallpass_vars: Vec<i32> =
-        encoding.hallpasses.get(&priority).into_iter().flatten().copied().collect();
+    let hallpass_vars: Vec<i32> = encoding.hallpasses.get(&priority).into_iter().flatten().copied().collect();
 
     // Apply cardinality constraint if needed
     if max_violations == 0 {
