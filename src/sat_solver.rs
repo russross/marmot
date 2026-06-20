@@ -331,9 +331,6 @@ fn encode_constraints(
     priority: u8,
     max_violations: i16,
 ) -> Result<()> {
-    // Collect all hallpass variables for this priority level
-    encoding.hallpass.clear();
-
     // Get all constraints at this priority level
     let constraints = sat_criteria.criteria_at_priority(priority);
 
@@ -343,7 +340,8 @@ fn encode_constraints(
     }
 
     // Collect hallpass variables to avoid borrow conflicts
-    let hallpass_vars: Vec<i32> = encoding.hallpass.iter().copied().collect();
+    let hallpass_vars: Vec<i32> =
+        encoding.hallpasses.get(&priority).into_iter().flatten().copied().collect();
 
     // Apply cardinality constraint if needed
     if max_violations == 0 {
@@ -359,9 +357,6 @@ fn encode_constraints(
             encoding.totalizer_at_most_k(&hallpass_vars, max_violations as usize, None);
         }
     }
-
-    // Clear hallpass variables for this priority level
-    encoding.hallpass.clear();
 
     Ok(())
 }

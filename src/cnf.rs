@@ -16,9 +16,8 @@ pub struct Encoding {
     // maps variable IDs to problem descriptions with priority levels
     pub problems: HashMap<i32, (u8, String)>,
 
-    // gathered set of "hallpass" variables that are allowed to violate certain constraints
-    // this is reset as each priority level is encoded
-    pub hallpass: HashSet<i32>,
+    // hallpass variables that are allowed to violate constraints, grouped by priority
+    pub hallpasses: HashMap<u8, HashSet<i32>>,
 }
 
 impl Encoding {
@@ -29,13 +28,20 @@ impl Encoding {
             section_room_vars: HashMap::new(),
             section_time_vars: HashMap::new(),
             problems: HashMap::new(),
-            hallpass: HashSet::new(),
+            hallpasses: HashMap::new(),
         }
     }
 
     pub fn new_var(&mut self) -> i32 {
         self.last_var += 1;
         self.last_var
+    }
+
+    pub fn new_hallpass(&mut self, priority: u8, problem: String) -> i32 {
+        let hallpass = self.new_var();
+        self.hallpasses.entry(priority).or_default().insert(hallpass);
+        self.problems.insert(hallpass, (priority, problem));
+        hallpass
     }
 
     pub fn add_clause(&mut self, clause: Vec<i32>) {

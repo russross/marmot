@@ -124,12 +124,9 @@ fn encode_conflict(input: &Input, encoding: &mut Encoding, priority: u8, section
         return err(format!("Section {} cannot conflict with itself", input.sections[section_a].name));
     }
 
-    // Create a hallpass variable for this constraint
-    let hallpass = encoding.new_var();
-    encoding.hallpass.insert(hallpass);
     let section_a_name = &input.sections[section_a].name;
     let section_b_name = &input.sections[section_b].name;
-    encoding.problems.insert(hallpass, (priority, format!("{} and {} conflict", section_a_name, section_b_name)));
+    let hallpass = encoding.new_hallpass(priority, format!("{} and {} conflict", section_a_name, section_b_name));
 
     // Check each pair of potentially conflicting time slots
     for &TimeSlotWithOptionalPriority { time_slot: time_a, .. } in &input.sections[section_a].time_slots {
@@ -173,10 +170,6 @@ fn encode_anti_conflict(
     single: usize,
     group: &[usize],
 ) -> Result<()> {
-    // Create a hallpass variable for this constraint
-    let hallpass = encoding.new_var();
-    encoding.hallpass.insert(hallpass);
-
     // Format the group sections for the problem message
     let mut group_names = String::new();
     let mut sep = "";
@@ -191,9 +184,8 @@ fn encode_anti_conflict(
 
     // Add the problem to the encoding
     let single_name = &input.sections[single].name;
-    encoding
-        .problems
-        .insert(hallpass, (priority, format!("{} should be at the same time as {}", single_name, group_names)));
+    let hallpass =
+        encoding.new_hallpass(priority, format!("{} should be at the same time as {}", single_name, group_names));
 
     // Verify sections exist
     if single >= input.sections.len() {
@@ -281,14 +273,10 @@ fn encode_time_slot_preference(
     section: usize,
     time_slot: usize,
 ) -> Result<()> {
-    // Create a hallpass variable for this constraint
-    let hallpass = encoding.new_var();
-    encoding.hallpass.insert(hallpass);
-
     // Add the problem to the encoding
     let section_name = &input.sections[section].name;
     let time_slot_name = &input.time_slots[time_slot].name;
-    encoding.problems.insert(hallpass, (priority, format!("{} should not be at {}", section_name, time_slot_name)));
+    let hallpass = encoding.new_hallpass(priority, format!("{} should not be at {}", section_name, time_slot_name));
 
     // Verify section and time slot exist
     if section >= input.sections.len() {
@@ -333,14 +321,10 @@ fn encode_room_preference(
     section: usize,
     room: usize,
 ) -> Result<()> {
-    // Create a hallpass variable for this constraint
-    let hallpass = encoding.new_var();
-    encoding.hallpass.insert(hallpass);
-
     // Add the problem to the encoding
     let section_name = &input.sections[section].name;
     let room_name = &input.rooms[room].name;
-    encoding.problems.insert(hallpass, (priority, format!("{} should not be in {}", section_name, room_name)));
+    let hallpass = encoding.new_hallpass(priority, format!("{} should not be in {}", section_name, room_name));
 
     // Verify section and room exist
     if section >= input.sections.len() {
@@ -461,10 +445,6 @@ fn encode_time_pattern_match(input: &Input, encoding: &mut Encoding, priority: u
         return Ok(());
     }
 
-    // Create the hallpass variable
-    let hallpass = encoding.new_var();
-    encoding.hallpass.insert(hallpass);
-
     // Format section names for the problem message
     let mut section_names = String::new();
     let mut sep = "";
@@ -477,7 +457,7 @@ fn encode_time_pattern_match(input: &Input, encoding: &mut Encoding, priority: u
         sep = " and ";
     }
 
-    encoding.problems.insert(hallpass, (priority, format!("{} should have the same time pattern", section_names)));
+    let hallpass = encoding.new_hallpass(priority, format!("{} should have the same time pattern", section_names));
 
     // Create pattern variables (no hallpass involvement at this stage)
     let pattern_to_var = make_section_pattern_vars(input, encoding, sections)?;
@@ -527,16 +507,11 @@ fn encode_faculty_days_off(
     days_to_check: Days,
     desired_days_off: usize,
 ) -> Result<()> {
-    // Create a hallpass variable for this constraint
-    let hallpass = encoding.new_var();
-    encoding.hallpass.insert(hallpass);
-
     // Add the problem to the encoding
     let faculty_name = &input.faculty[faculty].name;
     let days_suffix = if desired_days_off == 1 { "" } else { "s" };
-    encoding
-        .problems
-        .insert(hallpass, (priority, format!("{} wants {} day{} off", faculty_name, desired_days_off, days_suffix)));
+    let hallpass =
+        encoding.new_hallpass(priority, format!("{} wants {} day{} off", faculty_name, desired_days_off, days_suffix));
 
     // Validate inputs
     if faculty >= input.faculty.len() {
@@ -1028,11 +1003,8 @@ pub fn encode_faculty_cluster_helper(
             return var;
         }
 
-        let hallpass = encoding.new_var();
-        encoding.hallpass.insert(hallpass);
-
         let description = description_generator(n, day);
-        encoding.problems.insert(hallpass, (priority, format!("{} {}", faculty_name, description)));
+        let hallpass = encoding.new_hallpass(priority, format!("{} {}", faculty_name, description));
 
         hallpass_vars.insert((day, n), hallpass);
         hallpass
@@ -1757,15 +1729,9 @@ pub fn encode_faculty_evenly_spread(
     faculty: usize,
     days_to_check: Days,
 ) -> Result<()> {
-    // Create a hallpass variable for this constraint
-    let hallpass = encoding.new_var();
-    encoding.hallpass.insert(hallpass);
-
     // Add the problem to the encoding
     let faculty_name = &input.faculty[faculty].name;
-    encoding
-        .problems
-        .insert(hallpass, (priority, format!("{} wants sections evenly spread across days", faculty_name)));
+    let hallpass = encoding.new_hallpass(priority, format!("{} wants sections evenly spread across days", faculty_name));
 
     // Validate inputs
     if faculty >= input.faculty.len() {
@@ -2124,15 +2090,10 @@ pub fn encode_faculty_no_room_switch(
         ));
     }
 
-    // Create a hallpass variable for this constraint
-    let hallpass = encoding.new_var();
-    encoding.hallpass.insert(hallpass);
-
     // Add the problem to the encoding
     let faculty_name = &input.faculty[faculty].name;
-    encoding
-        .problems
-        .insert(hallpass, (priority, format!("{} should not switch rooms between back-to-back classes", faculty_name)));
+    let hallpass =
+        encoding.new_hallpass(priority, format!("{} should not switch rooms between back-to-back classes", faculty_name));
 
     // Create faculty_room_time variables
     let faculty_room_time_vars = make_faculty_room_time_vars(input, encoding, faculty, days_to_check)?;
@@ -2230,16 +2191,12 @@ fn encode_faculty_too_many_rooms(
     faculty: usize,
     desired_max_rooms: usize,
 ) -> Result<()> {
-    // Create a hallpass variable for this constraint
-    let hallpass = encoding.new_var();
-    encoding.hallpass.insert(hallpass);
-
     // Add the problem to the encoding
     let faculty_name = &input.faculty[faculty].name;
     let rooms_suffix = if desired_max_rooms == 1 { "" } else { "s" };
-    encoding.problems.insert(
-        hallpass,
-        (priority, format!("{} should use at most {} room{}", faculty_name, desired_max_rooms, rooms_suffix)),
+    let hallpass = encoding.new_hallpass(
+        priority,
+        format!("{} should use at most {} room{}", faculty_name, desired_max_rooms, rooms_suffix),
     );
 
     // Validate inputs
