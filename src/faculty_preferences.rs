@@ -33,12 +33,25 @@ struct TierImpact {
     faculty: usize,
     stated_priority: u8,
     criteria: Vec<usize>,
+    effective_preferences: usize,
     total: u64,
     remaining: u64,
 }
 
 struct ImpactBucket {
     impacts: Vec<TierImpact>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct DistributionScore {
+    squared_deviation: u128,
+    maximum_deviation: u128,
+}
+
+#[derive(Clone, Copy)]
+struct DistributionState {
+    score: DistributionScore,
+    previous_end: usize,
 }
 
 #[derive(Default)]
@@ -73,17 +86,23 @@ pub fn rebalance_faculty_preferences(input: &mut Input, show_details: bool) -> R
             ));
         }
         for (tier_index, tier) in tiers.iter().enumerate() {
+            let effective_preferences = tier
+                .criteria
+                .iter()
+                .map(|&criterion_index| effective_preference_count(&input.criteria[criterion_index]))
+                .sum();
             impacts.push(TierImpact {
                 faculty: tier.faculty,
                 stated_priority: tier.stated_priority,
                 criteria: tier.criteria.clone(),
+                effective_preferences,
                 total,
                 remaining: counts[tier_index + 1],
             });
         }
     }
 
-    let buckets = bucket_preference_tiers(impacts);
+    let buckets = distribute_preference_tiers(impacts, EFFECTIVE_PRIORITY_BUCKETS);
     for (bucket_index, bucket) in buckets.iter().enumerate() {
         let priority = START_LEVEL_FOR_PREFERENCES + bucket_index as u8;
         for impact in &bucket.impacts {
@@ -101,7 +120,8 @@ pub fn rebalance_faculty_preferences(input: &mut Input, show_details: bool) -> R
     }
 
     println!(
-        "balanced {} faculty preference tiers into {} priorities in {}ms",
+        "balanced {} effective faculty preferences from {} stated preferences into {} effective priorities in {}ms",
+        buckets.iter().flat_map(|bucket| &bucket.impacts).map(|impact| impact.effective_preferences).sum::<usize>(),
         buckets.iter().map(|bucket| bucket.impacts.len()).sum::<usize>(),
         buckets.len(),
         started.elapsed().as_millis()
@@ -384,34 +404,89 @@ fn count_with_distinct_room_limit(
     Ok(count)
 }
 
-fn bucket_preference_tiers(mut impacts: Vec<TierImpact>) -> Vec<ImpactBucket> {
+fn effective_preference_count(criterion: &Criterion) -> usize {
+    let Criterion::OwnedFacultyPreference(preference) = criterion else {
+        unreachable!("faculty preference tier contains a non-faculty criterion");
+    };
+    match &preference.kind {
+        FacultyPreferenceKind::AvoidRooms { rooms, .. } => rooms.len(),
+        FacultyPreferenceKind::AvoidTimeSlots { time_slots, .. } => time_slots.len(),
+        FacultyPreferenceKind::DaysOff { .. }
+        | FacultyPreferenceKind::EvenlySpread { .. }
+        | FacultyPreferenceKind::NoRoomSwitch { .. }
+        | FacultyPreferenceKind::TooManyRooms { .. }
+        | FacultyPreferenceKind::GapTooLong { .. }
+        | FacultyPreferenceKind::GapTooShort { .. }
+        | FacultyPreferenceKind::ClusterTooLong { .. }
+        | FacultyPreferenceKind::ClusterTooShort { .. }
+        | FacultyPreferenceKind::TimePatternMatch { .. } => 1,
+    }
+}
+
+fn distribute_preference_tiers(mut impacts: Vec<TierImpact>, available_levels: usize) -> Vec<ImpactBucket> {
+    assert!(available_levels > 0, "faculty preferences require at least one effective priority level");
     impacts.sort_by(|a, b| {
         compare_impact(a, b)
             .then_with(|| a.faculty.cmp(&b.faculty))
             .then_with(|| a.stated_priority.cmp(&b.stated_priority))
     });
-    let mut buckets: Vec<ImpactBucket> = Vec::new();
-    for impact in impacts {
-        if buckets.last().is_some_and(|bucket| same_impact(&bucket.impacts[0], &impact)) {
-            buckets.last_mut().unwrap().impacts.push(impact);
-        } else {
-            buckets.push(ImpactBucket { impacts: vec![impact] });
+    if impacts.is_empty() {
+        return Vec::new();
+    }
+
+    let level_count = impacts.len().min(available_levels);
+    let mut prefix_weights = Vec::with_capacity(impacts.len() + 1);
+    prefix_weights.push(0_u64);
+    for impact in &impacts {
+        let next = prefix_weights.last().unwrap() + impact.effective_preferences as u64;
+        prefix_weights.push(next);
+    }
+    let total_weight = *prefix_weights.last().unwrap();
+
+    let mut states = vec![vec![None; impacts.len() + 1]; level_count + 1];
+    states[0][0] = Some(DistributionState {
+        score: DistributionScore { squared_deviation: 0, maximum_deviation: 0 },
+        previous_end: 0,
+    });
+
+    for level in 1..=level_count {
+        for end in level..=impacts.len() {
+            for previous_end in level - 1..end {
+                let Some(previous) = states[level - 1][previous_end] else {
+                    continue;
+                };
+                let weight = prefix_weights[end] - prefix_weights[previous_end];
+                let scaled_weight = level_count as u128 * weight as u128;
+                let deviation = scaled_weight.abs_diff(total_weight as u128);
+                let score = DistributionScore {
+                    squared_deviation: previous.score.squared_deviation + deviation * deviation,
+                    maximum_deviation: previous.score.maximum_deviation.max(deviation),
+                };
+                let candidate = DistributionState { score, previous_end };
+                if states[level][end].is_none_or(|current| {
+                    (candidate.score, candidate.previous_end) < (current.score, current.previous_end)
+                }) {
+                    states[level][end] = Some(candidate);
+                }
+            }
         }
     }
 
-    while buckets.len() > EFFECTIVE_PRIORITY_BUCKETS {
-        let mut merge_index = 0;
-        let mut smallest_spread = bucket_merge_spread(&buckets, 0);
-        for candidate in 1..buckets.len() - 1 {
-            let spread = bucket_merge_spread(&buckets, candidate);
-            if spread < smallest_spread {
-                merge_index = candidate;
-                smallest_spread = spread;
-            }
-        }
-        let right = buckets.remove(merge_index + 1);
-        buckets[merge_index].impacts.extend(right.impacts);
+    let mut boundaries = vec![impacts.len()];
+    let mut end = impacts.len();
+    for level in (1..=level_count).rev() {
+        let state = states[level][end].expect("preference distribution has no complete partition");
+        end = state.previous_end;
+        boundaries.push(end);
     }
+    boundaries.reverse();
+
+    let mut remaining = impacts.into_iter();
+    let buckets = boundaries
+        .windows(2)
+        .map(|boundary| ImpactBucket { impacts: remaining.by_ref().take(boundary[1] - boundary[0]).collect() })
+        .collect();
+    debug_assert!(remaining.next().is_none());
     buckets
 }
 
@@ -424,18 +499,8 @@ fn compare_impact(a: &TierImpact, b: &TierImpact) -> Ordering {
     }
 }
 
-fn same_impact(a: &TierImpact, b: &TierImpact) -> bool {
-    compare_impact(a, b) == Ordering::Equal
-}
-
 fn entropy(impact: &TierImpact) -> f64 {
     if impact.remaining == 0 { f64::INFINITY } else { (impact.total as f64).log2() - (impact.remaining as f64).log2() }
-}
-
-fn bucket_merge_spread(buckets: &[ImpactBucket], left: usize) -> f64 {
-    let lowest = entropy(&buckets[left].impacts[0]);
-    let highest = entropy(buckets[left + 1].impacts.last().unwrap());
-    highest - lowest
 }
 
 #[cfg(test)]
@@ -472,6 +537,21 @@ mod tests {
             priority,
             kind,
         })
+    }
+
+    fn impact(faculty: usize, effective_preferences: usize, remaining: u64) -> TierImpact {
+        TierImpact {
+            faculty,
+            stated_priority: 10,
+            criteria: (0..effective_preferences).collect(),
+            effective_preferences,
+            total: 100,
+            remaining,
+        }
+    }
+
+    fn bucket_weights(buckets: &[ImpactBucket]) -> Vec<usize> {
+        buckets.iter().map(|bucket| bucket.impacts.iter().map(|impact| impact.effective_preferences).sum()).collect()
     }
 
     #[test]
@@ -565,14 +645,48 @@ mod tests {
                 faculty: index,
                 stated_priority: 10,
                 criteria: vec![index],
+                effective_preferences: 1,
                 total: 100,
                 remaining: if index + 1 == impact_count { 0 } else { 100 - index as u64 * 3 },
             })
             .collect();
 
-        let buckets = bucket_preference_tiers(impacts);
+        let buckets = distribute_preference_tiers(impacts, EFFECTIVE_PRIORITY_BUCKETS);
 
         assert_eq!(buckets.len(), EFFECTIVE_PRIORITY_BUCKETS);
         assert_eq!(buckets.last().unwrap().impacts.last().unwrap().remaining, 0);
+    }
+
+    #[test]
+    fn dynamic_programming_minimizes_effective_preference_variance() {
+        let impacts = [8, 7, 6, 5, 4]
+            .into_iter()
+            .enumerate()
+            .map(|(index, weight)| impact(index, weight, 95 - index as u64 * 5))
+            .collect();
+
+        let buckets = distribute_preference_tiers(impacts, 3);
+
+        assert_eq!(bucket_weights(&buckets), vec![8, 13, 9]);
+        assert_eq!(buckets[1].impacts.len(), 2);
+    }
+
+    #[test]
+    fn sparse_effective_preferences_get_distinct_high_priority_levels() {
+        let impacts = vec![impact(0, 1, 90), impact(1, 1, 80), impact(2, 1, 70)];
+
+        let buckets = distribute_preference_tiers(impacts, EFFECTIVE_PRIORITY_BUCKETS);
+        let assigned: Vec<(usize, u8)> = buckets
+            .iter()
+            .enumerate()
+            .flat_map(|(bucket_index, bucket)| {
+                bucket
+                    .impacts
+                    .iter()
+                    .map(move |impact| (impact.faculty, START_LEVEL_FOR_PREFERENCES + bucket_index as u8))
+            })
+            .collect();
+
+        assert_eq!(assigned, vec![(0, 10), (1, 11), (2, 12)]);
     }
 }
