@@ -147,7 +147,7 @@ CREATE TABLE faculty_time_slot_preferences (
     time_slot                   TEXT NOT NULL,
     time_slot_priority          INTEGER NOT NULL,
 
-    CHECK (time_slot_priority >= 10 AND time_slot_priority < 26),
+    CHECK (time_slot_priority >= 10 AND time_slot_priority < 100),
 
     PRIMARY KEY (faculty, time_slot),
     FOREIGN KEY (faculty) REFERENCES faculty (faculty) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -171,13 +171,13 @@ CREATE TABLE faculty_preferences (
         REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE('$'||days_to_check,
             '$M','$'), '$T','$'), '$W','$'), '$R','$'), '$F','$'), '$S','$'), '$U','$') = '$'),
     CHECK (days_off IS NULL OR days_off >= 0 AND days_off < 7),
-    CHECK (days_off_priority IS NULL OR days_off_priority >= 10 AND days_off_priority < 26),
+    CHECK (days_off_priority IS NULL OR days_off_priority >= 10 AND days_off_priority < 100),
     CHECK (days_off_priority IS NULL AND days_off IS NULL OR days_off_priority IS NOT NULL AND days_off IS NOT NULL),
     CHECK (days_off_priority IS NULL OR LENGTH(days_to_check) > 1),
-    CHECK (evenly_spread_priority IS NULL OR evenly_spread_priority >= 10 AND evenly_spread_priority < 26),
+    CHECK (evenly_spread_priority IS NULL OR evenly_spread_priority >= 10 AND evenly_spread_priority < 100),
     CHECK (evenly_spread_priority IS NULL OR LENGTH(days_to_check) > 1),
-    CHECK (no_room_switch_priority IS NULL OR no_room_switch_priority >= 10 AND no_room_switch_priority < 26),
-    CHECK (too_many_rooms_priority IS NULL OR too_many_rooms_priority >= 10 AND too_many_rooms_priority < 26),
+    CHECK (no_room_switch_priority IS NULL OR no_room_switch_priority >= 10 AND no_room_switch_priority < 100),
+    CHECK (too_many_rooms_priority IS NULL OR too_many_rooms_priority >= 10 AND too_many_rooms_priority < 100),
     CHECK (max_gap_within_cluster >= 0 AND max_gap_within_cluster < 120),
 
     FOREIGN KEY (faculty) REFERENCES faculty (faculty) ON DELETE CASCADE ON UPDATE CASCADE
@@ -196,7 +196,7 @@ CREATE TABLE faculty_preference_intervals (
     -- or    gap     longer  than 105 minutes with priority 11
 
     CHECK (interval_minutes > 0 AND interval_minutes < 24*60),
-    CHECK (interval_priority IS NULL OR interval_priority >= 10 AND interval_priority < 26),
+    CHECK (interval_priority IS NULL OR interval_priority >= 10 AND interval_priority < 100),
 
     PRIMARY KEY (faculty, is_cluster, is_too_short, interval_minutes),
     FOREIGN KEY (faculty) REFERENCES faculty_preferences (faculty)
@@ -316,7 +316,7 @@ CREATE TABLE faculty_section_room_preferences (
     room_tag                    TEXT NOT NULL,
     room_priority               INTEGER NOT NULL,
 
-    CHECK (room_priority >= 10 AND room_priority < 26),
+    CHECK (room_priority >= 10 AND room_priority < 100),
 
     PRIMARY KEY (faculty, section, room_tag),
     FOREIGN KEY (faculty, section) REFERENCES faculty_sections (faculty, section) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -329,7 +329,7 @@ CREATE TABLE faculty_section_time_slot_preferences (
     time_slot_tag               TEXT NOT NULL,
     time_slot_priority          INTEGER NOT NULL,
 
-    CHECK (time_slot_priority >= 10 AND time_slot_priority < 26),
+    CHECK (time_slot_priority >= 10 AND time_slot_priority < 100),
 
     PRIMARY KEY (faculty, section, time_slot_tag),
     FOREIGN KEY (faculty, section) REFERENCES faculty_sections (faculty, section) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -391,7 +391,7 @@ CREATE TABLE faculty_time_pattern_matches (
     time_pattern_match_name     TEXT NOT NULL,
     time_pattern_match_priority INTEGER NOT NULL,
 
-    CHECK (time_pattern_match_priority >= 10 AND time_pattern_match_priority < 26),
+    CHECK (time_pattern_match_priority >= 10 AND time_pattern_match_priority < 100),
 
     PRIMARY KEY (faculty, time_pattern_match_name),
     FOREIGN KEY (faculty) REFERENCES faculty (faculty) ON DELETE CASCADE ON UPDATE CASCADE
