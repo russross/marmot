@@ -1,0 +1,3802 @@
+{
+  "term": "Fall 2026",
+  "historical_terms": [
+    "Spring 2026",
+    "Fall 2025"
+  ],
+  "provenance": {
+    "database": "../fall2026/data/timetable.db",
+    "current_faculty_source": "../fall2026/data/computingfaculty.py",
+    "historical_faculty_sources": [
+      {
+        "term": "Spring 2026",
+        "faculty_source": "../spring2026/data/computingfaculty.py"
+      },
+      {
+        "term": "Fall 2025",
+        "faculty_source": "../fall2025/data/computing.py"
+      }
+    ],
+    "note": "The fall2026 source database reports Spring 2026 internally; the directory and requested test scenario define this snapshot as Fall 2026."
+  },
+  "faculty": [
+    {
+      "name": "Bart Stander",
+      "department": "Computing",
+      "availability": [
+        {
+          "days": "MTWR",
+          "start": "0900",
+          "end": "1630"
+        },
+        {
+          "days": "F",
+          "start": "0900",
+          "end": "1200"
+        }
+      ],
+      "sections": [
+        {
+          "name": "CS 2100-01",
+          "room_tags": [
+            "Smith 116"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 2420-01",
+          "room_tags": [
+            "Smith 116"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 2420-02",
+          "room_tags": [
+            "Smith 116"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 3500-01",
+          "room_tags": [
+            "pcs"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 4995-01",
+          "room_tags": [
+            "pcs"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        }
+      ],
+      "section_setup": [
+        {
+          "method": "make_faculty_section",
+          "name": "CS 2100-01",
+          "tags": [
+            "3 credit bell schedule",
+            "Smith 116"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 2420-01",
+          "tags": [
+            "3 credit bell schedule",
+            "Smith 116"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 2420-02",
+          "tags": [
+            "3 credit bell schedule",
+            "Smith 116"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 3500-01",
+          "tags": [
+            "3 credit bell schedule",
+            "pcs"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 4995-01",
+          "tags": [
+            "3 credit bell schedule",
+            "pcs"
+          ]
+        }
+      ],
+      "approved_unavailable_time_slots": [],
+      "current_preferences": "db.faculty_preferences('Bart Stander', 'MT',\n        WantADayOff(),\n        AvoidTimeSlot('TR0900+75'),\n        AvoidTimeSlot('TR1030+75'),\n        AvoidTimeSlot('MW1200+75'),\n    )",
+      "preference_history": [
+        {
+          "term": "Spring 2026",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Bart Stander', 'MT',\n        WantADayOff(),\n        AvoidTimeSlot('TR0900+75'),\n        AvoidTimeSlot('TR1030+75'),\n        AvoidTimeSlot('MW1200+75'),\n        WantBackToBackClassesInTheSameRoom(),\n        WantClassesPackedIntoAsFewRoomsAsPossible(),\n        AvoidSectionInTimeSlots('CS 3600-01', ['TR1200+75'])\n    )"
+        },
+        {
+          "term": "Fall 2025",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Bart Stander', 'MT',\n    AvoidClassClusterShorterThan(110, priority=12),\n)"
+        }
+      ]
+    },
+    {
+      "name": "Brayden Connole",
+      "department": "Computing",
+      "availability": [
+        {
+          "days": "MTWR",
+          "start": "0900",
+          "end": "1630"
+        },
+        {
+          "days": "F",
+          "start": "0900",
+          "end": "1200"
+        }
+      ],
+      "sections": [
+        {
+          "name": "IT 4200-01",
+          "room_tags": [
+            "flex",
+            "macs",
+            "pcs",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "SE 1400-02",
+          "room_tags": [
+            "flex",
+            "macs",
+            "pcs",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "SE 3010-01",
+          "room_tags": [
+            "flex",
+            "macs",
+            "pcs",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "SE 4990-02",
+          "room_tags": [
+            "flex",
+            "macs",
+            "pcs",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        }
+      ],
+      "section_setup": [
+        {
+          "method": "make_faculty_section",
+          "name": "IT 4200-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex",
+            "stadium",
+            "macs",
+            "pcs"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "SE 1400-02",
+          "tags": [
+            "3 credit bell schedule",
+            "flex",
+            "stadium",
+            "macs",
+            "pcs"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "SE 3010-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex",
+            "stadium",
+            "macs",
+            "pcs"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "SE 4990-02",
+          "tags": [
+            "3 credit bell schedule",
+            "flex",
+            "stadium",
+            "macs",
+            "pcs"
+          ]
+        }
+      ],
+      "approved_unavailable_time_slots": [],
+      "current_preferences": "db.faculty_preferences('Brayden Connole', 'MT',\n        AvoidTimeSlot('MWF0900+50'),\n        AvoidTimeSlot('TR0900+75'),\n        AvoidTimeSlot('MWF1000+50'),\n        AvoidTimeSlot('TR1030+75'),\n        AvoidTimeSlot('MWF1100+50'),\n        DoNotWantADayOff(),\n        AvoidSectionInRooms('IT 4200-01', ['stadium', 'macs', 'pcs']),\n        AvoidSectionInRooms('SE 3010-01', ['flex', 'stadium', 'pcs']),\n    )",
+      "preference_history": [
+        {
+          "term": "Spring 2026",
+          "faculty_present": false,
+          "preferences": null
+        },
+        {
+          "term": "Fall 2025",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Brayden Connole', 'MT',\n    WantADayOff(priority=13),\n)"
+        }
+      ]
+    },
+    {
+      "name": "Carol Stander",
+      "department": "Computing",
+      "availability": [
+        {
+          "days": "MTWR",
+          "start": "0900",
+          "end": "1630"
+        },
+        {
+          "days": "F",
+          "start": "0900",
+          "end": "1200"
+        }
+      ],
+      "sections": [
+        {
+          "name": "CS 1030-01",
+          "room_tags": [
+            "flex"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule",
+            "MW1500+75",
+            "MWF 3×50 bell schedule",
+            "TR1500+75"
+          ]
+        },
+        {
+          "name": "CS 1400-40",
+          "room_tags": [],
+          "time_slot_tags": []
+        },
+        {
+          "name": "IT 1100-03",
+          "room_tags": [
+            "pcs"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "IT 2300-01",
+          "room_tags": [
+            "flex",
+            "pcs"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "IT 2300-40",
+          "room_tags": [],
+          "time_slot_tags": []
+        }
+      ],
+      "section_setup": [
+        {
+          "method": "make_faculty_section",
+          "name": "CS 1030-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 1400-40",
+          "tags": []
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "IT 1100-03",
+          "tags": [
+            "3 credit bell schedule",
+            "pcs"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "IT 2300-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex",
+            "pcs"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "IT 2300-40",
+          "tags": []
+        }
+      ],
+      "approved_unavailable_time_slots": [],
+      "current_preferences": "db.faculty_preferences('Carol Stander', 'MT',\n        AvoidTimeSlot('TR0900+75'),\n        AvoidTimeSlot('TR1030+75'),\n        WantADayOff(),\n        AvoidClassClusterLongerThan('1h50m'),\n        AvoidTimeSlot('MW1200+75'),\n        AvoidTimeSlot('TR1200+75'),\n        AvoidSectionInTimeSlots('CS 1030-01', ['MWF 3×50 bell schedule']),\n        AvoidTimeSlot('MWF0900+50'),\n        AvoidSectionInTimeSlots('CS 1030-01', ['MW1500+75', 'TR1500+75']),\n    )",
+      "preference_history": [
+        {
+          "term": "Spring 2026",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Carol Stander', 'MT',\n        AvoidTimeSlot('TR0900+75'),\n        AvoidTimeSlot('TR1030+75'),\n        WantADayOff(),\n        AvoidClassClusterLongerThan('1h50m'),\n        AvoidTimeSlot('MW1200+75'),\n        AvoidTimeSlot('TR1200+75'),\n        AvoidSectionInTimeSlots('CS 1030-01', ['MWF 3×50 bell schedule']),\n        AvoidSectionInRooms('CS 1410-02', ['pcs']),\n        AvoidTimeSlot('MWF0900+50'),\n    )"
+        },
+        {
+          "term": "Fall 2025",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Carol Stander', 'MT',\n    AvoidClassClusterLongerThan(110, priority=12),\n)"
+        }
+      ]
+    },
+    {
+      "name": "Curtis Larsen",
+      "department": "Computing",
+      "availability": [
+        {
+          "days": "MTWR",
+          "start": "0900",
+          "end": "1630"
+        },
+        {
+          "days": "F",
+          "start": "0900",
+          "end": "1200"
+        }
+      ],
+      "sections": [
+        {
+          "name": "CS 3530-01",
+          "room_tags": [
+            "Smith 116"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 4300-01",
+          "room_tags": [
+            "Smith 116"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 4920R-01",
+          "room_tags": [],
+          "time_slot_tags": []
+        },
+        {
+          "name": "CS 6300-50",
+          "room_tags": [
+            "Smith 116"
+          ],
+          "time_slot_tags": [
+            "R1800+150",
+            "T1800+150",
+            "W1800+150"
+          ]
+        }
+      ],
+      "section_setup": [
+        {
+          "method": "make_faculty_section",
+          "name": "CS 3530-01",
+          "tags": [
+            "3 credit bell schedule",
+            "Smith 116"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 4300-01",
+          "tags": [
+            "3 credit bell schedule",
+            "Smith 116"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 4920R-01",
+          "tags": []
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 6300-50",
+          "tags": [
+            "T1800+150",
+            "W1800+150",
+            "R1800+150",
+            "Smith 116"
+          ]
+        }
+      ],
+      "approved_unavailable_time_slots": [],
+      "current_preferences": "db.faculty_preferences('Curtis Larsen', 'MT',\n        AvoidTimeSlot('MWF0900+50'),\n        AvoidTimeSlot('MWF1000+50'),\n        AvoidTimeSlot('MWF1100+50'),\n        AvoidClassClusterLongerThan('2h45m'),\n        AvoidGapBetweenClassClustersLongerThan('3h15m'),\n        AvoidClassClusterShorterThan('1h50m'),\n        AvoidGapBetweenClassClustersLongerThan('1h45m'),\n        WantBackToBackClassesInTheSameRoom(),\n        WantClassesPackedIntoAsFewRoomsAsPossible(),\n    )",
+      "preference_history": [
+        {
+          "term": "Spring 2026",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Curtis Larsen', 'MT',\n        WantADayOff(),\n        AvoidClassClusterLongerThan('2h45m'),\n        AvoidGapBetweenClassClustersLongerThan('3h15m'),\n        AvoidClassClusterShorterThan('1h50m'),\n        AvoidGapBetweenClassClustersLongerThan('1h45m'),\n        WantBackToBackClassesInTheSameRoom(),\n        WantClassesPackedIntoAsFewRoomsAsPossible(),\n    )"
+        },
+        {
+          "term": "Fall 2025",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Curtis Larsen', 'MT',\n    WantADayOff(priority=10),\n    WantClassesEvenlySpreadAcrossDays(priority=11),\n    WantBackToBackClassesInTheSameRoom(priority=12),\n    WantClassesPackedIntoAsFewRoomsAsPossible(priority=19),\n    AvoidGapBetweenClassClustersLongerThan(105, priority=15),\n    AvoidGapBetweenClassClustersLongerThan(195, priority=13),\n    AvoidClassClusterShorterThan(110, priority=13),\n    AvoidClassClusterLongerThan(165, priority=12),\n)"
+        }
+      ]
+    },
+    {
+      "name": "DJ Holt",
+      "department": "Computing",
+      "availability": [
+        {
+          "days": "MTWR",
+          "start": "0900",
+          "end": "1630"
+        },
+        {
+          "days": "F",
+          "start": "0900",
+          "end": "1200"
+        }
+      ],
+      "sections": [
+        {
+          "name": "CS 4410-01",
+          "room_tags": [
+            "Smith 117"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule",
+            "MW1200+75",
+            "MW1330+75",
+            "MW1500+75"
+          ]
+        },
+        {
+          "name": "CS 4800R-03",
+          "room_tags": [],
+          "time_slot_tags": []
+        },
+        {
+          "name": "SD 6100-01",
+          "room_tags": [
+            "Smith 117"
+          ],
+          "time_slot_tags": [
+            "T1630+150"
+          ]
+        },
+        {
+          "name": "SD 6400-01",
+          "room_tags": [
+            "Smith 117"
+          ],
+          "time_slot_tags": [
+            "W1630+150"
+          ]
+        },
+        {
+          "name": "SD 6450-01",
+          "room_tags": [
+            "Smith 117"
+          ],
+          "time_slot_tags": [
+            "R1630+150"
+          ]
+        }
+      ],
+      "section_setup": [
+        {
+          "method": "make_faculty_section",
+          "name": "CS 4800R-03",
+          "tags": []
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 4410-01",
+          "tags": [
+            "3 credit bell schedule",
+            "Smith 117"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "SD 6100-01",
+          "tags": [
+            "T1630+150",
+            "Smith 117"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "SD 6400-01",
+          "tags": [
+            "W1630+150",
+            "Smith 117"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "SD 6450-01",
+          "tags": [
+            "R1630+150",
+            "Smith 117"
+          ]
+        }
+      ],
+      "approved_unavailable_time_slots": [],
+      "current_preferences": "db.faculty_preferences('DJ Holt', 'MT',\n        AvoidTimeSlot('MWF0900+50'),\n        AvoidTimeSlot('MWF1000+50'),\n        AvoidTimeSlot('MWF1100+50'),\n        AvoidTimeSlot('TR0900+75'),\n        AvoidTimeSlot('TR1030+75'),\n        AvoidGapBetweenClassClustersLongerThan('1h45m'),\n        AvoidClassClusterShorterThan('1h50m'),\n        AvoidSectionInTimeSlots('CS 4410-01', ['MW1200+75', 'MW1330+75', 'MW1500+75']),\n    )",
+      "preference_history": [
+        {
+          "term": "Spring 2026",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('DJ Holt', 'MT',\n        AvoidSectionInRooms('SE 3250-01', ['Smith 107', 'Smith 108']),\n        AvoidSectionInTimeSlots('SE 4200-01', ['MWF 3×50 bell schedule', 'TR 2×75 bell schedule']),\n        AvoidTimeSlot('MWF0900+50'),\n        AvoidTimeSlot('MWF1000+50'),\n        AvoidTimeSlot('MWF1100+50'),\n        AvoidTimeSlot('TR0900+75'),\n        AvoidTimeSlot('TR1030+75'),\n        DoNotWantADayOff(),\n        WantClassesEvenlySpreadAcrossDays(),\n        WantClassesPackedIntoAsFewRoomsAsPossible(),\n        WantBackToBackClassesInTheSameRoom(),\n        AvoidGapBetweenClassClustersLongerThan('1h45m'),\n        AvoidClassClusterShorterThan('1h50m')\n    )"
+        },
+        {
+          "term": "Fall 2025",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('DJ Holt', 'MT')"
+        }
+      ]
+    },
+    {
+      "name": "DS Hire",
+      "department": "Computing",
+      "availability": [
+        {
+          "days": "MTWR",
+          "start": "0900",
+          "end": "1630"
+        },
+        {
+          "days": "F",
+          "start": "0900",
+          "end": "1200"
+        }
+      ],
+      "sections": [
+        {
+          "name": "CS 1400-03",
+          "room_tags": [
+            "flex",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 1400-04",
+          "room_tags": [
+            "flex",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 2420-02",
+          "room_tags": [
+            "Smith 116"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 4420-01",
+          "room_tags": [
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 4480R-01",
+          "room_tags": [
+            "flex",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        }
+      ],
+      "section_setup": [
+        {
+          "method": "make_faculty_section",
+          "name": "CS 1400-03",
+          "tags": [
+            "3 credit bell schedule",
+            "flex",
+            "stadium"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 1400-04",
+          "tags": [
+            "3 credit bell schedule",
+            "flex",
+            "stadium"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 4420-01",
+          "tags": [
+            "3 credit bell schedule",
+            "stadium"
+          ]
+        },
+        {
+          "method": "assign_faculty_to_existing_section",
+          "name": "CS 4480R-01",
+          "tags": []
+        },
+        {
+          "method": "assign_faculty_to_existing_section",
+          "name": "CS 2420-02",
+          "tags": []
+        }
+      ],
+      "approved_unavailable_time_slots": [],
+      "current_preferences": "db.faculty_preferences('DS Hire', 'MT',\n    DoNotWantADayOff(),\n    WantClassesEvenlySpreadAcrossDays(),\n    AvoidClassClusterLongerThan('2h45m'),\n    AvoidClassClusterShorterThan('1h50m'),\n    AvoidGapBetweenClassClustersLongerThan('1h45m'),\n)",
+      "preference_history": [
+        {
+          "term": "Spring 2026",
+          "faculty_present": false,
+          "preferences": null
+        },
+        {
+          "term": "Fall 2025",
+          "faculty_present": false,
+          "preferences": null
+        }
+      ]
+    },
+    {
+      "name": "Design Faculty",
+      "department": "Computing",
+      "availability": [
+        {
+          "days": "MTWR",
+          "start": "0900",
+          "end": "1630"
+        },
+        {
+          "days": "F",
+          "start": "0900",
+          "end": "1200"
+        }
+      ],
+      "sections": [
+        {
+          "name": "SD 6110-01",
+          "room_tags": [
+            "Smith 117"
+          ],
+          "time_slot_tags": [
+            "M1630+150"
+          ]
+        }
+      ],
+      "section_setup": [
+        {
+          "method": "make_faculty_section",
+          "name": "SD 6110-01",
+          "tags": [
+            "M1630+150",
+            "Smith 117"
+          ]
+        }
+      ],
+      "approved_unavailable_time_slots": [],
+      "current_preferences": null,
+      "preference_history": [
+        {
+          "term": "Spring 2026",
+          "faculty_present": false,
+          "preferences": null
+        },
+        {
+          "term": "Fall 2025",
+          "faculty_present": false,
+          "preferences": null
+        }
+      ]
+    },
+    {
+      "name": "Eric Pedersen",
+      "department": "Computing",
+      "availability": [
+        {
+          "days": "MTWR",
+          "start": "0900",
+          "end": "1630"
+        },
+        {
+          "days": "F",
+          "start": "0900",
+          "end": "1200"
+        }
+      ],
+      "sections": [
+        {
+          "name": "SE 3500-01",
+          "room_tags": [
+            "flex"
+          ],
+          "time_slot_tags": [
+            "TR1200+75"
+          ]
+        },
+        {
+          "name": "SE 4930R-01",
+          "room_tags": [
+            "Smith 112"
+          ],
+          "time_slot_tags": [
+            "TR1530+60"
+          ]
+        },
+        {
+          "name": "SE 4990-01",
+          "room_tags": [
+            "Smith 112"
+          ],
+          "time_slot_tags": [
+            "R1630+150"
+          ]
+        }
+      ],
+      "section_setup": [
+        {
+          "method": "make_faculty_section",
+          "name": "SE 3500-01",
+          "tags": [
+            "TR1200+75",
+            "flex"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "SE 4930R-01",
+          "tags": [
+            "TR1530+60",
+            "Smith 112"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "SE 4990-01",
+          "tags": [
+            "R1630+150",
+            "Smith 112"
+          ]
+        }
+      ],
+      "approved_unavailable_time_slots": [],
+      "current_preferences": null,
+      "preference_history": [
+        {
+          "term": "Spring 2026",
+          "faculty_present": true,
+          "preferences": null
+        },
+        {
+          "term": "Fall 2025",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Eric Pedersen', 'MT')"
+        }
+      ]
+    },
+    {
+      "name": "Jay Sneddon",
+      "department": "Computing",
+      "availability": [
+        {
+          "days": "MTWR",
+          "start": "0900",
+          "end": "1630"
+        },
+        {
+          "days": "F",
+          "start": "0900",
+          "end": "1200"
+        }
+      ],
+      "sections": [
+        {
+          "name": "IT 1200-01",
+          "room_tags": [
+            "Smith 107"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule",
+            "MW1330+75",
+            "MWF0900+50",
+            "MWF1000+50",
+            "MWF1100+50",
+            "TR0900+75",
+            "TR1030+75",
+            "TR1330+75"
+          ]
+        },
+        {
+          "name": "IT 2700-01",
+          "room_tags": [
+            "Smith 107"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "IT 2750-01",
+          "room_tags": [
+            "Smith 107"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "IT 3700-40",
+          "room_tags": [],
+          "time_slot_tags": []
+        },
+        {
+          "name": "IT 4920R-01",
+          "room_tags": [],
+          "time_slot_tags": []
+        }
+      ],
+      "section_setup": [
+        {
+          "method": "make_faculty_section",
+          "name": "IT 1200-01",
+          "tags": [
+            "3 credit bell schedule",
+            "Smith 107"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "IT 2700-01",
+          "tags": [
+            "3 credit bell schedule",
+            "Smith 107"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "IT 2750-01",
+          "tags": [
+            "3 credit bell schedule",
+            "Smith 107"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "IT 3700-40",
+          "tags": []
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "IT 4920R-01",
+          "tags": []
+        }
+      ],
+      "approved_unavailable_time_slots": [
+        "TR1500+75",
+        "TR1630+75"
+      ],
+      "current_preferences": "db.faculty_preferences('Jay Sneddon', 'MT',\n        AvoidTimeSlot('MWF0900+50'),\n        AvoidTimeSlot('MWF1000+50'),\n        AvoidTimeSlot('MWF1100+50'),\n        DoNotWantADayOff(),\n        #WantClassesEvenlySpreadAcrossDays(),\n        AvoidClassClusterShorterThan('1h50m'),\n        AvoidGapBetweenClassClustersLongerThan('1h45m'),\n        # faculty senate\n        UnavailableTimeSlot('TR1500+75'),\n        UnavailableTimeSlot('TR1630+75'),\n        # IT 1200 at noon or 3pm for success academy (nice to have)\n        AvoidSectionInTimeSlots('IT 1200-01', ['TR0900+75', 'TR1030+75', 'TR1330+75', 'MWF0900+50', 'MWF1000+50', 'MWF1100+50', 'MW1330+75']),\n\n    )",
+      "preference_history": [
+        {
+          "term": "Spring 2026",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Jay Sneddon', 'MT',\n        AvoidTimeSlot('MWF0900+50'),\n        AvoidTimeSlot('MWF1000+50'),\n        AvoidTimeSlot('MWF1100+50'),\n        DoNotWantADayOff(),\n        WantClassesEvenlySpreadAcrossDays(),\n        AvoidClassClusterShorterThan('1h50m'),\n        AvoidGapBetweenClassClustersLongerThan('1h45m'),\n    )"
+        },
+        {
+          "term": "Fall 2025",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Jay Sneddon', 'MT',\n    DoNotWantADayOff(priority=11),\n    WantClassesEvenlySpreadAcrossDays(priority=12),\n    AvoidClassClusterShorterThan(110, priority=13),\n    AvoidGapBetweenClassClustersLongerThan(105, priority=13),\n)"
+        }
+      ]
+    },
+    {
+      "name": "Jeff Compas",
+      "department": "Computing",
+      "availability": [
+        {
+          "days": "MTWR",
+          "start": "0900",
+          "end": "1630"
+        },
+        {
+          "days": "F",
+          "start": "0900",
+          "end": "1200"
+        }
+      ],
+      "sections": [
+        {
+          "name": "CS 1500-01",
+          "room_tags": [
+            "flex"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule",
+            "MWF 3×50 bell schedule"
+          ]
+        },
+        {
+          "name": "CS 2450-01",
+          "room_tags": [
+            "flex"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule",
+            "MWF 3×50 bell schedule"
+          ]
+        },
+        {
+          "name": "CS 2450-02",
+          "room_tags": [
+            "flex"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule",
+            "MWF 3×50 bell schedule"
+          ]
+        },
+        {
+          "name": "CS 3005-01",
+          "room_tags": [
+            "flex"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule",
+            "MWF 3×50 bell schedule"
+          ]
+        },
+        {
+          "name": "SE 3150-01",
+          "room_tags": [
+            "flex"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule",
+            "MWF 3×50 bell schedule"
+          ]
+        }
+      ],
+      "section_setup": [
+        {
+          "method": "make_faculty_section",
+          "name": "CS 1500-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 2450-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 2450-02",
+          "tags": [
+            "3 credit bell schedule",
+            "flex"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 3005-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "SE 3150-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex"
+          ]
+        }
+      ],
+      "approved_unavailable_time_slots": [],
+      "current_preferences": "db.faculty_preferences('Jeff Compas', 'MT',\n        AvoidSectionInTimeSlots('CS 2450-01', ['MWF 3×50 bell schedule']),\n        AvoidSectionInTimeSlots('CS 2450-02', ['MWF 3×50 bell schedule']),\n        AvoidSectionInTimeSlots('CS 1500-01', ['MWF 3×50 bell schedule']),\n        AvoidSectionInTimeSlots('CS 3005-01', ['MWF 3×50 bell schedule']),\n        AvoidSectionInTimeSlots('SE 3150-01', ['MWF 3×50 bell schedule']),\n        AvoidClassClusterShorterThan('1h50m'),\n    )",
+      "preference_history": [
+        {
+          "term": "Spring 2026",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Jeff Compas', 'MT',\n        AvoidSectionInTimeSlots('CS 2450-01', ['MWF 3×50 bell schedule']),\n        AvoidSectionInTimeSlots('SE 3100-01', ['MWF 3×50 bell schedule']),\n        AvoidSectionInTimeSlots('CS 2450-01', ['MW 2×75 bell schedule']),\n        AvoidSectionInTimeSlots('SE 3100-01', ['MW 2×75 bell schedule']),\n        AvoidClassClusterShorterThan('1h30m'),\n    )"
+        },
+        {
+          "term": "Fall 2025",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Jeff Compas', 'MT',\n    AvoidClassClusterShorterThan(165, priority=15),\n    AvoidClassClusterLongerThan(165, priority=13),\n    AvoidGapBetweenClassClustersLongerThan(105, priority=13),\n    WantClassesEvenlySpreadAcrossDays(priority=14),\n)"
+        }
+      ]
+    },
+    {
+      "name": "Joe Francom",
+      "department": "Computing",
+      "availability": [
+        {
+          "days": "MTWR",
+          "start": "0900",
+          "end": "1630"
+        },
+        {
+          "days": "F",
+          "start": "0900",
+          "end": "1200"
+        }
+      ],
+      "sections": [
+        {
+          "name": "IT 1500-40A",
+          "room_tags": [],
+          "time_slot_tags": []
+        },
+        {
+          "name": "IT 1500-41B",
+          "room_tags": [],
+          "time_slot_tags": []
+        },
+        {
+          "name": "IT 3300-01",
+          "room_tags": [
+            "Smith 112",
+            "Smith 113",
+            "flex",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "SE 3200-01",
+          "room_tags": [
+            "Smith 112",
+            "Smith 113",
+            "flex",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        }
+      ],
+      "section_setup": [
+        {
+          "method": "make_faculty_section",
+          "name": "IT 1500-40A",
+          "tags": []
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "IT 1500-41B",
+          "tags": []
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "IT 3300-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "SE 3200-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex"
+          ]
+        }
+      ],
+      "approved_unavailable_time_slots": [
+        "MW1200+75",
+        "MW1500+75",
+        "TR1500+75"
+      ],
+      "current_preferences": "db.faculty_preferences('Joe Francom', 'MT',\n        WantADayOff(),\n        AvoidSectionInRooms('IT 3300-01', ['stadium']),\n        AvoidSectionInRooms('SE 3200-01', ['stadium']),\n        AvoidClassClusterShorterThan('1h50m'),\n        AvoidSectionInRooms('IT 3300-01', ['Smith 112', 'Smith 113']),\n        AvoidSectionInRooms('SE 3200-01', ['Smith 112', 'Smith 113']),\n        UnavailableTimeSlot('MW1200+75'),\n        UnavailableTimeSlot('MW1500+75'),\n        UnavailableTimeSlot('TR1500+75'),\n    )",
+      "preference_history": [
+        {
+          "term": "Spring 2026",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Joe Francom', 'MT',\n        WantADayOff(),\n        AvoidSectionInRooms('IT 3110-01', ['stadium']),\n        AvoidSectionInRooms('SE 3200-01', ['stadium']),\n        AvoidClassClusterShorterThan('1h50m'),\n        AvoidSectionInRooms('IT 3110-01', ['Smith 112', 'Smith 113']),\n        AvoidSectionInRooms('SE 3200-01', ['Smith 112', 'Smith 113']),\n        UnavailableTimeSlot('MW1200+75'),\n        UnavailableTimeSlot('MW1500+75'),\n        UnavailableTimeSlot('TR1500+75'),\n    )"
+        },
+        {
+          "term": "Fall 2025",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Joe Francom', 'MT',\n    AvoidClassClusterShorterThan(110, priority=15),\n)"
+        }
+      ]
+    },
+    {
+      "name": "Lora Klein",
+      "department": "Computing",
+      "availability": [
+        {
+          "days": "MTWR",
+          "start": "0900",
+          "end": "1630"
+        },
+        {
+          "days": "F",
+          "start": "0900",
+          "end": "1200"
+        }
+      ],
+      "sections": [
+        {
+          "name": "CS 1400-02",
+          "room_tags": [
+            "flex"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "SA 1400-01",
+          "room_tags": [],
+          "time_slot_tags": [
+            "TR0930+80"
+          ]
+        },
+        {
+          "name": "SA 1400-02",
+          "room_tags": [],
+          "time_slot_tags": [
+            "TR1200+80"
+          ]
+        }
+      ],
+      "section_setup": [
+        {
+          "method": "make_faculty_section",
+          "name": "CS 1400-02",
+          "tags": [
+            "3 credit bell schedule",
+            "flex"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "SA 1400-01",
+          "tags": [
+            "TR0930+80"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "SA 1400-02",
+          "tags": [
+            "TR1200+80"
+          ]
+        }
+      ],
+      "approved_unavailable_time_slots": [],
+      "current_preferences": "db.faculty_preferences('Lora Klein', 'MT',\n        AvoidTimeSlot('MWF0900+50'),\n        AvoidTimeSlot('MWF1000+50'),\n        AvoidTimeSlot('MWF1100+50'),\n        AvoidTimeSlot('TR1330+75'),\n        AvoidTimeSlot('TR1500+75'),\n    )",
+      "preference_history": [
+        {
+          "term": "Spring 2026",
+          "faculty_present": false,
+          "preferences": null
+        },
+        {
+          "term": "Fall 2025",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Lora Klein', 'MT',\n    WantClassesEvenlySpreadAcrossDays(priority=11),\n)"
+        }
+      ]
+    },
+    {
+      "name": "Matt Kearl",
+      "department": "Computing",
+      "availability": [
+        {
+          "days": "MTWR",
+          "start": "0900",
+          "end": "1630"
+        },
+        {
+          "days": "F",
+          "start": "0900",
+          "end": "1200"
+        }
+      ],
+      "sections": [
+        {
+          "name": "SE 1400-01",
+          "room_tags": [
+            "flex",
+            "macs",
+            "pcs",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule",
+            "MWF 3×50 bell schedule"
+          ]
+        },
+        {
+          "name": "SE 1400-40",
+          "room_tags": [],
+          "time_slot_tags": []
+        },
+        {
+          "name": "SE 3400-40",
+          "room_tags": [],
+          "time_slot_tags": []
+        },
+        {
+          "name": "SE 3550-01",
+          "room_tags": [
+            "flex",
+            "macs",
+            "pcs",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule",
+            "MWF 3×50 bell schedule"
+          ]
+        },
+        {
+          "name": "SE 4920-01",
+          "room_tags": [],
+          "time_slot_tags": []
+        }
+      ],
+      "section_setup": [
+        {
+          "method": "make_faculty_section",
+          "name": "SE 1400-01",
+          "tags": [
+            "3 credit bell schedule",
+            "macs",
+            "pcs",
+            "flex",
+            "stadium"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "SE 1400-40",
+          "tags": []
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "SE 3400-40",
+          "tags": []
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "SE 3550-01",
+          "tags": [
+            "3 credit bell schedule",
+            "macs",
+            "pcs",
+            "flex",
+            "stadium"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "SE 4920-01",
+          "tags": []
+        }
+      ],
+      "approved_unavailable_time_slots": [],
+      "current_preferences": "db.faculty_preferences('Matt Kearl', 'MT',\n        AvoidSectionInTimeSlots('SE 1400-01', ['MWF 3×50 bell schedule']),\n        AvoidSectionInTimeSlots('SE 3550-01', ['MWF 3×50 bell schedule']),\n        WantADayOff(),\n        AvoidTimeSlot('MWF0900+50'),\n        AvoidTimeSlot('MWF1000+50'),\n        AvoidTimeSlot('MWF1100+50'),\n        AvoidTimeSlot('MW1500+75'),\n        AvoidTimeSlot('MW1330+75'),\n        AvoidTimeSlot('MW1200+75'),\n    )",
+      "preference_history": [
+        {
+          "term": "Spring 2026",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Matt Kearl', 'MT',\n        AvoidSectionInTimeSlots('SE 1400-01', ['MWF 3×50 bell schedule']),\n        AvoidSectionInTimeSlots('SE 3450-01', ['MWF 3×50 bell schedule']),\n        AvoidSectionInTimeSlots('SE 3550-01', ['MWF 3×50 bell schedule']),\n        AvoidSectionInTimeSlots('SE 4990-02', ['MWF 3×50 bell schedule']),\n        WantADayOff(),\n        AvoidTimeSlot('MW1500+75'),\n        AvoidTimeSlot('TR1500+75'),\n        AvoidTimeSlot('MW1330+75'),\n        AvoidTimeSlot('TR1330+75'),\n        AvoidClassClusterShorterThan('2h45m'),\n        AvoidTimeSlot('MW1200+75'),\n        AvoidTimeSlot('MWF0900+50'),\n        AvoidTimeSlot('MWF1000+50'),\n        AvoidTimeSlot('MWF1100+50'),\n        AvoidGapBetweenClassClustersLongerThan('1h45m'),\n    )"
+        },
+        {
+          "term": "Fall 2025",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Matt Kearl', 'MT',\n    AvoidClassClusterShorterThan(165, priority=14),\n    AvoidGapBetweenClassClustersLongerThan(105, priority=16),\n    WantADayOff(priority=11),\n)"
+        }
+      ]
+    },
+    {
+      "name": "Phil Daley",
+      "department": "Computing",
+      "availability": [
+        {
+          "days": "MTWR",
+          "start": "0900",
+          "end": "1630"
+        },
+        {
+          "days": "F",
+          "start": "0900",
+          "end": "1200"
+        }
+      ],
+      "sections": [
+        {
+          "name": "IT 1100-40",
+          "room_tags": [],
+          "time_slot_tags": []
+        },
+        {
+          "name": "IT 2400-01",
+          "room_tags": [
+            "Smith 107"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "IT 2400-40",
+          "room_tags": [],
+          "time_slot_tags": []
+        },
+        {
+          "name": "IT 3100-01",
+          "room_tags": [
+            "Smith 108",
+            "Smith 109",
+            "flex"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "IT 4400-01",
+          "room_tags": [
+            "Smith 108",
+            "Smith 109",
+            "flex"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        }
+      ],
+      "section_setup": [
+        {
+          "method": "make_faculty_section",
+          "name": "IT 1100-40",
+          "tags": []
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "IT 2400-01",
+          "tags": [
+            "3 credit bell schedule",
+            "Smith 107"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "IT 2400-40",
+          "tags": []
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "IT 3100-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "IT 4400-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex"
+          ]
+        }
+      ],
+      "approved_unavailable_time_slots": [],
+      "current_preferences": "db.faculty_preferences('Phil Daley', 'MT',\n        AvoidTimeSlot('MWF0900+50'),\n        AvoidTimeSlot('MWF1000+50'),\n        AvoidTimeSlot('MWF1100+50'),\n        WantBackToBackClassesInTheSameRoom(),\n        AvoidSectionInRooms('IT 3100-01', ['Smith 108', 'Smith 109']),\n        AvoidSectionInRooms('IT 4400-01', ['Smith 108', 'Smith 109']),\n    )",
+      "preference_history": [
+        {
+          "term": "Spring 2026",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Phil Daley', 'MT',\n        AvoidTimeSlot('MWF0900+50'),\n        AvoidTimeSlot('MWF1000+50'),\n        AvoidTimeSlot('MWF1100+50'),\n        WantBackToBackClassesInTheSameRoom(),\n    )"
+        },
+        {
+          "term": "Fall 2025",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Phil Daley', 'MT')"
+        }
+      ]
+    },
+    {
+      "name": "Ren Quinn",
+      "department": "Computing",
+      "availability": [
+        {
+          "days": "MTWR",
+          "start": "0900",
+          "end": "1630"
+        },
+        {
+          "days": "F",
+          "start": "0900",
+          "end": "1200"
+        }
+      ],
+      "sections": [
+        {
+          "name": "CS 1400-01",
+          "room_tags": [
+            "flex"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 2500-01",
+          "room_tags": [
+            "flex",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 3150-01",
+          "room_tags": [
+            "flex",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 4480R-01",
+          "room_tags": [
+            "flex",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 4800R-01",
+          "room_tags": [],
+          "time_slot_tags": []
+        },
+        {
+          "name": "CS 4991R-01",
+          "room_tags": [
+            "Smith 109"
+          ],
+          "time_slot_tags": [
+            "F1400+50"
+          ]
+        },
+        {
+          "name": "CS 4992R-01",
+          "room_tags": [
+            "Smith 109"
+          ],
+          "time_slot_tags": [
+            "F1300+50"
+          ]
+        }
+      ],
+      "section_setup": [
+        {
+          "method": "make_faculty_section",
+          "name": "CS 1400-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 2500-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex",
+            "stadium"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 3150-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex",
+            "stadium"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 4480R-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex",
+            "stadium"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 4800R-01",
+          "tags": []
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 4991R-01",
+          "tags": [
+            "F1400+50",
+            "Smith 109"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 4992R-01",
+          "tags": [
+            "F1300+50",
+            "Smith 109"
+          ]
+        }
+      ],
+      "approved_unavailable_time_slots": [],
+      "current_preferences": "db.faculty_preferences('Ren Quinn', 'MT',\n        AvoidTimeSlot('TR0900+75'),\n        AvoidTimeSlot('TR1030+75'),\n        AvoidTimeSlot('TR1200+75'),\n        WantBackToBackClassesInTheSameRoom(),\n        AvoidSectionInRooms('CS 3150-01', ['stadium']),\n        AvoidSectionInRooms('CS 2500-01', ['stadium']),\n        AvoidTimeSlot('MWF0900+50'),\n        DoNotWantADayOff(),\n    )",
+      "preference_history": [
+        {
+          "term": "Spring 2026",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Ren Quinn', 'MT',\n        AvoidSectionInRooms('CS 3150-01', ['Smith 116']),\n        DoNotWantADayOff(),\n        AvoidTimeSlot('TR0900+75'),\n        AvoidTimeSlot('TR1030+75'),\n        AvoidTimeSlot('TR1200+75'),\n        WantBackToBackClassesInTheSameRoom(),\n        AvoidSectionInRooms('CS 3150-01', ['stadium']),\n        AvoidSectionInRooms('CS 4400-01', ['stadium']),\n        AvoidTimeSlot('MWF0900+50'),\n    )"
+        },
+        {
+          "term": "Fall 2025",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Ren Quinn', 'MT',\n    DoNotWantADayOff(priority=10),\n    WantBackToBackClassesInTheSameRoom(priority=12),\n)"
+        }
+      ]
+    },
+    {
+      "name": "Russ Ross",
+      "department": "Computing",
+      "availability": [
+        {
+          "days": "MTWR",
+          "start": "0900",
+          "end": "1630"
+        },
+        {
+          "days": "F",
+          "start": "0900",
+          "end": "1200"
+        }
+      ],
+      "sections": [
+        {
+          "name": "CS 2810-01",
+          "room_tags": [
+            "Smith 108",
+            "Smith 109",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 2810-02",
+          "room_tags": [
+            "Smith 108",
+            "Smith 109",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 3400-01",
+          "room_tags": [
+            "Smith 108",
+            "Smith 109",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 3520-01",
+          "room_tags": [
+            "Smith 108",
+            "Smith 109",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 4800R-02",
+          "room_tags": [],
+          "time_slot_tags": []
+        }
+      ],
+      "section_setup": [
+        {
+          "method": "make_faculty_section",
+          "name": "CS 2810-01",
+          "tags": [
+            "3 credit bell schedule",
+            "Smith 108",
+            "Smith 109",
+            "stadium"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 2810-02",
+          "tags": [
+            "3 credit bell schedule",
+            "Smith 108",
+            "Smith 109",
+            "stadium"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 3400-01",
+          "tags": [
+            "3 credit bell schedule",
+            "Smith 108",
+            "Smith 109",
+            "stadium"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 3520-01",
+          "tags": [
+            "3 credit bell schedule",
+            "Smith 108",
+            "Smith 109",
+            "stadium"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 4800R-02",
+          "tags": []
+        }
+      ],
+      "approved_unavailable_time_slots": [],
+      "current_preferences": "db.faculty_preferences('Russ Ross', 'MT',\n        AvoidTimeSlot('MWF0900+50'),\n        AvoidTimeSlot('MWF1000+50'),\n        AvoidTimeSlot('TR0900+75'),\n        AvoidTimeSlot('MWF1100+50'),\n        AvoidTimeSlot('TR1030+75'),\n        WantClassesEvenlySpreadAcrossDays(),\n        WantBackToBackClassesInTheSameRoom(),\n        WantClassesPackedIntoAsFewRoomsAsPossible(),\n        AvoidTimeSlot('MW1200+75'),\n        AvoidTimeSlot('TR1200+75'),\n    )",
+      "preference_history": [
+        {
+          "term": "Spring 2026",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Russ Ross', 'MT',\n        AvoidTimeSlot('MWF0900+50'),\n        AvoidTimeSlot('MWF1000+50'),\n        AvoidTimeSlot('MWF1100+50'),\n        AvoidTimeSlot('TR0900+75'),\n        AvoidTimeSlot('TR1030+75'),\n        WantClassesEvenlySpreadAcrossDays(),\n        WantBackToBackClassesInTheSameRoom(),\n        WantClassesPackedIntoAsFewRoomsAsPossible(),\n        AvoidTimeSlot('MW1200+75'),\n        AvoidTimeSlot('TR1200+75'),\n    )"
+        },
+        {
+          "term": "Fall 2025",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Russ Ross', 'MT',\n    DoNotWantADayOff(priority=10),\n    WantClassesEvenlySpreadAcrossDays(priority=10),\n    AvoidClassClusterLongerThan(165, priority=10),\n    AvoidClassClusterShorterThan(110, priority=12),\n)"
+        }
+      ]
+    },
+    {
+      "name": "Syed Ali",
+      "department": "Computing",
+      "availability": [
+        {
+          "days": "MTWR",
+          "start": "0900",
+          "end": "1630"
+        },
+        {
+          "days": "F",
+          "start": "0900",
+          "end": "1200"
+        }
+      ],
+      "sections": [
+        {
+          "name": "IT 1100-01",
+          "room_tags": [
+            "flex",
+            "pcs"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "IT 1100-02",
+          "room_tags": [
+            "flex",
+            "pcs"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "IT 1200-40",
+          "room_tags": [],
+          "time_slot_tags": []
+        },
+        {
+          "name": "IT 3500-01",
+          "room_tags": [
+            "flex",
+            "pcs",
+            "stadium"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "IT 4991R-01",
+          "room_tags": [
+            "flex"
+          ],
+          "time_slot_tags": [
+            "R1630+100",
+            "T1630+100",
+            "W1630+100"
+          ]
+        }
+      ],
+      "section_setup": [
+        {
+          "method": "make_faculty_section",
+          "name": "IT 1100-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex",
+            "pcs"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "IT 1100-02",
+          "tags": [
+            "3 credit bell schedule",
+            "flex",
+            "pcs"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "IT 1200-40",
+          "tags": []
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "IT 3500-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex",
+            "stadium",
+            "pcs"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "IT 4991R-01",
+          "tags": [
+            "T1630+100",
+            "W1630+100",
+            "R1630+100",
+            "flex"
+          ]
+        }
+      ],
+      "approved_unavailable_time_slots": [],
+      "current_preferences": "db.faculty_preferences('Syed Ali', 'MT',\n        DoNotWantADayOff(),\n        WantClassesEvenlySpreadAcrossDays(),\n        AvoidClassClusterLongerThan('2h45m'),\n        AvoidClassClusterShorterThan('1h50m'),\n        AvoidGapBetweenClassClustersLongerThan('1h45m'),\n        AvoidTimeSlot('MWF0900+50'),\n        AvoidTimeSlot('MWF1000+50'),\n        AvoidTimeSlot('MWF1100+50'),\n    )",
+      "preference_history": [
+        {
+          "term": "Spring 2026",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Syed Ali', 'MT',\n    DoNotWantADayOff(),\n    WantClassesEvenlySpreadAcrossDays(),\n    AvoidClassClusterLongerThan('2h45m'),\n    AvoidClassClusterShorterThan('1h50m'),\n    AvoidGapBetweenClassClustersLongerThan('1h45m'),\n)"
+        },
+        {
+          "term": "Fall 2025",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Syed Ali', 'MT',\n    DoNotWantADayOff(priority=10),\n    WantClassesEvenlySpreadAcrossDays(priority=11),\n    WantBackToBackClassesInTheSameRoom(priority=12),\n    WantClassesPackedIntoAsFewRoomsAsPossible(priority=19),\n    AvoidGapBetweenClassClustersLongerThan(105, priority=15),\n    AvoidGapBetweenClassClustersLongerThan(195, priority=13),\n    AvoidClassClusterShorterThan(110, priority=13),\n    AvoidClassClusterLongerThan(165, priority=12),\n)"
+        }
+      ]
+    },
+    {
+      "name": "Yuanfei Sun",
+      "department": "Computing",
+      "availability": [
+        {
+          "days": "MTWR",
+          "start": "0900",
+          "end": "1630"
+        },
+        {
+          "days": "F",
+          "start": "0900",
+          "end": "1200"
+        }
+      ],
+      "sections": [
+        {
+          "name": "CS 1410-01",
+          "room_tags": [
+            "flex"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 1410-02",
+          "room_tags": [
+            "flex"
+          ],
+          "time_slot_tags": [
+            "3 credit bell schedule"
+          ]
+        },
+        {
+          "name": "CS 6331-40",
+          "room_tags": [],
+          "time_slot_tags": []
+        },
+        {
+          "name": "CS 6350-01",
+          "room_tags": [],
+          "time_slot_tags": []
+        }
+      ],
+      "section_setup": [
+        {
+          "method": "make_faculty_section",
+          "name": "CS 1410-01",
+          "tags": [
+            "3 credit bell schedule",
+            "flex"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 1410-02",
+          "tags": [
+            "3 credit bell schedule",
+            "flex"
+          ]
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 6331-40",
+          "tags": []
+        },
+        {
+          "method": "make_faculty_section",
+          "name": "CS 6350-01",
+          "tags": []
+        }
+      ],
+      "approved_unavailable_time_slots": [],
+      "current_preferences": "db.faculty_preferences('Yuanfei Sun', 'MT',\n        AvoidTimeSlot('TR0900+75'),\n        AvoidTimeSlot('TR1030+75'),\n        AvoidTimeSlot('TR1200+75'),\n        AvoidTimeSlot('TR1330+75'),\n        AvoidTimeSlot('TR1500+75'),\n        WantADayOff(),\n        AvoidGapBetweenClassClustersLongerThan('1h45m'),\n        AvoidClassClusterShorterThan('1h50m'),\n        AvoidClassClusterLongerThan('2h45m'),\n    )",
+      "preference_history": [
+        {
+          "term": "Spring 2026",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Yuanfei Sun', 'MT',\n        AvoidTimeSlot('TR0900+75'),\n        AvoidTimeSlot('TR1030+75'),\n        AvoidTimeSlot('TR1200+75'),\n        AvoidTimeSlot('TR1330+75'),\n        AvoidTimeSlot('TR1500+75'),\n        WantADayOff(),\n        AvoidGapBetweenClassClustersLongerThan('1h45m'),\n        AvoidClassClusterShorterThan('1h50m'),\n        AvoidClassClusterLongerThan('2h45m'),\n    )"
+        },
+        {
+          "term": "Fall 2025",
+          "faculty_present": true,
+          "preferences": "db.faculty_preferences('Yuanfei Sun', 'MT',\n    AvoidClassClusterShorterThan(110, priority=15),\n    AvoidClassClusterLongerThan(165, priority=15),\n    AvoidGapBetweenClassClustersLongerThan(105, priority=14),\n    WantADayOff(priority=13),\n)"
+        }
+      ]
+    }
+  ],
+  "rooms": [
+    {
+      "name": "Smith 107",
+      "capacity": 32
+    },
+    {
+      "name": "Smith 108",
+      "capacity": 32
+    },
+    {
+      "name": "Smith 109",
+      "capacity": 32
+    },
+    {
+      "name": "Smith 112",
+      "capacity": 24
+    },
+    {
+      "name": "Smith 113",
+      "capacity": 24
+    },
+    {
+      "name": "Smith 116",
+      "capacity": 38
+    },
+    {
+      "name": "Smith 117",
+      "capacity": 38
+    }
+  ],
+  "room_tags": {
+    "Smith 107": [
+      "Smith 107"
+    ],
+    "Smith 108": [
+      "Smith 108"
+    ],
+    "Smith 109": [
+      "Smith 109"
+    ],
+    "Smith 112": [
+      "Smith 112"
+    ],
+    "Smith 113": [
+      "Smith 113"
+    ],
+    "Smith 116": [
+      "Smith 116"
+    ],
+    "Smith 117": [
+      "Smith 117"
+    ],
+    "flex": [
+      "Smith 107",
+      "Smith 108",
+      "Smith 109"
+    ],
+    "macs": [
+      "Smith 112"
+    ],
+    "pcs": [
+      "Smith 113"
+    ],
+    "stadium": [
+      "Smith 116",
+      "Smith 117"
+    ]
+  },
+  "time_slots": [
+    {
+      "name": "MWF0800+50",
+      "days": "MWF",
+      "start_minutes": 480,
+      "duration_minutes": 50
+    },
+    {
+      "name": "MWF0900+50",
+      "days": "MWF",
+      "start_minutes": 540,
+      "duration_minutes": 50
+    },
+    {
+      "name": "MWF1000+50",
+      "days": "MWF",
+      "start_minutes": 600,
+      "duration_minutes": 50
+    },
+    {
+      "name": "MWF1100+50",
+      "days": "MWF",
+      "start_minutes": 660,
+      "duration_minutes": 50
+    },
+    {
+      "name": "MW1200+75",
+      "days": "MW",
+      "start_minutes": 720,
+      "duration_minutes": 75
+    },
+    {
+      "name": "MW1330+75",
+      "days": "MW",
+      "start_minutes": 810,
+      "duration_minutes": 75
+    },
+    {
+      "name": "MW1500+75",
+      "days": "MW",
+      "start_minutes": 900,
+      "duration_minutes": 75
+    },
+    {
+      "name": "MW1630+75",
+      "days": "MW",
+      "start_minutes": 990,
+      "duration_minutes": 75
+    },
+    {
+      "name": "M1630+150",
+      "days": "M",
+      "start_minutes": 990,
+      "duration_minutes": 150
+    },
+    {
+      "name": "M1800+150",
+      "days": "M",
+      "start_minutes": 1080,
+      "duration_minutes": 150
+    },
+    {
+      "name": "TR0900+75",
+      "days": "TR",
+      "start_minutes": 540,
+      "duration_minutes": 75
+    },
+    {
+      "name": "TR0930+80",
+      "days": "TR",
+      "start_minutes": 570,
+      "duration_minutes": 80
+    },
+    {
+      "name": "TR1030+75",
+      "days": "TR",
+      "start_minutes": 630,
+      "duration_minutes": 75
+    },
+    {
+      "name": "TR1200+75",
+      "days": "TR",
+      "start_minutes": 720,
+      "duration_minutes": 75
+    },
+    {
+      "name": "TR1200+80",
+      "days": "TR",
+      "start_minutes": 720,
+      "duration_minutes": 80
+    },
+    {
+      "name": "TR1330+75",
+      "days": "TR",
+      "start_minutes": 810,
+      "duration_minutes": 75
+    },
+    {
+      "name": "TR1500+75",
+      "days": "TR",
+      "start_minutes": 900,
+      "duration_minutes": 75
+    },
+    {
+      "name": "TR1530+60",
+      "days": "TR",
+      "start_minutes": 930,
+      "duration_minutes": 60
+    },
+    {
+      "name": "TR1630+75",
+      "days": "TR",
+      "start_minutes": 990,
+      "duration_minutes": 75
+    },
+    {
+      "name": "T1630+100",
+      "days": "T",
+      "start_minutes": 990,
+      "duration_minutes": 100
+    },
+    {
+      "name": "T1630+150",
+      "days": "T",
+      "start_minutes": 990,
+      "duration_minutes": 150
+    },
+    {
+      "name": "T1800+150",
+      "days": "T",
+      "start_minutes": 1080,
+      "duration_minutes": 150
+    },
+    {
+      "name": "W1630+100",
+      "days": "W",
+      "start_minutes": 990,
+      "duration_minutes": 100
+    },
+    {
+      "name": "W1630+150",
+      "days": "W",
+      "start_minutes": 990,
+      "duration_minutes": 150
+    },
+    {
+      "name": "W1800+150",
+      "days": "W",
+      "start_minutes": 1080,
+      "duration_minutes": 150
+    },
+    {
+      "name": "R1630+100",
+      "days": "R",
+      "start_minutes": 990,
+      "duration_minutes": 100
+    },
+    {
+      "name": "R1630+150",
+      "days": "R",
+      "start_minutes": 990,
+      "duration_minutes": 150
+    },
+    {
+      "name": "R1800+150",
+      "days": "R",
+      "start_minutes": 1080,
+      "duration_minutes": 150
+    },
+    {
+      "name": "F1300+50",
+      "days": "F",
+      "start_minutes": 780,
+      "duration_minutes": 50
+    },
+    {
+      "name": "F1400+50",
+      "days": "F",
+      "start_minutes": 840,
+      "duration_minutes": 50
+    }
+  ],
+  "time_slot_tags": {
+    "2×75 bell schedule": [
+      "MW1200+75",
+      "MW1330+75",
+      "MW1500+75",
+      "TR0900+75",
+      "TR1030+75",
+      "TR1200+75",
+      "TR1330+75",
+      "TR1500+75"
+    ],
+    "3 credit bell schedule": [
+      "MW1200+75",
+      "MW1330+75",
+      "MW1500+75",
+      "MWF0900+50",
+      "MWF1000+50",
+      "MWF1100+50",
+      "TR0900+75",
+      "TR1030+75",
+      "TR1200+75",
+      "TR1330+75",
+      "TR1500+75"
+    ],
+    "3 credit early evening": [
+      "M1630+150",
+      "R1630+150",
+      "T1630+150",
+      "W1630+150"
+    ],
+    "3 credit evening": [
+      "M1800+150",
+      "R1800+150",
+      "T1800+150",
+      "W1800+150"
+    ],
+    "F1300+50": [
+      "F1300+50"
+    ],
+    "F1400+50": [
+      "F1400+50"
+    ],
+    "M1630+150": [
+      "M1630+150"
+    ],
+    "M1800+150": [
+      "M1800+150"
+    ],
+    "MW 2×75 bell schedule": [
+      "MW1200+75",
+      "MW1330+75",
+      "MW1500+75"
+    ],
+    "MW1200+75": [
+      "MW1200+75"
+    ],
+    "MW1330+75": [
+      "MW1330+75"
+    ],
+    "MW1500+75": [
+      "MW1500+75"
+    ],
+    "MW1630+75": [
+      "MW1630+75"
+    ],
+    "MWF 3×50 bell schedule": [
+      "MWF0900+50",
+      "MWF1000+50",
+      "MWF1100+50"
+    ],
+    "MWF0800+50": [
+      "MWF0800+50"
+    ],
+    "MWF0900+50": [
+      "MWF0900+50"
+    ],
+    "MWF1000+50": [
+      "MWF1000+50"
+    ],
+    "MWF1100+50": [
+      "MWF1100+50"
+    ],
+    "R1630+100": [
+      "R1630+100"
+    ],
+    "R1630+150": [
+      "R1630+150"
+    ],
+    "R1800+150": [
+      "R1800+150"
+    ],
+    "T1630+100": [
+      "T1630+100"
+    ],
+    "T1630+150": [
+      "T1630+150"
+    ],
+    "T1800+150": [
+      "T1800+150"
+    ],
+    "TR 2×75 bell schedule": [
+      "TR0900+75",
+      "TR1030+75",
+      "TR1200+75",
+      "TR1330+75",
+      "TR1500+75"
+    ],
+    "TR0900+75": [
+      "TR0900+75"
+    ],
+    "TR0930+80": [
+      "TR0930+80"
+    ],
+    "TR1030+75": [
+      "TR1030+75"
+    ],
+    "TR1200+75": [
+      "TR1200+75"
+    ],
+    "TR1200+80": [
+      "TR1200+80"
+    ],
+    "TR1330+75": [
+      "TR1330+75"
+    ],
+    "TR1500+75": [
+      "TR1500+75"
+    ],
+    "TR1530+60": [
+      "TR1530+60"
+    ],
+    "TR1630+75": [
+      "TR1630+75"
+    ],
+    "W1630+100": [
+      "W1630+100"
+    ],
+    "W1630+150": [
+      "W1630+150"
+    ],
+    "W1800+150": [
+      "W1800+150"
+    ]
+  },
+  "courses": [
+    {
+      "code": "CS 1030",
+      "department": "Computing",
+      "name": "Problem Solving with Computers"
+    },
+    {
+      "code": "CS 1400",
+      "department": "Computing",
+      "name": "Fundamentals of Programming"
+    },
+    {
+      "code": "CS 1410",
+      "department": "Computing",
+      "name": "Object Oriented Programming"
+    },
+    {
+      "code": "CS 1500",
+      "department": "Computing",
+      "name": "History of Video Games"
+    },
+    {
+      "code": "CS 2100",
+      "department": "Computing",
+      "name": "Discrete Structures"
+    },
+    {
+      "code": "CS 2320",
+      "department": "Computing",
+      "name": "Introduction to Machine Learning"
+    },
+    {
+      "code": "CS 2420",
+      "department": "Computing",
+      "name": "Introduction to Algorithms and Data Structures"
+    },
+    {
+      "code": "CS 2450",
+      "department": "Computing",
+      "name": "Software Engineering"
+    },
+    {
+      "code": "CS 2500",
+      "department": "Computing",
+      "name": "Data Wrangling"
+    },
+    {
+      "code": "CS 2810",
+      "department": "Computing",
+      "name": "Computer Organization and Architecture"
+    },
+    {
+      "code": "CS 3005",
+      "department": "Computing",
+      "name": "Programming in C++"
+    },
+    {
+      "code": "CS 3150",
+      "department": "Computing",
+      "name": "Computer Networks"
+    },
+    {
+      "code": "CS 3400",
+      "department": "Computing",
+      "name": "Operating Systems"
+    },
+    {
+      "code": "CS 3410",
+      "department": "Computing",
+      "name": "Distributed Systems"
+    },
+    {
+      "code": "CS 3500",
+      "department": "Computing",
+      "name": "Game Development"
+    },
+    {
+      "code": "CS 3510",
+      "department": "Computing",
+      "name": "Algorithms"
+    },
+    {
+      "code": "CS 3520",
+      "department": "Computing",
+      "name": "Programming Languages"
+    },
+    {
+      "code": "CS 3530",
+      "department": "Computing",
+      "name": "Computational Theory"
+    },
+    {
+      "code": "CS 3600",
+      "department": "Computing",
+      "name": "Graphics Programming"
+    },
+    {
+      "code": "CS 4300",
+      "department": "Computing",
+      "name": "Artificial Intelligence"
+    },
+    {
+      "code": "CS 4307",
+      "department": "Computing",
+      "name": "Database Systems"
+    },
+    {
+      "code": "CS 4320",
+      "department": "Computing",
+      "name": "Machine Learning"
+    },
+    {
+      "code": "CS 4400",
+      "department": "Computing",
+      "name": "Data Mining"
+    },
+    {
+      "code": "CS 4410",
+      "department": "Computing",
+      "name": "Data Visualization"
+    },
+    {
+      "code": "CS 4420",
+      "department": "Computing",
+      "name": "Data Privact, Security, and Ethics"
+    },
+    {
+      "code": "CS 4480R",
+      "department": "Computing",
+      "name": "Data Science Practicum"
+    },
+    {
+      "code": "CS 4490R",
+      "department": "Computing",
+      "name": "Data Science Capstone"
+    },
+    {
+      "code": "CS 4550",
+      "department": "Computing",
+      "name": "Compilers"
+    },
+    {
+      "code": "CS 4600",
+      "department": "Computing",
+      "name": "Senior Project"
+    },
+    {
+      "code": "CS 4800R",
+      "department": "Computing",
+      "name": "Undergraduate Research"
+    },
+    {
+      "code": "CS 4920R",
+      "department": "Computing",
+      "name": "Internship"
+    },
+    {
+      "code": "CS 4990",
+      "department": "Computing",
+      "name": "Special Topics in Computer Science"
+    },
+    {
+      "code": "CS 4991R",
+      "department": "Computing",
+      "name": "Competitive Programming"
+    },
+    {
+      "code": "CS 4992R",
+      "department": "Computing",
+      "name": "Computer Science Seminar"
+    },
+    {
+      "code": "CS 4995",
+      "department": "Computing",
+      "name": "Programming for VR/XR Internship 01"
+    },
+    {
+      "code": "CS 4996",
+      "department": "Computing",
+      "name": "Programming for VR/XR Internship 02"
+    },
+    {
+      "code": "CS 6300",
+      "department": "Computing",
+      "name": "Principles of Artificial Intelligence"
+    },
+    {
+      "code": "CS 6310",
+      "department": "Computing",
+      "name": "Foundations of Machine Learning"
+    },
+    {
+      "code": "CS 6320",
+      "department": "Computing",
+      "name": "Foundations of Deep Learning"
+    },
+    {
+      "code": "CS 6330",
+      "department": "Computing",
+      "name": "Programming for Machine Learning in Life Sciences"
+    },
+    {
+      "code": "CS 6331",
+      "department": "Computing",
+      "name": "Machine Learning for Life Sciences"
+    },
+    {
+      "code": "CS 6350",
+      "department": "Computing",
+      "name": "Artificial Intelligence and Machine Learning Project 1"
+    },
+    {
+      "code": "IT 1100",
+      "department": "Computing",
+      "name": "Introduction to Unix/Linux"
+    },
+    {
+      "code": "IT 1200",
+      "department": "Computing",
+      "name": "A+ Computer Hardware/Windows OS"
+    },
+    {
+      "code": "IT 1500",
+      "department": "Computing",
+      "name": "Cloud Fundamentals"
+    },
+    {
+      "code": "IT 2150",
+      "department": "Computing",
+      "name": "Windows Servers"
+    },
+    {
+      "code": "IT 2300",
+      "department": "Computing",
+      "name": "Database Design & Management"
+    },
+    {
+      "code": "IT 2400",
+      "department": "Computing",
+      "name": "Intro to Networking"
+    },
+    {
+      "code": "IT 2600",
+      "department": "Computing",
+      "name": "Digital Forensics"
+    },
+    {
+      "code": "IT 2700",
+      "department": "Computing",
+      "name": "Information Security"
+    },
+    {
+      "code": "IT 2750",
+      "department": "Computing",
+      "name": "Industrial Networking Essentials"
+    },
+    {
+      "code": "IT 3001",
+      "department": "Computing",
+      "name": "Info Sys and Analytics Intermediate Career Strategies"
+    },
+    {
+      "code": "IT 3100",
+      "department": "Computing",
+      "name": "Systems Design and Administration"
+    },
+    {
+      "code": "IT 3110",
+      "department": "Computing",
+      "name": "System Automation"
+    },
+    {
+      "code": "IT 3300",
+      "department": "Computing",
+      "name": "DevOps Virtualization"
+    },
+    {
+      "code": "IT 3400",
+      "department": "Computing",
+      "name": "Intermediate Computer Networking"
+    },
+    {
+      "code": "IT 3500",
+      "department": "Computing",
+      "name": "Cloud Computing"
+    },
+    {
+      "code": "IT 3700",
+      "department": "Computing",
+      "name": "CyberOps"
+    },
+    {
+      "code": "IT 3710",
+      "department": "Computing",
+      "name": "Network Defense"
+    },
+    {
+      "code": "IT 3750",
+      "department": "Computing",
+      "name": "Industrial Control Systems Security"
+    },
+    {
+      "code": "IT 4060",
+      "department": "Computing",
+      "name": "Big Data Analytics"
+    },
+    {
+      "code": "IT 4070",
+      "department": "Computing",
+      "name": "Data Visualization and Storytelling"
+    },
+    {
+      "code": "IT 4100",
+      "department": "Computing",
+      "name": "Files Systems and Storage Technologies"
+    },
+    {
+      "code": "IT 4200",
+      "department": "Computing",
+      "name": "DevOps Lifecycle Management"
+    },
+    {
+      "code": "IT 4310",
+      "department": "Computing",
+      "name": "Database Administration"
+    },
+    {
+      "code": "IT 4400",
+      "department": "Computing",
+      "name": "Network Design & Management"
+    },
+    {
+      "code": "IT 4510",
+      "department": "Computing",
+      "name": "Ethical Hacking & Network Defense"
+    },
+    {
+      "code": "IT 4600",
+      "department": "Computing",
+      "name": "Senior Capstone"
+    },
+    {
+      "code": "IT 4700",
+      "department": "Computing",
+      "name": "Cybersecurity Architecture"
+    },
+    {
+      "code": "IT 4910R",
+      "department": "Computing",
+      "name": "Special Topics in Applied Technology"
+    },
+    {
+      "code": "IT 4920R",
+      "department": "Computing",
+      "name": "Internship"
+    },
+    {
+      "code": "IT 4990",
+      "department": "Computing",
+      "name": "Special Topics in Information Technology"
+    },
+    {
+      "code": "IT 4991R",
+      "department": "Computing",
+      "name": "Competitive Cybersecurity"
+    },
+    {
+      "code": "MATH 0900",
+      "department": "Math",
+      "name": "Transitional Math I"
+    },
+    {
+      "code": "MATH 0980",
+      "department": "Math",
+      "name": "Transitional Math IIB"
+    },
+    {
+      "code": "MATH 1010",
+      "department": "Math",
+      "name": "Intermediate Algebra"
+    },
+    {
+      "code": "MATH 1020R",
+      "department": "Math",
+      "name": "Bridge Into College Mathematics"
+    },
+    {
+      "code": "MATH 1030",
+      "department": "Math",
+      "name": "Quantitative Reasoning (MA)"
+    },
+    {
+      "code": "MATH 1040",
+      "department": "Math",
+      "name": "Introduction to Statistics (MA)"
+    },
+    {
+      "code": "MATH 1050",
+      "department": "Math",
+      "name": "College Algebra / Pre-Calculus (MA)"
+    },
+    {
+      "code": "MATH 1060",
+      "department": "Math",
+      "name": "Trigonometry (MA)"
+    },
+    {
+      "code": "MATH 1080",
+      "department": "Math",
+      "name": "Pre-Calculus with Trigonometry (MA)"
+    },
+    {
+      "code": "MATH 1100",
+      "department": "Math",
+      "name": "Business Calculus (MA)"
+    },
+    {
+      "code": "MATH 1210",
+      "department": "Math",
+      "name": "Calculus I (MA)"
+    },
+    {
+      "code": "MATH 1220",
+      "department": "Math",
+      "name": "Calculus II (MA)"
+    },
+    {
+      "code": "MATH 2010",
+      "department": "Math",
+      "name": "Math for Elementary Teachers I"
+    },
+    {
+      "code": "MATH 2020",
+      "department": "Math",
+      "name": "Math for Elemen Teachers II"
+    },
+    {
+      "code": "MATH 2050",
+      "department": "Math",
+      "name": "Applied Statistics with Programming"
+    },
+    {
+      "code": "MATH 2200",
+      "department": "Math",
+      "name": "Discrete Mathematics"
+    },
+    {
+      "code": "MATH 2210",
+      "department": "Math",
+      "name": "Multivariable Calculus (MA)"
+    },
+    {
+      "code": "MATH 2250",
+      "department": "Math",
+      "name": "Differential Equations and Linear Algebra"
+    },
+    {
+      "code": "MATH 2270",
+      "department": "Math",
+      "name": "Linear Algebra"
+    },
+    {
+      "code": "MATH 2280",
+      "department": "Math",
+      "name": "Ordinary Differential Equations"
+    },
+    {
+      "code": "MATH 2285",
+      "department": "Math",
+      "name": "Adventures in Modeling"
+    },
+    {
+      "code": "MATH 2905",
+      "department": "Math",
+      "name": "Survey of Cryptography"
+    },
+    {
+      "code": "MATH 3000",
+      "department": "Math",
+      "name": "History of Mathematics"
+    },
+    {
+      "code": "MATH 3010",
+      "department": "Math",
+      "name": "Algebra for Secondary Mathematics Teaching"
+    },
+    {
+      "code": "MATH 3020",
+      "department": "Math",
+      "name": "Geometry and Statistics for Secondary Mathematics Teaching"
+    },
+    {
+      "code": "MATH 3050",
+      "department": "Math",
+      "name": "Stochastic Modeling and Applications"
+    },
+    {
+      "code": "MATH 3060",
+      "department": "Math",
+      "name": "Statistics for Scientists"
+    },
+    {
+      "code": "MATH 3100",
+      "department": "Math",
+      "name": "Euclidean / Non-Euclidean Geom"
+    },
+    {
+      "code": "MATH 3120",
+      "department": "Math",
+      "name": "Transition to Advanced Mathematics"
+    },
+    {
+      "code": "MATH 3150",
+      "department": "Math",
+      "name": "Introduction to Partial Differential Equations"
+    },
+    {
+      "code": "MATH 3200",
+      "department": "Math",
+      "name": "Introduction to Analysis I"
+    },
+    {
+      "code": "MATH 3210",
+      "department": "Math",
+      "name": "Introduction to Analysis II"
+    },
+    {
+      "code": "MATH 3400",
+      "department": "Math",
+      "name": "Probability & Statistics"
+    },
+    {
+      "code": "MATH 3410",
+      "department": "Math",
+      "name": "Actuarial Exam P/1 Preparation"
+    },
+    {
+      "code": "MATH 3450",
+      "department": "Math",
+      "name": "Statistical Inference"
+    },
+    {
+      "code": "MATH 3500",
+      "department": "Math",
+      "name": "Numerical Analysis"
+    },
+    {
+      "code": "MATH 3605",
+      "department": "Math",
+      "name": "Introduction to Modeling and Simulation"
+    },
+    {
+      "code": "MATH 3700",
+      "department": "Math",
+      "name": "Mathematical Modeling I"
+    },
+    {
+      "code": "MATH 3900",
+      "department": "Math",
+      "name": "Number Theory"
+    },
+    {
+      "code": "MATH 3905",
+      "department": "Math",
+      "name": "Cryptography and Codes"
+    },
+    {
+      "code": "MATH 4000",
+      "department": "Math",
+      "name": "Foundations of Algebra"
+    },
+    {
+      "code": "MATH 4005",
+      "department": "Math",
+      "name": "Quantum Computing and Cryptography"
+    },
+    {
+      "code": "MATH 4010",
+      "department": "Math",
+      "name": "Abstract Algebra II"
+    },
+    {
+      "code": "MATH 4100",
+      "department": "Math",
+      "name": "Introduction to Topology"
+    },
+    {
+      "code": "MATH 4200",
+      "department": "Math",
+      "name": "Introduction to Complex Analysis"
+    },
+    {
+      "code": "MATH 4250",
+      "department": "Math",
+      "name": "Programming for Scientific Computation"
+    },
+    {
+      "code": "MATH 4330",
+      "department": "Math",
+      "name": "Linear Algebra II"
+    },
+    {
+      "code": "MATH 4400",
+      "department": "Math",
+      "name": "Financial Mathematics"
+    },
+    {
+      "code": "MATH 4410",
+      "department": "Math",
+      "name": "Actuarial Exam FM/ 2 Preparation"
+    },
+    {
+      "code": "MATH 4450",
+      "department": "Math",
+      "name": "Math for Secondary Special Education Teachers"
+    },
+    {
+      "code": "MATH 4500",
+      "department": "Math",
+      "name": "Methods Teach Secondary Math"
+    },
+    {
+      "code": "MATH 4550",
+      "department": "Math",
+      "name": "Scientific Computation"
+    },
+    {
+      "code": "MATH 4800",
+      "department": "Math",
+      "name": "Industrial Careers in Mathematics"
+    },
+    {
+      "code": "MATH 4890R",
+      "department": "Math",
+      "name": "Independent Research"
+    },
+    {
+      "code": "MATH 4900",
+      "department": "Math",
+      "name": "Senior Capstone Seminar (ALUR)"
+    },
+    {
+      "code": "SA 1400",
+      "department": "Computing",
+      "name": "Success CS 1400"
+    },
+    {
+      "code": "SD 6100",
+      "department": "Computing",
+      "name": "Fundamentals of Programming"
+    },
+    {
+      "code": "SD 6110",
+      "department": "Computing",
+      "name": "Foundations of UI/UX Design"
+    },
+    {
+      "code": "SD 6200",
+      "department": "Computing",
+      "name": "Multitier App Development I"
+    },
+    {
+      "code": "SD 6210",
+      "department": "Computing",
+      "name": "Tech Entrepreneurship"
+    },
+    {
+      "code": "SD 6220",
+      "department": "Computing",
+      "name": "Software Development Practices"
+    },
+    {
+      "code": "SD 6300",
+      "department": "Computing",
+      "name": "Multitier App Development II"
+    },
+    {
+      "code": "SD 6310",
+      "department": "Computing",
+      "name": "Software Quality and Testing"
+    },
+    {
+      "code": "SD 6330",
+      "department": "Computing",
+      "name": "Mobile App Development for Android"
+    },
+    {
+      "code": "SD 6340",
+      "department": "Computing",
+      "name": "Mobile App Development for iOS"
+    },
+    {
+      "code": "SD 6400",
+      "department": "Computing",
+      "name": "Advanced Topics in App Development"
+    },
+    {
+      "code": "SD 6450",
+      "department": "Computing",
+      "name": "Graduate Capstone"
+    },
+    {
+      "code": "SE 1400",
+      "department": "Computing",
+      "name": "Web Design Fundamentals (ALCS)"
+    },
+    {
+      "code": "SE 3010",
+      "department": "Computing",
+      "name": "Mobile Application Development for Android"
+    },
+    {
+      "code": "SE 3020",
+      "department": "Computing",
+      "name": "Mobile Application Development for iOS"
+    },
+    {
+      "code": "SE 3100",
+      "department": "Computing",
+      "name": "Software Practices"
+    },
+    {
+      "code": "SE 3150",
+      "department": "Computing",
+      "name": "Software Quality"
+    },
+    {
+      "code": "SE 3200",
+      "department": "Computing",
+      "name": "Web Application Development I"
+    },
+    {
+      "code": "SE 3250",
+      "department": "Computing",
+      "name": "Internet of Things Programming"
+    },
+    {
+      "code": "SE 3400",
+      "department": "Computing",
+      "name": "Human-Computer Interaction"
+    },
+    {
+      "code": "SE 3450",
+      "department": "Computing",
+      "name": "User Experience Design"
+    },
+    {
+      "code": "SE 3500",
+      "department": "Computing",
+      "name": "Tech Entrepreneurship"
+    },
+    {
+      "code": "SE 3550",
+      "department": "Computing",
+      "name": "Online Marketing and SEO (ALCS)"
+    },
+    {
+      "code": "SE 4200",
+      "department": "Computing",
+      "name": "Web Application Development II"
+    },
+    {
+      "code": "SE 4600",
+      "department": "Computing",
+      "name": "Senior Project"
+    },
+    {
+      "code": "SE 4900R",
+      "department": "Computing",
+      "name": "Independent Research"
+    },
+    {
+      "code": "SE 4910R",
+      "department": "Computing",
+      "name": "Special Topics in Applied Technology"
+    },
+    {
+      "code": "SE 4920",
+      "department": "Computing",
+      "name": "Internship (ALPP)"
+    },
+    {
+      "code": "SE 4930R",
+      "department": "Computing",
+      "name": "Software Entrepreneurial Exploration"
+    },
+    {
+      "code": "SE 4990",
+      "department": "Computing",
+      "name": "Special Topics in Software Engineering"
+    }
+  ],
+  "programs": [
+    {
+      "name": "Computer Science",
+      "department": "Computing",
+      "conflicts": [
+        {
+          "name": "core electives",
+          "priority": 2,
+          "mode": "boost",
+          "members": [
+            "CS 1030",
+            "CS 1400",
+            "CS 1410",
+            "CS 2100",
+            "CS 2420",
+            "CS 2450",
+            "CS 2810",
+            "CS 3005",
+            "CS 3150",
+            "CS 3400",
+            "CS 3410",
+            "CS 3510",
+            "CS 3520",
+            "CS 3530",
+            "CS 3600",
+            "CS 4300",
+            "CS 4307",
+            "CS 4320",
+            "CS 4550",
+            "CS 4600",
+            "MATH 1210",
+            "MATH 3400",
+            "SE 3200"
+          ]
+        },
+        {
+          "name": "core requirements",
+          "priority": 1,
+          "mode": "boost",
+          "members": [
+            "CS 1030",
+            "CS 1400",
+            "CS 1410",
+            "CS 2100",
+            "CS 2420",
+            "CS 2450",
+            "CS 2810",
+            "CS 3005",
+            "CS 3510",
+            "CS 3530",
+            "CS 4600",
+            "MATH 1210",
+            "MATH 3400"
+          ]
+        },
+        {
+          "name": "math electives",
+          "priority": 6,
+          "mode": "boost",
+          "members": [
+            "CS 1030",
+            "CS 1400",
+            "CS 1410",
+            "CS 2100",
+            "CS 2420",
+            "CS 2450",
+            "CS 2810",
+            "CS 3005",
+            "CS 3150",
+            "CS 3400",
+            "CS 3410",
+            "CS 3510",
+            "CS 3520",
+            "CS 3530",
+            "CS 3600",
+            "CS 4300",
+            "CS 4307",
+            "CS 4320",
+            "CS 4550",
+            "CS 4600",
+            "MATH 1210",
+            "MATH 1220",
+            "MATH 2210",
+            "MATH 2250",
+            "MATH 2270",
+            "MATH 2280",
+            "MATH 3050",
+            "MATH 3400",
+            "MATH 3450",
+            "SE 3200"
+          ]
+        },
+        {
+          "name": "spread out CS 1400",
+          "priority": 5,
+          "mode": "boost",
+          "members": [
+            "CS 1400-01",
+            "CS 1400-02",
+            "CS 1400-03",
+            "CS 1400-04"
+          ]
+        },
+        {
+          "name": "spread out CS 1410",
+          "priority": 5,
+          "mode": "boost",
+          "members": [
+            "CS 1410-01",
+            "CS 1410-02"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Data Science",
+      "department": "Computing",
+      "conflicts": [
+        {
+          "name": "AI/ML track",
+          "priority": 5,
+          "mode": "boost",
+          "members": [
+            "CS 1030",
+            "CS 1400",
+            "CS 1410",
+            "CS 2100",
+            "CS 2420",
+            "CS 2500",
+            "CS 2810",
+            "CS 3005",
+            "CS 3510",
+            "CS 4300",
+            "CS 4320",
+            "CS 4400",
+            "CS 4410",
+            "CS 4420",
+            "CS 4480R",
+            "CS 4490R",
+            "IT 1500",
+            "MATH 1210",
+            "MATH 1220",
+            "MATH 2270",
+            "MATH 3400"
+          ]
+        },
+        {
+          "name": "Data engineering track",
+          "priority": 5,
+          "mode": "boost",
+          "members": [
+            "CS 1030",
+            "CS 1400",
+            "CS 1410",
+            "CS 2100",
+            "CS 2420",
+            "CS 2500",
+            "CS 2810",
+            "CS 3150",
+            "CS 3410",
+            "CS 3510",
+            "CS 4307",
+            "CS 4400",
+            "CS 4410",
+            "CS 4420",
+            "CS 4480R",
+            "CS 4490R",
+            "IT 1500",
+            "MATH 1210",
+            "MATH 1220",
+            "MATH 2270",
+            "MATH 3400"
+          ]
+        },
+        {
+          "name": "Software engineering track",
+          "priority": 5,
+          "mode": "boost",
+          "members": [
+            "CS 1030",
+            "CS 1400",
+            "CS 1410",
+            "CS 2100",
+            "CS 2420",
+            "CS 2450",
+            "CS 2500",
+            "CS 2810",
+            "CS 3510",
+            "CS 4400",
+            "CS 4410",
+            "CS 4420",
+            "CS 4480R",
+            "CS 4490R",
+            "IT 1500",
+            "MATH 1210",
+            "MATH 1220",
+            "MATH 2270",
+            "MATH 3400",
+            "SE 3100",
+            "SE 3150"
+          ]
+        },
+        {
+          "name": "core requirements",
+          "priority": 1,
+          "mode": "boost",
+          "members": [
+            "CS 1030",
+            "CS 1400",
+            "CS 1410",
+            "CS 2100",
+            "CS 2420",
+            "CS 2500",
+            "CS 2810",
+            "CS 3510",
+            "CS 4400",
+            "CS 4410",
+            "CS 4420",
+            "CS 4480R",
+            "CS 4490R",
+            "IT 1500",
+            "MATH 1210",
+            "MATH 1220",
+            "MATH 2270",
+            "MATH 3400"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Information Technology",
+      "department": "Computing",
+      "conflicts": [
+        {
+          "name": "Cybersecurity requirements",
+          "priority": 3,
+          "mode": "boost",
+          "members": [
+            "CS 1400",
+            "CS 1410",
+            "CS 2420",
+            "IT 1100",
+            "IT 1500",
+            "IT 2400",
+            "IT 2600",
+            "IT 2700",
+            "IT 2750",
+            "IT 3100",
+            "IT 3110",
+            "IT 3400",
+            "IT 3700",
+            "IT 3710",
+            "IT 4510",
+            "IT 4600",
+            "IT 4700",
+            "MATH 1040",
+            "MATH 1050"
+          ]
+        },
+        {
+          "name": "DevOps requirements",
+          "priority": 3,
+          "mode": "boost",
+          "members": [
+            "CS 1400",
+            "CS 1410",
+            "CS 2450",
+            "IT 1100",
+            "IT 1200",
+            "IT 1500",
+            "IT 2150",
+            "IT 2300",
+            "IT 2400",
+            "IT 2700",
+            "IT 3100",
+            "IT 3110",
+            "IT 3300",
+            "IT 3400",
+            "IT 3500",
+            "IT 4200",
+            "IT 4600",
+            "MATH 1040",
+            "MATH 1050"
+          ]
+        },
+        {
+          "name": "DevOps requirements vs core electives",
+          "priority": 5,
+          "mode": "boost",
+          "members": [
+            "CS 1400",
+            "CS 1410",
+            "CS 2450",
+            "IT 1100",
+            "IT 1200",
+            "IT 1500",
+            "IT 2150",
+            "IT 2300",
+            "IT 2400",
+            "IT 2700",
+            "IT 3100",
+            "IT 3110",
+            "IT 3300",
+            "IT 3400",
+            "IT 3500",
+            "IT 3710",
+            "IT 4100",
+            "IT 4200",
+            "IT 4310",
+            "IT 4400",
+            "IT 4510",
+            "IT 4600",
+            "IT 4920R",
+            "MATH 1040",
+            "MATH 1050"
+          ]
+        },
+        {
+          "name": "core electives",
+          "priority": 2,
+          "mode": "boost",
+          "members": [
+            "CS 1400",
+            "CS 1410",
+            "IT 1100",
+            "IT 1200",
+            "IT 1500",
+            "IT 2150",
+            "IT 2300",
+            "IT 2400",
+            "IT 2700",
+            "IT 3100",
+            "IT 3110",
+            "IT 3300",
+            "IT 3400",
+            "IT 3500",
+            "IT 3710",
+            "IT 4100",
+            "IT 4200",
+            "IT 4310",
+            "IT 4400",
+            "IT 4510",
+            "IT 4600",
+            "IT 4920R",
+            "MATH 1040",
+            "MATH 1050"
+          ]
+        },
+        {
+          "name": "core requirements",
+          "priority": 1,
+          "mode": "boost",
+          "members": [
+            "CS 1400",
+            "CS 1410",
+            "IT 1100",
+            "IT 1200",
+            "IT 1500",
+            "IT 2150",
+            "IT 2300",
+            "IT 2400",
+            "IT 2700",
+            "IT 3100",
+            "IT 3400",
+            "IT 3500",
+            "IT 4600",
+            "MATH 1040",
+            "MATH 1050"
+          ]
+        },
+        {
+          "name": "only need one math class",
+          "priority": null,
+          "mode": "reduce",
+          "members": [
+            "MATH 1040",
+            "MATH 1050"
+          ]
+        },
+        {
+          "name": "spread out IT 1100",
+          "priority": 5,
+          "mode": "boost",
+          "members": [
+            "IT 1100-01",
+            "IT 1100-02",
+            "IT 1100-03"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Software Engineering",
+      "department": "Computing",
+      "conflicts": [
+        {
+          "name": "Application track",
+          "priority": 5,
+          "mode": "boost",
+          "members": [
+            "CS 1030",
+            "CS 1400",
+            "CS 1410",
+            "CS 2100",
+            "CS 2420",
+            "CS 2450",
+            "CS 2810",
+            "CS 3005",
+            "CS 3150",
+            "CS 3510",
+            "CS 4307",
+            "IT 1100",
+            "IT 2300",
+            "MATH 1100",
+            "MATH 1210",
+            "MATH 2050",
+            "SE 1400",
+            "SE 3010",
+            "SE 3100",
+            "SE 3150",
+            "SE 3200",
+            "SE 3250",
+            "SE 3400",
+            "SE 3450",
+            "SE 4200",
+            "SE 4600"
+          ]
+        },
+        {
+          "name": "CS 4995 special case",
+          "priority": 9,
+          "mode": "boost",
+          "members": [
+            "CS 3150",
+            "CS 3400",
+            "CS 3410",
+            "CS 3520",
+            "CS 3600",
+            "CS 4300",
+            "CS 4307",
+            "CS 4320",
+            "CS 4550",
+            "SE 3200",
+            "CS 4995-01"
+          ]
+        },
+        {
+          "name": "Data science track",
+          "priority": 5,
+          "mode": "boost",
+          "members": [
+            "CS 1030",
+            "CS 1400",
+            "CS 1410",
+            "CS 2100",
+            "CS 2420",
+            "CS 2450",
+            "CS 2810",
+            "CS 3005",
+            "CS 3150",
+            "CS 3510",
+            "CS 4300",
+            "CS 4307",
+            "CS 4320",
+            "CS 4400",
+            "CS 4410",
+            "IT 1100",
+            "IT 2300",
+            "MATH 1100",
+            "MATH 1210",
+            "MATH 2050",
+            "SE 1400",
+            "SE 3010",
+            "SE 3100",
+            "SE 3150",
+            "SE 3200",
+            "SE 3400",
+            "SE 4200",
+            "SE 4600"
+          ]
+        },
+        {
+          "name": "DevOps track",
+          "priority": 5,
+          "mode": "boost",
+          "members": [
+            "CS 1030",
+            "CS 1400",
+            "CS 1410",
+            "CS 2100",
+            "CS 2420",
+            "CS 2450",
+            "CS 2810",
+            "CS 3005",
+            "CS 3150",
+            "CS 3510",
+            "CS 4307",
+            "IT 1100",
+            "IT 2300",
+            "IT 3110",
+            "IT 3300",
+            "IT 4200",
+            "MATH 1100",
+            "MATH 1210",
+            "MATH 2050",
+            "SE 1400",
+            "SE 3100",
+            "SE 3150",
+            "SE 3200",
+            "SE 3400",
+            "SE 4200",
+            "SE 4600"
+          ]
+        },
+        {
+          "name": "Entrepreneurial and marketing track",
+          "priority": 5,
+          "mode": "boost",
+          "members": [
+            "CS 1030",
+            "CS 1400",
+            "CS 1410",
+            "CS 2100",
+            "CS 2420",
+            "CS 2450",
+            "CS 2810",
+            "CS 3005",
+            "CS 3150",
+            "CS 3510",
+            "CS 4307",
+            "IT 1100",
+            "IT 2300",
+            "MATH 1100",
+            "MATH 1210",
+            "MATH 2050",
+            "SE 1400",
+            "SE 3100",
+            "SE 3150",
+            "SE 3200",
+            "SE 3400",
+            "SE 3500",
+            "SE 3550",
+            "SE 4200",
+            "SE 4600"
+          ]
+        },
+        {
+          "name": "Game development track",
+          "priority": 5,
+          "mode": "boost",
+          "members": [
+            "CS 1030",
+            "CS 1400",
+            "CS 1410",
+            "CS 2100",
+            "CS 2420",
+            "CS 2450",
+            "CS 2810",
+            "CS 3005",
+            "CS 3150",
+            "CS 3500",
+            "CS 3510",
+            "CS 3600",
+            "CS 4307",
+            "CS 4995",
+            "IT 1100",
+            "IT 2300",
+            "MATH 1100",
+            "MATH 1210",
+            "MATH 2050",
+            "SE 1400",
+            "SE 3010",
+            "SE 3100",
+            "SE 3150",
+            "SE 3200",
+            "SE 3400",
+            "SE 4200",
+            "SE 4600"
+          ]
+        },
+        {
+          "name": "core requirements",
+          "priority": 1,
+          "mode": "boost",
+          "members": [
+            "CS 1030",
+            "CS 1400",
+            "CS 1410",
+            "CS 2100",
+            "CS 2420",
+            "CS 2450",
+            "CS 2810",
+            "CS 3005",
+            "CS 3150",
+            "CS 3510",
+            "CS 4307",
+            "IT 1100",
+            "IT 2300",
+            "MATH 1100",
+            "MATH 1210",
+            "MATH 2050",
+            "SE 1400",
+            "SE 3100",
+            "SE 3150",
+            "SE 3200",
+            "SE 3400",
+            "SE 4200",
+            "SE 4600"
+          ]
+        },
+        {
+          "name": "only need one calculus class",
+          "priority": null,
+          "mode": "reduce",
+          "members": [
+            "MATH 1100",
+            "MATH 1210"
+          ]
+        },
+        {
+          "name": "only need one database class",
+          "priority": null,
+          "mode": "reduce",
+          "members": [
+            "CS 4307",
+            "IT 2300"
+          ]
+        },
+        {
+          "name": "only need one of AI/data mining",
+          "priority": null,
+          "mode": "reduce",
+          "members": [
+            "CS 4300",
+            "CS 4400"
+          ]
+        }
+      ]
+    }
+  ]
+}

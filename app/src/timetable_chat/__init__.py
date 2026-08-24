@@ -1,0 +1,1 @@
+"""Faculty timetabling chat service."""

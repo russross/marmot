@@ -1,0 +1,11 @@
+.env
+.venv/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+runtime/preferences/*.py
+runtime/sessions/*.jsonl
+
