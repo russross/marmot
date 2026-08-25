@@ -1,6 +1,7 @@
 from dataclasses import dataclass
+from functools import wraps
 import sqlite3
-from typing import Any, Callable, TypeVar, Optional, ParamSpec, Protocol, Self
+from typing import Callable, Concatenate, TypeVar, Optional, ParamSpec, Protocol
 
 MIN_PREF_PRIORITY = 10
 PRIORITY_LEVELS = 25
@@ -126,37 +127,34 @@ class UseSameTimePattern(FacultyPreferences):
 class TimeInterval:
     def __init__(self, days: str, start_time: str|int, end_time: str|int):
         assert(len(days) > 0)
-        if type(start_time) == str:
+        if isinstance(start_time, str):
             assert(len(start_time) == 4)
             assert(start_time.isdigit())
             start = int(start_time[:2]) * 60 + int(start_time[2:])
             assert(f'{start//60:02}{start%60:02}') == start_time
         else:
-            assert(type(start_time) == int)
             start = start_time
-        if type(end_time) == str:
+        if isinstance(end_time, str):
             assert(len(end_time) == 4)
             assert(end_time.isdigit())
             end = int(end_time[:2]) * 60 + int(end_time[2:])
             assert(f'{end//60:02}{end%60:02}') == end_time
         else:
-            assert(type(end_time) == int)
             end = end_time
         assert(start >= 0 and start%5 == 0)
         assert(start < end)
         assert(end <= 24*60 and end%5 == 0)
 
-        intervals = []
-        prev = -1
+        intervals: list[tuple[str, int, int]] = []
+        previous_index = -1
         for day in days.upper():
-            i = 'MTWRFSU'.index(day, prev+1)
+            previous_index = 'MTWRFSU'.index(day, previous_index + 1)
             intervals.append( (day, start, end) )
         self.intervals = intervals
 
 def parse_minutes(duration: str|int) -> int:
-    if type(duration) == int:
+    if isinstance(duration, int):
         return duration
-    assert(type(duration) == str)
     n = 0
     digits = ''
     for ch in duration:
@@ -181,22 +179,18 @@ P = ParamSpec('P')
 class RollbackSupport(Protocol):
     def rollback(self) -> None: ...
 
-def rollback_on_exception(method: Callable[P, T]) -> Callable[P, T]:
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-        if hasattr(args[0], 'rollback'):
-            self: RollbackSupport = args[0]
-            try:
-                return method(*args, **kwargs)
-            except Exception:
-                self.rollback()
-                raise
-        else:
-            return method(*args, **kwargs)
+S = TypeVar('S', bound=RollbackSupport)
 
-    wrapper.__name__ = method.__name__
-    wrapper.__doc__ = method.__doc__
-    wrapper.__annotations__ = method.__annotations__
-
+def rollback_on_exception(
+    method: Callable[Concatenate[S, P], T],
+) -> Callable[Concatenate[S, P], T]:
+    @wraps(method)
+    def wrapper(self: S, *args: P.args, **kwargs: P.kwargs) -> T:
+        try:
+            return method(self, *args, **kwargs)
+        except Exception:
+            self.rollback()
+            raise
     return wrapper
 
 class DB:
@@ -253,7 +247,9 @@ class DB:
             return
 
         week = 'MTWRFSU'
-        all_intervals = [ [ False for interval in range(24*60//5) ] for day in range(7) ]
+        all_intervals: list[list[bool]] = [
+            [False for interval in range(24*60//5)] for day in range(7)
+        ]
 
         def merge_interval(day_letter: str, start_time: int, end_time: int) -> None:
             nonlocal week, all_intervals
@@ -272,19 +268,19 @@ class DB:
                 merge_interval(day_letter, start_time, end_time)
 
         # consolidate everything into database format
-        entries = []
+        entries: list[tuple[str, int, int]] = []
         for (letter, intervals) in zip(week, all_intervals):
             start_minute = 0
             prev = False
-            for (minute, available) in zip(range(0, 24*60, 5), intervals):
-                if available == prev:
+            for (minute, is_available) in zip(range(0, 24*60, 5), intervals):
+                if is_available == prev:
                     continue
                 if prev:
                     # end of a range
                     entries.append((letter, start_minute, minute))
-                if available:
+                if is_available:
                     start_minute = minute
-                prev = available
+                prev = is_available
             if prev:
                 entries.append((letter, start_minute, minute))
 
