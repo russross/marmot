@@ -3,17 +3,17 @@ Marmot Faculty Timetabling Chat
 
 This directory contains a self-contained faculty chat application. A FastAPI server
 coaches faculty through timetabling preferences with an OpenRouter model, validates model
-tool calls against an installed semester snapshot, and writes the latest complete Python
-snippet for each faculty member. The web client uses assistant-ui and is exported as static
-files for the Python server to host.
+tool calls against an installed semester snapshot and a live tentative-assignment
+spreadsheet, and writes the latest complete Python snippet for each faculty member. The web
+client uses assistant-ui and is exported as static files for the Python server to host.
 
 Development setup
 -----------------
 
 1.  Put `OPENROUTER_API_KEY` in `~/.keys`, or copy `.env.example` to `.env` and set it
-    there. The default model is `deepseek/deepseek-v4-flash-0731`. Every request asks
-    OpenRouter to choose the highest-throughput provider among `int8`, `fp8`, `fp16`,
-    and `bf16` endpoints.
+    there. The default model is `stealth/ox-alpha`. Every request asks OpenRouter to choose
+    the highest-throughput provider. Set `OPENROUTER_MODEL=deepseek/deepseek-v4-flash-0731`
+    to switch back to DeepSeek without changing application code.
 2.  Install Python dependencies and run checks:
 
     ```console
@@ -39,7 +39,9 @@ Development setup
     ```
 
 Runtime files are created below `runtime/`. Session events are append-only JSONL files in
-`runtime/sessions/`; the current faculty snippets are in `runtime/preferences/`.
+`runtime/sessions/`; the current faculty snippets are in `runtime/preferences/`. Assignment
+tools download the Spring 2027 workbook on every call, so collaborative edits are visible
+without rebuilding or restarting the app. Override its URL with `CURRENT_ASSIGNMENTS_URL`.
 
 Installing another semester
 ----------------------------
@@ -50,17 +52,18 @@ explicit `--term` arguments are authoritative; database term metadata is not.
 
 ```console
 python3 scripts/install_semester.py \
-    --database ../fall2026/data/timetable.db \
-    --current-faculty ../fall2026/data/computingfaculty.py \
-    --previous-faculty ../spring2026/data/computingfaculty.py \
-    --older-faculty ../fall2025/data/computing.py \
-    --term 'Fall 2026' \
-    --previous-term 'Spring 2026' \
-    --older-term 'Fall 2025' \
-    --output data/fall-2026.json
+    --database ../data/timetable.db \
+    --current-assignments 'https://dixiestate-my.sharepoint.com/:x:/g/personal/d00003177_utahtech_edu/IQBwn5uigXgnSbURqT5f7uSXATuBEraNsUaHm5xpQ8uTJPQ?rtime=KvRjnMcC30g&download=1' \
+    --previous-faculty ../fall2026/data/computingfaculty.py \
+    --older-faculty ../spring2026/data/computingfaculty.py \
+    --term 'Spring 2027' \
+    --previous-term 'Fall 2026' \
+    --older-term 'Spring 2026' \
+    --output data/spring-2027.json
 ```
 
-The installer records both historical terms in newest-first order. Fall 2025 uses the
-legacy preference API, so this test installation converts its small preference vocabulary
-to current names. Production history beginning with Spring 2026 requires no conversion.
-After installation, the wider Marmot repository is not used at runtime.
+The installer records both historical terms in newest-first order, including their section
+setups for course-specific inference. It does not accept or read a Spring 2027 faculty
+Python source. Current assignments come only from the workbook at tool-execution time;
+the database contributes installed curriculum, room, and time vocabulary. After
+installation, the wider Marmot repository is not used at runtime.

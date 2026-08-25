@@ -24,6 +24,7 @@ def test_complete_snippet_preserves_shared_section_assignment_mode(
     store = PreferenceStore(runtime_directory / "preferences", repository)
     submission = FacultySubmission(
         faculty_name="DS Hire",
+        assignment_revision="test-revision",
         days_to_check="MT",
         preferences=[],
     )
@@ -42,6 +43,7 @@ def test_invalid_update_leaves_previous_submission_untouched(
     store = PreferenceStore(runtime_directory / "preferences", repository)
     accepted = FacultySubmission(
         faculty_name="Bart Stander",
+        assignment_revision="test-revision",
         days_to_check="MT",
         preferences=[WantADayOff(kind="want_a_day_off")],
     )
@@ -49,6 +51,7 @@ def test_invalid_update_leaves_previous_submission_untouched(
     original = Path(saved.path).read_text(encoding="utf-8")
     rejected = FacultySubmission(
         faculty_name="Bart Stander",
+        assignment_revision="test-revision",
         days_to_check="MT",
         preferences=[
             AvoidSectionInRooms(
@@ -71,6 +74,7 @@ def test_even_spread_validation_ignores_online_workload_sections(
     store = PreferenceStore(runtime_directory / "preferences", repository)
     submission = FacultySubmission(
         faculty_name="Joe Francom",
+        assignment_revision="test-revision",
         days_to_check="MT",
         preferences=[
             WantClassesEvenlySpreadAcrossDays(kind="want_classes_evenly_spread_across_days")
@@ -89,6 +93,7 @@ def test_constraint_update_and_coordination_note_survive_complete_render(
     store = PreferenceStore(runtime_directory / "preferences", repository)
     submission = FacultySubmission(
         faculty_name="Bart Stander",
+        assignment_revision="test-revision",
         days_to_check="MT",
         section_constraints=[
             SectionConstraintUpdate(
@@ -127,6 +132,7 @@ def test_department_approved_unavailability_is_immutable_faculty_context(
     result = store.save(
         FacultySubmission(
             faculty_name=joe.name,
+            assignment_revision="test-revision",
             days_to_check="MT",
             preferences=[],
         )
@@ -147,6 +153,7 @@ def test_teaching_changes_are_applied_and_explained_in_the_snippet(
     result = store.save(
         FacultySubmission(
             faculty_name="Bart Stander",
+            assignment_revision="test-revision",
             days_to_check="MT",
             section_changes=[
                 FacultySectionRemoval(

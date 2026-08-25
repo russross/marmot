@@ -31,9 +31,9 @@ Deployment boundary
     Pi. Keep the service operationally simple. There is intentionally no login or
     authorization layer, and security against other faculty is not a product goal.
 *   OpenRouter is the only external runtime dependency. The default model is
-    `deepseek/deepseek-v4-flash-0731`. Let OpenRouter favor the highest-throughput provider
-    while allowing only `int8`, `fp8`, `fp16`, and `bf16` quantizations; do not admit 4-bit
-    or smaller endpoints.
+    `stealth/ox-alpha`. Let OpenRouter favor the highest-throughput provider. Keep model
+    selection configurable through `OPENROUTER_MODEL` so operators can switch back to
+    `deepseek/deepseek-v4-flash-0731` without application changes.
 *   Load `OPENROUTER_API_KEY` through configuration. Never read, print, log, copy, or
     commit the value. `~/.keys` may contain shell-style `export` assignments.
 
@@ -174,6 +174,10 @@ Engineering contract
 *   The browser client uses modern TypeScript without `any` or unsafe type assertions.
     It must pass its formatter, linter, type/build checks, and relevant live-browser
     validation for user-visible behavior.
+*   npm availability varies by machine. Use the system `npm` when it is on `PATH`;
+    otherwise, if this checkout provides `.local/bin/npm`, prepend the checkout's
+    `.local/bin` directory to `PATH` so npm invocations started by package scripts resolve
+    to the same local installation.
 *   Favor end-to-end contract tests at risky boundaries: snapshot installation, strict
     decoding, stream translation, multi-round tools, validation/render equivalence,
     atomic saves, and preservation of prior data on failure. Do not add tests that merely

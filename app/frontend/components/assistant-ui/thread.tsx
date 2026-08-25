@@ -149,7 +149,11 @@ const ThreadWelcome: FC = () => {
       <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-semibold tracking-tight text-[var(--brand-navy)] duration-200">
         Faculty timetabling preferences
       </h1>
-      <p className="text-muted-foreground mt-2 max-w-lg text-sm">What’s your name?</p>
+      <p className="text-foreground mt-2 max-w-lg text-sm">Start by typing your name below.</p>
+      <p className="text-muted-foreground mt-1 max-w-lg text-sm">
+        Changes aren’t saved until you tell the assistant to save. You can come back anytime to
+        review or change your saved preferences.
+      </p>
     </div>
   );
 };
@@ -179,6 +183,8 @@ const ThreadSuggestionItem: FC = () => {
 };
 
 const Composer: FC = () => {
+  const isNewChat = useAuiState(isNewChatView);
+
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
       <div
@@ -186,7 +192,7 @@ const Composer: FC = () => {
         className="border-border/80 focus-within:border-primary/60 focus-within:ring-primary/10 flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) shadow-[0_10px_30px_-22px_rgba(0,48,88,0.55)] transition-[border-color,box-shadow] focus-within:ring-2"
       >
         <ComposerPrimitive.Input
-          placeholder="Introduce yourself or describe your scheduling needs..."
+          placeholder={isNewChat ? "Type your name..." : "Describe your scheduling needs..."}
           className="aui-composer-input placeholder:text-muted-foreground/60 max-h-48 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base leading-6 outline-none"
           rows={1}
           autoFocus

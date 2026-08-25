@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, StringConstraints
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, JsonValue, StringConstraints
 
 
 class StrictModel(BaseModel):
@@ -37,6 +37,7 @@ class PreferenceHistory(StrictModel):
     term: str
     faculty_present: bool
     preferences: str | None
+    section_setup: list[SectionSetup] = Field(default_factory=list)
 
 
 class SectionConstraintUpdate(StrictModel):
@@ -116,7 +117,9 @@ class HistoricalFacultySource(StrictModel):
 
 class Provenance(StrictModel):
     database: str
-    current_faculty_source: str
+    current_assignment_source: str = Field(
+        validation_alias=AliasChoices("current_assignment_source", "current_faculty_source")
+    )
     historical_faculty_sources: Annotated[
         list[HistoricalFacultySource], Field(min_length=2, max_length=2)
     ]
@@ -134,6 +137,35 @@ class Semester(StrictModel):
     time_slot_tags: dict[str, list[str]]
     courses: list[Course]
     programs: list[Program]
+
+
+class CurrentAssignment(StrictModel):
+    spreadsheet_row: int
+    spreadsheet_faculty_name: str | None
+    course_code: str
+    section: str
+    title: str
+    notes: str | None
+    section_number_inferred: bool
+    constraints_inferred_from: str | None
+    setup_method: SectionSetupMethod
+    room_tags: list[str]
+    time_slot_tags: list[str]
+    issues: list[str]
+
+
+class AssignmentSourceDetails(StrictModel):
+    url: str
+    revision: str
+    last_modified: str | None
+    etag: str | None
+
+
+class FacultyContext(StrictModel):
+    faculty: Faculty
+    assignments: list[CurrentAssignment]
+    assignment_source: AssignmentSourceDetails
+    issues: list[str]
 
 
 Priority = Annotated[int, Field(ge=10, le=24)]
@@ -254,6 +286,7 @@ class CoordinationNote(StrictModel):
 
 class FacultySubmission(StrictModel):
     faculty_name: str
+    assignment_revision: str
     days_to_check: Annotated[str, StringConstraints(pattern=r"^[MTWRFSU]+$")]
     section_changes: list[SectionChange] = Field(default_factory=list)
     section_constraints: list[SectionConstraintUpdate] = Field(default_factory=list)

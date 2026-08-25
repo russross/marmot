@@ -309,7 +309,7 @@ def grouped_values(
 def build_snapshot(
     *,
     database_path: Path,
-    current_source_path: Path,
+    current_assignment_source: str,
     historical_inputs: Sequence[HistoricalInput],
     term: str,
 ) -> dict[str, object]:
@@ -319,7 +319,6 @@ def build_snapshot(
     if len(set(historical_terms)) != 2:
         fail("historical faculty input terms must be distinct")
 
-    current_source = extract_faculty_source(current_source_path)
     historical_sources = [
         (historical, extract_faculty_source(historical.faculty_source_path))
         for historical in historical_inputs
@@ -328,25 +327,6 @@ def build_snapshot(
     connection = sqlite3.connect(f"file:{database_path}?mode=ro", uri=True)
     connection.row_factory = sqlite3.Row
     try:
-        faculty_sections = grouped_values(
-            connection,
-            "SELECT faculty, section FROM faculty_sections ORDER BY faculty, section",
-            key_column="faculty",
-            value_column="section",
-        )
-        section_room_tags = grouped_values(
-            connection,
-            "SELECT section, room_tag FROM section_room_tags ORDER BY section, room_tag",
-            key_column="section",
-            value_column="room_tag",
-        )
-        section_time_tags = grouped_values(
-            connection,
-            "SELECT section, time_slot_tag FROM section_time_slot_tags "
-            "ORDER BY section, time_slot_tag",
-            key_column="section",
-            value_column="time_slot_tag",
-        )
         room_tags = grouped_values(
             connection,
             "SELECT room_tag, room FROM rooms_room_tags ORDER BY room_tag, room",
@@ -362,31 +342,41 @@ def build_snapshot(
         )
 
         faculty_payload: list[dict[str, object]] = []
-        for name, current in sorted(current_source.items()):
-            sections = []
-            for section in faculty_sections.get(name, []):
-                sections.append(
-                    {
-                        "name": section,
-                        "room_tags": section_room_tags.get(section, []),
-                        "time_slot_tags": section_time_tags.get(section, []),
-                    }
-                )
+        faculty_names = sorted(
+            {
+                name
+                for _, historical_source in historical_sources
+                for name in historical_source
+            }
+        )
+        for name in faculty_names:
+            baseline = next(
+                source[name]
+                for _, source in historical_sources
+                if name in source
+            )
             faculty_payload.append(
                 {
                     "name": name,
-                    "department": current.department,
-                    "availability": [asdict(interval) for interval in current.availability],
-                    "sections": sections,
-                    "section_setup": [asdict(section) for section in current.section_setup],
-                    "approved_unavailable_time_slots": (current.approved_unavailable_time_slots),
-                    "current_preferences": current.current_preferences,
+                    "department": baseline.department,
+                    "availability": [asdict(interval) for interval in baseline.availability],
+                    "sections": [],
+                    "section_setup": [],
+                    "approved_unavailable_time_slots": (
+                        baseline.approved_unavailable_time_slots
+                    ),
+                    "current_preferences": None,
                     "preference_history": [
                         {
                             "term": historical.term,
                             "faculty_present": name in source,
                             "preferences": (
                                 source[name].current_preferences if name in source else None
+                            ),
+                            "section_setup": (
+                                [asdict(section) for section in source[name].section_setup]
+                                if name in source
+                                else []
                             ),
                         }
                         for historical, source in historical_sources
@@ -443,7 +433,7 @@ def build_snapshot(
             "historical_terms": historical_terms,
             "provenance": {
                 "database": str(database_path),
-                "current_faculty_source": str(current_source_path),
+                "current_assignment_source": current_assignment_source,
                 "historical_faculty_sources": [
                     {
                         "term": historical.term,
@@ -452,8 +442,9 @@ def build_snapshot(
                     for historical in historical_inputs
                 ],
                 "note": (
-                    "The fall2026 source database reports Spring 2026 internally; "
-                    "the directory and requested test scenario define this snapshot as Fall 2026."
+                    "Current assignments are downloaded when backend tools run. No current-term "
+                    "faculty Python source contributes faculty, assignments, constraints, or "
+                    "preferences to this snapshot."
                 ),
             },
             "faculty": faculty_payload,
@@ -496,7 +487,7 @@ def build_snapshot(
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="Install a Marmot semester snapshot")
     result.add_argument("--database", required=True, type=Path)
-    result.add_argument("--current-faculty", required=True, type=Path)
+    result.add_argument("--current-assignments", required=True)
     result.add_argument("--previous-faculty", required=True, type=Path)
     result.add_argument("--older-faculty", required=True, type=Path)
     result.add_argument("--term", required=True)
@@ -510,7 +501,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     args = parser().parse_args(argv)
     snapshot = build_snapshot(
         database_path=args.database,
-        current_source_path=args.current_faculty,
+        current_assignment_source=args.current_assignments,
         historical_inputs=(
             HistoricalInput(
                 term=args.previous_term,

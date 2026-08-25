@@ -13,9 +13,14 @@ class Settings(BaseSettings):
     )
 
     openrouter_api_key: SecretStr = SecretStr("")
-    openrouter_model: str = "deepseek/deepseek-v4-flash-0731"
-    marmot_data_file: Path = APP_ROOT / "data" / "fall-2026.json"
+    openrouter_model: str = "stealth/ox-alpha"
+    marmot_data_file: Path = APP_ROOT / "data" / "spring-2027.json"
     marmot_runtime_dir: Path = APP_ROOT / "runtime"
+    current_assignments_url: str = (
+        "https://dixiestate-my.sharepoint.com/:x:/g/personal/"
+        "d00003177_utahtech_edu/IQBwn5uigXgnSbURqT5f7uSXATuBEraNsUaHm5xpQ8uTJPQ"
+        "?rtime=KvRjnMcC30g&download=1"
+    )
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     max_tool_rounds: int = 8
 

@@ -5,6 +5,7 @@ from pathlib import Path
 import httpx
 import pytest
 
+from timetable_chat.assignments import AssignmentWorkbookClient
 from timetable_chat.models import UiMessage
 from timetable_chat.openrouter import (
     MessageFinished,
@@ -47,7 +48,9 @@ def sse_fragments(events: list[dict[str, object]]) -> list[bytes]:
 
 @pytest.mark.asyncio
 async def test_agent_streams_fragmented_text_and_tool_rounds(
-    repository: SemesterRepository, runtime_directory: Path
+    spring_repository: SemesterRepository,
+    assignment_client: AssignmentWorkbookClient,
+    runtime_directory: Path,
 ) -> None:
     request_count = 0
 
@@ -58,17 +61,34 @@ async def test_agent_streams_fragmented_text_and_tool_rounds(
         assert payload["stream"] is True
         assert payload["stream_options"] == {"include_usage": True}
         if request_count == 1:
-            assert payload["parallel_tool_calls"] is False
-            assert payload["provider"] == {
-                "sort": "throughput",
-                "quantizations": ["int8", "fp8", "fp16", "bf16"],
-            }
+            assert "parallel_tool_calls" not in payload
+            assert payload["provider"] == {"sort": "throughput"}
             events: list[dict[str, object]] = [
                 {
                     "id": "generation-1",
                     "object": "chat.completion.chunk",
                     "choices": [
                         {"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}
+                    ],
+                },
+                {
+                    "id": "generation-1",
+                    "choices": [
+                        {
+                            "index": 0,
+                            "delta": {
+                                "reasoning": "I should retrieve the faculty history.",
+                                "reasoning_details": [
+                                    {
+                                        "type": "reasoning.text",
+                                        "text": "I should retrieve the faculty history.",
+                                        "format": "unknown",
+                                        "id": "reasoning-1",
+                                    }
+                                ],
+                            },
+                            "finish_reason": None,
+                        }
                     ],
                 },
                 {
@@ -131,6 +151,16 @@ async def test_agent_streams_fragmented_text_and_tool_rounds(
             return httpx.Response(200, stream=FragmentedStream(sse_fragments(events)))
 
         tool_message = payload["messages"][-1]
+        assistant_message = payload["messages"][-2]
+        assert "reasoning" not in assistant_message
+        assert assistant_message["reasoning_details"] == [
+            {
+                "type": "reasoning.text",
+                "text": "I should retrieve the faculty history.",
+                "format": "unknown",
+                "id": "reasoning-1",
+            }
+        ]
         assert tool_message["role"] == "tool"
         assert "WantADayOff" in tool_message["content"]
         final_events: list[dict[str, object]] = [
@@ -168,8 +198,9 @@ async def test_agent_streams_fragmented_text_and_tool_rounds(
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(provider))
     tools = ToolService(
-        repository,
-        PreferenceStore(runtime_directory / "preferences", repository),
+        spring_repository,
+        PreferenceStore(runtime_directory / "preferences", spring_repository),
+        assignment_client,
     )
     agent = OpenRouterAgent(
         api_key="test-key",

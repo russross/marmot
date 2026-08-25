@@ -43,7 +43,7 @@ async def test_app_loads_installed_snapshot_and_reports_missing_provider_key(
     finally:
         get_settings.cache_clear()
 
-    assert health.json() == {"status": "ok", "term": "Fall 2026", "faculty_count": 18}
+    assert health.json() == {"status": "ok", "term": "Spring 2027", "faculty_count": 22}
     assert chat.status_code == 503
     assert chat.json()["detail"] == "OPENROUTER_API_KEY is not configured"
 

@@ -19,7 +19,6 @@ from timetable_chat.tools import ToolService
 
 OPENROUTER_STREAM_CHUNK_ADAPTER = TypeAdapter(OpenRouterStreamChunk)
 JSON_VALUE_ADAPTER = TypeAdapter(JsonValue)
-PREFERRED_QUANTIZATIONS = ["int8", "fp8", "fp16", "bf16"]
 
 
 class OpenRouterError(RuntimeError):
@@ -141,6 +140,8 @@ class OpenRouterAgent:
         total_output_tokens = 0
         for round_number in range(self.max_tool_rounds + 1):
             text_parts: list[str] = []
+            reasoning_parts: list[str] = []
+            reasoning_details: list[JsonValue] = []
             tool_buffers: dict[int, _ToolCallBuffer] = {}
             finish_reason: str | None = None
 
@@ -157,6 +158,10 @@ class OpenRouterAgent:
                 choice = chunk.choices[0]
                 finish_reason = choice.finish_reason or finish_reason
                 delta = choice.delta
+                if delta.reasoning:
+                    reasoning_parts.append(delta.reasoning)
+                if delta.reasoning_details:
+                    reasoning_details.extend(delta.reasoning_details)
                 if delta.content:
                     text_parts.append(delta.content)
                     yield TextDelta(delta.content)
@@ -191,6 +196,8 @@ class OpenRouterAgent:
                 role="assistant",
                 content=content,
                 tool_calls=tool_calls or None,
+                reasoning=None if reasoning_details else "".join(reasoning_parts) or None,
+                reasoning_details=reasoning_details or None,
             )
             messages.append(assistant.model_dump(mode="json", exclude_none=True))
             if not tool_calls:
@@ -208,7 +215,7 @@ class OpenRouterAgent:
 
             for tool_call in tool_calls:
                 yield ToolArgumentsFinished(tool_call.id)
-                result_text = self.tools.execute(
+                result_text = await self.tools.execute(
                     tool_call.function.name,
                     tool_call.function.arguments,
                 )
@@ -256,11 +263,7 @@ class OpenRouterAgent:
                     "messages": messages,
                     "tools": self.tools.definitions(),
                     "tool_choice": "auto",
-                    "parallel_tool_calls": False,
-                    "provider": {
-                        "sort": "throughput",
-                        "quantizations": PREFERRED_QUANTIZATIONS,
-                    },
+                    "provider": {"sort": "throughput"},
                     "stream": True,
                     "stream_options": {"include_usage": True},
                 },

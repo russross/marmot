@@ -211,13 +211,22 @@ def effective_priorities(preferences: Iterable[Preference]) -> list[int]:
     return result
 
 
-def validate_submission(repository: SemesterRepository, submission: FacultySubmission) -> Faculty:
-    faculty = repository.faculty(submission.faculty_name)
+def validate_submission(
+    repository: SemesterRepository,
+    submission: FacultySubmission,
+    faculty: Faculty | None = None,
+) -> Faculty:
+    faculty = faculty or repository.faculty(submission.faculty_name)
+    if faculty.name.casefold() != submission.faculty_name.strip().casefold():
+        raise ValueError(
+            f"submission faculty {submission.faculty_name!r} does not match {faculty.name!r}"
+        )
     validate_day_order(submission.days_to_check)
     time_slots = {slot.name for slot in repository.semester.time_slots}
     room_names = {room.name for room in repository.semester.rooms}
     valid_room_tags = set(repository.semester.room_tags) | room_names
     valid_time_tags = set(repository.semester.time_slot_tags) | time_slots
+    valid_courses = {course.code for course in repository.semester.courses}
     room_tags_by_section = {section.name: section.room_tags for section in faculty.sections}
     time_tags_by_section = {section.name: section.time_slot_tags for section in faculty.sections}
 
@@ -235,6 +244,7 @@ def validate_submission(repository: SemesterRepository, submission: FacultySubmi
             continue
         if change.section in room_tags_by_section:
             raise ValueError(f"{change.section!r} is already assigned to {faculty.name}")
+        validate_section_course(change.section, valid_courses)
         validate_section_tags(
             change.room_tags,
             change.time_slot_tags,
@@ -268,6 +278,9 @@ def validate_submission(repository: SemesterRepository, submission: FacultySubmi
         created_time_slots.update(
             tag for tag in update.time_slot_tags if valid_explicit_time_slot(tag)
         )
+
+    for section_name in room_tags_by_section:
+        validate_section_course(section_name, valid_courses)
 
     scheduleable_section_count = sum(bool(tags) for tags in time_tags_by_section.values())
     concrete_time_slots = time_slots | created_time_slots
@@ -371,6 +384,14 @@ def validate_section_tags(
         raise ValueError(f"unknown time-slot tags: {sorted(unknown_time_tags)}")
 
 
+def validate_section_course(section: str, valid_courses: set[str]) -> None:
+    course, separator, section_number = section.rpartition("-")
+    if not separator or not section_number:
+        raise ValueError(f"section {section!r} must contain a course and section number")
+    if course not in valid_courses:
+        raise ValueError(f"section {section!r} uses unknown installed course {course!r}")
+
+
 def valid_explicit_time_slot(value: str) -> bool:
     match = EXPLICIT_TIME_SLOT.fullmatch(value)
     if match is None:
@@ -391,8 +412,7 @@ class PreferenceStore:
         self.repository = repository
 
     def path_for(self, faculty_name: str) -> Path:
-        faculty = self.repository.faculty(faculty_name)
-        return self.directory / f"{faculty_slug(faculty.name)}.py"
+        return self.directory / f"{faculty_slug(faculty_name)}.py"
 
     def read(self, faculty_name: str) -> str | None:
         path = self.path_for(faculty_name)
@@ -400,8 +420,8 @@ class PreferenceStore:
             return None
         return path.read_text(encoding="utf-8")
 
-    def save(self, submission: FacultySubmission) -> SaveResult:
-        faculty = validate_submission(self.repository, submission)
+    def save(self, submission: FacultySubmission, faculty: Faculty | None = None) -> SaveResult:
+        faculty = validate_submission(self.repository, submission, faculty)
         snippet = render_submission(faculty, submission)
         self.directory.mkdir(parents=True, exist_ok=True)
         destination = self.path_for(faculty.name)

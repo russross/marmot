@@ -10,6 +10,7 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+from timetable_chat.assignments import AssignmentWorkbookClient
 from timetable_chat.config import APP_ROOT, Settings, get_settings
 from timetable_chat.models import ChatRequest
 from timetable_chat.openrouter import (
@@ -36,7 +37,11 @@ class Services:
         preference_store = PreferenceStore(
             settings.marmot_runtime_dir / "preferences", self.repository
         )
-        self.tools = ToolService(self.repository, preference_store)
+        self.tools = ToolService(
+            self.repository,
+            preference_store,
+            AssignmentWorkbookClient(settings.current_assignments_url),
+        )
         self.sessions = SessionLog(settings.marmot_runtime_dir / "sessions")
         self.agent = OpenRouterAgent(
             api_key=settings.openrouter_api_key.get_secret_value(),
@@ -57,6 +62,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         await services.agent.close()
+        await services.tools.close()
 
 
 app = FastAPI(title="Marmot Faculty Timetabling", lifespan=lifespan)
