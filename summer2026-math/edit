@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+
+import click
+import sys
+import queries
+
+DB_FILE = 'timetable.db'
+
+@click.group()
+def cli() -> None:
+    pass
+
+@cli.command()
+@click.argument('term')
+@click.argument('start_date')
+@click.argument('end_date')
+def make_term(term: str, start_date: str, end_date: str) -> None:
+    db.make_term(term, start_date, end_date)
+
+@cli.command()
+@click.argument('holiday')
+def make_holiday(holiday: str) -> None:
+    db.make_holiday(holiday)
+
+@cli.command()
+@click.argument('building')
+def make_building(building: str) -> None:
+    db.make_building(building)
+
+@cli.command()
+@click.argument('room')
+@click.argument('capacity', type=int)
+@click.argument('room_tags', nargs=-1)
+def make_room(room: str, capacity: str, room_tags: list[str]) -> None:
+    db.make_room(room, int(capacity), room_tags)
+
+@cli.command()
+@click.argument('time_slot')
+@click.argument('time_slot_tags', nargs=-1)
+def make_time_slot(time_slot: str, time_slot_tags: list[str]) -> None:
+    db.make_time_slot(time_slot, time_slot_tags)
+
+@cli.command()
+@click.argument('department')
+def make_department(department: str) -> None:
+    db.make_department(department)
+
+@cli.command()
+@click.argument('faculty')
+@click.argument('department')
+@click.argument('availability')
+def make_faculty(faculty: str, department: str, availability: str) -> None:
+    db.make_faculty(faculty, department, availability)
+
+@cli.command()
+@click.argument('faculty')
+@click.argument('days_to_check')
+@click.argument('days_off')
+def faculty_default_clustering(faculty: str, days_to_check: str, days_off: str) -> None:
+    db.faculty_default_clustering(faculty, days_to_check, int(days_off))
+
+@cli.command()
+@click.argument('department')
+@click.argument('course')
+@click.argument('course_name')
+def make_course(department: str, course: str, course_name: str) -> None:
+    db.make_course(department, course, course_name)
+
+@cli.command()
+@click.argument('course')
+@click.argument('prereqs', nargs=-1)
+def add_prereqs(course: str, prereqs: list[str]) -> None:
+    db.add_prereqs(course, prereqs)
+
+@cli.command()
+@click.argument('course')
+@click.argument('coreqs', nargs=-1)
+def add_coreqs(course: str, coreqs: list[str]) -> None:
+    db.add_coreqs(course, coreqs)
+
+@cli.command()
+@click.argument('section')
+@click.argument('tags', nargs=-1)
+def make_section(section: str, tags: list[str]) -> None:
+    db.make_section(section, tags)
+
+@cli.command()
+@click.argument('faculty')
+@click.argument('sections', nargs=-1)
+def assign_faculty_sections(faculty: str, sections: list[str]) -> None:
+    db.assign_faculty_sections(faculty, sections)
+
+@cli.command()
+@click.argument('primary')
+@click.argument('sections', nargs=-1)
+def add_cross_listing(primary: str, sections: list[str]) -> None:
+    db.add_cross_listing(primary, sections)
+
+@cli.command()
+@click.argument('penalty')
+@click.argument('single')
+@click.argument('group', nargs=-1)
+def add_anti_conflict(penalty: str, single: str, group: list[str]) -> None:
+    db.add_anti_conflict(int(penalty), single, group)
+
+@cli.command()
+@click.argument('program')
+@click.argument('department')
+def make_program(program: str, department: str) -> None:
+    db.make_program(program, department)
+
+@cli.command()
+@click.argument('program')
+@click.argument('conflict_name')
+@click.argument('conflict_penalty')
+@click.argument('maximize')
+@click.argument('courses', nargs=-1)
+def make_conflict(program: str, conflict_name: str, conflict_penalty: str, maximize: str, courses: list[str]) -> None:
+    db.make_conflict(program, conflict_name, int(conflict_penalty), maximize, courses)
+
+try:
+    db = queries.DB(DB_FILE)
+    cli()
+except Exception as e:
+    cmd = sys.argv[0]
+    for elt in sys.argv[1:]:
+        if len([ch for ch in elt if not ch.isalpha() and not ch.isdigit()]) > 0:
+            cmd += ' ' + repr(elt)
+        else:
+            cmd += ' ' + elt
+    print(f'{cmd}')
+    print(f'--> error: {e}')
+    db.db.rollback()
+    sys.exit(1)
+finally:
+    db.db.commit()

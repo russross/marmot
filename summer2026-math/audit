@@ -1,0 +1,238 @@
+#!/usr/bin/env python3
+
+import sqlite3
+import sys
+
+DB_FILE = 'timetable.db'
+CURRENT_TERM = 'fall'
+DEPARTMENTS = ['Computing']
+
+db = sqlite3.connect(DB_FILE)
+
+# check for courses that are missing but should be in rotation
+placeholders = ', '.join(['?']*len(DEPARTMENTS))
+query = '''
+    SELECT department, course, course_name
+    FROM courses
+    NATURAL JOIN course_rotations
+    NATURAL LEFT OUTER JOIN sections
+    WHERE rotation = ? AND department IN (PLACEHOLDERS) AND section IS NULL
+    ORDER BY department, course'''.replace('PLACEHOLDERS', placeholders)
+rows = db.execute(query, [CURRENT_TERM] + DEPARTMENTS).fetchall()
+if len(rows) > 0:
+    print()
+    s = f'Missing courses that should have a {CURRENT_TERM} section:'
+    print(s)
+    print('-' * len(s))
+    for (department, course, course_name) in rows:
+        print(f'{course}: {course_name} ({department})')
+
+# check for sections that should have a time slot but are
+# squeezed out by faculty availability
+query = '''
+    SELECT department, course_name, section
+    FROM sections_to_be_scheduled
+    NATURAL JOIN courses
+    NATURAL LEFT OUTER JOIN time_slots_available_to_sections
+    WHERE department IN (PLACEHOLDERS) AND time_slot IS NULL
+    ORDER BY department, section'''.replace('PLACEHOLDERS', placeholders)
+rows = db.execute(query, DEPARTMENTS).fetchall()
+if len(rows) > 0:
+    print()
+    s = 'Sections where faculty availability precludes all assigned time slots'
+    print(s)
+    print('-' * len(s))
+    for (department, course_name, section) in rows:
+        print(f'{section}: {course_name} ({department})')
+
+# check for sections where every time slot ends up with a penalty
+query = '''
+    SELECT department, section, course_name
+    FROM time_slots_available_to_sections
+    NATURAL JOIN sections
+    NATURAL JOIN courses
+    WHERE department IN (PLACEHOLDERS)
+    GROUP BY department, section, course_name
+    HAVING COUNT(1) = COUNT(time_slot_priority)
+    ORDER BY department, section'''.replace('PLACEHOLDERS', placeholders)
+rows = db.execute(query, DEPARTMENTS).fetchall()
+if len(rows) > 0:
+    print()
+    s = 'Sections where every available time slot has a penalty'
+    print(s)
+    print('-' * len(s))
+    for (department, section, course_name) in rows:
+        print(f'{section}: {course_name} ({department})')
+
+# check for sections where every room has a penalty
+query = '''
+    SELECT department, section, course_name
+    FROM rooms_available_to_sections
+    NATURAL JOIN sections
+    NATURAL JOIN courses
+    WHERE department IN (PLACEHOLDERS)
+    GROUP BY department, section, course_name
+    HAVING COUNT(1) = COUNT(room_priority)
+    ORDER BY department, section'''.replace('PLACEHOLDERS', placeholders)
+rows = db.execute(query, DEPARTMENTS).fetchall()
+if len(rows) > 0:
+    print()
+    s = 'Sections where every available room has a penalty'
+    print(s)
+    print('-' * len(s))
+    for (department, section, course_name) in rows:
+        print(f'{section}: {course_name} ({department})')
+
+# check for section-specific time preferences that do not overlap the
+# section's actual allowed times. These are valid input, but they have no
+# effect and usually indicate a stale or mistyped preference.
+query = '''
+    SELECT c.department, pref.faculty, pref.section, pref.time_slot_tag
+    FROM faculty_section_time_slot_preferences AS pref
+    JOIN sections AS s ON s.section = pref.section
+    JOIN courses AS c ON c.course = s.course
+    LEFT OUTER JOIN time_slots_time_slot_tags AS pref_slots
+        ON pref_slots.time_slot_tag = pref.time_slot_tag
+    LEFT OUTER JOIN section_time_slot_tags AS section_tags
+        ON section_tags.section = pref.section
+    LEFT OUTER JOIN time_slots_time_slot_tags AS section_slots
+        ON  section_slots.time_slot_tag = section_tags.time_slot_tag
+        AND section_slots.time_slot = pref_slots.time_slot
+    WHERE c.department IN (PLACEHOLDERS)
+    GROUP BY c.department, pref.faculty, pref.section, pref.time_slot_tag
+    HAVING COUNT(section_slots.time_slot) = 0
+    ORDER BY c.department, pref.section, pref.faculty, pref.time_slot_tag'''.replace('PLACEHOLDERS', placeholders)
+rows = db.execute(query, DEPARTMENTS).fetchall()
+if len(rows) > 0:
+    print()
+    s = 'Section time preferences with no matching assigned time slots'
+    print(s)
+    print('-' * len(s))
+    for (department, faculty, section, time_slot_tag) in rows:
+        print(f'{section}: {faculty} avoids {time_slot_tag} but it matches no assigned time slot ({department})')
+
+# check for section-specific room preferences that do not overlap the
+# section's actual allowed rooms.
+query = '''
+    SELECT c.department, pref.faculty, pref.section, pref.room_tag
+    FROM faculty_section_room_preferences AS pref
+    JOIN sections AS s ON s.section = pref.section
+    JOIN courses AS c ON c.course = s.course
+    LEFT OUTER JOIN rooms_room_tags AS pref_rooms
+        ON pref_rooms.room_tag = pref.room_tag
+    LEFT OUTER JOIN section_room_tags AS section_tags
+        ON section_tags.section = pref.section
+    LEFT OUTER JOIN rooms_room_tags AS section_rooms
+        ON  section_rooms.room_tag = section_tags.room_tag
+        AND section_rooms.room = pref_rooms.room
+    WHERE c.department IN (PLACEHOLDERS)
+    GROUP BY c.department, pref.faculty, pref.section, pref.room_tag
+    HAVING COUNT(section_rooms.room) = 0
+    ORDER BY c.department, pref.section, pref.faculty, pref.room_tag'''.replace('PLACEHOLDERS', placeholders)
+rows = db.execute(query, DEPARTMENTS).fetchall()
+if len(rows) > 0:
+    print()
+    s = 'Section room preferences with no matching assigned rooms'
+    print(s)
+    print('-' * len(s))
+    for (department, faculty, section, room_tag) in rows:
+        print(f'{section}: {faculty} avoids {room_tag} but it matches no assigned room ({department})')
+
+# check section numbers for sequencing, online, evening, etc.
+query = '''
+    WITH section_details AS (
+        SELECT
+            c.department,
+            s.course,
+            s.section,
+            s.section_number,
+            CAST(s.section_number AS INTEGER) as section_num,
+            CASE WHEN COUNT(DISTINCT sr.room_tag) > 0 THEN 1 ELSE 0 END as has_rooms,
+            CASE WHEN COUNT(DISTINCT st.time_slot_tag) > 0 THEN 1 ELSE 0 END as has_times,
+            MIN(CASE WHEN ts.start_time IS NOT NULL THEN ts.start_time ELSE NULL END) as min_start_time,
+            MAX(CASE WHEN ts.start_time IS NOT NULL THEN ts.start_time ELSE NULL END) as max_start_time,
+            SUBSTR(c.course_number, 1, 4) IN ('4800', '4920', '6350') as is_research_internship
+        FROM sections s
+        JOIN courses c ON c.course = s.course
+        LEFT OUTER JOIN section_room_tags sr ON sr.section = s.section
+        LEFT OUTER JOIN section_time_slot_tags st ON st.section = s.section
+        LEFT OUTER JOIN time_slots_time_slot_tags tsst ON tsst.time_slot_tag = st.time_slot_tag
+        LEFT OUTER JOIN time_slots ts ON ts.time_slot = tsst.time_slot
+        WHERE c.department IN (PLACEHOLDERS)
+        GROUP BY c.department, s.course, s.section, s.section_number
+    ),
+    section_types AS (
+        SELECT
+            *,
+            CASE
+                WHEN has_times = 1 AND min_start_time >= 1080 THEN 'evening'
+                WHEN has_rooms = 0 AND has_times = 0 AND is_research_internship THEN 'research'
+                WHEN has_rooms = 0 AND has_times = 0 THEN 'online'
+                ELSE 'normal'
+            END as section_type,
+            CASE
+                WHEN has_times = 1 AND min_start_time >= 1080 THEN 50
+                WHEN has_rooms = 0 AND has_times = 0 AND is_research_internship THEN 1
+                WHEN has_rooms = 0 AND has_times = 0 THEN 40
+                ELSE 1
+            END as expected_start
+        FROM section_details
+    ),
+    section_ordering AS (
+        SELECT
+            department,
+            course,
+            section,
+            section_type,
+            section_num,
+            expected_start,
+            ROW_NUMBER() OVER (PARTITION BY course, section_type ORDER BY section_num) as position_in_type
+        FROM section_types
+    ),
+    expected_numbers AS (
+        SELECT
+            department,
+            course,
+            section,
+            section_type,
+            section_num,
+            expected_start,
+            (expected_start + position_in_type - 1) as expected_num
+        FROM section_ordering
+    ),
+    problems AS (
+        SELECT
+            department,
+            section,
+            section_type,
+            section_num,
+            expected_num,
+            CASE
+                WHEN section_num <> expected_num THEN 'Section number is ' || section_num || ' but should be ' || expected_num
+                ELSE NULL
+            END as problem_msg
+        FROM expected_numbers
+        WHERE section_num <> expected_num
+    )
+    SELECT department, section, problem_msg
+    FROM problems
+    ORDER BY department, section'''.replace('PLACEHOLDERS', placeholders)
+
+rows = db.execute(query, DEPARTMENTS).fetchall()
+if len(rows) > 0:
+    print()
+    s = 'Sections with incorrect numbering'
+    print(s)
+    print('-' * len(s))
+    for (department, section, problem_msg) in rows:
+        print(f'{section}: {problem_msg} ({department})')
+
+# check for sections with rooms but no times
+# check for sections with time slots but no rooms, noting suspicious instances
+# check for faculty with no sections
+# check for sections with no faculty
+# note sections with multiple faculty
+# note cross listings
+# note room popularity
+# note time slot popularity
+# note faculty assigned outside their department

@@ -1,0 +1,295 @@
+import queries
+from queries import *
+
+def build_faculty(db: DB) -> None:
+    print('building computing faculty and sections')
+    default_availability = [TimeInterval('MTWR', '0900', '1630'), TimeInterval('F', '0900', '1200')]
+    default_prefs_twoday = [
+        DoNotWantADayOff(),
+        WantClassesEvenlySpreadAcrossDays(),
+        AvoidClassClusterLongerThan('2h45m'),
+        AvoidClassClusterShorterThan('1h50m'),
+        AvoidGapBetweenClassClustersLongerThan('1h45m'),
+    ]
+    default_prefs_oneday = [
+        WantADayOff(),
+        WantClassesEvenlySpreadAcrossDays(),
+        AvoidClassClusterLongerThan('2h45m'),
+        AvoidClassClusterShorterThan('1h50m'),
+        AvoidGapBetweenClassClustersLongerThan('1h45m'),
+    ]
+
+    db.make_faculty('Syed Ali', 'Computing', default_availability)
+    db.make_faculty_section('Syed Ali', 'IT 1100-01', '3 credit bell schedule', 'flex', 'pcs')
+    db.make_faculty_section('Syed Ali', 'IT 1100-02', '3 credit bell schedule', 'flex', 'pcs')
+    db.make_faculty_section('Syed Ali', 'IT 1200-40')
+    db.make_faculty_section('Syed Ali', 'IT 3510-01', '3 credit bell schedule', 'flex', 'stadium', 'pcs')
+    db.make_faculty_section('Syed Ali', 'IT 4991R-01', 'T1630+100', 'W1630+100', 'R1630+100', 'flex')
+    db.faculty_preferences('Syed Ali', 'MT',
+        DoNotWantADayOff(),
+        WantClassesEvenlySpreadAcrossDays(),
+        AvoidClassClusterLongerThan('2h45m'),
+        AvoidClassClusterShorterThan('1h50m'),
+        AvoidGapBetweenClassClustersLongerThan('1h45m'),
+        AvoidTimeSlot('MWF0900+50'),
+        AvoidTimeSlot('MWF1000+50'),
+        AvoidTimeSlot('MWF1100+50'),
+    )
+
+    db.make_faculty('Jeff Compas', 'Computing', default_availability)
+    db.make_faculty_section('Jeff Compas', 'CS 1500-01', '3 credit bell schedule', 'flex')
+    db.make_faculty_section('Jeff Compas', 'CS 2450-01', '3 credit bell schedule', 'flex')
+    db.make_faculty_section('Jeff Compas', 'CS 2450-02', '3 credit bell schedule', 'flex')
+    db.make_faculty_section('Jeff Compas', 'CS 3005-01', '3 credit bell schedule', 'flex')
+    db.make_faculty_section('Jeff Compas', 'SE 3150-01', '3 credit bell schedule', 'flex')
+    db.faculty_preferences('Jeff Compas', 'MT',
+        AvoidSectionInTimeSlots('CS 2450-01', ['MWF 3×50 bell schedule']),
+        AvoidSectionInTimeSlots('CS 2450-02', ['MWF 3×50 bell schedule']),
+        AvoidSectionInTimeSlots('CS 1500-01', ['MWF 3×50 bell schedule']),
+        AvoidSectionInTimeSlots('CS 3005-01', ['MWF 3×50 bell schedule']),
+        AvoidSectionInTimeSlots('SE 3150-01', ['MWF 3×50 bell schedule']),
+        AvoidClassClusterShorterThan('1h50m'),
+    )
+
+    db.make_faculty('Brayden Connole', 'Computing', default_availability)
+    db.make_faculty_section('Brayden Connole', 'IT 4200-01', '3 credit bell schedule', 'flex', 'stadium', 'macs', 'pcs')
+    db.make_faculty_section('Brayden Connole', 'SE 1400-02', '3 credit bell schedule', 'flex', 'stadium', 'macs', 'pcs')
+    db.make_faculty_section('Brayden Connole', 'SE 3010-01', '3 credit bell schedule', 'flex', 'stadium', 'macs', 'pcs')
+    db.make_faculty_section('Brayden Connole', 'SE 4990-02', '3 credit bell schedule', 'flex', 'stadium', 'macs', 'pcs')
+    db.faculty_preferences('Brayden Connole', 'MT',
+        AvoidTimeSlot('MWF0900+50'),
+        AvoidTimeSlot('TR0900+75'),
+        AvoidTimeSlot('MWF1000+50'),
+        AvoidTimeSlot('TR1030+75'),
+        AvoidTimeSlot('MWF1100+50'),
+        DoNotWantADayOff(),
+        AvoidSectionInRooms('IT 4200-01', ['stadium', 'macs', 'pcs']),
+        AvoidSectionInRooms('SE 3010-01', ['flex', 'stadium', 'pcs']),
+    )
+
+    db.make_faculty('Phil Daley', 'Computing', default_availability)
+    db.make_faculty_section('Phil Daley', 'IT 1100-40')
+    db.make_faculty_section('Phil Daley', 'IT 2400-01', '3 credit bell schedule', 'Smith 107')
+    db.make_faculty_section('Phil Daley', 'IT 2400-40')
+    db.make_faculty_section('Phil Daley', 'IT 3100-01', '3 credit bell schedule', 'flex')
+    db.make_faculty_section('Phil Daley', 'IT 4400-01', '3 credit bell schedule', 'flex')
+    db.faculty_preferences('Phil Daley', 'MT',
+        AvoidTimeSlot('MWF0900+50'),
+        AvoidTimeSlot('MWF1000+50'),
+        AvoidTimeSlot('MWF1100+50'),
+        WantBackToBackClassesInTheSameRoom(),
+        AvoidSectionInRooms('IT 3100-01', ['Smith 108', 'Smith 109']),
+        AvoidSectionInRooms('IT 4400-01', ['Smith 108', 'Smith 109']),
+    )
+
+    db.make_faculty('Joe Francom', 'Computing', default_availability)
+    db.make_faculty_section('Joe Francom', 'IT 1500-40A')
+    db.make_faculty_section('Joe Francom', 'IT 1500-41B')
+    db.make_faculty_section('Joe Francom', 'IT 3300-01', '3 credit bell schedule', 'flex', 'stadium', 'Smith 112', 'Smith 113')
+    db.make_faculty_section('Joe Francom', 'SE 3200-01', '3 credit bell schedule', 'flex', 'stadium', 'Smith 112', 'Smith 113')
+    db.faculty_preferences('Joe Francom', 'MT',
+        WantADayOff(),
+        AvoidSectionInRooms('IT 3300-01', ['stadium']),
+        AvoidSectionInRooms('SE 3200-01', ['stadium']),
+        AvoidClassClusterShorterThan('1h50m'),
+        AvoidSectionInRooms('IT 3300-01', ['Smith 112', 'Smith 113']),
+        AvoidSectionInRooms('SE 3200-01', ['Smith 112', 'Smith 113']),
+        UnavailableTimeSlot('MW1200+75'),
+        UnavailableTimeSlot('MW1500+75'),
+        UnavailableTimeSlot('TR1500+75'),
+    )
+
+    db.make_faculty('DJ Holt', 'Computing', default_availability)
+    db.make_faculty_section('DJ Holt', 'CS 4800R-03')
+    db.make_faculty_section('DJ Holt', 'CS 4410-01', '3 credit bell schedule', 'Smith 117')
+    db.make_faculty_section('DJ Holt', 'SD 6100-01', 'T1630+150', 'Smith 117')
+    db.make_faculty_section('DJ Holt', 'SD 6400-01', 'W1630+150', 'Smith 117')
+    db.make_faculty_section('DJ Holt', 'SD 6450-01', 'R1630+150', 'Smith 117')
+    db.faculty_preferences('DJ Holt', 'MT',
+        AvoidTimeSlot('MWF0900+50'),
+        AvoidTimeSlot('MWF1000+50'),
+        AvoidTimeSlot('MWF1100+50'),
+        AvoidTimeSlot('TR0900+75'),
+        AvoidTimeSlot('TR1030+75'),
+        AvoidGapBetweenClassClustersLongerThan('1h45m'),
+        AvoidClassClusterShorterThan('1h50m'),
+        AvoidSectionInTimeSlots('CS 4410-01', ['MW1200+75', 'MW1330+75', 'MW1500+75']),
+    )
+
+    db.make_faculty('Matt Kearl', 'Computing', default_availability)
+    db.make_faculty_section('Matt Kearl', 'SE 1400-01', '3 credit bell schedule', 'macs', 'pcs', 'flex', 'stadium')
+    db.make_faculty_section('Matt Kearl', 'SE 1400-40')
+    db.make_faculty_section('Matt Kearl', 'SE 3400-40')
+    db.make_faculty_section('Matt Kearl', 'SE 3550-01', '3 credit bell schedule', 'macs', 'pcs', 'flex', 'stadium')
+    db.make_faculty_section('Matt Kearl', 'SE 4920-01')
+    db.faculty_preferences('Matt Kearl', 'MT',
+        AvoidSectionInTimeSlots('SE 1400-01', ['MWF 3×50 bell schedule']),
+        AvoidSectionInTimeSlots('SE 3550-01', ['MWF 3×50 bell schedule']),
+        WantADayOff(),
+        AvoidTimeSlot('MWF0900+50'),
+        AvoidTimeSlot('MWF1000+50'),
+        AvoidTimeSlot('MWF1100+50'),
+        AvoidTimeSlot('MW1500+75'),
+        AvoidTimeSlot('MW1330+75'),
+        AvoidTimeSlot('MW1200+75'),
+    )
+
+    # maybe SE 3200, maybe SD 6100, maybe sandbox SE 4900
+    db.make_faculty('Lora Klein', 'Computing', default_availability)
+    db.make_faculty_section('Lora Klein', 'CS 1400-02', '3 credit bell schedule', 'flex')
+    db.make_faculty_section('Lora Klein', 'SA 1400-01', 'TR0930+80')
+    db.make_faculty_section('Lora Klein', 'SA 1400-02', 'TR1200+80')
+    db.faculty_preferences('Lora Klein', 'MT',
+        AvoidTimeSlot('MWF0900+50'),
+        AvoidTimeSlot('MWF1000+50'),
+        AvoidTimeSlot('MWF1100+50'),
+        AvoidTimeSlot('TR1330+75'),
+        AvoidTimeSlot('TR1500+75'),
+    )
+
+    db.make_faculty('Curtis Larsen', 'Computing', default_availability)
+    db.make_faculty_section('Curtis Larsen', 'CS 3530-01', '3 credit bell schedule', 'Smith 116')
+    db.make_faculty_section('Curtis Larsen', 'CS 4300-01', '3 credit bell schedule', 'Smith 116')
+    db.make_faculty_section('Curtis Larsen', 'CS 4920R-01')
+    db.make_faculty_section('Curtis Larsen', 'CS 6300-50', 'T1800+150', 'W1800+150', 'R1800+150', 'Smith 116')
+    db.faculty_preferences('Curtis Larsen', 'MT',
+        AvoidTimeSlot('MWF0900+50'),
+        AvoidTimeSlot('MWF1000+50'),
+        AvoidTimeSlot('MWF1100+50'),
+        AvoidClassClusterLongerThan('2h45m'),
+        AvoidGapBetweenClassClustersLongerThan('3h15m'),
+        AvoidClassClusterShorterThan('1h50m'),
+        AvoidGapBetweenClassClustersLongerThan('1h45m'),
+        WantBackToBackClassesInTheSameRoom(),
+        WantClassesPackedIntoAsFewRoomsAsPossible(),
+    )
+
+    # ???
+    db.make_faculty('Eric Pedersen', 'Computing', default_availability)
+    db.make_faculty_section('Eric Pedersen', 'SE 3500-01', 'TR1200+75', 'flex')
+    db.make_faculty_section('Eric Pedersen', 'SE 4930R-01', 'TR1530+60', 'Smith 112') # sandbox
+    db.make_faculty_section('Eric Pedersen', 'SE 4990-01', 'R1630+150', 'Smith 112') # sandbox
+
+
+    db.make_faculty('Ren Quinn', 'Computing', default_availability)
+    db.make_faculty_section('Ren Quinn', 'CS 1400-01', '3 credit bell schedule', 'flex')
+    db.make_faculty_section('Ren Quinn', 'CS 2500-01', '3 credit bell schedule', 'flex', 'stadium')
+    db.make_faculty_section('Ren Quinn', 'CS 3150-01', '3 credit bell schedule', 'flex', 'stadium')
+    db.make_faculty_section('Ren Quinn', 'CS 4480R-01', '3 credit bell schedule', 'flex', 'stadium')
+    db.make_faculty_section('Ren Quinn', 'CS 4800R-01')
+    db.make_faculty_section('Ren Quinn', 'CS 4991R-01', 'F1400+50', 'Smith 109')
+    db.make_faculty_section('Ren Quinn', 'CS 4992R-01', 'F1300+50', 'Smith 109')
+    db.faculty_preferences('Ren Quinn', 'MT',
+        AvoidTimeSlot('TR0900+75'),
+        AvoidTimeSlot('TR1030+75'),
+        AvoidTimeSlot('TR1200+75'),
+        WantBackToBackClassesInTheSameRoom(),
+        AvoidSectionInRooms('CS 3150-01', ['stadium']),
+        AvoidSectionInRooms('CS 2500-01', ['stadium']),
+        AvoidTimeSlot('MWF0900+50'),
+        DoNotWantADayOff(),
+    )
+
+    db.make_faculty('Russ Ross', 'Computing', default_availability)
+    db.make_faculty_section('Russ Ross', 'CS 2810-01', '3 credit bell schedule', 'Smith 108', 'Smith 109', 'stadium')
+    db.make_faculty_section('Russ Ross', 'CS 2810-02', '3 credit bell schedule', 'Smith 108', 'Smith 109', 'stadium')
+    db.make_faculty_section('Russ Ross', 'CS 3400-01', '3 credit bell schedule', 'Smith 108', 'Smith 109', 'stadium')
+    db.make_faculty_section('Russ Ross', 'CS 3520-01', '3 credit bell schedule', 'Smith 108', 'Smith 109', 'stadium')
+    db.make_faculty_section('Russ Ross', 'CS 4800R-02')
+    db.faculty_preferences('Russ Ross', 'MT',
+        AvoidTimeSlot('MWF0900+50'),
+        AvoidTimeSlot('MWF1000+50'),
+        AvoidTimeSlot('TR0900+75'),
+        AvoidTimeSlot('MWF1100+50'),
+        AvoidTimeSlot('TR1030+75'),
+        WantClassesEvenlySpreadAcrossDays(),
+        WantBackToBackClassesInTheSameRoom(),
+        WantClassesPackedIntoAsFewRoomsAsPossible(),
+        AvoidTimeSlot('MW1200+75'),
+        AvoidTimeSlot('TR1200+75'),
+    )
+
+    db.make_faculty('Jay Sneddon', 'Computing', default_availability)
+    db.make_faculty_section('Jay Sneddon', 'IT 1200-01', '3 credit bell schedule', 'Smith 107')
+    db.make_faculty_section('Jay Sneddon', 'IT 2700-01', '3 credit bell schedule', 'Smith 107')
+    db.make_faculty_section('Jay Sneddon', 'IT 2750-01', '3 credit bell schedule', 'Smith 107')
+    db.make_faculty_section('Jay Sneddon', 'IT 3700-40')
+    db.make_faculty_section('Jay Sneddon', 'IT 4920R-01')
+    db.faculty_preferences('Jay Sneddon', 'MT',
+        AvoidTimeSlot('MWF0900+50'),
+        AvoidTimeSlot('MWF1000+50'),
+        AvoidTimeSlot('MWF1100+50'),
+        DoNotWantADayOff(),
+        #WantClassesEvenlySpreadAcrossDays(),
+        AvoidClassClusterShorterThan('1h50m'),
+        AvoidGapBetweenClassClustersLongerThan('1h45m'),
+        # faculty senate
+        UnavailableTimeSlot('TR1500+75'),
+        UnavailableTimeSlot('TR1630+75'),
+        # IT 1200 at noon or 3pm for success academy (nice to have)
+        AvoidSectionInTimeSlots('IT 1200-01', ['TR0900+75', 'TR1030+75', 'TR1330+75', 'MWF0900+50', 'MWF1000+50', 'MWF1100+50', 'MW1330+75']),
+
+    )
+
+    db.make_faculty('Bart Stander', 'Computing', default_availability)
+    db.make_faculty_section('Bart Stander', 'CS 2100-01', '3 credit bell schedule', 'Smith 116')
+    db.make_faculty_section('Bart Stander', 'CS 2420-01', '3 credit bell schedule', 'Smith 116')
+    # if CS 4995 makes, will teach it and CS 2420-02 goes to new hire
+    db.make_faculty_section('Bart Stander', 'CS 2420-02', '3 credit bell schedule', 'Smith 116')
+    db.make_faculty_section('Bart Stander', 'CS 3500-01', '3 credit bell schedule', 'pcs')
+    db.make_faculty_section('Bart Stander', 'CS 4995-01', '3 credit bell schedule', 'pcs')
+    db.faculty_preferences('Bart Stander', 'MT',
+        WantADayOff(),
+        AvoidTimeSlot('TR0900+75'),
+        AvoidTimeSlot('TR1030+75'),
+        AvoidTimeSlot('MW1200+75'),
+    )
+
+    db.make_faculty('Carol Stander', 'Computing', default_availability)
+    db.make_faculty_section('Carol Stander', 'CS 1030-01', '3 credit bell schedule', 'flex')
+    db.make_faculty_section('Carol Stander', 'CS 1400-40')
+    db.make_faculty_section('Carol Stander', 'IT 1100-03', '3 credit bell schedule', 'pcs')
+    db.make_faculty_section('Carol Stander', 'IT 2300-01', '3 credit bell schedule', 'flex', 'pcs')
+    db.make_faculty_section('Carol Stander', 'IT 2300-40')
+    db.faculty_preferences('Carol Stander', 'MT',
+        AvoidTimeSlot('TR0900+75'),
+        AvoidTimeSlot('TR1030+75'),
+        WantADayOff(),
+        AvoidClassClusterLongerThan('1h50m'),
+        AvoidTimeSlot('MW1200+75'),
+        AvoidTimeSlot('TR1200+75'),
+        AvoidSectionInTimeSlots('CS 1030-01', ['MWF 3×50 bell schedule']),
+        AvoidTimeSlot('MWF0900+50'),
+        AvoidSectionInTimeSlots('CS 1030-01', ['MW1500+75', 'TR1500+75']),
+    )
+
+    db.make_faculty('Yuanfei Sun', 'Computing', default_availability)
+    db.make_faculty_section('Yuanfei Sun', 'CS 1410-01', '3 credit bell schedule', 'flex')
+    db.make_faculty_section('Yuanfei Sun', 'CS 1410-02', '3 credit bell schedule', 'flex')
+    db.make_faculty_section('Yuanfei Sun', 'CS 6331-40')
+    db.make_faculty_section('Yuanfei Sun', 'CS 6350-01')
+    db.faculty_preferences('Yuanfei Sun', 'MT',
+        AvoidTimeSlot('TR0900+75'),
+        AvoidTimeSlot('TR1030+75'),
+        AvoidTimeSlot('TR1200+75'),
+        AvoidTimeSlot('TR1330+75'),
+        AvoidTimeSlot('TR1500+75'),
+        WantADayOff(),
+        AvoidGapBetweenClassClustersLongerThan('1h45m'),
+        AvoidClassClusterShorterThan('1h50m'),
+        AvoidClassClusterLongerThan('2h45m'),
+    )
+
+    db.make_faculty('Design Faculty', 'Computing', default_availability)
+    db.make_faculty_section('Design Faculty', 'SD 6110-01', 'M1630+150', 'Smith 117')
+
+    db.make_faculty('DS Hire', 'Computing', default_availability)
+    db.make_faculty_section('DS Hire', 'CS 1400-03', '3 credit bell schedule', 'flex', 'stadium')
+    db.make_faculty_section('DS Hire', 'CS 1400-04', '3 credit bell schedule', 'flex', 'stadium')
+    db.make_faculty_section('DS Hire', 'CS 4420-01', '3 credit bell schedule', 'stadium')
+    db.assign_faculty_to_existing_section('DS Hire', 'CS 4480R-01')
+    # if CS 4995 makes then Bart will hand off CS 2420-02 to new hire
+    db.assign_faculty_to_existing_section('DS Hire', 'CS 2420-02')
+    db.faculty_preferences('DS Hire', 'MT',
+        *default_prefs_twoday,
+    )
