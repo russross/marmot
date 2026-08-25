@@ -2,14 +2,45 @@ import queries
 from queries import *
 
 def build_pre(db: DB) -> None:
-    print('adding special case computing courses')
+    print('building smith building and classrooms')
+    db.make_building('Smith')
+    db.make_room('Smith 107', 32, ['flex'])
+    db.make_room('Smith 108', 32, ['flex'])
+    db.make_room('Smith 109', 32, ['flex'])
+    db.make_room('Smith 112', 24, ['macs'])
+    db.make_room('Smith 113', 24, ['pcs'])
+    db.make_room('Smith 116', 38, ['stadium'])
+    db.make_room('Smith 117', 38, ['stadium'])
+
+    print('building core time slots')
+
+    db.make_time_slot('MWF0800+50', [])
+    db.make_time_slot('MWF0900+50', ['3 credit bell schedule', 'MWF 3×50 bell schedule'])
+    db.make_time_slot('MWF1000+50', ['3 credit bell schedule', 'MWF 3×50 bell schedule'])
+    db.make_time_slot('MWF1100+50', ['3 credit bell schedule', 'MWF 3×50 bell schedule'])
+    db.make_time_slot('MW1200+75', ['3 credit bell schedule', '2×75 bell schedule', 'MW 2×75 bell schedule'])
+    db.make_time_slot('MW1330+75', ['3 credit bell schedule', '2×75 bell schedule', 'MW 2×75 bell schedule'])
+    db.make_time_slot('MW1500+75', ['3 credit bell schedule', '2×75 bell schedule', 'MW 2×75 bell schedule'])
+    db.make_time_slot('MW1630+75', [])
+
+    db.make_time_slot('TR0900+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
+    db.make_time_slot('TR1030+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
+    db.make_time_slot('TR1200+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
+    db.make_time_slot('TR1330+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
+    db.make_time_slot('TR1500+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
+    db.make_time_slot('TR1630+75', [])
+
+    db.make_time_slot('M1630+150', ['3 credit early evening'])
+    db.make_time_slot('T1630+150', ['3 credit early evening'])
+    db.make_time_slot('W1630+150', ['3 credit early evening'])
+    db.make_time_slot('R1630+150', ['3 credit early evening'])
+    db.make_time_slot('M1800+150', ['3 credit evening'])
+    db.make_time_slot('T1800+150', ['3 credit evening'])
+    db.make_time_slot('R1800+150', ['3 credit evening'])
+    db.make_time_slot('W1800+150', ['3 credit evening'])
+
+    print('adding special case computing course')
     db.make_course('Computing', 'SA 1400', 'Success CS 1400')
-    db.make_course('Computing', 'CS 6300', 'Principles of Artificial Intelligence')    
-    db.make_course('Computing', 'CS 6310', 'Foundations of Machine Learning')    
-    db.make_course('Computing', 'CS 6320', 'Foundations of Deep Learning')
-    db.make_course('Computing', 'CS 6330', 'Programming for Machine Learning in Life Sciences')
-    db.make_course('Computing', 'CS 6331', 'Machine Learning for Life Sciences')
-    db.make_course('Computing', 'CS 6350', 'Artificial Intelligence and Machine Learning Project 1')    
 
 def build_post(db: DB) -> None:
     print('building computing conflicts')
@@ -45,7 +76,7 @@ def build_post(db: DB) -> None:
         'CS 4300', 'CS 4307', 'CS 4320', 'CS 4550',
         'SE 3200',
     ])
-    db.make_conflict('Computer Science', 'math electives', 6, 'boost', [
+    db.make_conflict('Computer Science', 'math electives and supported science option', 6, 'boost', [
         # core requirements
         'CS 1030', 'CS 1400', 'CS 1410',
         'CS 2420', 'CS 2450', 'CS 2810',
@@ -65,6 +96,9 @@ def build_post(db: DB) -> None:
         'MATH 1220',
         'MATH 2210', 'MATH 2250', 'MATH 2270', 'MATH 2280',
         'MATH 3050', 'MATH 3450',
+
+        # science core option available in the course catalog
+        'PHYS 2210', 'PHYS 2215',
     ])
 
     #
@@ -186,7 +220,7 @@ def build_post(db: DB) -> None:
         'MATH 2050',
 
         # entrepreneurial and marketing track
-        #'DES 2100',
+        'DES 2100',
         'SE 3500', 'SE 3550',
     ])
     db.make_conflict('Software Engineering', 'DevOps track', 5, 'boost', [
@@ -281,7 +315,7 @@ def build_post(db: DB) -> None:
     # IT
     db.make_conflict('Information Technology', 'core requirements', 1, 'boost', [
         # core requirements
-        'CS 1400', 'CS 1410',
+        'CS 1030', 'CS 1400', 'CS 1410',
         'IT 1100', 'IT 1200', 'IT 1500',
         'IT 2150', 'IT 2300', 'IT 2400', 'IT 2700',
         'IT 3100', 'IT 3400', 'IT 3510',
@@ -290,7 +324,7 @@ def build_post(db: DB) -> None:
     ])
     db.make_conflict('Information Technology', 'core electives', 2, 'boost', [
         # core requirements
-        'CS 1400', 'CS 1410',
+        'CS 1030', 'CS 1400', 'CS 1410',
         'IT 1100', 'IT 1200', 'IT 1500',
         'IT 2150', 'IT 2300', 'IT 2400', 'IT 2700',
         'IT 3100', 'IT 3400', 'IT 3510',
@@ -299,35 +333,62 @@ def build_post(db: DB) -> None:
 
         # core electives
         'IT 3110', 'IT 3300', 'IT 3710',
-        'IT 4100', 'IT 4200', 'IT 4310', 'IT 4400', 'IT 4510', 'IT 4920R',
+        'IT 4100', 'IT 4200', 'IT 4400', 'IT 4510', 'IT 4920R',
     ])
 
     # DevOps
     db.make_conflict('Information Technology', 'DevOps requirements', 3, 'boost', [
         # core requirements
-        'CS 1400', 'CS 1410',
+        'CS 1030', 'CS 1400', 'CS 1410',
         'IT 1100', 'IT 1200', 'IT 1500',
         'IT 2150', 'IT 2300', 'IT 2400', 'IT 2700',
         'IT 3100', 'IT 3400', 'IT 3510',
         'IT 4600',
         'MATH 1040', 'MATH 1050',
 
-        # core electives
+        # DevOps requirements
         'CS 2450',
         'IT 3110', 'IT 3300', 'IT 4200',
     ])
     db.make_conflict('Information Technology', 'DevOps requirements vs DevOps core electives', 5, 'boost', [
         # core requirements
-        'CS 1400', 'CS 1410',
+        'CS 1030', 'CS 1400', 'CS 1410',
         'IT 1100', 'IT 1200', 'IT 1500',
         'IT 2150', 'IT 2300', 'IT 2400', 'IT 2700',
         'IT 3100', 'IT 3400', 'IT 3510',
         'IT 4600',
         'MATH 1040', 'MATH 1050',
 
-        # DevOps core electives
-        'IT 4100', 'IT 4310', 'IT 4400', 'IT 4510', 'IT 4920R',
+        # DevOps requirements
         'CS 2450',
+        'IT 3110', 'IT 3300', 'IT 4200',
+
+        # DevOps core electives
+        'IT 4100', 'IT 4400', 'IT 4510', 'IT 4920R',
+    ])
+
+    # IT BAP
+    db.make_program('Information Technology BAP', 'Computing')
+    db.make_conflict('Information Technology BAP', 'core requirements', 1, 'boost', [
+        'CS 1030', 'CS 1400', 'CS 1410',
+        'IT 1100', 'IT 1200', 'IT 1500',
+        'IT 2150', 'IT 2300', 'IT 2400', 'IT 2700',
+        'IT 3100', 'IT 3400', 'IT 3510',
+        'IT 4600',
+    ])
+    db.make_conflict('Information Technology BAP', 'electives', 4, 'boost', [
+        # core requirements
+        'CS 1030', 'CS 1400', 'CS 1410',
+        'IT 1100', 'IT 1200', 'IT 1500',
+        'IT 2150', 'IT 2300', 'IT 2400', 'IT 2700',
+        'IT 3100', 'IT 3400', 'IT 3510',
+        'IT 4600',
+
+        # electives
+        'CS 2450', 'CS 3005',
+        'IT 3110', 'IT 3300', 'IT 3700', 'IT 3710',
+        'IT 4100', 'IT 4200', 'IT 4310', 'IT 4400',
+        'IT 4510', 'IT 4700', 'IT 4920R', 'IT 4990',
     ])
 
     # only need one math class
@@ -337,7 +398,7 @@ def build_post(db: DB) -> None:
     # Cybersecurity
     db.make_program('Cybersecurity', 'Computing')
     db.make_conflict('Cybersecurity', 'core requirements', 1, 'boost', [
-        'CS 1400', 'CS 1410', 'CS 2420',
+        'CS 1030', 'CS 1400', 'CS 1410', 'CS 2420',
         'IT 1100', 'IT 1500', 'IT 2150',
         'IT 2400', 'IT 2600', 'IT 2700', 'IT 2750',
         'IT 3100', 'IT 3110', 'IT 3400', 'IT 3700', 'IT 3710',

@@ -9,14 +9,27 @@ from pyquery import PyQuery as pq
 import re
 
 prefixes = {
-    'CS':       'Computing',
-    'IT':       'Computing',
-    'MATH':     'Mathematics',
-    'SD':       'Computing',
-    'SE':       'Computing',
+    'CS':         'Computing',
+    'IT':         'Computing',
+    'SE':         'Computing',
+    'SD':         'Computing',
+    'DES':        'Design',
+    'IXD':        'Design',
+    'UXD':        'Design',
+    'MATH':       'Math',
+    'ECE':        'Engineering',
+    'ENGR':       'Engineering',
+    'MECH':       'Engineering',
+    'MTRN':       'Engineering',
+    'PHYS':       'Engineering',
 } 
 
-pages = [ 'cs', 'it', 'math', 'sd', 'se' ]
+pages = [
+    'cs', 'it', 'se', 'sd',
+    'des', 'ixd', 'muxd',
+    'math',
+    'ece', 'engr', 'mech', 'mtrn', 'phys',
+]
 
 courses = {}
 
@@ -24,6 +37,8 @@ CONCURRENT_PREREQ_RE = re.compile(
     r'can be (?:concurrently enrolled|taken concurrently)',
     re.IGNORECASE,
 )
+
+COURSE_CODE_RE = re.compile(r'\b([A-Z]{2,5})\s*(\d{4}[A-Z]?)\b', re.IGNORECASE)
 
 def parse_requisite_section(desc_html, labels):
     start = -1
@@ -44,6 +59,19 @@ def parse_requisite_section(desc_html, labels):
 
     return (section, links)
 
+def add_plain_requisite(section, links, known_courses):
+    linked_codes = {code.upper() for (code, _) in links}
+    plain_codes = {
+        f'{prefix.upper()} {number.upper()}'
+        for (prefix, number) in COURSE_CODE_RE.findall(pq(section).text())
+    }
+    unlinked_codes = plain_codes - linked_codes
+    if len(unlinked_codes) != 1:
+        return
+    (code,) = unlinked_codes
+    if code in known_courses:
+        links.append((code, ''))
+
 def crawl_prefix(prefix):
     page = pq(url=f'https://catalog.utahtech.edu/courses/{prefix}/')
     # download from newcatalog as cs.html, etc., and use the following:
@@ -55,10 +83,10 @@ def crawl_prefix(prefix):
 
         desc = pq(div).find('p.courseblockdesc')
         desc_html = desc.html()
-        (_, pre_pairs) = parse_requisite_section(desc_html, ['Prerequisites:', 'Prerequisite:'])
+        (pre_section, pre_pairs) = parse_requisite_section(desc_html, ['Prerequisites:', 'Prerequisite:'])
         pre = [code for (code, _) in pre_pairs]
 
-        (_, co_pairs) = parse_requisite_section(desc_html, ['Corequisites:', 'Corequisite:'])
+        (co_section, co_pairs) = parse_requisite_section(desc_html, ['Corequisites:', 'Corequisite:'])
         co = [code for (code, _) in co_pairs]
 
         # Some prereqs are annotated as allowed concurrent enrollment.
@@ -76,6 +104,8 @@ def crawl_prefix(prefix):
             'title': title,
             'pre': pre,
             'co': co,
+            'pre_section': pre_section,
+            'co_section': co_section,
             'rot': (fa, sp, su),
         }
 
@@ -90,20 +120,37 @@ for dept in sorted(set(prefixes.values())):
 for page in pages:
     crawl_prefix(page)
 
+for data in courses.values():
+    pre_pairs = [(code, '') for code in data['pre']]
+    add_plain_requisite(data['pre_section'], pre_pairs, courses)
+    data['pre'] = [code for (code, _) in pre_pairs]
+    co_pairs = [(code, '') for code in data['co']]
+    add_plain_requisite(data['co_section'], co_pairs, courses)
+    data['co'] = [code for (code, _) in co_pairs]
+
 #
 # corrections
 #
 
 patches = {
-    'CS 4600': { 'pre': ['CS 2420', 'CS 2810', 'CS 3005'] },
-    'IT 4600': { 'pre': ['CS 1410', 'IT 2400'] },
-    'SE 4600': { 'pre': ['CS 2420', 'CS 2450', 'CS 2810', 'CS 3005', 'SE 1400', 'SE 3200'] },
-    'MATH 2250': { 'pre': ['MATH 1220'] },
-    'MATH 3020': { 'pre': ['MATH 1210'] },
+    'CS 4600': { 'pre': ['CS 2100', 'CS 2420', 'CS 2810', 'CS 3005', 'MATH 1210'] },
+    'IT 4600': { 'pre': ['CS 1410', 'IT 2150', 'IT 2400', 'IT 2700', 'IT 3100'] },
+    'SE 4600': { 'pre': ['CS 2100', 'CS 2420', 'CS 2450', 'CS 2810', 'CS 3005', 'IT 1100', 'SE 1400', 'SE 3200'] },
 }
+# DES 4600 needs de facto prerequisites once the Design curriculum is modeled.
 for (name, patch) in patches.items():
     if name not in courses: continue
     for (kind, lst) in patch.items():
+        for elt in lst:
+            if elt not in courses[name][kind]:
+                courses[name][kind].append(elt)
+
+manual_overrides = {
+    'ECE 2210': { 'co': ['ECE 2215'] },
+    'MTRN 3410': { 'co': ['MTRN 3415'] },
+}
+for (name, override) in manual_overrides.items():
+    for (kind, lst) in override.items():
         for elt in lst:
             if elt not in courses[name][kind]:
                 courses[name][kind].append(elt)

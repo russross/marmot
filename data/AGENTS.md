@@ -387,3 +387,5 @@ cd data
 ```
 
 That regenerates `timetable.db`, which is the artifact the Rust solver consumes.
+
+Note: during all planning and preparing work, timetable.db is a transient asset that we rebuild on a whim using the build script. Do not back it up or hesitate to make changes to it. It only becomes durable when all input is stable and we generate the final schedule. Think of it more as a transformation pipeline for the input than a database.
