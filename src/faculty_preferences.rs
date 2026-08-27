@@ -507,13 +507,14 @@ fn entropy(impact: &TierImpact) -> f64 {
 mod tests {
     use super::*;
     use crate::input::{
-        Duration, Faculty, Room, RoomWithOptionalPriority, Section, TimeSlot, TimeSlotWithOptionalPriority,
+        CreditHours, Duration, Faculty, Room, RoomWithOptionalPriority, Section, TimeSlot, TimeSlotWithOptionalPriority,
     };
     use crate::score::{FacultyPreference, FacultyPreferenceKind};
 
     fn section(name: &str, time_slots: &[usize]) -> Section {
         Section {
             name: name.to_string(),
+            credit_hours: CreditHours::new(3.0, 3.0),
             rooms: vec![
                 RoomWithOptionalPriority { room: 0, priority: None },
                 RoomWithOptionalPriority { room: 1, priority: None },

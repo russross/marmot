@@ -173,7 +173,13 @@ pub fn dump_input(departments: &[String], input: &Input) {
 
     println!("\nSections:");
     for section in &input.sections {
-        print!("section {} with {} rooms and {} times", section.name, section.rooms.len(), section.time_slots.len());
+        print!(
+            "section {} ({}), with {} rooms and {} times",
+            section.name,
+            section.credit_hours,
+            section.rooms.len(),
+            section.time_slots.len()
+        );
         if !section.faculty.is_empty() {
             print!(", faculty");
             for faculty in &section.faculty {

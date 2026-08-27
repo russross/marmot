@@ -209,11 +209,15 @@ CREATE TABLE courses (
     course                      TEXT PRIMARY KEY,
     department                  TEXT NOT NULL,
     course_name                 TEXT NOT NULL,
+    minimum_credit_hours        REAL NOT NULL,
+    maximum_credit_hours        REAL NOT NULL,
     prefix                      TEXT GENERATED ALWAYS AS (SUBSTR(course, 1, INSTR(course, ' ') - 1)) VIRTUAL NOT NULL,
     course_number               TEXT GENERATED ALWAYS AS (SUBSTR(course, INSTR(course, ' ') + 1)) VIRTUAL NOT NULL,
 
     CHECK (LENGTH(prefix) >= 1),
     CHECK (LENGTH(course_number) >= 4),
+    CHECK (minimum_credit_hours >= 0),
+    CHECK (maximum_credit_hours >= minimum_credit_hours),
 
     FOREIGN KEY (department) REFERENCES departments (department) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
@@ -801,7 +805,14 @@ CREATE VIEW conflicting_time_slots (time_slot_a, time_slot_b) AS
 --
 -- This is why later views join anti-conflicts and conflict rules through
 -- secondary_section, but room/time availability through section.
-CREATE VIEW sections_to_be_scheduled (department, course, section, secondary_section) AS
+CREATE VIEW sections_to_be_scheduled (
+    department,
+    course,
+    section,
+    secondary_section,
+    minimum_credit_hours,
+    maximum_credit_hours
+) AS
     -- Secondary cross-listed sections become schedulable only when the primary
     -- section has time-slot tags. Secondary rows cannot carry their own room,
     -- time, or faculty rows; triggers above enforce that raw-data invariant.
@@ -814,14 +825,19 @@ CREATE VIEW sections_to_be_scheduled (department, course, section, secondary_sec
             ON section_time_slot_tags.section = cross_listing_sections.primary_section
     )
 
-    SELECT department, course, section, section
+    SELECT department, course, section, section, minimum_credit_hours, maximum_credit_hours
     FROM courses
     NATURAL JOIN sections
     NATURAL JOIN section_time_slot_tags
 
     UNION
 
-    SELECT department, course, schedulable_cross_listings.primary_section, schedulable_cross_listings.section
+    SELECT department,
+           course,
+           schedulable_cross_listings.primary_section,
+           schedulable_cross_listings.section,
+           minimum_credit_hours,
+           maximum_credit_hours
     FROM courses
     NATURAL JOIN sections
     NATURAL JOIN schedulable_cross_listings
@@ -841,20 +857,36 @@ CREATE VIEW sections_to_be_scheduled (department, course, section, secondary_sec
 -- faculty or preference sources apply to the same concrete time slot, MIN()
 -- keeps the strongest penalty because lower priority numbers are more
 -- important to the solver.
-CREATE VIEW time_slots_available_to_sections (department, section, time_slot, time_slot_priority) AS
+CREATE VIEW time_slots_available_to_sections (
+    department,
+    section,
+    time_slot,
+    time_slot_priority,
+    minimum_credit_hours,
+    maximum_credit_hours
+) AS
     -- Expand section time-slot tags to concrete time slots. A tag that is
     -- identical to a concrete time_slot is an explicit assignment. Explicit
     -- assignments can bypass base faculty availability for that section only,
     -- but they do not bypass hard unavailability.
-    WITH section_time_slots (department, section, time_slot, explicitly_assigned) AS (
+    WITH section_time_slots (
+        department,
+        section,
+        time_slot,
+        explicitly_assigned,
+        minimum_credit_hours,
+        maximum_credit_hours
+    ) AS (
         SELECT  department,
                 section,
                 time_slot,
-                MAX(CASE WHEN time_slot_tag = time_slot THEN 1 ELSE 0 END)
+                MAX(CASE WHEN time_slot_tag = time_slot THEN 1 ELSE 0 END),
+                minimum_credit_hours,
+                maximum_credit_hours
         FROM sections_to_be_scheduled
         NATURAL JOIN section_time_slot_tags
         NATURAL JOIN time_slots_time_slot_tags
-        GROUP BY department, section, time_slot
+        GROUP BY department, section, time_slot, minimum_credit_hours, maximum_credit_hours
     ),
 
     -- Expand faculty-authored section-specific time preferences to concrete
@@ -955,13 +987,27 @@ CREATE VIEW time_slots_available_to_sections (department, section, time_slot, ti
     )
 
     -- time slots where all faculty are available
-    SELECT department, section, time_slot, time_slot_priority
+    SELECT  intersect_faculty.department,
+            intersect_faculty.section,
+            intersect_faculty.time_slot,
+            time_slot_priority,
+            minimum_credit_hours,
+            maximum_credit_hours
     FROM intersect_faculty
+    JOIN section_time_slots
+        ON  section_time_slots.department = intersect_faculty.department
+        AND section_time_slots.section = intersect_faculty.section
+        AND section_time_slots.time_slot = intersect_faculty.time_slot
 
     UNION
 
     -- time slots for section with no faculty assigned
-    SELECT department, section, time_slot, NULL
+    SELECT department,
+           section,
+           time_slot,
+           NULL,
+           minimum_credit_hours,
+           maximum_credit_hours
     FROM section_time_slots
     NATURAL LEFT OUTER JOIN faculty_sections
     WHERE faculty IS NULL;

@@ -61,6 +61,8 @@ pub struct Section {
     // e.g.,: "CS 1410-02"
     pub name: String,
 
+    pub credit_hours: CreditHours,
+
     // rooms (if any) and times available for this section
     pub rooms: Vec<RoomWithOptionalPriority>,
     pub time_slots: Vec<TimeSlotWithOptionalPriority>,
@@ -76,6 +78,30 @@ pub struct Section {
 
     // any section that might have a scoring interaction with this section
     pub neighbors: Vec<usize>,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub struct CreditHours {
+    pub minimum: f64,
+    pub maximum: f64,
+}
+
+impl CreditHours {
+    pub fn new(minimum: f64, maximum: f64) -> Self {
+        CreditHours { minimum, maximum }
+    }
+}
+
+impl fmt::Display for CreditHours {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.minimum != self.maximum {
+            return write!(f, "{}-{} credits", self.minimum, self.maximum);
+        }
+        if self.minimum == 1.0 {
+            return write!(f, "1 credit");
+        }
+        write!(f, "{} credits", self.minimum)
+    }
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -710,7 +736,12 @@ pub fn load_sections(
         let dept_in = dept_clause(departments, &["department".into()], true);
         let mut stmt = db.prepare(format!(
             "
-                SELECT DISTINCT section, time_slot, time_slot_priority
+                SELECT DISTINCT
+                    section,
+                    time_slot,
+                    time_slot_priority,
+                    minimum_credit_hours,
+                    maximum_credit_hours
                 FROM time_slots_available_to_sections
                 {}
                 ORDER BY section",
@@ -723,12 +754,14 @@ pub fn load_sections(
             let new_section_name: String = stmt.read(0)?;
             let time_slot_name: String = stmt.read(1)?;
             let priority: Option<i64> = stmt.read(2)?;
+            let credit_hours = CreditHours::new(stmt.read(3)?, stmt.read(4)?);
 
             // is this a new section?
             if new_section_name != section_name {
                 section_name = new_section_name.clone();
                 let section = Section {
                     name: new_section_name.clone(),
+                    credit_hours,
                     rooms: Vec::new(),
                     time_slots: Vec::new(),
                     faculty: Vec::new(),
@@ -738,6 +771,8 @@ pub fn load_sections(
                 };
                 section_index.insert(new_section_name.clone(), sections.len());
                 sections.push(section);
+            } else if sections.last().unwrap().credit_hours != credit_hours {
+                return err(format!("section {section_name} has conflicting catalog credit-hour ranges"));
             }
 
             let time_slot = *time_slot_index.get(&time_slot_name).ok_or(format!(

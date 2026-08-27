@@ -392,8 +392,18 @@ class DB:
                 payload)
 
     @rollback_on_exception
-    def make_course(self, department: str, course: str, course_name: str) -> None:
-        self.db.execute('INSERT INTO courses VALUES (?, ?, ?)', (course, department, course_name))
+    def make_course(
+        self,
+        department: str,
+        course: str,
+        course_name: str,
+        minimum_credit_hours: float,
+        maximum_credit_hours: float,
+    ) -> None:
+        self.db.execute(
+            'INSERT INTO courses VALUES (?, ?, ?, ?, ?)',
+            (course, department, course_name, minimum_credit_hours, maximum_credit_hours),
+        )
 
     @rollback_on_exception
     def add_course_rotation(self, course: str, rotation: str) -> None:

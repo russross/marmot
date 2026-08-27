@@ -45,6 +45,78 @@ if len(rows) > 0:
     for (department, course_name, section) in rows:
         print(f'{section}: {course_name} ({department})')
 
+# A section's candidate time slots imply one concrete credit value. All
+# candidates must therefore provide the same weekly meeting minutes.
+query = '''
+    WITH slot_sizes AS (
+        SELECT DISTINCT
+            available.department,
+            available.section,
+            courses.course_name,
+            LENGTH(time_slots.days) * time_slots.duration AS weekly_minutes
+        FROM time_slots_available_to_sections AS available
+        JOIN sections ON sections.section = available.section
+        JOIN courses ON courses.course = sections.course
+        JOIN time_slots ON time_slots.time_slot = available.time_slot
+        WHERE available.department IN (PLACEHOLDERS)
+    )
+    SELECT department, section, course_name, GROUP_CONCAT(weekly_minutes, ', ')
+    FROM slot_sizes
+    GROUP BY department, section, course_name
+    HAVING COUNT(weekly_minutes) > 1
+    ORDER BY department, section'''.replace('PLACEHOLDERS', placeholders)
+rows = db.execute(query, DEPARTMENTS).fetchall()
+if len(rows) > 0:
+    print()
+    s = 'Sections whose available time slots imply different credit hours'
+    print(s)
+    print('-' * len(s))
+    for (department, section, course_name, weekly_minutes) in rows:
+        print(f'{section}: time slots provide {weekly_minutes} minutes per week ({course_name}, {department})')
+
+# Once candidate durations agree, their shared duration must fall within the
+# catalog range. SA 1400 is a high-school concurrent-enrollment placeholder;
+# its made-up time slot models faculty availability rather than credit hours.
+query = '''
+    WITH slot_sizes AS (
+        SELECT DISTINCT
+            available.department,
+            available.section,
+            sections.course,
+            courses.course_name,
+            available.minimum_credit_hours,
+            available.maximum_credit_hours,
+            LENGTH(time_slots.days) * time_slots.duration AS weekly_minutes
+        FROM time_slots_available_to_sections AS available
+        JOIN sections ON sections.section = available.section
+        JOIN courses ON courses.course = sections.course
+        JOIN time_slots ON time_slots.time_slot = available.time_slot
+        WHERE available.department IN (PLACEHOLDERS)
+    )
+    SELECT
+        department,
+        section,
+        course_name,
+        MIN(minimum_credit_hours),
+        MAX(maximum_credit_hours),
+        MIN(weekly_minutes)
+    FROM slot_sizes
+    WHERE course <> 'SA 1400'
+    GROUP BY department, section, course_name
+    HAVING COUNT(weekly_minutes) = 1
+       AND (MIN(weekly_minutes) < 50 * MIN(minimum_credit_hours)
+            OR MIN(weekly_minutes) > 50 * MAX(maximum_credit_hours))
+    ORDER BY department, section'''.replace('PLACEHOLDERS', placeholders)
+rows = db.execute(query, DEPARTMENTS).fetchall()
+if len(rows) > 0:
+    print()
+    s = 'Sections whose time slots are incompatible with catalog credit hours'
+    print(s)
+    print('-' * len(s))
+    for (department, section, course_name, minimum_hours, maximum_hours, weekly_minutes) in rows:
+        catalog_hours = str(minimum_hours) if minimum_hours == maximum_hours else f'{minimum_hours}-{maximum_hours}'
+        print(f'{section}: {weekly_minutes} minutes per week for {catalog_hours} credit hours ({course_name}, {department})')
+
 # check for sections where every time slot ends up with a penalty
 query = '''
     SELECT department, section, course_name

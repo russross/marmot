@@ -5,8 +5,38 @@
 # ]
 # ///
 
-from pyquery import PyQuery as pq
 import re
+from dataclasses import dataclass
+from decimal import Decimal
+
+from pyquery import PyQuery as pq
+
+
+@dataclass(frozen=True)
+class CreditHours:
+    minimum: Decimal
+    maximum: Decimal
+
+    @classmethod
+    def parse(cls, text: str) -> 'CreditHours':
+        match = re.fullmatch(r'(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))? Hours?\.', text)
+        if match is None:
+            raise ValueError(f'unrecognized credit hours: {text!r}')
+
+        minimum = Decimal(match.group(1))
+        maximum = Decimal(match.group(2) or match.group(1))
+        if minimum > maximum:
+            raise ValueError(f'credit-hour range is reversed: {text!r}')
+
+        return cls(minimum, maximum)
+
+    def __str__(self) -> str:
+        if self.minimum == self.maximum:
+            return f'{self.minimum} credit {"hour" if self.minimum == 1 else "hours"}'
+        return f'{self.minimum}-{self.maximum} credit hours'
+
+    def arguments(self) -> str:
+        return f'{self.minimum}, {self.maximum}'
 
 prefixes = {
     'CS':         'Computing',
@@ -78,8 +108,8 @@ def crawl_prefix(prefix):
     #page = pq(url=f'file:///home/russ/Downloads/{prefix}.html')
     for div in page('.courseblock'):
         title = pq(div).find('p.courseblocktitle strong')[0]
-        (course, title, hours) = title.text_content().split('.  ')
-        hours = hours[:-1]
+        (course, title, hours_text) = title.text_content().split('.  ')
+        credit_hours = CreditHours.parse(hours_text)
 
         desc = pq(div).find('p.courseblockdesc')
         desc_html = desc.html()
@@ -102,6 +132,7 @@ def crawl_prefix(prefix):
 
         courses[course] = {
             'title': title,
+            'credit_hours': credit_hours,
             'pre': pre,
             'co': co,
             'pre_section': pre_section,
@@ -162,7 +193,8 @@ for name in sorted(courses.keys()):
     title = data['title']
     dept = prefixes[name[:name.index(' ')]]
     (fall, spring, summer) = data['rot']
-    print(f'    db.make_course({repr(dept)}, {repr(name)}, {repr(title)})')
+    credit_hours = data['credit_hours']
+    print(f'    db.make_course({repr(dept)}, {repr(name)}, {repr(title)}, {credit_hours.arguments()})')
     if fall:   print(f"    db.add_course_rotation({repr(name)}, 'fall')")
     if spring: print(f"    db.add_course_rotation({repr(name)}, 'spring')")
     if summer: print(f"    db.add_course_rotation({repr(name)}, 'summer')")
