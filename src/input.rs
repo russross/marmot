@@ -82,25 +82,21 @@ pub struct Section {
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct CreditHours {
-    pub minimum: f64,
-    pub maximum: f64,
+    pub value: f64,
 }
 
 impl CreditHours {
-    pub fn new(minimum: f64, maximum: f64) -> Self {
-        CreditHours { minimum, maximum }
+    pub fn new(value: f64) -> Self {
+        CreditHours { value }
     }
 }
 
 impl fmt::Display for CreditHours {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.minimum != self.maximum {
-            return write!(f, "{}-{} credits", self.minimum, self.maximum);
-        }
-        if self.minimum == 1.0 {
+        if self.value == 1.0 {
             return write!(f, "1 credit");
         }
-        write!(f, "{} credits", self.minimum)
+        write!(f, "{} credits", self.value)
     }
 }
 
@@ -740,8 +736,7 @@ pub fn load_sections(
                     section,
                     time_slot,
                     time_slot_priority,
-                    minimum_credit_hours,
-                    maximum_credit_hours
+                    credit_hours
                 FROM time_slots_available_to_sections
                 {}
                 ORDER BY section",
@@ -754,7 +749,7 @@ pub fn load_sections(
             let new_section_name: String = stmt.read(0)?;
             let time_slot_name: String = stmt.read(1)?;
             let priority: Option<i64> = stmt.read(2)?;
-            let credit_hours = CreditHours::new(stmt.read(3)?, stmt.read(4)?);
+            let credit_hours = CreditHours::new(stmt.read(3)?);
 
             // is this a new section?
             if new_section_name != section_name {
@@ -772,7 +767,7 @@ pub fn load_sections(
                 section_index.insert(new_section_name.clone(), sections.len());
                 sections.push(section);
             } else if sections.last().unwrap().credit_hours != credit_hours {
-                return err(format!("section {section_name} has conflicting catalog credit-hour ranges"));
+                return err(format!("section {section_name} has conflicting credit hours"));
             }
 
             let time_slot = *time_slot_index.get(&time_slot_name).ok_or(format!(

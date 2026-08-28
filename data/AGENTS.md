@@ -49,7 +49,7 @@ The current computing input uses four layers of data.
 `data/courses.py` creates departments and courses with:
 
 - `make_department(department)`
-- `make_course(department, course, course_name)`
+- `make_course(department, course, course_name, minimum_credit_hours, maximum_credit_hours)`
 - `add_course_rotation(course, rotation)`
 - optionally prereqs/coreqs
 
@@ -81,8 +81,8 @@ This file is the department-wide constraint vocabulary that faculty input builds
 The main calls are:
 
 - `make_faculty(name, department, available_intervals)`
-- `make_faculty_section(faculty, section, *tags)`
-- `make_section_with_no_faculty(section, *tags)`
+- `make_faculty_section(faculty, section, *tags, credit_hours=None)`
+- `make_section_with_no_faculty(section, *tags, credit_hours=None)`
 - `assign_faculty_to_existing_section(faculty, section)`
 
 ### 4. Faculty preferences
@@ -176,6 +176,14 @@ Implementation details:
 - `faculty_section_room_preferences` and `faculty_section_time_slot_preferences` store faculty-authored soft restrictions for assigned sections.
 - Section-specific preferences do not add rooms or times to a section. The views apply them only to the concrete room/time intersection between the section tags and the preference tags.
 - Multiple positive priorities for the same effective room/time collapse with `MIN(priority)`.
+
+Section credit hours
+--------------------
+
+Every section stores one exact credit value. The section creation handlers infer it for a
+fixed-credit catalog course. A variable-credit course must pass `credit_hours=...`; input
+validation rejects a missing value or one outside the catalog range. Faculty assignment to
+an existing shared section does not set credits because the section creator owns that value.
 
 ## Faculty availability input
 

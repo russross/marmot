@@ -2340,7 +2340,7 @@ mod tests {
     fn section(name: &str, time_slot: usize, rooms: &[usize]) -> Section {
         Section {
             name: name.to_string(),
-            credit_hours: CreditHours::new(3.0, 3.0),
+            credit_hours: CreditHours::new(3.0),
             rooms: rooms.iter().map(|&room| RoomWithOptionalPriority { room, priority: None }).collect(),
             time_slots: vec![TimeSlotWithOptionalPriority { time_slot, priority: None }],
             faculty: vec![0],

@@ -55,7 +55,7 @@ def build_faculty(db: DB) -> None:
     db.make_faculty_section('Brayden Connole', 'IT 4200-01', '3 credit bell schedule', 'flex', 'stadium', 'macs', 'pcs')
     db.make_faculty_section('Brayden Connole', 'SE 1400-02', '3 credit bell schedule', 'flex', 'stadium', 'macs', 'pcs')
     db.make_faculty_section('Brayden Connole', 'SE 3010-01', '3 credit bell schedule', 'flex', 'stadium', 'macs', 'pcs')
-    db.make_faculty_section('Brayden Connole', 'SE 4990-02', '3 credit bell schedule', 'flex', 'stadium', 'macs', 'pcs')
+    db.make_faculty_section('Brayden Connole', 'SE 4990-02', '3 credit bell schedule', 'flex', 'stadium', 'macs', 'pcs', credit_hours=3)
     db.faculty_preferences('Brayden Connole', 'MT',
         AvoidTimeSlot('MWF0900+50'),
         AvoidTimeSlot('TR0900+75'),
@@ -100,7 +100,7 @@ def build_faculty(db: DB) -> None:
     )
 
     db.make_faculty('DJ Holt', 'Computing', default_availability)
-    db.make_faculty_section('DJ Holt', 'CS 4800R-03')
+    db.make_faculty_section('DJ Holt', 'CS 4800R-03', credit_hours=1)
     db.make_faculty_section('DJ Holt', 'CS 4410-01', '3 credit bell schedule', 'Smith 117')
     db.make_faculty_section('DJ Holt', 'SD 6100-01', 'T1630+150', 'Smith 117')
     db.make_faculty_section('DJ Holt', 'SD 6400-01', 'W1630+150', 'Smith 117')
@@ -150,7 +150,7 @@ def build_faculty(db: DB) -> None:
     db.make_faculty('Curtis Larsen', 'Computing', default_availability)
     db.make_faculty_section('Curtis Larsen', 'CS 3530-01', '3 credit bell schedule', 'Smith 116')
     db.make_faculty_section('Curtis Larsen', 'CS 4300-01', '3 credit bell schedule', 'Smith 116')
-    db.make_faculty_section('Curtis Larsen', 'CS 4920R-01')
+    db.make_faculty_section('Curtis Larsen', 'CS 4920R-01', credit_hours=1)
     db.make_faculty_section('Curtis Larsen', 'CS 6300-50', 'T1800+150', 'W1800+150', 'R1800+150', 'Smith 116')
     db.faculty_preferences('Curtis Larsen', 'MT',
         AvoidTimeSlot('MWF0900+50'),
@@ -168,7 +168,7 @@ def build_faculty(db: DB) -> None:
     db.make_faculty('Eric Pedersen', 'Computing', default_availability)
     db.make_faculty_section('Eric Pedersen', 'SE 3500-01', 'TR1200+75', 'flex')
     db.make_faculty_section('Eric Pedersen', 'SE 4930R-01', 'TR1530+60', 'Smith 112') # sandbox
-    db.make_faculty_section('Eric Pedersen', 'SE 4990-01', 'R1630+150', 'Smith 112') # sandbox
+    db.make_faculty_section('Eric Pedersen', 'SE 4990-01', 'R1630+150', 'Smith 112', credit_hours=3) # sandbox
 
 
     db.make_faculty('Ren Quinn', 'Computing', default_availability)
@@ -176,7 +176,7 @@ def build_faculty(db: DB) -> None:
     db.make_faculty_section('Ren Quinn', 'CS 2500-01', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Ren Quinn', 'CS 3150-01', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Ren Quinn', 'CS 4480R-01', '3 credit bell schedule', 'flex', 'stadium')
-    db.make_faculty_section('Ren Quinn', 'CS 4800R-01')
+    db.make_faculty_section('Ren Quinn', 'CS 4800R-01', credit_hours=1)
     db.make_faculty_section('Ren Quinn', 'CS 4991R-01', 'F1400+50', 'Smith 109')
     db.make_faculty_section('Ren Quinn', 'CS 4992R-01', 'F1300+50', 'Smith 109')
     db.faculty_preferences('Ren Quinn', 'MT',
@@ -195,7 +195,7 @@ def build_faculty(db: DB) -> None:
     db.make_faculty_section('Russ Ross', 'CS 2810-02', '3 credit bell schedule', 'Smith 108', 'Smith 109', 'stadium')
     db.make_faculty_section('Russ Ross', 'CS 3400-01', '3 credit bell schedule', 'Smith 108', 'Smith 109', 'stadium')
     db.make_faculty_section('Russ Ross', 'CS 3520-01', '3 credit bell schedule', 'Smith 108', 'Smith 109', 'stadium')
-    db.make_faculty_section('Russ Ross', 'CS 4800R-02')
+    db.make_faculty_section('Russ Ross', 'CS 4800R-02', credit_hours=1)
     db.faculty_preferences('Russ Ross', 'MT',
         AvoidTimeSlot('MWF0900+50'),
         AvoidTimeSlot('MWF1000+50'),
@@ -214,7 +214,7 @@ def build_faculty(db: DB) -> None:
     db.make_faculty_section('Jay Sneddon', 'IT 2700-01', '3 credit bell schedule', 'Smith 107')
     db.make_faculty_section('Jay Sneddon', 'IT 2750-01', '3 credit bell schedule', 'Smith 107')
     db.make_faculty_section('Jay Sneddon', 'IT 3700-40')
-    db.make_faculty_section('Jay Sneddon', 'IT 4920R-01')
+    db.make_faculty_section('Jay Sneddon', 'IT 4920R-01', credit_hours=1)
     db.faculty_preferences('Jay Sneddon', 'MT',
         AvoidTimeSlot('MWF0900+50'),
         AvoidTimeSlot('MWF1000+50'),
@@ -267,7 +267,7 @@ def build_faculty(db: DB) -> None:
     db.make_faculty_section('Yuanfei Sun', 'CS 1410-01', '3 credit bell schedule', 'flex')
     db.make_faculty_section('Yuanfei Sun', 'CS 1410-02', '3 credit bell schedule', 'flex')
     db.make_faculty_section('Yuanfei Sun', 'CS 6331-40')
-    db.make_faculty_section('Yuanfei Sun', 'CS 6350-01')
+    db.make_faculty_section('Yuanfei Sun', 'CS 6350-01', credit_hours=1)
     db.faculty_preferences('Yuanfei Sun', 'MT',
         AvoidTimeSlot('TR0900+75'),
         AvoidTimeSlot('TR1030+75'),

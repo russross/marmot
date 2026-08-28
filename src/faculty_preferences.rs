@@ -514,7 +514,7 @@ mod tests {
     fn section(name: &str, time_slots: &[usize]) -> Section {
         Section {
             name: name.to_string(),
-            credit_hours: CreditHours::new(3.0, 3.0),
+            credit_hours: CreditHours::new(3.0),
             rooms: vec![
                 RoomWithOptionalPriority { room: 0, priority: None },
                 RoomWithOptionalPriority { room: 1, priority: None },

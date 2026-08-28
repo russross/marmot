@@ -12,8 +12,8 @@ builds an immutable `Input` containing:
 *   `time_slot_conflicts`: a symmetric overlap matrix loaded from
     `conflicting_time_slots`.
 *   `faculty`: faculty names and the sections assigned to each faculty member.
-*   `sections`: each section's allowed rooms, allowed time slots, faculty,
-    hard conflicts, applicable criteria, and neighboring sections.
+*   `sections`: each section's exact credit hours, allowed rooms, allowed time slots,
+    faculty, hard conflicts, applicable criteria, and neighboring sections.
 *   `criteria`: soft scoring rules loaded from conflict, anti-conflict, time
     pattern, room/time preference, and faculty preference tables.
 

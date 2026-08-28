@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from functools import wraps
+import math
 import sqlite3
 from typing import Callable, Concatenate, TypeVar, Optional, ParamSpec, Protocol
 
@@ -420,8 +421,40 @@ class DB:
             self.db.execute('INSERT INTO coreqs VALUES (?, ?)', (course, elt))
 
     @rollback_on_exception
-    def make_section_with_no_faculty(self, section: str, *tags: str) -> None:
-        self.db.execute('INSERT INTO sections VALUES (?)', (section, ))
+    def make_section_with_no_faculty(
+        self,
+        section: str,
+        *tags: str,
+        credit_hours: float | None = None,
+    ) -> None:
+        course, separator, section_number = section.rpartition('-')
+        if not separator or not section_number:
+            raise RuntimeError(f'section {section!r} must contain a course and section number')
+        row = self.db.execute(
+            'SELECT minimum_credit_hours, maximum_credit_hours FROM courses WHERE course = ?',
+            (course,),
+        ).fetchone()
+        if row is None:
+            raise RuntimeError(f'section {section!r} uses unknown course {course!r}')
+        minimum_credit_hours, maximum_credit_hours = row
+        if credit_hours is None:
+            if minimum_credit_hours != maximum_credit_hours:
+                raise RuntimeError(
+                    f'section {section!r} must specify credit_hours between '
+                    f'{minimum_credit_hours:g} and {maximum_credit_hours:g}'
+                )
+            credit_hours = minimum_credit_hours
+        if isinstance(credit_hours, bool) or not isinstance(credit_hours, (int, float)):
+            raise RuntimeError(f'section {section!r} credit_hours must be a number')
+        credit_hours = float(credit_hours)
+        if not math.isfinite(credit_hours):
+            raise RuntimeError(f'section {section!r} credit_hours must be finite')
+        if not minimum_credit_hours <= credit_hours <= maximum_credit_hours:
+            raise RuntimeError(
+                f'section {section!r} credit_hours {credit_hours:g} is outside the catalog '
+                f'range {minimum_credit_hours:g}-{maximum_credit_hours:g}'
+            )
+        self.db.execute('INSERT INTO sections VALUES (?, ?)', (section, credit_hours))
         for tag in tags:
             (room_tags,) = self.db.execute('SELECT COUNT(1) FROM room_tags WHERE room_tag = ?', (tag,)).fetchone()
             (time_slot_tags,) = self.db.execute('SELECT COUNT(1) FROM time_slot_tags WHERE time_slot_tag = ?', (tag,)).fetchone()
@@ -443,8 +476,14 @@ class DB:
         self.db.execute('INSERT INTO faculty_sections VALUES (?, ?)', (faculty, section))
 
     @rollback_on_exception
-    def make_faculty_section(self, faculty: str, section: str, *tags: str) -> None:
-        self.make_section_with_no_faculty(section, *tags)
+    def make_faculty_section(
+        self,
+        faculty: str,
+        section: str,
+        *tags: str,
+        credit_hours: float | None = None,
+    ) -> None:
+        self.make_section_with_no_faculty(section, *tags, credit_hours=credit_hours)
         self.assign_faculty_to_existing_section(faculty, section)
 
     @rollback_on_exception

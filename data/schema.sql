@@ -260,9 +260,11 @@ CREATE TABLE coreqs (
 -- COURSE-SECTION string.
 CREATE TABLE sections (
     section                     TEXT PRIMARY KEY,
+    credit_hours                REAL NOT NULL,
     course                      TEXT GENERATED ALWAYS AS (SUBSTR(section, 1, INSTR(section, '-') - 1)) VIRTUAL NOT NULL,
     section_number              TEXT GENERATED ALWAYS AS (SUBSTR(section, INSTR(section, '-') + 1)) VIRTUAL NOT NULL,
 
+    CHECK (credit_hours >= 0),
     CHECK (LENGTH(course) >= 6),
     CHECK (LENGTH(section_number) >= 2),
     CHECK (course || '-' || section_number = section),
@@ -810,8 +812,7 @@ CREATE VIEW sections_to_be_scheduled (
     course,
     section,
     secondary_section,
-    minimum_credit_hours,
-    maximum_credit_hours
+    credit_hours
 ) AS
     -- Secondary cross-listed sections become schedulable only when the primary
     -- section has time-slot tags. Secondary rows cannot carry their own room,
@@ -825,7 +826,7 @@ CREATE VIEW sections_to_be_scheduled (
             ON section_time_slot_tags.section = cross_listing_sections.primary_section
     )
 
-    SELECT department, course, section, section, minimum_credit_hours, maximum_credit_hours
+    SELECT department, course, section, section, credit_hours
     FROM courses
     NATURAL JOIN sections
     NATURAL JOIN section_time_slot_tags
@@ -836,8 +837,7 @@ CREATE VIEW sections_to_be_scheduled (
            course,
            schedulable_cross_listings.primary_section,
            schedulable_cross_listings.section,
-           minimum_credit_hours,
-           maximum_credit_hours
+           credit_hours
     FROM courses
     NATURAL JOIN sections
     NATURAL JOIN schedulable_cross_listings
@@ -862,8 +862,7 @@ CREATE VIEW time_slots_available_to_sections (
     section,
     time_slot,
     time_slot_priority,
-    minimum_credit_hours,
-    maximum_credit_hours
+    credit_hours
 ) AS
     -- Expand section time-slot tags to concrete time slots. A tag that is
     -- identical to a concrete time_slot is an explicit assignment. Explicit
@@ -874,19 +873,17 @@ CREATE VIEW time_slots_available_to_sections (
         section,
         time_slot,
         explicitly_assigned,
-        minimum_credit_hours,
-        maximum_credit_hours
+        credit_hours
     ) AS (
         SELECT  department,
                 section,
                 time_slot,
                 MAX(CASE WHEN time_slot_tag = time_slot THEN 1 ELSE 0 END),
-                minimum_credit_hours,
-                maximum_credit_hours
+                credit_hours
         FROM sections_to_be_scheduled
         NATURAL JOIN section_time_slot_tags
         NATURAL JOIN time_slots_time_slot_tags
-        GROUP BY department, section, time_slot, minimum_credit_hours, maximum_credit_hours
+        GROUP BY department, section, time_slot, credit_hours
     ),
 
     -- Expand faculty-authored section-specific time preferences to concrete
@@ -991,8 +988,7 @@ CREATE VIEW time_slots_available_to_sections (
             intersect_faculty.section,
             intersect_faculty.time_slot,
             time_slot_priority,
-            minimum_credit_hours,
-            maximum_credit_hours
+            credit_hours
     FROM intersect_faculty
     JOIN section_time_slots
         ON  section_time_slots.department = intersect_faculty.department
@@ -1006,8 +1002,7 @@ CREATE VIEW time_slots_available_to_sections (
            section,
            time_slot,
            NULL,
-           minimum_credit_hours,
-           maximum_credit_hours
+           credit_hours
     FROM section_time_slots
     NATURAL LEFT OUTER JOIN faculty_sections
     WHERE faculty IS NULL;
