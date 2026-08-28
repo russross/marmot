@@ -17,11 +17,6 @@ APP_ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture(scope="session")
-def repository() -> SemesterRepository:
-    return SemesterRepository.load(APP_ROOT / "data" / "fall-2026.json")
-
-
-@pytest.fixture(scope="session")
 def spring_repository() -> SemesterRepository:
     return SemesterRepository.load(APP_ROOT / "data" / "spring-2027.json")
 

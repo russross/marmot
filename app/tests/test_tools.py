@@ -1,173 +1,277 @@
 import json
 from pathlib import Path
+from typing import cast
 
 import pytest
+from pydantic import JsonValue
 
 from timetable_chat.assignments import AssignmentWorkbookClient
+from timetable_chat.models import FacultySubmission
 from timetable_chat.preferences import PreferenceStore
 from timetable_chat.semester import SemesterRepository
-from timetable_chat.tools import ToolService
+from timetable_chat.tools import ToolPreference, ToolService
+
+
+def submission_from_workspace(workspace: dict[str, JsonValue]) -> dict[str, JsonValue]:
+    assignments = cast(list[dict[str, JsonValue]], workspace["assignments"])
+    courses = {
+        cast(str, course["code"]): course
+        for course in cast(list[dict[str, JsonValue]], workspace["courses"])
+    }
+    sections: list[dict[str, JsonValue]] = []
+    for assignment in assignments:
+        course = courses[cast(str, assignment["course_code"])]
+        time_tags = cast(list[JsonValue], assignment["time_slot_tags"])
+        minimum = cast(float, course["minimum_credit_hours"])
+        maximum = cast(float, course["maximum_credit_hours"])
+        variable_credit = minimum != maximum
+        sections.append(
+            {
+                "name": assignment["section"],
+                "method": assignment["setup_method"],
+                "scheduling_mode": "scheduled" if time_tags else "unscheduled",
+                "credit_hours": minimum if variable_credit and not time_tags else None,
+                "room_tags": assignment["room_tags"],
+                "time_slot_tags": time_tags,
+                "comment": (
+                    "This externally planned placement is retained from the assignment source."
+                    if any("+" in cast(str, tag) for tag in time_tags)
+                    else None
+                ),
+            }
+        )
+    assignment_source = cast(dict[str, JsonValue], workspace["assignment_source"])
+    faculty = cast(dict[str, JsonValue], workspace["faculty"])
+    return {
+        "faculty_name": faculty["name"],
+        "assignment_revision": assignment_source["revision"],
+        "decision_summary": [
+            {
+                "origin": "inferred",
+                "text": "Keep the tentative assignments as the initial working draft.",
+            }
+        ],
+        "days_to_check": "MT",
+        "sections": sections,
+        "assignment_changes": [],
+        "hard_unavailability": [],
+        "preferences": [],
+        "coordination_notes": [],
+    }
 
 
 @pytest.mark.asyncio
-async def test_tool_preview_reports_validation_error_without_writing(
+async def test_workspace_load_is_coherent_and_includes_course_credit_data(
+    spring_repository: SemesterRepository,
+    assignment_client: AssignmentWorkbookClient,
+    runtime_directory: Path,
+) -> None:
+    tools = ToolService(
+        spring_repository,
+        PreferenceStore(runtime_directory / "preferences", spring_repository),
+        assignment_client,
+    )
+
+    response = json.loads(
+        await tools.execute("load_faculty_workspace", json.dumps({"faculty_name": "Bart Stander"}))
+    )
+
+    assert response["ok"] is True
+    workspace = response["result"]
+    assert workspace["assignment_source"]["revision"] == "fixture-revision-1"
+    assert [record["term"] for record in workspace["history"]] == [
+        "Fall 2026",
+        "Spring 2026",
+    ]
+    graphics = next(
+        assignment
+        for assignment in workspace["assignments"]
+        if assignment["course_code"] == "CS 3600"
+    )
+    assert graphics["constraints_inferred_from"] == "Spring 2026"
+    assert graphics["room_tags"] == ["pcs"]
+    course = next(course for course in workspace["courses"] if course["code"] == "CS 2100")
+    assert course["minimum_credit_hours"] == 3.0
+    assert course["maximum_credit_hours"] == 3.0
+    assert workspace["saved"] is None
+    assert workspace["saved_revision"] is None
+
+
+@pytest.mark.asyncio
+async def test_save_tool_creates_typed_draft_and_workspace_loads_it(
     spring_repository: SemesterRepository,
     assignment_client: AssignmentWorkbookClient,
     runtime_directory: Path,
 ) -> None:
     store = PreferenceStore(runtime_directory / "preferences", spring_repository)
     tools = ToolService(spring_repository, store, assignment_client)
+    loaded = json.loads(
+        await tools.execute("load_faculty_workspace", json.dumps({"faculty_name": "Bart Stander"}))
+    )["result"]
+    submission = submission_from_workspace(loaded)
 
-    response = json.loads(
+    saved = json.loads(
         await tools.execute(
-            "preview_preferences",
+            "save_faculty_submission",
             json.dumps(
                 {
-                    "faculty_name": "Lora Klein",
-                    "assignment_revision": "fixture-revision-1",
-                    "days_to_check": "MT",
-                    "preferences": [{"kind": "want_classes_evenly_spread_across_days"}],
+                    "expected_saved_revision": loaded["saved_revision"],
+                    "submission": submission,
                 }
             ),
         )
     )
 
-    assert response["ok"] is False
-    assert "more than three scheduleable sections" in response["error"]
+    assert saved["ok"] is True
+    assert saved["result"]["status"] == "created"
+    assert saved["result"]["submission"] == submission
+    reloaded = json.loads(
+        await tools.execute("load_faculty_workspace", json.dumps({"faculty_name": "Bart Stander"}))
+    )["result"]
+    assert reloaded["saved"]["submission"] == submission
+    assert reloaded["saved_revision"] == saved["result"]["saved_revision"]
+    assert reloaded["discrepancies"] == []
+
+
+@pytest.mark.asyncio
+async def test_save_rejects_stale_workbook_and_saved_revisions_without_writing(
+    spring_repository: SemesterRepository,
+    assignment_client: AssignmentWorkbookClient,
+    runtime_directory: Path,
+) -> None:
+    store = PreferenceStore(runtime_directory / "preferences", spring_repository)
+    tools = ToolService(spring_repository, store, assignment_client)
+    workspace = json.loads(
+        await tools.execute("load_faculty_workspace", json.dumps({"faculty_name": "Lora Klein"}))
+    )["result"]
+    submission = submission_from_workspace(workspace)
+    submission["assignment_revision"] = "stale"
+
+    stale_workbook = json.loads(
+        await tools.execute(
+            "save_faculty_submission",
+            json.dumps(
+                {
+                    "expected_saved_revision": None,
+                    "submission": submission,
+                }
+            ),
+        )
+    )
+
+    assert stale_workbook["ok"] is False
+    assert "assignments changed" in stale_workbook["error"]
     assert not (runtime_directory / "preferences").exists()
 
-    stale = json.loads(
+    submission["assignment_revision"] = "fixture-revision-1"
+    stale_saved = json.loads(
         await tools.execute(
-            "save_preferences",
+            "save_faculty_submission",
             json.dumps(
                 {
-                    "faculty_name": "Lora Klein",
-                    "assignment_revision": "stale-revision",
-                    "days_to_check": "MT",
-                    "preferences": [],
+                    "expected_saved_revision": "stale",
+                    "submission": submission,
                 }
             ),
         )
     )
-    assert stale["ok"] is False
-    assert "assignments changed" in stale["error"]
+    assert stale_saved["ok"] is False
+    assert "saved preferences changed" in stale_saved["error"]
     assert not (runtime_directory / "preferences").exists()
 
 
-def test_installed_snapshot_distinguishes_recent_history_and_new_faculty(
-    spring_repository: SemesterRepository,
-) -> None:
-    assert spring_repository.semester.term == "Spring 2027"
-    assert spring_repository.semester.historical_terms == ["Fall 2026", "Spring 2026"]
-    assert "No current-term faculty Python source" in spring_repository.semester.provenance.note
-    bart = spring_repository.faculty("bart stander")
-    assert bart.sections == []
-    assert bart.section_setup == []
-    assert bart.current_preferences is None
-    recent, older = bart.preference_history
-    assert recent.term == "Fall 2026"
-    assert recent.faculty_present is True
-    assert recent.preferences is not None
-    assert recent.section_setup
-    assert older.term == "Spring 2026"
-    assert older.faculty_present is True
-    assert older.preferences is not None
-    assert any(section.name == "CS 3600-01" for section in older.section_setup)
-
-
 @pytest.mark.asyncio
-async def test_history_tool_keeps_history_separate_from_tentative_current_context(
+async def test_workspace_highlights_live_assignments_without_overriding_saved_draft(
     spring_repository: SemesterRepository,
     assignment_client: AssignmentWorkbookClient,
     runtime_directory: Path,
 ) -> None:
-    tools = ToolService(
-        spring_repository,
-        PreferenceStore(runtime_directory / "preferences", spring_repository),
-        assignment_client,
-    )
-
-    context = json.loads(
-        await tools.execute("get_faculty_context", json.dumps({"faculty_name": "Bart Stander"}))
-    )
-    history = json.loads(
-        await tools.execute(
-            "get_previous_preferences", json.dumps({"faculty_name": "Bart Stander"})
-        )
-    )
-
-    assert context["ok"] is True
-    assert "preference_history" not in context["result"]["faculty"]
-    assert history["ok"] is True
-    assert [record["term"] for record in history["result"]["history"]] == [
-        "Fall 2026",
-        "Spring 2026",
+    store = PreferenceStore(runtime_directory / "preferences", spring_repository)
+    tools = ToolService(spring_repository, store, assignment_client)
+    workspace = json.loads(
+        await tools.execute("load_faculty_workspace", json.dumps({"faculty_name": "Bart Stander"}))
+    )["result"]
+    submission = submission_from_workspace(workspace)
+    removed_section = cast(list[dict[str, JsonValue]], submission["sections"]).pop()["name"]
+    submission["assignment_changes"] = [
+        {
+            "kind": "remove",
+            "section": removed_section,
+            "comment": "The faculty member reports that this assignment moved elsewhere.",
+        }
     ]
-    assignments = context["result"]["assignments"]
-    graphics = next(row for row in assignments if row["course_code"] == "CS 3600")
-    assert graphics["constraints_inferred_from"] == "Spring 2026"
-    assert graphics["room_tags"] == ["pcs"]
-    assert graphics["time_slot_tags"] == ["3 credit bell schedule"]
-
-
-@pytest.mark.asyncio
-async def test_faculty_tools_require_a_reason_for_new_unavailable_times(
-    spring_repository: SemesterRepository,
-    assignment_client: AssignmentWorkbookClient,
-    runtime_directory: Path,
-) -> None:
-    tools = ToolService(
-        spring_repository,
-        PreferenceStore(runtime_directory / "preferences", spring_repository),
-        assignment_client,
-    )
-    assert "unavailable_time_slot" in json.dumps(tools.definitions())
-    response = json.loads(
+    saved = json.loads(
         await tools.execute(
-            "preview_preferences",
+            "save_faculty_submission",
             json.dumps(
                 {
-                    "faculty_name": "Bart Stander",
-                    "assignment_revision": "fixture-revision-1",
-                    "days_to_check": "MT",
-                    "preferences": [
-                        {
-                            "kind": "unavailable_time_slot",
-                            "time_slot": "TR1500+75",
-                            "comment": "I chair a university committee at this time.",
-                        }
-                    ],
+                    "expected_saved_revision": None,
+                    "submission": submission,
                 }
             ),
         )
     )
-    assert response["ok"] is True
-    assert "# Faculty exception: I chair a university committee" in response["result"]["snippet"]
+    assert saved["ok"] is True
 
-    missing_reason = json.loads(
-        await tools.execute(
-            "preview_preferences",
-            json.dumps(
-                {
-                    "faculty_name": "Bart Stander",
-                    "assignment_revision": "fixture-revision-1",
-                    "days_to_check": "MT",
-                    "preferences": [
-                        {
-                            "kind": "unavailable_time_slot",
-                            "time_slot": "TR1500+75",
-                        }
-                    ],
-                }
-            ),
-        )
-    )
-    assert missing_reason["ok"] is False
-    assert "comment" in missing_reason["error"]
+    reloaded = json.loads(
+        await tools.execute("load_faculty_workspace", json.dumps({"faculty_name": "Bart Stander"}))
+    )["result"]
+
+    saved_names = {section["name"] for section in reloaded["saved"]["submission"]["sections"]}
+    assert removed_section not in saved_names
+    assert any(removed_section in message for message in reloaded["discrepancies"])
 
 
-@pytest.mark.asyncio
-async def test_live_assignments_resolve_names_and_preserve_imprecision(
+@pytest.mark.parametrize(
+    "wire_preference",
+    [
+        {"kind": "want_a_day_off"},
+        {"kind": "do_not_want_a_day_off"},
+        {"kind": "want_classes_evenly_spread_across_days"},
+        {"kind": "want_back_to_back_classes_in_the_same_room"},
+        {"kind": "want_classes_packed_into_as_few_rooms_as_possible"},
+        {"kind": "avoid_gap_between_class_clusters_shorter_than", "minutes": 60},
+        {"kind": "avoid_gap_between_class_clusters_longer_than", "minutes": 120},
+        {"kind": "avoid_class_cluster_shorter_than", "minutes": 180},
+        {"kind": "avoid_class_cluster_longer_than", "minutes": 240},
+        {"kind": "avoid_section_in_rooms", "section": "CS 2100-01", "room_tags": ["pcs"]},
+        {
+            "kind": "avoid_section_in_time_slots",
+            "section": "CS 2100-01",
+            "time_slot_tags": ["late"],
+        },
+        {"kind": "avoid_time_slot", "time_slot": "TR0900+75"},
+        {
+            "kind": "use_same_time_pattern",
+            "sections": ["CS 2100-01", "CS 2420-01"],
+        },
+    ],
+)
+def test_provider_neutral_preferences_convert_to_canonical_variants(
+    wire_preference: dict[str, JsonValue],
+) -> None:
+    tool_preference = ToolPreference.model_validate_json(json.dumps(wire_preference), strict=True)
+
+    assert tool_preference.to_preference().model_dump(mode="json") == wire_preference
+
+
+@pytest.mark.parametrize(
+    "wire_preference",
+    [
+        {"kind": "avoid_section_in_rooms", "section": "CS 2100-01"},
+        {"kind": "want_a_day_off", "minutes": 60},
+    ],
+)
+def test_provider_neutral_preferences_reject_incomplete_or_irrelevant_fields(
+    wire_preference: dict[str, JsonValue],
+) -> None:
+    tool_preference = ToolPreference.model_validate_json(json.dumps(wire_preference), strict=True)
+
+    with pytest.raises(ValueError):
+        tool_preference.to_preference()
+
+
+def test_tool_schema_exposes_provenance_and_university_only_hard_blocks(
     spring_repository: SemesterRepository,
     assignment_client: AssignmentWorkbookClient,
     runtime_directory: Path,
@@ -178,32 +282,25 @@ async def test_live_assignments_resolve_names_and_preserve_imprecision(
         assignment_client,
     )
 
-    faculty_list = json.loads(await tools.execute("list_faculty", "{}"))
-    daley = json.loads(
-        await tools.execute("get_faculty_context", '{"faculty_name":"Philip Daley"}')
-    )
-    kevin = json.loads(
-        await tools.execute("get_faculty_context", '{"faculty_name":"Kevin Johnston"}')
-    )
-    kevin_history = json.loads(
-        await tools.execute("get_previous_preferences", '{"faculty_name":"Kevin Johnston"}')
-    )
+    serialized_definitions = json.dumps(tools.definitions())
 
-    assert "Phil Daley" in faculty_list["result"]["faculty"]
-    assert "Kevin Johnston" in faculty_list["result"]["faculty"]
-    assert [row["section"] for row in daley["result"]["assignments"]] == [
-        "IT 1100-01",
-        "IT 1100-02",
-    ]
-    stander = json.loads(
-        await tools.execute("get_faculty_context", '{"faculty_name":"Bart Stander"}')
+    def schema_keys(value: JsonValue) -> set[str]:
+        if isinstance(value, list):
+            return set().union(*(schema_keys(item) for item in value))
+        if not isinstance(value, dict):
+            return set()
+        return set(value) | set().union(*(schema_keys(item) for item in value.values()))
+
+    definitions = tools.definitions()
+    emitted_schema_keys = schema_keys(definitions)
+
+    assert "decision_summary" in serialized_definitions
+    assert "university_conflict" in serialized_definitions
+    assert "credit_hours" in serialized_definitions
+    assert "expected_saved_revision" in serialized_definitions
+    assert "preview_preferences" not in serialized_definitions
+    assert '"priority"' not in serialized_definitions
+    assert FacultySubmission.model_fields["decision_summary"].is_required()
+    assert {"$defs", "$ref", "anyOf", "oneOf", "discriminator", "strict"}.isdisjoint(
+        emitted_schema_keys
     )
-    assert [
-        row["section"]
-        for row in stander["result"]["assignments"]
-        if row["course_code"] == "CS 3600"
-    ] == ["CS 3600-01"]
-    assert all(row["section_number_inferred"] for row in daley["result"]["assignments"])
-    assert all(not record["faculty_present"] for record in kevin_history["result"]["history"])
-    assert any("possible match: Kevin Johnson" in issue for issue in kevin["result"]["issues"])
-    assert faculty_list["result"]["unassigned_courses"][0]["course_code"] == "CS 1030"

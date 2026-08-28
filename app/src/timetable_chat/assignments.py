@@ -121,46 +121,54 @@ def parse_assignment_workbook(content: bytes) -> list[SpreadsheetAssignment]:
     namespace = {"x": WORKSHEET_NAMESPACE}
     table: list[tuple[int, dict[str, str], bool]] = []
     for row in worksheet.findall(".//x:sheetData/x:row", namespace):
-        row_number = int(row.attrib["r"])
-        values: dict[str, str] = {}
-        populated_cell_strike_states: list[bool] = []
-        row_style_index = _row_style_index(row)
-        for cell in row.findall("x:c", namespace):
-            reference = cell.attrib.get("r", "")
-            match = CELL_REFERENCE.fullmatch(reference)
-            if match is None:
-                raise ValueError(f"invalid cell reference {reference!r} in assignment workbook")
-            column = match.group("column")
-            value = _cell_value(cell, shared_strings)
-            values[column] = value
-            if column in "ABCDEF" and value.strip():
-                style_index = _cell_style_index(cell, row_style_index)
-                populated_cell_strike_states.append(style_index in struck_style_indexes)
+        try:
+            row_number = int(row.attrib["r"])
+            values: dict[str, str] = {}
+            populated_cell_strike_states: list[bool] = []
+            row_style_index = _row_style_index(row)
+            for cell in row.findall("x:c", namespace):
+                reference = cell.attrib.get("r", "")
+                match = CELL_REFERENCE.fullmatch(reference)
+                if match is None:
+                    continue
+                column = match.group("column")
+                value = _cell_value(cell, shared_strings)
+                values[column] = value
+                if column in "ABCDEF" and value.strip():
+                    style_index = _cell_style_index(cell, row_style_index)
+                    populated_cell_strike_states.append(style_index in struck_style_indexes)
+        except (KeyError, ValueError):
+            continue
         row_is_struck = bool(populated_cell_strike_states) and all(populated_cell_strike_states)
         table.append((row_number, values, row_is_struck))
     if not table:
         raise ValueError("current assignment workbook has no rows")
 
-    header_row, header_values, _ = table[0]
-    headers = tuple(header_values.get(column, "") for column in "ABCDEFG")
-    if header_row != 1 or headers != EXPECTED_HEADERS:
+    header_index = next(
+        (
+            index
+            for index, (_, values, _) in enumerate(table)
+            if tuple(values.get(column, "").strip() for column in "ABCDEFG") == EXPECTED_HEADERS
+        ),
+        None,
+    )
+    if header_index is None:
         raise ValueError(
-            "current assignment workbook headers must be " + ", ".join(EXPECTED_HEADERS)
+            "current assignment workbook has no recognizable header row; expected "
+            + ", ".join(EXPECTED_HEADERS)
         )
 
     assignments: list[SpreadsheetAssignment] = []
-    for row_number, values, row_is_struck in table[1:]:
+    for row_number, values, row_is_struck in table[header_index + 1 :]:
         if row_is_struck:
             continue
-        if not any(value.strip() for value in values.values()):
+        if tuple(values.get(column, "").strip() for column in "ABCDEFG") == EXPECTED_HEADERS:
             continue
         subject = values.get("C", "").strip()
         course = values.get("D", "").strip()
         title = values.get("F", "").strip()
         if not subject or not course or not title:
-            raise ValueError(
-                f"assignment workbook row {row_number} requires Subject, Course, and Title"
-            )
+            continue
         assignments.append(
             SpreadsheetAssignment(
                 row=row_number,

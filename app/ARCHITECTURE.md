@@ -36,13 +36,14 @@ Data structures
     `make_faculty_section(...)` or `assign_faculty_to_existing_section(...)` and preserves
     its ordered tag arguments for canonical output.
 -   `Room`, `TimeSlot`, tag maps, `Course`, `Program`, and `Conflict` provide the installed
-    constraint and curriculum vocabulary.
--   `FacultySubmission` is the save boundary. It contains typed teaching-assignment
-    additions/removals, optional replacements for a section's room/time tags, a
-    discriminated union of faculty preference types, and structured cross-faculty
-    coordination notes. It carries the workbook content revision used for stale-preview
-    detection. Priorities and durations are range-constrained. Teaching changes and new
-    hard-unavailability requests require explanatory comments.
+    constraint and curriculum vocabulary. Courses include their catalog credit range,
+    scheduling policy, and any exceptional weekly contact-minute requirement.
+-   `FacultySubmission` is the complete save boundary, not a patch over the workbook. Its
+    `ProposedSection` records every course, setup method, scheduling mode, allowed room/time
+    tags, and variable credit value. It also contains assignment-change reasons, ordered
+    preferences, university-related hard unavailability, coordination notes, and decision
+    summary items labeled as faculty input, inference, or source evidence. Workbook and
+    saved-artifact revisions prevent stale writes.
 -   `SpreadsheetAssignment` represents one decoded workbook row. `CurrentAssignment`
     preserves its source row, title, note, resolved isolated section name, inferred setup
     source, room/time tags, and explicit issues. `FacultyContext` combines those live rows
@@ -57,29 +58,33 @@ Data flow
 2.  `SemesterRepository.load(path)` strictly validates that snapshot during server startup.
 3.  `AssignmentWorkbookClient.fetch()` downloads the Spring 2027 XLSX for every
     assignment-bearing tool call. The parser bounds the download and XML-part sizes,
-    rejects unsafe XML, validates the exact seven-column schema, excludes fully struck-out
-    assignment rows, and retains incomplete active rows and notes. Name resolution prefers
-    exact historical identity, then an unambiguous surname match. Missing section numbers
-    receive deterministic isolated-input numbers and an explicit warning. Course
-    constraints are inferred from the same-season historical setup when unambiguous, then
-    from the other historical term. A SHA-256 content revision identifies the exact
-    workbook used for each context.
+    rejects unsafe XML, locates the exact seven-column header, excludes fully struck-out
+    assignment rows, and ignores unrelated or incomplete planning rows. Each remaining
+    valid assignment retains its notes. Name resolution prefers exact historical identity,
+    then an unambiguous surname match. Missing section numbers receive deterministic
+    isolated-input numbers and an explicit warning. Course constraints are inferred from
+    the same-season historical setup when unambiguous, then from the other historical term.
+    A SHA-256 content revision identifies the exact workbook used for each context.
 4.  `POST /api/chat` receives assistant-ui messages and passes them with the system prompt
-    and server-owned tool schemas to `OpenRouterAgent.stream(...)`.
+    and server-owned tool schemas to `OpenRouterAgent.stream(...)`. Tool schemas use a
+    provider-neutral JSON Schema subset: references are inlined, nullable fields are
+    optional, and provider-specific strict-output and union keywords are omitted.
 5.  `OpenRouterAgent` incrementally parses OpenRouter SSE chunks, executes complete model
     tool calls through `ToolService`, and yields typed text/tool/message events. The route
     maps those events to assistant-ui frames. Request, tool, response, and error records
     are appended through `SessionLog` at their complete semantic boundaries.
-6.  `preview_preferences` and `save_preferences` re-download current assignments, parse
-    the same `FacultySubmission`, and use the same resolved `Faculty` context. A stale
-    assignment revision rejects preview or save, so a changed workbook cannot produce a
-    stored snippet different from the confirmed preview.
-    `validate_submission(...)` checks solver preconditions and real allowed-set
-    intersections. `render_submission(...)` produces the same Python API calls used by
-    Marmot input.
-7.  `PreferenceStore.save(...)` writes a temporary file and atomically replaces
-    `runtime/preferences/<faculty-slug>.py`. Validation failures leave the prior file
-    untouched.
+6.  `load_faculty_workspace` downloads and resolves the workbook once, then returns that
+    coherent assignment revision with the saved typed draft and its revision, both history
+    records, relevant course metadata, and discrepancies. Live discrepancies are reported
+    without mutating the saved draft.
+7.  `save_faculty_submission` re-downloads assignments and rejects stale workbook or saved
+    revisions. It converts the flat model-facing preference shape into the canonical
+    discriminated preference types, normalizes silent defaults, validates the complete
+    submission, and renders the canonical Python. Contact-minute checks expand every
+    allowed time tag and use exact section credits plus installed course exceptions.
+8.  `PreferenceStore.save(...)` embeds the typed submission in comments, writes a temporary
+    file, and atomically replaces `runtime/preferences/<faculty-slug>.py`. Identical saves
+    are no-ops. Validation failures leave the prior artifact untouched.
 
 Key interfaces
 --------------
@@ -104,10 +109,13 @@ render_submission(faculty: Faculty, submission: FacultySubmission) -> str
 PreferenceStore.save(
     submission: FacultySubmission,
     faculty: Faculty | None = None,
+    expected_saved_revision: str | None = None,
 ) -> SaveResult
 
 ToolService.definitions() -> list[tool schema]
 ToolService.execute(name: str, arguments_json: str) -> Awaitable[str]
+ToolFacultySubmission.to_submission() -> FacultySubmission
+provider_tool_schema(schema: dict[str, JsonValue]) -> dict[str, JsonValue]
 
 OpenRouterAgent.stream(
     system_prompt: str,
@@ -119,17 +127,18 @@ OpenRouterAgent.stream(
 Save semantics
 --------------
 
-The model never writes Python directly. It submits typed teaching changes, constraints,
-preferences, and comments. The server preserves the resolved faculty identity,
-department, historical baseline availability, and department-approved unavailable slots.
-It applies requested assignment additions/removals and room/time replacements immediately.
-Shared section changes remain valid isolated Python while their requested tags are recorded
-in comments for the department-wide integration pass. Hard time exclusions and teaching
-changes are rendered with their rationale so exceptions remain visible.
+The model never writes Python directly. It submits a complete typed working draft. The
+server preserves the resolved faculty identity, standard availability, and installed
+department-approved unavailable slots. It infers fixed catalog credits, silently chooses
+the minimum for unscheduled variable-credit sections when omitted, and requires an explicit
+value for scheduled variable-credit sections. Shared sections obtain their credit from the
+section creator.
 
-The prompt requires a preview before saving and explicit faculty confirmation before the
-write tool. There is intentionally no login or authorization layer for this firewall-only
-deployment.
+The initial inferred draft and each actionable revision are saved automatically before the
+assistant describes them. The artifact separates faculty statements, inferences, and source
+notes for audit. Faculty edit only their own draft; cross-faculty requests remain coordination
+comments for the merge. There is intentionally no login or authorization layer for this
+firewall-only deployment.
 
 Semester migration
 ------------------

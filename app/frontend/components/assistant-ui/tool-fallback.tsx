@@ -20,29 +20,17 @@ const TOOL_ACTIVITY_LABELS: Readonly<Record<string, ToolActivityLabels>> = {
     running: "Looking up faculty",
     complete: "Looked up faculty",
   },
-  get_faculty_context: {
-    running: "Reviewing your courses and constraints",
-    complete: "Reviewed your courses and constraints",
-  },
-  get_previous_preferences: {
-    running: "Reviewing your previous preferences",
-    complete: "Reviewed your previous preferences",
-  },
-  get_saved_preferences: {
-    running: "Checking your saved preferences",
-    complete: "Checked your saved preferences",
+  load_faculty_workspace: {
+    running: "Reviewing your courses and preferences",
+    complete: "Reviewed your courses and preferences",
   },
   get_scheduling_reference: {
     running: "Checking scheduling details",
     complete: "Checked scheduling details",
   },
-  preview_preferences: {
-    running: "Validating your proposed preferences",
-    complete: "Validated your proposed preferences",
-  },
-  save_preferences: {
-    running: "Saving your preferences",
-    complete: "Saved your preferences",
+  save_faculty_submission: {
+    running: "Updating your working draft",
+    complete: "Updated your working draft",
   },
 };
 

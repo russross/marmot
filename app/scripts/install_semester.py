@@ -343,18 +343,10 @@ def build_snapshot(
 
         faculty_payload: list[dict[str, object]] = []
         faculty_names = sorted(
-            {
-                name
-                for _, historical_source in historical_sources
-                for name in historical_source
-            }
+            {name for _, historical_source in historical_sources for name in historical_source}
         )
         for name in faculty_names:
-            baseline = next(
-                source[name]
-                for _, source in historical_sources
-                if name in source
-            )
+            baseline = next(source[name] for _, source in historical_sources if name in source)
             faculty_payload.append(
                 {
                     "name": name,
@@ -362,9 +354,7 @@ def build_snapshot(
                     "availability": [asdict(interval) for interval in baseline.availability],
                     "sections": [],
                     "section_setup": [],
-                    "approved_unavailable_time_slots": (
-                        baseline.approved_unavailable_time_slots
-                    ),
+                    "approved_unavailable_time_slots": (baseline.approved_unavailable_time_slots),
                     "current_preferences": None,
                     "preference_history": [
                         {
@@ -472,10 +462,25 @@ def build_snapshot(
                     "code": str(row["course"]),
                     "department": str(row["department"]),
                     "name": str(row["course_name"]),
+                    "minimum_credit_hours": float(row["minimum_credit_hours"]),
+                    "maximum_credit_hours": float(row["maximum_credit_hours"]),
+                    "scheduling_policy": (
+                        "never_scheduled"
+                        if "Research" in row["course_name"] or "Internship" in row["course_name"]
+                        else "externally_scheduled"
+                        if str(row["course"]).startswith("SA ")
+                        else "section_defined"
+                    ),
+                    "contact_minutes_override": {
+                        "CS 4991R": 50,
+                        "CS 4480R": 150,
+                        "SE 4930R": 120,
+                    }.get(row["course"]),
                 }
                 for row in rows(
                     connection,
-                    "SELECT course, department, course_name FROM courses ORDER BY course",
+                    "SELECT course, department, course_name, minimum_credit_hours, "
+                    "maximum_credit_hours FROM courses ORDER BY course",
                 )
             ],
             "programs": programs,

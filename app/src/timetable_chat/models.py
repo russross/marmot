@@ -1,9 +1,17 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, JsonValue, StringConstraints
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    JsonValue,
+    StringConstraints,
+    model_validator,
+)
 
 
 class StrictModel(BaseModel):
@@ -40,34 +48,6 @@ class PreferenceHistory(StrictModel):
     section_setup: list[SectionSetup] = Field(default_factory=list)
 
 
-class SectionConstraintUpdate(StrictModel):
-    section: str
-    room_tags: list[str]
-    time_slot_tags: list[str]
-    comment: Annotated[str, StringConstraints(min_length=1, max_length=500)] | None = None
-
-
-class FacultySectionAddition(StrictModel):
-    kind: Literal["add_section"]
-    method: SectionSetupMethod
-    section: str
-    room_tags: list[str]
-    time_slot_tags: list[str]
-    comment: Annotated[str, StringConstraints(min_length=1, max_length=500)]
-
-
-class FacultySectionRemoval(StrictModel):
-    kind: Literal["remove_section"]
-    section: str
-    comment: Annotated[str, StringConstraints(min_length=1, max_length=500)]
-
-
-SectionChange = Annotated[
-    FacultySectionAddition | FacultySectionRemoval,
-    Field(discriminator="kind"),
-]
-
-
 class Faculty(StrictModel):
     name: str
     department: str
@@ -91,10 +71,26 @@ class TimeSlot(StrictModel):
     duration_minutes: int
 
 
+class CourseSchedulingPolicy(StrEnum):
+    SECTION_DEFINED = "section_defined"
+    NEVER_SCHEDULED = "never_scheduled"
+    EXTERNALLY_SCHEDULED = "externally_scheduled"
+
+
 class Course(StrictModel):
     code: str
     department: str
     name: str
+    minimum_credit_hours: Annotated[float, Field(ge=0, allow_inf_nan=False)]
+    maximum_credit_hours: Annotated[float, Field(ge=0, allow_inf_nan=False)]
+    scheduling_policy: CourseSchedulingPolicy
+    contact_minutes_override: Annotated[int, Field(gt=0)] | None
+
+    @model_validator(mode="after")
+    def validate_credit_range(self) -> Self:
+        if self.maximum_credit_hours < self.minimum_credit_hours:
+            raise ValueError("maximum_credit_hours must be at least minimum_credit_hours")
+        return self
 
 
 class Conflict(StrictModel):
@@ -168,89 +164,69 @@ class FacultyContext(StrictModel):
     issues: list[str]
 
 
-Priority = Annotated[int, Field(ge=10, le=24)]
 DurationMinutes = Annotated[int, Field(gt=50, lt=720)]
 
 
 class WantADayOff(StrictModel):
     kind: Literal["want_a_day_off"]
-    priority: Priority | None = None
 
 
 class DoNotWantADayOff(StrictModel):
     kind: Literal["do_not_want_a_day_off"]
-    priority: Priority | None = None
 
 
 class WantClassesEvenlySpreadAcrossDays(StrictModel):
     kind: Literal["want_classes_evenly_spread_across_days"]
-    priority: Priority | None = None
 
 
 class WantBackToBackClassesInTheSameRoom(StrictModel):
     kind: Literal["want_back_to_back_classes_in_the_same_room"]
-    priority: Priority | None = None
 
 
 class WantClassesPackedIntoAsFewRoomsAsPossible(StrictModel):
     kind: Literal["want_classes_packed_into_as_few_rooms_as_possible"]
-    priority: Priority | None = None
 
 
 class AvoidGapBetweenClassClustersShorterThan(StrictModel):
     kind: Literal["avoid_gap_between_class_clusters_shorter_than"]
     minutes: DurationMinutes
-    priority: Priority | None = None
 
 
 class AvoidGapBetweenClassClustersLongerThan(StrictModel):
     kind: Literal["avoid_gap_between_class_clusters_longer_than"]
     minutes: DurationMinutes
-    priority: Priority | None = None
 
 
 class AvoidClassClusterShorterThan(StrictModel):
     kind: Literal["avoid_class_cluster_shorter_than"]
     minutes: DurationMinutes
-    priority: Priority | None = None
 
 
 class AvoidClassClusterLongerThan(StrictModel):
     kind: Literal["avoid_class_cluster_longer_than"]
     minutes: DurationMinutes
-    priority: Priority | None = None
 
 
 class AvoidSectionInRooms(StrictModel):
     kind: Literal["avoid_section_in_rooms"]
     section: str
     room_tags: Annotated[list[str], Field(min_length=1)]
-    priority: Priority | None = None
 
 
 class AvoidSectionInTimeSlots(StrictModel):
     kind: Literal["avoid_section_in_time_slots"]
     section: str
     time_slot_tags: Annotated[list[str], Field(min_length=1)]
-    priority: Priority | None = None
 
 
 class AvoidTimeSlot(StrictModel):
     kind: Literal["avoid_time_slot"]
     time_slot: str
-    priority: Priority | None = None
-
-
-class UnavailableTimeSlot(StrictModel):
-    kind: Literal["unavailable_time_slot"]
-    time_slot: str
-    comment: Annotated[str, StringConstraints(min_length=1, max_length=500)]
 
 
 class UseSameTimePattern(StrictModel):
     kind: Literal["use_same_time_pattern"]
     sections: Annotated[list[str], Field(min_length=2)]
-    priority: Priority | None = None
 
 
 Preference = Annotated[
@@ -266,7 +242,6 @@ Preference = Annotated[
     | AvoidSectionInRooms
     | AvoidSectionInTimeSlots
     | AvoidTimeSlot
-    | UnavailableTimeSlot
     | UseSameTimePattern,
     Field(discriminator="kind"),
 ]
@@ -284,19 +259,89 @@ class CoordinationNote(StrictModel):
     text: Annotated[str, StringConstraints(min_length=1, max_length=500)]
 
 
+class DecisionOrigin(StrEnum):
+    FACULTY = "faculty"
+    INFERRED = "inferred"
+    SOURCE = "source"
+
+
+class DecisionSummaryItem(StrictModel):
+    origin: DecisionOrigin
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1000)]
+
+
+class SectionSchedulingMode(StrEnum):
+    SCHEDULED = "scheduled"
+    UNSCHEDULED = "unscheduled"
+
+
+class ProposedSection(StrictModel):
+    name: str
+    method: SectionSetupMethod
+    scheduling_mode: SectionSchedulingMode
+    credit_hours: Annotated[float, Field(ge=0, allow_inf_nan=False)] | None = Field(
+        description=("Required for variable-credit courses and omitted for fixed-credit courses.")
+    )
+    room_tags: list[str]
+    time_slot_tags: list[str]
+    comment: Annotated[str, StringConstraints(min_length=1, max_length=500)] | None = None
+
+
+class AssignmentChangeKind(StrEnum):
+    ADD = "add"
+    REMOVE = "remove"
+
+
+class AssignmentChangeReason(StrictModel):
+    kind: AssignmentChangeKind
+    section: str
+    comment: Annotated[str, StringConstraints(min_length=1, max_length=500)]
+
+
+class HardUnavailability(StrictModel):
+    time_slot: str
+    university_conflict: Annotated[str, StringConstraints(min_length=1, max_length=500)]
+
+
 class FacultySubmission(StrictModel):
     faculty_name: str
     assignment_revision: str
+    decision_summary: Annotated[
+        list[DecisionSummaryItem],
+        Field(
+            min_length=1,
+            max_length=30,
+            description=(
+                "Factual faculty statements, inferences, and source notes relevant to the draft."
+            ),
+        ),
+    ]
     days_to_check: Annotated[str, StringConstraints(pattern=r"^[MTWRFSU]+$")]
-    section_changes: list[SectionChange] = Field(default_factory=list)
-    section_constraints: list[SectionConstraintUpdate] = Field(default_factory=list)
+    sections: list[ProposedSection]
+    assignment_changes: list[AssignmentChangeReason] = Field(default_factory=list)
+    hard_unavailability: list[HardUnavailability] = Field(default_factory=list)
     preferences: list[Preference]
     coordination_notes: list[CoordinationNote] = Field(default_factory=list)
+
+
+class SaveStatus(StrEnum):
+    CREATED = "created"
+    UPDATED = "updated"
+    UNCHANGED = "unchanged"
 
 
 class SaveResult(StrictModel):
     faculty_name: str
     path: str
+    status: SaveStatus
+    saved_revision: str
+    submission: FacultySubmission
+    snippet: str
+
+
+class SavedSubmission(StrictModel):
+    saved_revision: str
+    submission: FacultySubmission
     snippet: str
 
 

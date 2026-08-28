@@ -103,7 +103,7 @@ async def test_agent_streams_fragmented_text_and_tool_rounds(
                                         "id": "call-1",
                                         "type": "function",
                                         "function": {
-                                            "name": "get_previous_preferences",
+                                            "name": "load_faculty_workspace",
                                             "arguments": "",
                                         },
                                     }
@@ -162,7 +162,7 @@ async def test_agent_streams_fragmented_text_and_tool_rounds(
             }
         ]
         assert tool_message["role"] == "tool"
-        assert "WantADayOff" in tool_message["content"]
+        assert '"history"' in tool_message["content"]
         final_events: list[dict[str, object]] = [
             {
                 "id": "generation-2",
@@ -222,7 +222,7 @@ async def test_agent_streams_fragmented_text_and_tool_rounds(
     ]
     await client.aclose()
 
-    assert streamed[0] == ToolCallStarted("call-1", "get_previous_preferences")
+    assert streamed[0] == ToolCallStarted("call-1", "load_faculty_workspace")
     assert streamed[1:3] == [
         ToolArgumentsDelta("call-1", '{"faculty_name":"Bart '),
         ToolArgumentsDelta("call-1", 'Stander"}'),

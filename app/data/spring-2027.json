@@ -2417,1667 +2417,2999 @@
     {
       "code": "CS 1030",
       "department": "Computing",
-      "name": "Problem Solving with Computers"
+      "name": "Problem Solving with Computers",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 1400",
       "department": "Computing",
-      "name": "Fundamentals of Programming"
+      "name": "Fundamentals of Programming",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 1410",
       "department": "Computing",
-      "name": "Object Oriented Programming"
+      "name": "Object Oriented Programming",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 1500",
       "department": "Computing",
-      "name": "History of Video Games"
+      "name": "History of Video Games",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 2100",
       "department": "Computing",
-      "name": "Discrete Structures"
+      "name": "Discrete Structures",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 2320",
       "department": "Computing",
-      "name": "Introduction to Machine Learning"
+      "name": "Introduction to Machine Learning",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 2420",
       "department": "Computing",
-      "name": "Introduction to Algorithms and Data Structures"
+      "name": "Introduction to Algorithms and Data Structures",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 2450",
       "department": "Computing",
-      "name": "Software Engineering"
+      "name": "Software Engineering",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 2500",
       "department": "Computing",
-      "name": "Data Wrangling"
+      "name": "Data Wrangling",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 2810",
       "department": "Computing",
-      "name": "Computer Organization and Architecture"
+      "name": "Computer Organization and Architecture",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 3005",
       "department": "Computing",
-      "name": "Programming in C++"
+      "name": "Programming in C++",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 3150",
       "department": "Computing",
-      "name": "Computer Networks"
+      "name": "Computer Networks",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 3400",
       "department": "Computing",
-      "name": "Operating Systems"
+      "name": "Operating Systems",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 3410",
       "department": "Computing",
-      "name": "Distributed Systems"
+      "name": "Distributed Systems",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 3500",
       "department": "Computing",
-      "name": "Game Development"
+      "name": "Game Development",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 3510",
       "department": "Computing",
-      "name": "Algorithms"
+      "name": "Algorithms",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 3520",
       "department": "Computing",
-      "name": "Programming Languages"
+      "name": "Programming Languages",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 3530",
       "department": "Computing",
-      "name": "Computational Theory"
+      "name": "Computational Theory",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 3600",
       "department": "Computing",
-      "name": "Graphics Programming"
+      "name": "Graphics Programming",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 4300",
       "department": "Computing",
-      "name": "Artificial Intelligence"
+      "name": "Artificial Intelligence",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 4307",
       "department": "Computing",
-      "name": "Database Systems"
+      "name": "Database Systems",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 4320",
       "department": "Computing",
-      "name": "Machine Learning"
+      "name": "Machine Learning",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 4400",
       "department": "Computing",
-      "name": "Data Mining"
+      "name": "Data Mining",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 4410",
       "department": "Computing",
-      "name": "Data Visualization"
+      "name": "Data Visualization",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 4420",
       "department": "Computing",
-      "name": "Data Privacy, Security, and Ethics"
+      "name": "Data Privacy, Security, and Ethics",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 4480R",
       "department": "Computing",
-      "name": "Data Science Practicum"
+      "name": "Data Science Practicum",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": 150
     },
     {
       "code": "CS 4490R",
       "department": "Computing",
-      "name": "Data Science Capstone"
+      "name": "Data Science Capstone",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 4550",
       "department": "Computing",
-      "name": "Compilers"
+      "name": "Compilers",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 4600",
       "department": "Computing",
-      "name": "Senior Project"
+      "name": "Senior Project",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 4800R",
       "department": "Computing",
-      "name": "Undergraduate Research"
+      "name": "Undergraduate Research",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 6.0,
+      "scheduling_policy": "never_scheduled",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 4920R",
       "department": "Computing",
-      "name": "Internship"
+      "name": "Internship",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "never_scheduled",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 4990",
       "department": "Computing",
-      "name": "Special Topics in Computer Science"
+      "name": "Special Topics in Computer Science",
+      "minimum_credit_hours": 0.5,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 4991R",
       "department": "Computing",
-      "name": "Competitive Programming"
+      "name": "Competitive Programming",
+      "minimum_credit_hours": 0.5,
+      "maximum_credit_hours": 0.5,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": 50
     },
     {
       "code": "CS 4992R",
       "department": "Computing",
-      "name": "Computer Science Seminar"
+      "name": "Computer Science Seminar",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 4995",
       "department": "Computing",
-      "name": "Immersive Game Development I"
+      "name": "Immersive Game Development I",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 4996",
       "department": "Computing",
-      "name": "Immersive Game Development II"
+      "name": "Immersive Game Development II",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 6300",
       "department": "Computing",
-      "name": "Principles of Artificial Intelligence"
+      "name": "Principles of Artificial Intelligence",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 6310",
       "department": "Computing",
-      "name": "Foundations of Machine Learning"
+      "name": "Foundations of Machine Learning",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 6320",
       "department": "Computing",
-      "name": "Foundations of Deep Learning"
+      "name": "Foundations of Deep Learning",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 6321",
       "department": "Computing",
-      "name": "Natural Language Processing"
+      "name": "Natural Language Processing",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 6322",
       "department": "Computing",
-      "name": "Computer Vision"
+      "name": "Computer Vision",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 6323",
       "department": "Computing",
-      "name": "Advanced Deep Learning"
+      "name": "Advanced Deep Learning",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 6330",
       "department": "Computing",
-      "name": "Programming for Machine Learning in Life Sciences"
+      "name": "Programming for Machine Learning in Life Sciences",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 6331",
       "department": "Computing",
-      "name": "Machine Learning for Life Sciences"
+      "name": "Machine Learning for Life Sciences",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 6341",
       "department": "Computing",
-      "name": "Machine Learning for Drug Discovery"
+      "name": "Machine Learning for Drug Discovery",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 6342",
       "department": "Computing",
-      "name": "Machine Learning for Medical Imaging"
+      "name": "Machine Learning for Medical Imaging",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 6343",
       "department": "Computing",
-      "name": "Machine Learning for Genomics, Transcriptomics and Proteomics"
+      "name": "Machine Learning for Genomics, Transcriptomics and Proteomics",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 6349R",
       "department": "Computing",
-      "name": "Special Topics in Machine Learning for Life Sciences"
+      "name": "Special Topics in Machine Learning for Life Sciences",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 6350",
       "department": "Computing",
-      "name": "Artificial Intelligence and Machine Learning Project 1"
+      "name": "Artificial Intelligence and Machine Learning Project 1",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 6351",
       "department": "Computing",
-      "name": "Artificial Intelligence and Machine Learning Project 2"
+      "name": "Artificial Intelligence and Machine Learning Project 2",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 6352",
       "department": "Computing",
-      "name": "Artificial Intelligence and Machine Learning Project 3"
+      "name": "Artificial Intelligence and Machine Learning Project 3",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 6353",
       "department": "Computing",
-      "name": "Artificial Intelligence and Machine Learning Project 4 (Capstone)"
+      "name": "Artificial Intelligence and Machine Learning Project 4 (Capstone)",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "CS 6359R",
       "department": "Computing",
-      "name": "Artificial Intelligence and Machine Learning Independent Project"
+      "name": "Artificial Intelligence and Machine Learning Independent Project",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 1100",
       "department": "Design",
-      "name": "Intro to Digital Design"
+      "name": "Intro to Digital Design",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 1101",
       "department": "Design",
-      "name": "Adobe InDesign Certification"
+      "name": "Adobe InDesign Certification",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 1102",
       "department": "Design",
-      "name": "Adobe Illustrator Certification"
+      "name": "Adobe Illustrator Certification",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 1103",
       "department": "Design",
-      "name": "Adobe Photoshop Certification"
+      "name": "Adobe Photoshop Certification",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 1111",
       "department": "Design",
-      "name": "Intro to Digital Design Skills Exam"
+      "name": "Intro to Digital Design Skills Exam",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 1200",
       "department": "Design",
-      "name": "Image Making"
+      "name": "Image Making",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 1300",
       "department": "Design",
-      "name": "Design I"
+      "name": "Design I",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 1600",
       "department": "Design",
-      "name": "Intro to 3-D Visualization"
+      "name": "Intro to 3-D Visualization",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 1610",
       "department": "Design",
-      "name": "Screen Printing"
+      "name": "Screen Printing",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 2100",
       "department": "Design",
-      "name": "Design Thinking"
+      "name": "Design Thinking",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 2200",
       "department": "Design",
-      "name": "Photography for Design"
+      "name": "Photography for Design",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 2300",
       "department": "Design",
-      "name": "Design II"
+      "name": "Design II",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 2710",
       "department": "Design",
-      "name": "Typography I"
+      "name": "Typography I",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 2780",
       "department": "Design",
-      "name": "Making and Materials"
+      "name": "Making and Materials",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 3000",
       "department": "Design",
-      "name": "Design III"
+      "name": "Design III",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 3300",
       "department": "Design",
-      "name": "Motion Graphics I"
+      "name": "Motion Graphics I",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 3400",
       "department": "Design",
-      "name": "Information Design"
+      "name": "Information Design",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 3600",
       "department": "Design",
-      "name": "3-D Visualization"
+      "name": "3-D Visualization",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 3610",
       "department": "Design",
-      "name": "Portfolio Development I"
+      "name": "Portfolio Development I",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 3710",
       "department": "Design",
-      "name": "Typography II"
+      "name": "Typography II",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 3780",
       "department": "Design",
-      "name": "Production Design"
+      "name": "Production Design",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 3800",
       "department": "Design",
-      "name": "Branding"
+      "name": "Branding",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 4300",
       "department": "Design",
-      "name": "Motion Graphics II"
+      "name": "Motion Graphics II",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 4600",
       "department": "Design",
-      "name": "Senior Project"
+      "name": "Senior Project",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 4610",
       "department": "Design",
-      "name": "Portfolio Development II"
+      "name": "Portfolio Development II",
+      "minimum_credit_hours": 2.0,
+      "maximum_credit_hours": 2.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 4650",
       "department": "Design",
-      "name": "Publication Design"
+      "name": "Publication Design",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 4750",
       "department": "Design",
-      "name": "Package Design"
+      "name": "Package Design",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 4900R",
       "department": "Design",
-      "name": "Independent Research"
+      "name": "Independent Research",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "never_scheduled",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 4910R",
       "department": "Design",
-      "name": "Special Topics in Applied Technology"
+      "name": "Special Topics in Applied Technology",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 4920",
       "department": "Design",
-      "name": "Internship"
+      "name": "Internship",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "never_scheduled",
+      "contact_minutes_override": null
     },
     {
       "code": "DES 4990",
       "department": "Design",
-      "name": "Special Topics in Design"
+      "name": "Special Topics in Design",
+      "minimum_credit_hours": 0.5,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 1200",
       "department": "Engineering",
-      "name": "Intro to Microcontrollers"
+      "name": "Intro to Microcontrollers",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 2210",
       "department": "Engineering",
-      "name": "Circuits I"
+      "name": "Circuits I",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 2215",
       "department": "Engineering",
-      "name": "Circuits I Lab"
+      "name": "Circuits I Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 2220",
       "department": "Engineering",
-      "name": "Circuits II"
+      "name": "Circuits II",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 2225",
       "department": "Engineering",
-      "name": "Circuits II Lab"
+      "name": "Circuits II Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 2285",
       "department": "Engineering",
-      "name": "Microelectronics Lab"
+      "name": "Microelectronics Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 2700",
       "department": "Engineering",
-      "name": "Digital Circuits"
+      "name": "Digital Circuits",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 2705",
       "department": "Engineering",
-      "name": "Digital Circuits Lab"
+      "name": "Digital Circuits Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 3100",
       "department": "Engineering",
-      "name": "Semiconductor Devices"
+      "name": "Semiconductor Devices",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 3230",
       "department": "Engineering",
-      "name": "Circuits III"
+      "name": "Circuits III",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 3235",
       "department": "Engineering",
-      "name": "Circuits III Lab"
+      "name": "Circuits III Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 3300",
       "department": "Engineering",
-      "name": "Electromagnetics & Transmission Lines"
+      "name": "Electromagnetics & Transmission Lines",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 3305",
       "department": "Engineering",
-      "name": "Electromagnetics & Transmission Lines Lab"
+      "name": "Electromagnetics & Transmission Lines Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 3500",
       "department": "Engineering",
-      "name": "Signals and Systems"
+      "name": "Signals and Systems",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 3600",
       "department": "Engineering",
-      "name": "Electric Machinery"
+      "name": "Electric Machinery",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 3605",
       "department": "Engineering",
-      "name": "Electric Machinery Lab"
+      "name": "Electric Machinery Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 3730",
       "department": "Engineering",
-      "name": "Embedded Systems I"
+      "name": "Embedded Systems I",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 3735",
       "department": "Engineering",
-      "name": "Embedded Systems I Lab"
+      "name": "Embedded Systems I Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 4000",
       "department": "Engineering",
-      "name": "EE Product Design I"
+      "name": "EE Product Design I",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 4005",
       "department": "Engineering",
-      "name": "CE Product Design I"
+      "name": "CE Product Design I",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 4010",
       "department": "Engineering",
-      "name": "EE Product Design II"
+      "name": "EE Product Design II",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 4015",
       "department": "Engineering",
-      "name": "CE Product Design II"
+      "name": "CE Product Design II",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 4100",
       "department": "Engineering",
-      "name": "Circuits II"
+      "name": "Circuits II",
+      "minimum_credit_hours": 4.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 4200",
       "department": "Engineering",
-      "name": "Modern Controls"
+      "name": "Modern Controls",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 4290",
       "department": "Engineering",
-      "name": "Autonomous Vehicles"
+      "name": "Autonomous Vehicles",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 4300",
       "department": "Engineering",
-      "name": "Antenna & RF Engineering"
+      "name": "Antenna & RF Engineering",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 4400",
       "department": "Engineering",
-      "name": "Wearable Tech"
+      "name": "Wearable Tech",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 4500",
       "department": "Engineering",
-      "name": "Digital Signal Processing"
+      "name": "Digital Signal Processing",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 4510",
       "department": "Engineering",
-      "name": "Image Processing"
+      "name": "Image Processing",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 4610",
       "department": "Engineering",
-      "name": "Power Electronics"
+      "name": "Power Electronics",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 4730",
       "department": "Engineering",
-      "name": "Embedded Systems II"
+      "name": "Embedded Systems II",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 4735",
       "department": "Engineering",
-      "name": "Embedded Systems II Lab"
+      "name": "Embedded Systems II Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 4800R",
       "department": "Engineering",
-      "name": "Independent Research"
+      "name": "Independent Research",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "never_scheduled",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 4990",
       "department": "Engineering",
-      "name": "Special Topics Lecture"
+      "name": "Special Topics Lecture",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ECE 4995",
       "department": "Engineering",
-      "name": "Special Topics Lab"
+      "name": "Special Topics Lab",
+      "minimum_credit_hours": 0.5,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ENGR 2050",
       "department": "Engineering",
-      "name": "Fundamentals of Engineering Mathematics"
+      "name": "Fundamentals of Engineering Mathematics",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ENGR 3450",
       "department": "Engineering",
-      "name": "Numerical Simulation"
+      "name": "Numerical Simulation",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ENGR 4880R",
       "department": "Engineering",
-      "name": "Engineering Co-op Education"
+      "name": "Engineering Co-op Education",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "ENGR 4890R",
       "department": "Engineering",
-      "name": "Internship"
+      "name": "Internship",
+      "minimum_credit_hours": 0.5,
+      "maximum_credit_hours": 0.5,
+      "scheduling_policy": "never_scheduled",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 1100",
       "department": "Computing",
-      "name": "Introduction to Unix/Linux"
+      "name": "Introduction to Unix/Linux",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 1200",
       "department": "Computing",
-      "name": "A+ Computer Hardware/Windows OS"
+      "name": "A+ Computer Hardware/Windows OS",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 1500",
       "department": "Computing",
-      "name": "Cloud Fundamentals"
+      "name": "Cloud Fundamentals",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 2150",
       "department": "Computing",
-      "name": "Windows Servers"
+      "name": "Windows Servers",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 2300",
       "department": "Computing",
-      "name": "Database Design & Management"
+      "name": "Database Design & Management",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 2400",
       "department": "Computing",
-      "name": "Intro to Networking"
+      "name": "Intro to Networking",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 2600",
       "department": "Computing",
-      "name": "Digital Forensics"
+      "name": "Digital Forensics",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 2700",
       "department": "Computing",
-      "name": "Information Security"
+      "name": "Information Security",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 2750",
       "department": "Computing",
-      "name": "Industrial Networking Essentials"
+      "name": "Industrial Networking Essentials",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 3001",
       "department": "Computing",
-      "name": "Info Sys and Analytics Intermediate Career Strategies"
+      "name": "Info Sys and Analytics Intermediate Career Strategies",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 3100",
       "department": "Computing",
-      "name": "Systems Design and Administration"
+      "name": "Systems Design and Administration",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 3110",
       "department": "Computing",
-      "name": "System Automation"
+      "name": "System Automation",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 3300",
       "department": "Computing",
-      "name": "DevOps Virtualization"
+      "name": "DevOps Virtualization",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 3400",
       "department": "Computing",
-      "name": "Intermediate Computer Networking"
+      "name": "Intermediate Computer Networking",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 3510",
       "department": "Computing",
-      "name": "Cloud Computing"
+      "name": "Cloud Computing",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 3700",
       "department": "Computing",
-      "name": "CyberOps"
+      "name": "CyberOps",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 3710",
       "department": "Computing",
-      "name": "Network Defense"
+      "name": "Network Defense",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 3750",
       "department": "Computing",
-      "name": "Industrial Control Systems Security"
+      "name": "Industrial Control Systems Security",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 4100",
       "department": "Computing",
-      "name": "Files Systems and Storage Technologies"
+      "name": "Files Systems and Storage Technologies",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 4200",
       "department": "Computing",
-      "name": "DevOps Lifecycle Management"
+      "name": "DevOps Lifecycle Management",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 4310",
       "department": "Computing",
-      "name": "Database Administration"
+      "name": "Database Administration",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 4400",
       "department": "Computing",
-      "name": "Network Design & Management"
+      "name": "Network Design & Management",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 4510",
       "department": "Computing",
-      "name": "Ethical Hacking"
+      "name": "Ethical Hacking",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 4600",
       "department": "Computing",
-      "name": "Senior Capstone"
+      "name": "Senior Capstone",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 4700",
       "department": "Computing",
-      "name": "Enterprise Security Architecture"
+      "name": "Enterprise Security Architecture",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 4910R",
       "department": "Computing",
-      "name": "Special Topics in Applied Technology"
+      "name": "Special Topics in Applied Technology",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 4920R",
       "department": "Computing",
-      "name": "Internship"
+      "name": "Internship",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "never_scheduled",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 4990",
       "department": "Computing",
-      "name": "Special Topics in Information Technology"
+      "name": "Special Topics in Information Technology",
+      "minimum_credit_hours": 0.5,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IT 4991R",
       "department": "Computing",
-      "name": "Competitive Cybersecurity"
+      "name": "Competitive Cybersecurity",
+      "minimum_credit_hours": 2.0,
+      "maximum_credit_hours": 2.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IXD 1200",
       "department": "Design",
-      "name": "Foundations in Interaction Design"
+      "name": "Foundations in Interaction Design",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IXD 1300",
       "department": "Design",
-      "name": "Web for Designers"
+      "name": "Web for Designers",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IXD 2000",
       "department": "Design",
-      "name": "Intro to Tangible Interaction"
+      "name": "Intro to Tangible Interaction",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IXD 3500",
       "department": "Design",
-      "name": "Interface Design"
+      "name": "Interface Design",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IXD 4100",
       "department": "Design",
-      "name": "Interaction Design"
+      "name": "Interaction Design",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IXD 4200",
       "department": "Design",
-      "name": "Tangible Interaction"
+      "name": "Tangible Interaction",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "IXD 4995",
       "department": "Design",
-      "name": "Design for VR/XR Internship 01"
+      "name": "Design for VR/XR Internship 01",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "never_scheduled",
+      "contact_minutes_override": null
     },
     {
       "code": "IXD 4996",
       "department": "Design",
-      "name": "Design for VR/XR Internship 02"
+      "name": "Design for VR/XR Internship 02",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "never_scheduled",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 0900",
       "department": "Math",
-      "name": "Transitional Math I"
+      "name": "Transitional Math I",
+      "minimum_credit_hours": 4.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 0980",
       "department": "Math",
-      "name": "Transitional Math IIB"
+      "name": "Transitional Math IIB",
+      "minimum_credit_hours": 4.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 1010",
       "department": "Math",
-      "name": "Intermediate Algebra"
+      "name": "Intermediate Algebra",
+      "minimum_credit_hours": 4.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 1020R",
       "department": "Math",
-      "name": "Bridge Into College Mathematics"
+      "name": "Bridge Into College Mathematics",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 1030",
       "department": "Math",
-      "name": "Quantitative Reasoning (MA)"
+      "name": "Quantitative Reasoning (MA)",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 1040",
       "department": "Math",
-      "name": "Introduction to Statistics (MA)"
+      "name": "Introduction to Statistics (MA)",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 1050",
       "department": "Math",
-      "name": "College Algebra / Pre-Calculus (MA)"
+      "name": "College Algebra / Pre-Calculus (MA)",
+      "minimum_credit_hours": 4.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 1060",
       "department": "Math",
-      "name": "Trigonometry (MA)"
+      "name": "Trigonometry (MA)",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 1080",
       "department": "Math",
-      "name": "Pre-Calculus with Trigonometry (MA)"
+      "name": "Pre-Calculus with Trigonometry (MA)",
+      "minimum_credit_hours": 5.0,
+      "maximum_credit_hours": 5.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 1100",
       "department": "Math",
-      "name": "Business Calculus (MA)"
+      "name": "Business Calculus (MA)",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 1210",
       "department": "Math",
-      "name": "Calculus I (MA)"
+      "name": "Calculus I (MA)",
+      "minimum_credit_hours": 4.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 1220",
       "department": "Math",
-      "name": "Calculus II (MA)"
+      "name": "Calculus II (MA)",
+      "minimum_credit_hours": 4.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 2010",
       "department": "Math",
-      "name": "Math for Elementary Teachers I"
+      "name": "Math for Elementary Teachers I",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 2020",
       "department": "Math",
-      "name": "Math for Elemen Teachers II"
+      "name": "Math for Elemen Teachers II",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 2050",
       "department": "Math",
-      "name": "Applied Statistics with Programming"
+      "name": "Applied Statistics with Programming",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 2200",
       "department": "Math",
-      "name": "Discrete Mathematics"
+      "name": "Discrete Mathematics",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 2210",
       "department": "Math",
-      "name": "Multivariable Calculus (MA)"
+      "name": "Multivariable Calculus (MA)",
+      "minimum_credit_hours": 4.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 2250",
       "department": "Math",
-      "name": "Differential Equations and Linear Algebra"
+      "name": "Differential Equations and Linear Algebra",
+      "minimum_credit_hours": 4.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 2270",
       "department": "Math",
-      "name": "Linear Algebra"
+      "name": "Linear Algebra",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 2280",
       "department": "Math",
-      "name": "Ordinary Differential Equations"
+      "name": "Ordinary Differential Equations",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 3000",
       "department": "Math",
-      "name": "History of Mathematics"
+      "name": "History of Mathematics",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 3010",
       "department": "Math",
-      "name": "Algebra for Secondary Mathematics Teaching"
+      "name": "Algebra for Secondary Mathematics Teaching",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 3020",
       "department": "Math",
-      "name": "Geometry and Statistics for Secondary Mathematics Teaching"
+      "name": "Geometry and Statistics for Secondary Mathematics Teaching",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 3050",
       "department": "Math",
-      "name": "Stochastic Modeling and Applications"
+      "name": "Stochastic Modeling and Applications",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 3060",
       "department": "Math",
-      "name": "Statistics for Scientists"
+      "name": "Statistics for Scientists",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 3100",
       "department": "Math",
-      "name": "Euclidean / Non-Euclidean Geom"
+      "name": "Euclidean / Non-Euclidean Geom",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 3120",
       "department": "Math",
-      "name": "Transition to Advanced Mathematics"
+      "name": "Transition to Advanced Mathematics",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 3150",
       "department": "Math",
-      "name": "Introduction to Partial Differential Equations"
+      "name": "Introduction to Partial Differential Equations",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 3200",
       "department": "Math",
-      "name": "Introduction to Analysis I"
+      "name": "Introduction to Analysis I",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 3210",
       "department": "Math",
-      "name": "Introduction to Analysis II"
+      "name": "Introduction to Analysis II",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 3400",
       "department": "Math",
-      "name": "Probability & Statistics"
+      "name": "Probability & Statistics",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 3410",
       "department": "Math",
-      "name": "Actuarial Exam P/1 Preparation"
+      "name": "Actuarial Exam P/1 Preparation",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 3450",
       "department": "Math",
-      "name": "Advanced Statistical Learning"
+      "name": "Advanced Statistical Learning",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 3500",
       "department": "Math",
-      "name": "Numerical Analysis"
+      "name": "Numerical Analysis",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 3700",
       "department": "Math",
-      "name": "Mathematical Modeling"
+      "name": "Mathematical Modeling",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 3900",
       "department": "Math",
-      "name": "Number Theory"
+      "name": "Number Theory",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 4000",
       "department": "Math",
-      "name": "Foundations of Algebra"
+      "name": "Foundations of Algebra",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 4010",
       "department": "Math",
-      "name": "Abstract Algebra II"
+      "name": "Abstract Algebra II",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 4100",
       "department": "Math",
-      "name": "Introduction to Topology"
+      "name": "Introduction to Topology",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 4200",
       "department": "Math",
-      "name": "Introduction to Complex Analysis"
+      "name": "Introduction to Complex Analysis",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 4330",
       "department": "Math",
-      "name": "Linear Algebra II"
+      "name": "Linear Algebra II",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 4400",
       "department": "Math",
-      "name": "Financial Mathematics"
+      "name": "Financial Mathematics",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 4410",
       "department": "Math",
-      "name": "Actuarial Exam FM/ 2 Preparation"
+      "name": "Actuarial Exam FM/ 2 Preparation",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 4450",
       "department": "Math",
-      "name": "Math for Secondary Special Education Teachers"
+      "name": "Math for Secondary Special Education Teachers",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 4500",
       "department": "Math",
-      "name": "Methods Teach Secondary Math"
+      "name": "Methods Teach Secondary Math",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 4800",
       "department": "Math",
-      "name": "Industrial Careers in Mathematics"
+      "name": "Industrial Careers in Mathematics",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 4890R",
       "department": "Math",
-      "name": "Independent Research"
+      "name": "Independent Research",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "never_scheduled",
+      "contact_minutes_override": null
     },
     {
       "code": "MATH 4900",
       "department": "Math",
-      "name": "Senior Capstone Seminar (ALUR)"
+      "name": "Senior Capstone Seminar (ALUR)",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 1000",
       "department": "Engineering",
-      "name": "Introduction to Design & Rapid Prototyping"
+      "name": "Introduction to Design & Rapid Prototyping",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 1005",
       "department": "Engineering",
-      "name": "Introduction to Design & Rapid Prototyping Lab"
+      "name": "Introduction to Design & Rapid Prototyping Lab",
+      "minimum_credit_hours": 0.0,
+      "maximum_credit_hours": 0.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 1100",
       "department": "Engineering",
-      "name": "Manufacturing Processes"
+      "name": "Manufacturing Processes",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 1150",
       "department": "Engineering",
-      "name": "Prototyping Techniques"
+      "name": "Prototyping Techniques",
+      "minimum_credit_hours": 2.0,
+      "maximum_credit_hours": 2.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 1200",
       "department": "Engineering",
-      "name": "Coding"
+      "name": "Coding",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 1205",
       "department": "Engineering",
-      "name": "Coding Lab"
+      "name": "Coding Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 2010",
       "department": "Engineering",
-      "name": "Statics"
+      "name": "Statics",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 2030",
       "department": "Engineering",
-      "name": "Dynamics"
+      "name": "Dynamics",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 2160",
       "department": "Engineering",
-      "name": "Materials Science"
+      "name": "Materials Science",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 2165",
       "department": "Engineering",
-      "name": "Materials Science Lab"
+      "name": "Materials Science Lab",
+      "minimum_credit_hours": 0.5,
+      "maximum_credit_hours": 0.5,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 2250",
       "department": "Engineering",
-      "name": "Sensors & Actuators"
+      "name": "Sensors & Actuators",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 2255",
       "department": "Engineering",
-      "name": "Sensors & Actuators Lab"
+      "name": "Sensors & Actuators Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 3200",
       "department": "Engineering",
-      "name": "Systems & Controls"
+      "name": "Systems & Controls",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 3205",
       "department": "Engineering",
-      "name": "Systems & Controls Lab"
+      "name": "Systems & Controls Lab",
+      "minimum_credit_hours": 0.5,
+      "maximum_credit_hours": 0.5,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 3250",
       "department": "Engineering",
-      "name": "Machinery"
+      "name": "Machinery",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 3255",
       "department": "Engineering",
-      "name": "Machinery Lab"
+      "name": "Machinery Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 3300",
       "department": "Engineering",
-      "name": "Strength of Materials"
+      "name": "Strength of Materials",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 3305",
       "department": "Engineering",
-      "name": "Strength of Materials Lab"
+      "name": "Strength of Materials Lab",
+      "minimum_credit_hours": 0.5,
+      "maximum_credit_hours": 0.5,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 3600",
       "department": "Engineering",
-      "name": "Thermodynamics"
+      "name": "Thermodynamics",
+      "minimum_credit_hours": 4.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 3602",
       "department": "Engineering",
-      "name": "Thermodynamics II"
+      "name": "Thermodynamics II",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 3605",
       "department": "Engineering",
-      "name": "Thermodynamics Lab"
+      "name": "Thermodynamics Lab",
+      "minimum_credit_hours": 0.5,
+      "maximum_credit_hours": 0.5,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 3650",
       "department": "Engineering",
-      "name": "Heat Transfer"
+      "name": "Heat Transfer",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 3655",
       "department": "Engineering",
-      "name": "Heat Transfer Lab"
+      "name": "Heat Transfer Lab",
+      "minimum_credit_hours": 0.5,
+      "maximum_credit_hours": 0.5,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 3700",
       "department": "Engineering",
-      "name": "Fluid Mechanics"
+      "name": "Fluid Mechanics",
+      "minimum_credit_hours": 4.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 3702",
       "department": "Engineering",
-      "name": "Fluid Mechanics II"
+      "name": "Fluid Mechanics II",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 3705",
       "department": "Engineering",
-      "name": "Fluid Mechanics Lab"
+      "name": "Fluid Mechanics Lab",
+      "minimum_credit_hours": 0.5,
+      "maximum_credit_hours": 0.5,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 4000",
       "department": "Engineering",
-      "name": "Product Design I"
+      "name": "Product Design I",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 4010",
       "department": "Engineering",
-      "name": "Product Design II"
+      "name": "Product Design II",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 4110",
       "department": "Engineering",
-      "name": "Geometric Dimensioning & Tolerancing"
+      "name": "Geometric Dimensioning & Tolerancing",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 4150",
       "department": "Engineering",
-      "name": "Modern Machining"
+      "name": "Modern Machining",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 4170",
       "department": "Engineering",
-      "name": "Design for Additive Manufacturing"
+      "name": "Design for Additive Manufacturing",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 4400",
       "department": "Engineering",
-      "name": "Vibrations"
+      "name": "Vibrations",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 4510",
       "department": "Engineering",
-      "name": "Finite Element Analysis"
+      "name": "Finite Element Analysis",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 4520",
       "department": "Engineering",
-      "name": "Optimization"
+      "name": "Optimization",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 4690",
       "department": "Engineering",
-      "name": "Thermal System Design"
+      "name": "Thermal System Design",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 4790",
       "department": "Engineering",
-      "name": "Computational Fluid Dynamics"
+      "name": "Computational Fluid Dynamics",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 4800R",
       "department": "Engineering",
-      "name": "Independent Research"
+      "name": "Independent Research",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "never_scheduled",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 4860R",
       "department": "Engineering",
-      "name": "Design Practicum"
+      "name": "Design Practicum",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 4990",
       "department": "Engineering",
-      "name": "Special Topics Lecture"
+      "name": "Special Topics Lecture",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 4991",
       "department": "Engineering",
-      "name": "Special Topics Lecture - Mirror"
+      "name": "Special Topics Lecture - Mirror",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MECH 4995",
       "department": "Engineering",
-      "name": "Special Topics Lab"
+      "name": "Special Topics Lab",
+      "minimum_credit_hours": 0.5,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 2200",
       "department": "Engineering",
-      "name": "Industrial Wiring for Automated Systems"
+      "name": "Industrial Wiring for Automated Systems",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 2205",
       "department": "Engineering",
-      "name": "Industrial Wiring for Automated Systems Lab"
+      "name": "Industrial Wiring for Automated Systems Lab",
+      "minimum_credit_hours": 2.0,
+      "maximum_credit_hours": 2.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 2300",
       "department": "Engineering",
-      "name": "Introduction to Programmable Logic Controllers"
+      "name": "Introduction to Programmable Logic Controllers",
+      "minimum_credit_hours": 2.0,
+      "maximum_credit_hours": 2.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 2305",
       "department": "Engineering",
-      "name": "Introduction to Programmable Logic Controllers Lab"
+      "name": "Introduction to Programmable Logic Controllers Lab",
+      "minimum_credit_hours": 2.0,
+      "maximum_credit_hours": 2.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 2350",
       "department": "Engineering",
-      "name": "Advanced PLC Programming and Applications"
+      "name": "Advanced PLC Programming and Applications",
+      "minimum_credit_hours": 2.0,
+      "maximum_credit_hours": 2.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 2355",
       "department": "Engineering",
-      "name": "Advanced PLC Programming and Applications Lab"
+      "name": "Advanced PLC Programming and Applications Lab",
+      "minimum_credit_hours": 2.0,
+      "maximum_credit_hours": 2.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 2800",
       "department": "Engineering",
-      "name": "Industrial Robots"
+      "name": "Industrial Robots",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 2805",
       "department": "Engineering",
-      "name": "Industrial Robots Lab"
+      "name": "Industrial Robots Lab",
+      "minimum_credit_hours": 2.0,
+      "maximum_credit_hours": 2.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 3400",
       "department": "Engineering",
-      "name": "Fluid Power Systems"
+      "name": "Fluid Power Systems",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 3405",
       "department": "Engineering",
-      "name": "Fluid Power Systems Lab"
+      "name": "Fluid Power Systems Lab",
+      "minimum_credit_hours": 2.0,
+      "maximum_credit_hours": 2.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 3410",
       "department": "Engineering",
-      "name": "Mechanical Components"
+      "name": "Mechanical Components",
+      "minimum_credit_hours": 2.0,
+      "maximum_credit_hours": 2.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 3415",
       "department": "Engineering",
-      "name": "Mechanical Components Lab"
+      "name": "Mechanical Components Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 3450",
       "department": "Engineering",
-      "name": "Mechatronic System Design"
+      "name": "Mechatronic System Design",
+      "minimum_credit_hours": 2.0,
+      "maximum_credit_hours": 2.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 3455",
       "department": "Engineering",
-      "name": "Mechatronic System Design Lab"
+      "name": "Mechatronic System Design Lab",
+      "minimum_credit_hours": 2.0,
+      "maximum_credit_hours": 2.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 3500",
       "department": "Engineering",
-      "name": "Motion Control in Mechatronic Systems"
+      "name": "Motion Control in Mechatronic Systems",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 3505",
       "department": "Engineering",
-      "name": "Motion Control in Mechatronic Systems Lab"
+      "name": "Motion Control in Mechatronic Systems Lab",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 3550",
       "department": "Engineering",
-      "name": "Automation Sensors"
+      "name": "Automation Sensors",
+      "minimum_credit_hours": 2.0,
+      "maximum_credit_hours": 2.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 3555",
       "department": "Engineering",
-      "name": "Automation Sensors Lab"
+      "name": "Automation Sensors Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 3560",
       "department": "Engineering",
-      "name": "Industrial Motor Controls"
+      "name": "Industrial Motor Controls",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 3565",
       "department": "Engineering",
-      "name": "Industrial Motor Controls Lab"
+      "name": "Industrial Motor Controls Lab",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 3600",
       "department": "Engineering",
-      "name": "Industrial Networks"
+      "name": "Industrial Networks",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 3605",
       "department": "Engineering",
-      "name": "Industrial Networks Lab"
+      "name": "Industrial Networks Lab",
+      "minimum_credit_hours": 2.0,
+      "maximum_credit_hours": 2.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 4000",
       "department": "Engineering",
-      "name": "Product Design I"
+      "name": "Product Design I",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 4010",
       "department": "Engineering",
-      "name": "Product Design II"
+      "name": "Product Design II",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "MTRN 4990",
       "department": "Engineering",
-      "name": "Special Topics Lecture"
+      "name": "Special Topics Lecture",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 1010",
       "department": "Engineering",
-      "name": "Elementary Physics (PS)"
+      "name": "Elementary Physics (PS)",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 1015",
       "department": "Engineering",
-      "name": "Elementary Physics Lab"
+      "name": "Elementary Physics Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 1040",
       "department": "Engineering",
-      "name": "Elementary Astronomy (PS)"
+      "name": "Elementary Astronomy (PS)",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 1045",
       "department": "Engineering",
-      "name": "Elementary Astronomy Lab (LAB)"
+      "name": "Elementary Astronomy Lab (LAB)",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 2010",
       "department": "Engineering",
-      "name": "College Physics I (PS)"
+      "name": "College Physics I (PS)",
+      "minimum_credit_hours": 4.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 2015",
       "department": "Engineering",
-      "name": "College Physics I Lab"
+      "name": "College Physics I Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 2020",
       "department": "Engineering",
-      "name": "College Physics II"
+      "name": "College Physics II",
+      "minimum_credit_hours": 4.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 2025",
       "department": "Engineering",
-      "name": "College Physics II Lab"
+      "name": "College Physics II Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 2210",
       "department": "Engineering",
-      "name": "Physics/Scientists Engineers I (PS)"
+      "name": "Physics/Scientists Engineers I (PS)",
+      "minimum_credit_hours": 4.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 2215",
       "department": "Engineering",
-      "name": "Physics/Scientists Engineers I Lab"
+      "name": "Physics/Scientists Engineers I Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 2220",
       "department": "Engineering",
-      "name": "Physics/Scientists Engineers II"
+      "name": "Physics/Scientists Engineers II",
+      "minimum_credit_hours": 4.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 2225",
       "department": "Engineering",
-      "name": "Physics/Scientists Engineers II Lab"
+      "name": "Physics/Scientists Engineers II Lab",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 1.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 2710",
       "department": "Engineering",
-      "name": "Modern Physics I"
+      "name": "Modern Physics I",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 2720",
       "department": "Engineering",
-      "name": "Modern Physics II"
+      "name": "Modern Physics II",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 2990",
       "department": "Engineering",
-      "name": "Seminar in Physics"
+      "name": "Seminar in Physics",
+      "minimum_credit_hours": 0.5,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 3400",
       "department": "Engineering",
-      "name": "Classical Mechanics"
+      "name": "Classical Mechanics",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 3600",
       "department": "Engineering",
-      "name": "Thermodynamics"
+      "name": "Thermodynamics",
+      "minimum_credit_hours": 4.0,
+      "maximum_credit_hours": 4.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 3605",
       "department": "Engineering",
-      "name": "Thermodynamics Lab"
+      "name": "Thermodynamics Lab",
+      "minimum_credit_hours": 0.5,
+      "maximum_credit_hours": 0.5,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 4110",
       "department": "Engineering",
-      "name": "Electromagnetics"
+      "name": "Electromagnetics",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "PHYS 4800R",
       "department": "Engineering",
-      "name": "Independent Research"
+      "name": "Independent Research",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "never_scheduled",
+      "contact_minutes_override": null
     },
     {
       "code": "SA 1400",
       "department": "Computing",
-      "name": "Success CS 1400"
+      "name": "Success CS 1400",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "externally_scheduled",
+      "contact_minutes_override": null
     },
     {
       "code": "SD 6100",
       "department": "Computing",
-      "name": "Fundamentals of Programming"
+      "name": "Fundamentals of Programming",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SD 6110",
       "department": "Computing",
-      "name": "Foundations of UI/UX Design"
+      "name": "Foundations of UI/UX Design",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SD 6200",
       "department": "Computing",
-      "name": "Multitier App Development I"
+      "name": "Multitier App Development I",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SD 6210",
       "department": "Computing",
-      "name": "Tech Entrepreneurship"
+      "name": "Tech Entrepreneurship",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SD 6220",
       "department": "Computing",
-      "name": "Software Development Practices"
+      "name": "Software Development Practices",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SD 6300",
       "department": "Computing",
-      "name": "Multitier App Development II"
+      "name": "Multitier App Development II",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SD 6310",
       "department": "Computing",
-      "name": "Software Quality and Testing"
+      "name": "Software Quality and Testing",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SD 6330",
       "department": "Computing",
-      "name": "Mobile App Development for Android"
+      "name": "Mobile App Development for Android",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SD 6340",
       "department": "Computing",
-      "name": "Mobile App Development for iOS"
+      "name": "Mobile App Development for iOS",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SD 6400",
       "department": "Computing",
-      "name": "Advanced Topics in App Development"
+      "name": "Advanced Topics in App Development",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SD 6450",
       "department": "Computing",
-      "name": "Graduate Capstone"
+      "name": "Graduate Capstone",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SE 1400",
       "department": "Computing",
-      "name": "Web Design Fundamentals (ALCS)"
+      "name": "Web Design Fundamentals (ALCS)",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SE 3010",
       "department": "Computing",
-      "name": "Mobile Application Development"
+      "name": "Mobile Application Development",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SE 3100",
       "department": "Computing",
-      "name": "Software Practices"
+      "name": "Software Practices",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SE 3150",
       "department": "Computing",
-      "name": "Software Quality"
+      "name": "Software Quality",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SE 3200",
       "department": "Computing",
-      "name": "Web Application Development I"
+      "name": "Web Application Development I",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SE 3250",
       "department": "Computing",
-      "name": "Internet of Things Programming"
+      "name": "Internet of Things Programming",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SE 3400",
       "department": "Computing",
-      "name": "Human-Computer Interaction"
+      "name": "Human-Computer Interaction",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SE 3450",
       "department": "Computing",
-      "name": "User Experience Design"
+      "name": "User Experience Design",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SE 3500",
       "department": "Computing",
-      "name": "Tech Entrepreneurship"
+      "name": "Tech Entrepreneurship",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SE 3550",
       "department": "Computing",
-      "name": "Online Marketing and SEO (ALCS)"
+      "name": "Online Marketing and SEO (ALCS)",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SE 4200",
       "department": "Computing",
-      "name": "Web Application Development II"
+      "name": "Web Application Development II",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SE 4600",
       "department": "Computing",
-      "name": "Senior Project"
+      "name": "Senior Project",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SE 4900R",
       "department": "Computing",
-      "name": "Independent Research"
+      "name": "Independent Research",
+      "minimum_credit_hours": 1.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "never_scheduled",
+      "contact_minutes_override": null
     },
     {
       "code": "SE 4910R",
       "department": "Computing",
-      "name": "Special Topics in Applied Technology"
+      "name": "Special Topics in Applied Technology",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "SE 4920",
       "department": "Computing",
-      "name": "Internship (ALPP)"
+      "name": "Internship (ALPP)",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "never_scheduled",
+      "contact_minutes_override": null
     },
     {
       "code": "SE 4930R",
       "department": "Computing",
-      "name": "Software Entrepreneurial Exploration"
+      "name": "Software Entrepreneurial Exploration",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": 120
     },
     {
       "code": "SE 4990",
       "department": "Computing",
-      "name": "Special Topics in Software Engineering"
+      "name": "Special Topics in Software Engineering",
+      "minimum_credit_hours": 0.5,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "UXD 6100",
       "department": "Design",
-      "name": "UX Innovation"
+      "name": "UX Innovation",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "UXD 6140",
       "department": "Design",
-      "name": "Cultural and Global Perspectives in UX"
+      "name": "Cultural and Global Perspectives in UX",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "UXD 6180",
       "department": "Design",
-      "name": "UX Methods"
+      "name": "UX Methods",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "UXD 6200",
       "department": "Design",
-      "name": "Advanced Interaction Design"
+      "name": "Advanced Interaction Design",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "UXD 6240",
       "department": "Design",
-      "name": "Tech Entrepreneurship"
+      "name": "Tech Entrepreneurship",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "UXD 6280",
       "department": "Design",
-      "name": "Advanced User Interface"
+      "name": "Advanced User Interface",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "UXD 6300",
       "department": "Design",
-      "name": "Multi-Platform UX Design"
+      "name": "Multi-Platform UX Design",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "UXD 6340",
       "department": "Design",
-      "name": "Advanced User Experience"
+      "name": "Advanced User Experience",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "UXD 6600",
       "department": "Design",
-      "name": "Capstone I"
+      "name": "Capstone I",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     },
     {
       "code": "UXD 6650",
       "department": "Design",
-      "name": "Capstone II"
+      "name": "Capstone II",
+      "minimum_credit_hours": 3.0,
+      "maximum_credit_hours": 3.0,
+      "scheduling_policy": "section_defined",
+      "contact_minutes_override": null
     }
   ],
   "programs": [

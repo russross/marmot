@@ -31,7 +31,7 @@ Deployment boundary
     Pi. Keep the service operationally simple. There is intentionally no login or
     authorization layer, and security against other faculty is not a product goal.
 *   OpenRouter is the only external runtime dependency. The default model is
-    `stealth/ox-alpha`. Let OpenRouter favor the highest-throughput provider. Keep model
+    `deepseek/deepseek-v4-flash-0731`. Let OpenRouter favor the highest-throughput provider. Keep model
     selection configurable through `OPENROUTER_MODEL` so operators can switch back to
     `deepseek/deepseek-v4-flash-0731` without application changes.
 *   Load `OPENROUTER_API_KEY` through configuration. Never read, print, log, copy, or
@@ -91,10 +91,12 @@ Conversation contract
 *   Section assignments and conventions are starting points, not gates. Implement a
     faculty member's requested teaching changes or exceptions and document them. Normal
     policy may be explained, but it is never grounds for refusing an informed request.
-*   Preview the complete structured result once it is settled. Save or replace the Python
-    snippet only after explicit faculty confirmation. Never claim a save succeeded unless
-    the save operation actually returned success. Make no write when the faculty declines
-    or no change is requested.
+*   Maintain a complete saved working draft. Save the initial inferred proposal and replace
+    it automatically after actionable input changes the structured result or its rationale.
+    Never claim an update succeeded unless the save operation returned success. Make no
+    write for questions, acknowledgements, or other messages that do not change the draft.
+*   Faculty may edit only their own working draft. Preserve requests involving other
+    faculty as coordination notes for the department-wide merge.
 
 Scheduling domain invariants
 ----------------------------
@@ -102,9 +104,9 @@ Scheduling domain invariants
 *   Baseline faculty availability is Monday through Thursday 09:00–16:30 and Friday
     09:00–12:00. Joe Francom has narrower installed availability for chair duties. Preserve
     all installed department-approved exclusions.
-*   Express ordinary time preferences with avoidance requests. If a faculty member truly
-    requires a hard exclusion, honor it and document the reason rather than sending them
-    elsewhere or waiting for a separate data update.
+*   Express ordinary time preferences with avoidance requests. New hard exclusions are
+    reserved for documented university obligations. Handle other proposed exceptions out
+    of band rather than writing them as unavailable time.
 *   Most three-credit courses use the `3 credit bell schedule` tag. Prefer meaningful
     time-slot groups to enumerated slots. Use a concrete time slot deliberately for
     exceptional meetings, especially outside normal availability; naming one can add it
@@ -123,9 +125,10 @@ Scheduling domain invariants
     create time conflicts. Flex and stadium rooms are interchangeable for many classes,
     subject to enrollment and teaching needs. Represent weaker room preferences with a
     lower-priority avoidance rather than falsely narrowing the allowed set.
-*   Graduate/cohort courses, generally numbered 4000 or above, are usually hand scheduled
-    in evening slots and often in 116 or 117. Validate that their explicit setup is
-    intentional, then honor it without ordinary pushback.
+*   Graduate courses are numbered 5000 and above, but after-hours placement is the useful
+    distinction. Sections meeting Monday through Thursday at or after 16:30, or Friday at
+    or after 12:00, normally use one or a small set of explicit alternative times and a
+    concrete room or broad room category from external planning discussions.
 *   Statewide sandbox courses and Success Academy courses are externally scheduled and may
     violate local conventions. Preserve their exact times. Success Academy sections use
     the `SA` prefix, block faculty time, and normally have no room.
@@ -135,6 +138,13 @@ Scheduling domain invariants
 *   Faculty priorities occupy 10 through 24 and are lexicographic; lower numbers matter
     more. Program/curriculum priorities 0 through 9 are department-owned and are not
     faculty preferences.
+*   Fixed-credit sections infer their catalog credit in the input API. Scheduled sections
+    of variable-credit courses require a concrete credit value. Unscheduled variable-credit
+    sections silently use the catalog minimum unless faculty explicitly supplies another
+    valid value. Research and Internship sections are always unscheduled.
+*   Scheduled meeting patterns normally provide 50 contact minutes per credit per week.
+    CS 4991R requires 50 minutes, CS 4480R requires 150 minutes, and SE 4930R requires 120
+    minutes regardless of that ordinary conversion.
 
 Persistence and failure contracts
 ---------------------------------
@@ -142,11 +152,12 @@ Persistence and failure contracts
 *   Sessions are append-only JSONL flat files intended primarily for debugging. Log
     complete semantic events, not transient token fragments. A malformed or interrupted
     session must not corrupt an existing faculty preference file.
-*   Store only the latest confirmed Python snippet for each faculty member. Write through
-    a temporary file and atomically replace the destination after successful validation.
-    Validation or model failures must leave the previous saved snippet untouched.
-*   Preview and save must use the same schema, validation path, and renderer so the
-    confirmed preview cannot diverge from the stored output.
+*   Store only the latest working draft for each faculty member. Preserve its complete typed
+    submission inside the generated Python artifact, write through a temporary file, and
+    atomically replace the destination after successful validation. Validation or model
+    failures must leave the previous saved snippet untouched.
+*   Automatic saves use both workbook and saved-draft revisions so changed source data or
+    stale edited/regenerated conversation branches cannot silently overwrite newer state.
 *   Tool execution and final persistence are server-owned. Do not trust client-supplied
     tool definitions, system prompts, generated snippets, or claims that a save occurred.
 

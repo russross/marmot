@@ -1,15 +1,24 @@
 import json
+from enum import StrEnum
 from typing import Literal
 
-from pydantic import JsonValue, TypeAdapter
+from pydantic import Field, JsonValue, TypeAdapter
 
 from timetable_chat.assignments import (
     AssignmentWorkbookClient,
     empty_faculty_context,
     resolve_faculty_contexts,
 )
-from timetable_chat.models import FacultyContext, FacultySubmission, StrictModel
-from timetable_chat.preferences import PreferenceStore, render_submission, validate_submission
+from timetable_chat.models import (
+    AssignmentChangeKind,
+    DurationMinutes,
+    FacultyContext,
+    FacultySubmission,
+    Preference,
+    ProposedSection,
+    StrictModel,
+)
+from timetable_chat.preferences import PreferenceStore
 from timetable_chat.prompt import PREFERENCE_GUIDE, PRIORITY_BALANCING_GUIDE
 from timetable_chat.semester import SemesterRepository
 
@@ -22,9 +31,114 @@ class SchedulingReferenceArguments(StrictModel):
     topic: Literal["preferences", "rooms_and_times", "curriculum"]
 
 
+class PreferenceKind(StrEnum):
+    WANT_A_DAY_OFF = "want_a_day_off"
+    DO_NOT_WANT_A_DAY_OFF = "do_not_want_a_day_off"
+    WANT_CLASSES_EVENLY_SPREAD_ACROSS_DAYS = "want_classes_evenly_spread_across_days"
+    WANT_BACK_TO_BACK_CLASSES_IN_THE_SAME_ROOM = "want_back_to_back_classes_in_the_same_room"
+    WANT_CLASSES_PACKED_INTO_AS_FEW_ROOMS_AS_POSSIBLE = (
+        "want_classes_packed_into_as_few_rooms_as_possible"
+    )
+    AVOID_GAP_BETWEEN_CLASS_CLUSTERS_SHORTER_THAN = "avoid_gap_between_class_clusters_shorter_than"
+    AVOID_GAP_BETWEEN_CLASS_CLUSTERS_LONGER_THAN = "avoid_gap_between_class_clusters_longer_than"
+    AVOID_CLASS_CLUSTER_SHORTER_THAN = "avoid_class_cluster_shorter_than"
+    AVOID_CLASS_CLUSTER_LONGER_THAN = "avoid_class_cluster_longer_than"
+    AVOID_SECTION_IN_ROOMS = "avoid_section_in_rooms"
+    AVOID_SECTION_IN_TIME_SLOTS = "avoid_section_in_time_slots"
+    AVOID_TIME_SLOT = "avoid_time_slot"
+    USE_SAME_TIME_PATTERN = "use_same_time_pattern"
+
+
+class ToolPreference(StrictModel):
+    kind: PreferenceKind
+    minutes: DurationMinutes | None = None
+    section: str | None = None
+    room_tags: list[str] | None = None
+    time_slot_tags: list[str] | None = None
+    time_slot: str | None = None
+    sections: list[str] | None = None
+
+    def to_preference(self) -> Preference:
+        return PREFERENCE_ADAPTER.validate_json(
+            self.model_dump_json(exclude_none=True), strict=True
+        )
+
+
+class ToolProposedSection(ProposedSection):
+    credit_hours: float | None = Field(
+        default=None,
+        ge=0,
+        allow_inf_nan=False,
+        description="Required for variable-credit courses and omitted for fixed-credit courses.",
+    )
+
+
+class ToolFacultySubmission(FacultySubmission):
+    sections: list[ToolProposedSection]
+    preferences: list[ToolPreference]
+
+    def to_submission(self) -> FacultySubmission:
+        submission_data: dict[str, JsonValue] = self.model_dump(
+            mode="json", exclude={"preferences"}
+        )
+        submission_data["preferences"] = [
+            preference.to_preference().model_dump(mode="json") for preference in self.preferences
+        ]
+        return FacultySubmission.model_validate_json(json.dumps(submission_data), strict=True)
+
+
+class SaveFacultySubmissionArguments(StrictModel):
+    expected_saved_revision: str | None = Field(
+        default=None,
+        description="Omit when no saved working draft exists.",
+    )
+    submission: ToolFacultySubmission
+
+
 FACULTY_NAME_ADAPTER = TypeAdapter(FacultyNameArguments)
 REFERENCE_ADAPTER = TypeAdapter(SchedulingReferenceArguments)
-SUBMISSION_ADAPTER = TypeAdapter(FacultySubmission)
+PREFERENCE_ADAPTER = TypeAdapter(Preference)
+SAVE_SUBMISSION_ADAPTER = TypeAdapter(SaveFacultySubmissionArguments)
+
+
+def provider_tool_schema(schema: dict[str, JsonValue]) -> dict[str, JsonValue]:
+    definitions_value = schema.get("$defs")
+    definitions = definitions_value if isinstance(definitions_value, dict) else {}
+
+    def simplify(value: JsonValue) -> JsonValue:
+        if isinstance(value, list):
+            return [simplify(item) for item in value]
+        if not isinstance(value, dict):
+            return value
+
+        reference = value.get("$ref")
+        if isinstance(reference, str):
+            prefix = "#/$defs/"
+            if not reference.startswith(prefix):
+                raise ValueError(f"unsupported tool schema reference {reference!r}")
+            target = definitions.get(reference.removeprefix(prefix))
+            if not isinstance(target, dict):
+                raise ValueError(f"unknown tool schema reference {reference!r}")
+            return simplify(target)
+
+        any_of = value.get("anyOf")
+        if isinstance(any_of, list):
+            non_null = [
+                option
+                for option in any_of
+                if not (isinstance(option, dict) and option.get("type") == "null")
+            ]
+            if len(non_null) != 1:
+                raise ValueError("tool schema contains a non-null union")
+            return simplify(non_null[0])
+
+        omitted = {"$defs", "default", "discriminator", "title"}
+        return {key: simplify(child) for key, child in value.items() if key not in omitted}
+
+    simplified = simplify(schema)
+    if not isinstance(simplified, dict):
+        raise ValueError("tool parameter schema must be an object")
+    return simplified
 
 
 class ToolService:
@@ -50,22 +164,10 @@ class ToolService:
                 {"type": "object", "properties": {}, "additionalProperties": False},
             ),
             self._definition(
-                "get_faculty_context",
-                "Download the live assignment spreadsheet and get one faculty member's "
-                "editable tentative teaching assignments, inferred room/time limitations, "
-                "availability, and assignment warnings.",
-                FACULTY_NAME_ADAPTER.json_schema(),
-            ),
-            self._definition(
-                "get_previous_preferences",
-                "Get preference history from the two immediately preceding semesters for "
-                "one faculty member, including whether they were present in each term.",
-                FACULTY_NAME_ADAPTER.json_schema(),
-            ),
-            self._definition(
-                "get_saved_preferences",
-                "Get the latest submission already saved by this app for one faculty "
-                "member, if present.",
+                "load_faculty_workspace",
+                "Load one faculty member's current assignments, complete saved working draft, "
+                "saved revision, both historical records, relevant catalog courses, and source "
+                "discrepancies from one coherent workbook revision.",
                 FACULTY_NAME_ADAPTER.json_schema(),
             ),
             self._definition(
@@ -74,17 +176,12 @@ class ToolService:
                 REFERENCE_ADAPTER.json_schema(),
             ),
             self._definition(
-                "preview_preferences",
-                "Validate complete proposed teaching changes, section constraints, "
-                "preferences, and coordination notes, then render the final Python snippet "
-                "without saving.",
-                SUBMISSION_ADAPTER.json_schema(),
-            ),
-            self._definition(
-                "save_preferences",
-                "Validate and atomically replace the faculty member's complete saved "
-                "Python snippet. Use only after explicit save confirmation.",
-                SUBMISSION_ADAPTER.json_schema(),
+                "save_faculty_submission",
+                "Validate and atomically create or replace the speaker's complete working draft. "
+                "Call whenever actionable input changes the draft, including the initial inferred "
+                "proposal. Pass the saved revision returned by load_faculty_workspace to prevent "
+                "stale conversation branches from overwriting newer work.",
+                SAVE_SUBMISSION_ADAPTER.json_schema(),
             ),
         ]
 
@@ -97,8 +194,7 @@ class ToolService:
             "function": {
                 "name": name,
                 "description": description,
-                "parameters": parameters,
-                "strict": True,
+                "parameters": provider_tool_schema(parameters),
             },
         }
 
@@ -126,52 +222,105 @@ class ToolService:
                     ],
                     "assignment_source": workbook.source.model_dump(mode="json"),
                 }
-            case "get_faculty_context":
-                arguments = FACULTY_NAME_ADAPTER.validate_python(raw_arguments, strict=True)
-                context = await self._faculty_context(arguments.faculty_name)
-                return {
-                    "term": self.repository.semester.term,
-                    **context.model_dump(mode="json", exclude={"faculty": {"preference_history"}}),
-                }
-            case "get_previous_preferences":
-                arguments = FACULTY_NAME_ADAPTER.validate_python(raw_arguments, strict=True)
-                faculty = (await self._faculty_context(arguments.faculty_name)).faculty
-                return {
-                    "faculty_name": faculty.name,
-                    "history": [
-                        record.model_dump(mode="json", exclude={"section_setup"})
-                        for record in faculty.preference_history
-                    ],
-                }
-            case "get_saved_preferences":
-                arguments = FACULTY_NAME_ADAPTER.validate_python(raw_arguments, strict=True)
-                faculty = (await self._faculty_context(arguments.faculty_name)).faculty
-                return {
-                    "faculty_name": faculty.name,
-                    "preferences": self.preference_store.read(faculty.name),
-                }
-            case "get_scheduling_reference":
-                arguments = REFERENCE_ADAPTER.validate_python(raw_arguments, strict=True)
-                return self._reference(arguments.topic)
-            case "preview_preferences":
-                submission = SUBMISSION_ADAPTER.validate_python(raw_arguments, strict=True)
-                context = await self._faculty_context(submission.faculty_name)
-                self._validate_assignment_revision(submission, context)
-                faculty = context.faculty
-                faculty = validate_submission(self.repository, submission, faculty)
-                return {
-                    "faculty_name": faculty.name,
-                    "snippet": render_submission(faculty, submission),
-                }
-            case "save_preferences":
-                submission = SUBMISSION_ADAPTER.validate_python(raw_arguments, strict=True)
-                context = await self._faculty_context(submission.faculty_name)
-                self._validate_assignment_revision(submission, context)
-                return self.preference_store.save(submission, context.faculty).model_dump(
-                    mode="json"
+            case "load_faculty_workspace":
+                arguments = FACULTY_NAME_ADAPTER.validate_json(
+                    json.dumps(raw_arguments), strict=True
                 )
+                context = await self._faculty_context(arguments.faculty_name)
+                return self._workspace(context)
+            case "get_scheduling_reference":
+                arguments = REFERENCE_ADAPTER.validate_json(json.dumps(raw_arguments), strict=True)
+                return self._reference(arguments.topic)
+            case "save_faculty_submission":
+                arguments = SAVE_SUBMISSION_ADAPTER.validate_json(
+                    json.dumps(raw_arguments), strict=True
+                )
+                submission = arguments.submission.to_submission()
+                context = await self._faculty_context(submission.faculty_name)
+                self._validate_assignment_revision(submission, context)
+                return self.preference_store.save(
+                    submission,
+                    context.faculty,
+                    arguments.expected_saved_revision,
+                ).model_dump(mode="json")
             case _:
                 raise ValueError(f"unknown tool {name!r}")
+
+    def _workspace(self, context: FacultyContext) -> JsonValue:
+        faculty = context.faculty
+        saved = self.preference_store.read_submission(faculty.name)
+        legacy_snippet = None
+        if saved is None:
+            legacy_snippet = self.preference_store.read(faculty.name)
+        current_sections = {assignment.section: assignment for assignment in context.assignments}
+        discrepancies: list[str] = []
+        saved_section_names: set[str] = set()
+        if saved is not None:
+            saved_sections = {section.name: section for section in saved.submission.sections}
+            saved_section_names = set(saved_sections)
+            for section_name in sorted(current_sections.keys() - saved_sections.keys()):
+                discrepancies.append(
+                    f"The live assignment source now includes {section_name}, which is not in "
+                    "the saved working draft."
+                )
+            for section_name in sorted(saved_sections.keys() - current_sections.keys()):
+                discrepancies.append(
+                    f"The saved working draft includes {section_name}, which is not in the "
+                    "live assignment source."
+                )
+            for section_name in sorted(current_sections.keys() & saved_sections.keys()):
+                current = current_sections[section_name]
+                proposed = saved_sections[section_name]
+                if (
+                    current.room_tags != proposed.room_tags
+                    or current.time_slot_tags != proposed.time_slot_tags
+                    or current.setup_method is not proposed.method
+                ):
+                    discrepancies.append(
+                        f"The live assignment source and saved working draft have different "
+                        f"section setup for {section_name}."
+                    )
+            expected_changes = {
+                (AssignmentChangeKind.ADD, section_name)
+                for section_name in saved_sections.keys() - current_sections.keys()
+            } | {
+                (AssignmentChangeKind.REMOVE, section_name)
+                for section_name in current_sections.keys() - saved_sections.keys()
+            }
+            saved_changes = {
+                (change.kind, change.section) for change in saved.submission.assignment_changes
+            }
+            if saved_changes != expected_changes:
+                discrepancies.append(
+                    "The saved teaching-change explanations no longer match the live "
+                    "assignment differences and need reconciliation before the next update."
+                )
+        relevant_course_codes = {assignment.course_code for assignment in context.assignments} | {
+            section.rpartition("-")[0] for section in saved_section_names
+        }
+        courses = [
+            course.model_dump(mode="json")
+            for course in self.repository.semester.courses
+            if course.code in relevant_course_codes
+        ]
+        return {
+            "term": self.repository.semester.term,
+            "faculty": faculty.model_dump(
+                mode="json",
+                exclude={"preference_history", "current_preferences"},
+            ),
+            "assignments": [
+                assignment.model_dump(mode="json") for assignment in context.assignments
+            ],
+            "assignment_source": context.assignment_source.model_dump(mode="json"),
+            "issues": context.issues,
+            "history": [record.model_dump(mode="json") for record in faculty.preference_history],
+            "saved": None if saved is None else saved.model_dump(mode="json"),
+            "saved_revision": self.preference_store.revision(faculty.name),
+            "legacy_saved_preferences": legacy_snippet,
+            "discrepancies": discrepancies,
+            "courses": courses,
+        }
 
     async def _faculty_context(self, name: str) -> FacultyContext:
         workbook = await self.assignment_client.fetch()
@@ -208,8 +357,8 @@ class ToolService:
     ) -> None:
         if submission.assignment_revision != context.assignment_source.revision:
             raise ValueError(
-                "current assignments changed after they were retrieved; get fresh faculty "
-                "context and preview the complete submission again"
+                "current assignments changed after they were retrieved; reload the faculty "
+                "workspace and reconcile the complete submission before saving"
             )
 
     def _reference(self, topic: str) -> JsonValue:

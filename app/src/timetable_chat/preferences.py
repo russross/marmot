@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import re
+import textwrap
 from collections.abc import Iterable
+from hashlib import sha256
 from pathlib import Path
 
 from timetable_chat.models import (
+    AssignmentChangeKind,
     AvoidClassClusterLongerThan,
     AvoidClassClusterShorterThan,
     AvoidGapBetweenClassClustersLongerThan,
@@ -12,15 +15,20 @@ from timetable_chat.models import (
     AvoidSectionInRooms,
     AvoidSectionInTimeSlots,
     AvoidTimeSlot,
+    Course,
+    CourseSchedulingPolicy,
+    DecisionOrigin,
     DoNotWantADayOff,
     Faculty,
-    FacultySectionAddition,
-    FacultySectionRemoval,
     FacultySubmission,
     Preference,
+    ProposedSection,
+    SavedSubmission,
     SaveResult,
+    SaveStatus,
+    SectionSchedulingMode,
     SectionSetupMethod,
-    UnavailableTimeSlot,
+    TimeSlot,
     UseSameTimePattern,
     WantADayOff,
     WantBackToBackClassesInTheSameRoom,
@@ -52,52 +60,37 @@ def duration_string(minutes: int) -> str:
     return f"{hours}h{remaining_minutes}m"
 
 
-def with_priority(arguments: list[str], priority: int | None) -> str:
-    if priority is not None:
-        arguments.append(f"priority={priority}")
-    return ", ".join(arguments)
-
-
 def render_preference(preference: Preference) -> str:
     match preference:
-        case WantADayOff(priority=priority):
-            return f"WantADayOff({with_priority([], priority)})"
-        case DoNotWantADayOff(priority=priority):
-            return f"DoNotWantADayOff({with_priority([], priority)})"
-        case WantClassesEvenlySpreadAcrossDays(priority=priority):
-            return f"WantClassesEvenlySpreadAcrossDays({with_priority([], priority)})"
-        case WantBackToBackClassesInTheSameRoom(priority=priority):
-            return f"WantBackToBackClassesInTheSameRoom({with_priority([], priority)})"
-        case WantClassesPackedIntoAsFewRoomsAsPossible(priority=priority):
-            return f"WantClassesPackedIntoAsFewRoomsAsPossible({with_priority([], priority)})"
-        case AvoidGapBetweenClassClustersShorterThan(minutes=minutes, priority=priority):
-            arguments = [python_string(duration_string(minutes))]
-            return f"AvoidGapBetweenClassClustersShorterThan({with_priority(arguments, priority)})"
-        case AvoidGapBetweenClassClustersLongerThan(minutes=minutes, priority=priority):
-            arguments = [python_string(duration_string(minutes))]
-            return f"AvoidGapBetweenClassClustersLongerThan({with_priority(arguments, priority)})"
-        case AvoidClassClusterShorterThan(minutes=minutes, priority=priority):
-            arguments = [python_string(duration_string(minutes))]
-            return f"AvoidClassClusterShorterThan({with_priority(arguments, priority)})"
-        case AvoidClassClusterLongerThan(minutes=minutes, priority=priority):
-            arguments = [python_string(duration_string(minutes))]
-            return f"AvoidClassClusterLongerThan({with_priority(arguments, priority)})"
-        case AvoidSectionInRooms(section=section, room_tags=room_tags, priority=priority):
-            arguments = [python_string(section), repr(room_tags)]
-            return f"AvoidSectionInRooms({with_priority(arguments, priority)})"
-        case AvoidSectionInTimeSlots(
-            section=section, time_slot_tags=time_slot_tags, priority=priority
-        ):
-            arguments = [python_string(section), repr(time_slot_tags)]
-            return f"AvoidSectionInTimeSlots({with_priority(arguments, priority)})"
-        case AvoidTimeSlot(time_slot=time_slot, priority=priority):
-            arguments = [python_string(time_slot)]
-            return f"AvoidTimeSlot({with_priority(arguments, priority)})"
-        case UnavailableTimeSlot(time_slot=time_slot):
-            return f"UnavailableTimeSlot({python_string(time_slot)})"
-        case UseSameTimePattern(sections=sections, priority=priority):
-            arguments = [repr(sections)]
-            return f"UseSameTimePattern({with_priority(arguments, priority)})"
+        case WantADayOff():
+            return "WantADayOff()"
+        case DoNotWantADayOff():
+            return "DoNotWantADayOff()"
+        case WantClassesEvenlySpreadAcrossDays():
+            return "WantClassesEvenlySpreadAcrossDays()"
+        case WantBackToBackClassesInTheSameRoom():
+            return "WantBackToBackClassesInTheSameRoom()"
+        case WantClassesPackedIntoAsFewRoomsAsPossible():
+            return "WantClassesPackedIntoAsFewRoomsAsPossible()"
+        case AvoidGapBetweenClassClustersShorterThan(minutes=minutes):
+            duration = python_string(duration_string(minutes))
+            return f"AvoidGapBetweenClassClustersShorterThan({duration})"
+        case AvoidGapBetweenClassClustersLongerThan(minutes=minutes):
+            return (
+                f"AvoidGapBetweenClassClustersLongerThan({python_string(duration_string(minutes))})"
+            )
+        case AvoidClassClusterShorterThan(minutes=minutes):
+            return f"AvoidClassClusterShorterThan({python_string(duration_string(minutes))})"
+        case AvoidClassClusterLongerThan(minutes=minutes):
+            return f"AvoidClassClusterLongerThan({python_string(duration_string(minutes))})"
+        case AvoidSectionInRooms(section=section, room_tags=room_tags):
+            return f"AvoidSectionInRooms({python_string(section)}, {room_tags!r})"
+        case AvoidSectionInTimeSlots(section=section, time_slot_tags=time_slot_tags):
+            return f"AvoidSectionInTimeSlots({python_string(section)}, {time_slot_tags!r})"
+        case AvoidTimeSlot(time_slot=time_slot):
+            return f"AvoidTimeSlot({python_string(time_slot)})"
+        case UseSameTimePattern(sections=sections):
+            return f"UseSameTimePattern({sections!r})"
 
 
 def render_submission(faculty: Faculty, submission: FacultySubmission) -> str:
@@ -106,65 +99,63 @@ def render_submission(faculty: Faculty, submission: FacultySubmission) -> str:
         f"{python_string(interval.end)})"
         for interval in faculty.availability
     )
-    lines = [
-        f"db.make_faculty({python_string(faculty.name)}, {python_string(faculty.department)}, "
-        f"[{availability}])"
-    ]
-    constraint_updates = {update.section: update for update in submission.section_constraints}
-    removals = {
-        change.section: change
-        for change in submission.section_changes
-        if isinstance(change, FacultySectionRemoval)
+    serialized_submission = submission.model_dump_json()
+    lines = ["# Marmot faculty submission v1"]
+    lines.extend(
+        f"# | {serialized_submission[offset : offset + 96]}"
+        for offset in range(0, len(serialized_submission), 96)
+    )
+    lines.extend(["# End Marmot faculty submission", "#"])
+    summary_labels = {
+        DecisionOrigin.FACULTY: "Faculty-provided input",
+        DecisionOrigin.INFERRED: "Inferences currently used",
+        DecisionOrigin.SOURCE: "Source and reconciliation notes",
     }
-    additions = [
-        change
-        for change in submission.section_changes
-        if isinstance(change, FacultySectionAddition)
-    ]
-    for removal in removals.values():
-        lines.append(
-            f"# Teaching assignment change: omit {removal.section}. "
-            f"{python_comment(removal.comment)}"
-        )
-    for section in faculty.section_setup:
-        if section.name in removals:
+    for origin, label in summary_labels.items():
+        items = [item for item in submission.decision_summary if item.origin is origin]
+        if not items:
             continue
-        update = constraint_updates.get(section.name)
-        tags = section.tags
-        if update is not None:
-            tags = [*update.time_slot_tags, *update.room_tags]
-            if update.comment is not None:
-                lines.append(
-                    f"# Section constraint exception for {section.name}: "
-                    f"{python_comment(update.comment)}"
+        lines.append(f"# {label}")
+        for item in items:
+            lines.extend(
+                textwrap.wrap(
+                    python_comment(item.text),
+                    width=100,
+                    initial_indent="# - ",
+                    subsequent_indent="#   ",
                 )
+            )
+        lines.append("#")
+    lines.extend(
+        [
+            "#",
+            f"db.make_faculty({python_string(faculty.name)}, "
+            f"{python_string(faculty.department)}, [{availability}])",
+        ]
+    )
+    for change in submission.assignment_changes:
+        verb = "add" if change.kind is AssignmentChangeKind.ADD else "omit"
+        lines.append(
+            f"# Teaching assignment change: {verb} {change.section}. "
+            f"{python_comment(change.comment)}"
+        )
+    for section in submission.sections:
+        if section.comment is not None:
+            lines.append(f"# Section setup for {section.name}: {python_comment(section.comment)}")
         arguments = [python_string(faculty.name), python_string(section.name)]
         if section.method is SectionSetupMethod.ASSIGN:
-            if update is not None:
+            if section.time_slot_tags or section.room_tags:
                 lines.append(
                     f"# Requested shared-section tags for {section.name}: "
-                    f"times={update.time_slot_tags!r}, rooms={update.room_tags!r}"
+                    f"times={section.time_slot_tags!r}, rooms={section.room_tags!r}"
                 )
         else:
-            arguments.extend(python_string(tag) for tag in tags)
-        lines.append(f"db.{section.method.value}({', '.join(arguments)})")
-
-    for addition in additions:
-        lines.append(
-            f"# Teaching assignment change: add {addition.section}. "
-            f"{python_comment(addition.comment)}"
-        )
-        arguments = [python_string(faculty.name), python_string(addition.section)]
-        if addition.method is SectionSetupMethod.ASSIGN:
-            if addition.time_slot_tags or addition.room_tags:
-                lines.append(
-                    f"# Requested shared-section tags for {addition.section}: "
-                    f"times={addition.time_slot_tags!r}, rooms={addition.room_tags!r}"
-                )
-        else:
-            arguments.extend(python_string(tag) for tag in addition.time_slot_tags)
-            arguments.extend(python_string(tag) for tag in addition.room_tags)
-        lines.append(f"db.{addition.method.value}({', '.join(arguments)})")
+            arguments.extend(python_string(tag) for tag in section.time_slot_tags)
+            arguments.extend(python_string(tag) for tag in section.room_tags)
+        rendered_arguments = ", ".join(arguments)
+        if section.credit_hours is not None and section.method is SectionSetupMethod.MAKE:
+            rendered_arguments += f", credit_hours={section.credit_hours:g}"
+        lines.append(f"db.{section.method.value}({rendered_arguments})")
 
     if submission.coordination_notes:
         lines.append("")
@@ -180,9 +171,12 @@ def render_submission(faculty: Faculty, submission: FacultySubmission) -> str:
         f"    UnavailableTimeSlot({python_string(time_slot)}),"
         for time_slot in faculty.approved_unavailable_time_slots
     )
+    for unavailable in submission.hard_unavailability:
+        lines.append(
+            f"    # University conflict: {python_comment(unavailable.university_conflict)}"
+        )
+        lines.append(f"    UnavailableTimeSlot({python_string(unavailable.time_slot)}),")
     for preference in submission.preferences:
-        if isinstance(preference, UnavailableTimeSlot):
-            lines.append(f"    # Faculty exception: {python_comment(preference.comment)}")
         lines.append(f"    {render_preference(preference)},")
     lines.append(")")
     return "\n".join(lines) + "\n"
@@ -198,17 +192,35 @@ def effective_priorities(preferences: Iterable[Preference]) -> list[int]:
     current = 9
     result: list[int] = []
     for preference in preferences:
-        if isinstance(preference, UnavailableTimeSlot):
-            continue
-        explicit = preference.priority
-        if isinstance(preference, AvoidSectionInRooms) and explicit is None:
+        if isinstance(preference, AvoidSectionInRooms):
             result.append(current + 1)
             continue
-        current = current + 1 if explicit is None else explicit
+        current += 1
         result.append(current)
         if isinstance(preference, WantADayOff):
             current += 1
     return result
+
+
+def normalize_submission(
+    repository: SemesterRepository,
+    submission: FacultySubmission,
+) -> FacultySubmission:
+    courses = {course.code: course for course in repository.semester.courses}
+    sections: list[ProposedSection] = []
+    for section in submission.sections:
+        course_code = section.name.rpartition("-")[0]
+        course = courses.get(course_code)
+        if (
+            course is not None
+            and section.method is SectionSetupMethod.MAKE
+            and course.minimum_credit_hours != course.maximum_credit_hours
+            and section.scheduling_mode is SectionSchedulingMode.UNSCHEDULED
+            and section.credit_hours is None
+        ):
+            section = section.model_copy(update={"credit_hours": course.minimum_credit_hours})
+        sections.append(section)
+    return submission.model_copy(update={"sections": sections})
 
 
 def validate_submission(
@@ -222,73 +234,95 @@ def validate_submission(
             f"submission faculty {submission.faculty_name!r} does not match {faculty.name!r}"
         )
     validate_day_order(submission.days_to_check)
-    time_slots = {slot.name for slot in repository.semester.time_slots}
+    installed_slots = {slot.name: slot for slot in repository.semester.time_slots}
     room_names = {room.name for room in repository.semester.rooms}
     valid_room_tags = set(repository.semester.room_tags) | room_names
-    valid_time_tags = set(repository.semester.time_slot_tags) | time_slots
-    valid_courses = {course.code for course in repository.semester.courses}
-    room_tags_by_section = {section.name: section.room_tags for section in faculty.sections}
-    time_tags_by_section = {section.name: section.time_slot_tags for section in faculty.sections}
+    valid_time_tags = set(repository.semester.time_slot_tags) | set(installed_slots)
+    courses = {course.code: course for course in repository.semester.courses}
 
-    changed_sections: set[str] = set()
-    created_time_slots: set[str] = set()
-    for change in submission.section_changes:
-        if change.section in changed_sections:
-            raise ValueError(f"multiple teaching assignment changes for {change.section!r}")
-        changed_sections.add(change.section)
-        if isinstance(change, FacultySectionRemoval):
-            if change.section not in room_tags_by_section:
-                raise ValueError(f"{change.section!r} is not assigned to {faculty.name}")
-            del room_tags_by_section[change.section]
-            del time_tags_by_section[change.section]
+    sections = {section.name: section for section in submission.sections}
+    if len(sections) != len(submission.sections):
+        raise ValueError("each proposed section must appear exactly once")
+    for section in submission.sections:
+        course = course_for_section(section.name, courses)
+        validate_section_tags(
+            section.room_tags,
+            section.time_slot_tags,
+            valid_room_tags,
+            valid_time_tags,
+        )
+        validate_section_credit_hours(section, course)
+        if (
+            course.scheduling_policy is CourseSchedulingPolicy.NEVER_SCHEDULED
+            and section.scheduling_mode is not SectionSchedulingMode.UNSCHEDULED
+        ):
+            raise ValueError(f"{section.name} is an unscheduled research or internship course")
+        if section.scheduling_mode is SectionSchedulingMode.UNSCHEDULED:
+            if section.room_tags or section.time_slot_tags:
+                raise ValueError(
+                    f"unscheduled section {section.name} cannot have room or time tags"
+                )
             continue
-        if change.section in room_tags_by_section:
-            raise ValueError(f"{change.section!r} is already assigned to {faculty.name}")
-        validate_section_course(change.section, valid_courses)
-        validate_section_tags(
-            change.room_tags,
-            change.time_slot_tags,
-            valid_room_tags,
-            valid_time_tags,
+        if not section.time_slot_tags:
+            raise ValueError(f"scheduled section {section.name} must have allowed times")
+        uses_concrete_time = any(
+            tag in installed_slots or valid_explicit_time_slot(tag)
+            for tag in section.time_slot_tags
         )
-        room_tags_by_section[change.section] = change.room_tags
-        time_tags_by_section[change.section] = change.time_slot_tags
-        created_time_slots.update(
-            tag for tag in change.time_slot_tags if valid_explicit_time_slot(tag)
-        )
-
-    constraint_updates = {update.section: update for update in submission.section_constraints}
-    if len(constraint_updates) != len(submission.section_constraints):
-        raise ValueError("each section may have only one constraint update")
-    for update in submission.section_constraints:
-        if update.section not in room_tags_by_section:
-            raise ValueError(f"{update.section!r} is not in {faculty.name}'s proposed courses")
-        if update.section in changed_sections:
+        if uses_concrete_time and section.comment is None:
             raise ValueError(
-                f"put the room/time tags directly on the teaching change for {update.section!r}"
+                f"section {section.name} uses a concrete time and requires an explanation"
             )
-        validate_section_tags(
-            update.room_tags,
-            update.time_slot_tags,
-            valid_room_tags,
-            valid_time_tags,
-        )
-        room_tags_by_section[update.section] = update.room_tags
-        time_tags_by_section[update.section] = update.time_slot_tags
-        created_time_slots.update(
-            tag for tag in update.time_slot_tags if valid_explicit_time_slot(tag)
-        )
+        validate_contact_minutes(repository, section, course, installed_slots)
 
-    for section_name in room_tags_by_section:
-        validate_section_course(section_name, valid_courses)
+    current_sections = {section.name: section for section in faculty.sections}
+    expected_changes = {
+        (AssignmentChangeKind.ADD, name) for name in sections.keys() - current_sections.keys()
+    } | {(AssignmentChangeKind.REMOVE, name) for name in current_sections.keys() - sections.keys()}
+    supplied_changes = {(change.kind, change.section) for change in submission.assignment_changes}
+    if len(supplied_changes) != len(submission.assignment_changes):
+        raise ValueError("each teaching assignment change must appear exactly once")
+    if supplied_changes != expected_changes:
+        raise ValueError(
+            "teaching assignment reasons must exactly match additions and removals: "
+            f"expected {sorted((kind.value, section) for kind, section in expected_changes)}"
+        )
+    current_setup = {section.name: section for section in faculty.section_setup}
+    for section_name in sections.keys() & current_sections.keys():
+        proposed = sections[section_name]
+        current = current_sections[section_name]
+        setup = current_setup[section_name]
+        if (
+            proposed.room_tags != current.room_tags
+            or proposed.time_slot_tags != current.time_slot_tags
+            or proposed.method is not setup.method
+        ) and proposed.comment is None:
+            raise ValueError(f"changed section setup for {section_name} requires an explanation")
 
-    scheduleable_section_count = sum(bool(tags) for tags in time_tags_by_section.values())
-    concrete_time_slots = time_slots | created_time_slots
+    scheduleable_section_count = sum(
+        section.scheduling_mode is SectionSchedulingMode.SCHEDULED
+        for section in submission.sections
+    )
+    concrete_time_slots = set(installed_slots) | {
+        tag
+        for section in submission.sections
+        for tag in section.time_slot_tags
+        if valid_explicit_time_slot(tag)
+    }
+    unavailable_slots = [item.time_slot for item in submission.hard_unavailability]
+    if len(set(unavailable_slots)) != len(unavailable_slots):
+        raise ValueError("each university-related hard-unavailability slot may appear once")
+    for unavailable in submission.hard_unavailability:
+        if unavailable.time_slot in faculty.approved_unavailable_time_slots:
+            raise ValueError(f"{unavailable.time_slot!r} is already an approved unavailable time")
+        if unavailable.time_slot not in concrete_time_slots:
+            raise ValueError(f"unknown concrete time slot {unavailable.time_slot!r}")
 
     priorities = effective_priorities(submission.preferences)
     if priorities and max(priorities) > 24:
         raise ValueError("implicit preference priorities exceed the supported range 10..24")
-
+    room_tags_by_section = {section.name: section.room_tags for section in submission.sections}
+    time_tags_by_section = {section.name: section.time_slot_tags for section in submission.sections}
     for preference in submission.preferences:
         match preference:
             case WantADayOff() | DoNotWantADayOff():
@@ -304,12 +338,7 @@ def validate_submission(
                 if scheduleable_section_count <= 3:
                     raise ValueError("even-spread requires more than three scheduleable sections")
             case AvoidTimeSlot(time_slot=time_slot):
-                if time_slot not in time_slots:
-                    raise ValueError(f"unknown concrete time slot {time_slot!r}")
-            case UnavailableTimeSlot(time_slot=time_slot):
-                if time_slot in faculty.approved_unavailable_time_slots:
-                    raise ValueError(f"{time_slot!r} is already an approved unavailable time")
-                if time_slot not in concrete_time_slots:
+                if time_slot not in installed_slots:
                     raise ValueError(f"unknown concrete time slot {time_slot!r}")
             case AvoidSectionInRooms(section=section_name, room_tags=tags):
                 allowed_tags = room_tags_by_section.get(section_name)
@@ -335,35 +364,109 @@ def validate_submission(
                 allowed_tags = time_tags_by_section.get(section_name)
                 if allowed_tags is None:
                     raise ValueError(f"{section_name!r} is not in the proposed courses")
-                allowed_slots = {
-                    slot
-                    for tag in allowed_tags
-                    for slot in repository.semester.time_slot_tags.get(
-                        tag, [tag] if tag in concrete_time_slots else []
-                    )
-                }
-                requested_slots = {
-                    slot
-                    for tag in tags
-                    for slot in repository.semester.time_slot_tags.get(
-                        tag, [tag] if tag in concrete_time_slots else []
-                    )
-                }
+                allowed_slots = expanded_time_slot_names(
+                    repository, allowed_tags, concrete_time_slots
+                )
+                requested_slots = expanded_time_slot_names(repository, tags, concrete_time_slots)
                 if not allowed_slots.intersection(requested_slots):
                     raise ValueError(
                         f"time avoidance for {section_name} does not intersect its allowed slots"
                     )
             case UseSameTimePattern(sections=section_names):
-                unknown = set(section_names).difference(room_tags_by_section)
+                unknown = set(section_names).difference(sections)
                 if unknown:
-                    message = (
+                    raise ValueError(
                         f"time-pattern sections are not assigned to {faculty.name}: "
                         f"{sorted(unknown)}"
                     )
-                    raise ValueError(message)
             case _:
                 continue
     return faculty
+
+
+def course_for_section(section: str, courses: dict[str, Course]) -> Course:
+    course_code, separator, section_number = section.rpartition("-")
+    if not separator or not section_number:
+        raise ValueError(f"section {section!r} must contain a course and section number")
+    try:
+        return courses[course_code]
+    except KeyError as error:
+        raise ValueError(
+            f"section {section!r} uses unknown installed course {course_code!r}"
+        ) from error
+
+
+def validate_section_credit_hours(section: ProposedSection, course: Course) -> None:
+    if section.method is SectionSetupMethod.ASSIGN:
+        if section.credit_hours is not None:
+            raise ValueError(
+                f"shared section {section.name} gets credit hours from its section creator"
+            )
+        return
+    is_variable = course.minimum_credit_hours != course.maximum_credit_hours
+    if not is_variable:
+        if section.credit_hours is not None:
+            raise ValueError(
+                f"fixed-credit section {section.name} must omit the redundant credit_hours value"
+            )
+        return
+    if section.credit_hours is None:
+        raise ValueError(f"variable-credit section {section.name} must specify credit_hours")
+    if not course.minimum_credit_hours <= section.credit_hours <= course.maximum_credit_hours:
+        raise ValueError(
+            f"section {section.name} credit_hours {section.credit_hours:g} is outside the "
+            f"catalog range {course.minimum_credit_hours:g}-{course.maximum_credit_hours:g}"
+        )
+
+
+def expanded_time_slot_names(
+    repository: SemesterRepository,
+    tags: list[str],
+    concrete_time_slots: set[str],
+) -> set[str]:
+    return {
+        slot
+        for tag in tags
+        for slot in repository.semester.time_slot_tags.get(
+            tag, [tag] if tag in concrete_time_slots else []
+        )
+    }
+
+
+def validate_contact_minutes(
+    repository: SemesterRepository,
+    section: ProposedSection,
+    course: Course,
+    installed_slots: dict[str, TimeSlot],
+) -> None:
+    if (
+        section.method is SectionSetupMethod.ASSIGN
+        or course.scheduling_policy is CourseSchedulingPolicy.EXTERNALLY_SCHEDULED
+    ):
+        return
+    selected_credit_hours = section.credit_hours or course.minimum_credit_hours
+    expected_minutes = course.contact_minutes_override or selected_credit_hours * 50
+    concrete_names = expanded_time_slot_names(
+        repository,
+        section.time_slot_tags,
+        set(installed_slots)
+        | {tag for tag in section.time_slot_tags if valid_explicit_time_slot(tag)},
+    )
+    for time_slot_name in concrete_names:
+        installed = installed_slots.get(time_slot_name)
+        if installed is not None:
+            weekly_minutes = len(installed.days) * installed.duration_minutes
+        else:
+            match = EXPLICIT_TIME_SLOT.fullmatch(time_slot_name)
+            if match is None:
+                raise ValueError(f"unknown concrete time slot {time_slot_name!r}")
+            weekly_minutes = len(match.group("days")) * int(match.group("duration"))
+        if weekly_minutes != expected_minutes:
+            raise ValueError(
+                f"{section.name} is {selected_credit_hours:g} credits and requires "
+                f"{expected_minutes:g} contact minutes per week, but {time_slot_name} "
+                f"provides {weekly_minutes}"
+            )
 
 
 def validate_section_tags(
@@ -420,12 +523,70 @@ class PreferenceStore:
             return None
         return path.read_text(encoding="utf-8")
 
-    def save(self, submission: FacultySubmission, faculty: Faculty | None = None) -> SaveResult:
+    def read_submission(self, faculty_name: str) -> SavedSubmission | None:
+        snippet = self.read(faculty_name)
+        if snippet is None:
+            return None
+        lines = snippet.splitlines()
+        try:
+            start = lines.index("# Marmot faculty submission v1") + 1
+            end = lines.index("# End Marmot faculty submission", start)
+        except ValueError:
+            return None
+        payload_lines = lines[start:end]
+        if not payload_lines or any(not line.startswith("# | ") for line in payload_lines):
+            return None
+        payload = "".join(line[4:] for line in payload_lines)
+        submission = FacultySubmission.model_validate_json(payload, strict=True)
+        return SavedSubmission(
+            saved_revision=self._revision(snippet),
+            submission=submission,
+            snippet=snippet,
+        )
+
+    def revision(self, faculty_name: str) -> str | None:
+        snippet = self.read(faculty_name)
+        return None if snippet is None else self._revision(snippet)
+
+    def save(
+        self,
+        submission: FacultySubmission,
+        faculty: Faculty | None = None,
+        expected_saved_revision: str | None = None,
+    ) -> SaveResult:
+        current_snippet = self.read(submission.faculty_name)
+        current_revision = None if current_snippet is None else self._revision(current_snippet)
+        if expected_saved_revision != current_revision:
+            raise ValueError(
+                "saved preferences changed after they were loaded; reload the faculty "
+                "workspace before saving"
+            )
+        submission = normalize_submission(self.repository, submission)
         faculty = validate_submission(self.repository, submission, faculty)
         snippet = render_submission(faculty, submission)
+        if snippet == current_snippet:
+            return SaveResult(
+                faculty_name=faculty.name,
+                path=str(self.path_for(faculty.name)),
+                status=SaveStatus.UNCHANGED,
+                saved_revision=self._revision(snippet),
+                submission=submission,
+                snippet=snippet,
+            )
         self.directory.mkdir(parents=True, exist_ok=True)
         destination = self.path_for(faculty.name)
         temporary = destination.with_suffix(".tmp")
         temporary.write_text(snippet, encoding="utf-8")
         temporary.replace(destination)
-        return SaveResult(faculty_name=faculty.name, path=str(destination), snippet=snippet)
+        return SaveResult(
+            faculty_name=faculty.name,
+            path=str(destination),
+            status=(SaveStatus.CREATED if current_snippet is None else SaveStatus.UPDATED),
+            saved_revision=self._revision(snippet),
+            submission=submission,
+            snippet=snippet,
+        )
+
+    @staticmethod
+    def _revision(snippet: str) -> str:
+        return sha256(snippet.encode("utf-8")).hexdigest()
