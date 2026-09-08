@@ -68,11 +68,15 @@ const activityLabel = (toolName: string, status: ToolCallMessagePartStatus | und
   }
 };
 
-const ToolFallback: ToolCallMessagePartComponent = ({ toolName, status }) => {
+const ToolFallback: ToolCallMessagePartComponent = ({ toolName, status, isError }) => {
   const statusType = status?.type ?? "complete";
   const isRunning = statusType === "running";
   const elapsedMilliseconds = useToolCallElapsed();
-  const Icon = STATUS_ICONS[statusType];
+  const displayedStatus: ToolStatus = isError && !isRunning ? "incomplete" : statusType;
+  const Icon = STATUS_ICONS[displayedStatus];
+  const label = isError
+    ? `Could not complete ${TOOL_ACTIVITY_LABELS[toolName]?.running.toLocaleLowerCase() ?? `using ${toolName}`}`
+    : activityLabel(toolName, status);
 
   return (
     <div
@@ -85,7 +89,7 @@ const ToolFallback: ToolCallMessagePartComponent = ({ toolName, status }) => {
         aria-hidden="true"
         className={cn("size-4 shrink-0", isRunning && "animate-spin [animation-duration:0.6s]")}
       />
-      <span>{activityLabel(toolName, status)}</span>
+      <span>{label}</span>
       {elapsedMilliseconds !== undefined && (
         <span className="text-xs tabular-nums">{formatToolDuration(elapsedMilliseconds)}</span>
       )}

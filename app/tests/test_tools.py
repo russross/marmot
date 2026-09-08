@@ -3,13 +3,15 @@ from pathlib import Path
 from typing import cast
 
 import pytest
-from pydantic import JsonValue
+from pydantic import JsonValue, TypeAdapter, ValidationError
 
 from timetable_chat.assignments import AssignmentWorkbookClient
-from timetable_chat.models import FacultySubmission
+from timetable_chat.models import FacultySubmission, Preference
 from timetable_chat.preferences import PreferenceStore
 from timetable_chat.semester import SemesterRepository
-from timetable_chat.tools import ToolPreference, ToolService
+from timetable_chat.tools import ToolService
+
+PREFERENCE_ADAPTER = TypeAdapter(Preference)
 
 
 def submission_from_workspace(workspace: dict[str, JsonValue]) -> dict[str, JsonValue]:
@@ -247,12 +249,12 @@ async def test_workspace_highlights_live_assignments_without_overriding_saved_dr
         },
     ],
 )
-def test_provider_neutral_preferences_convert_to_canonical_variants(
+def test_tool_preferences_decode_as_closed_canonical_variants(
     wire_preference: dict[str, JsonValue],
 ) -> None:
-    tool_preference = ToolPreference.model_validate_json(json.dumps(wire_preference), strict=True)
+    preference = PREFERENCE_ADAPTER.validate_json(json.dumps(wire_preference), strict=True)
 
-    assert tool_preference.to_preference().model_dump(mode="json") == wire_preference
+    assert preference.model_dump(mode="json") == wire_preference
 
 
 @pytest.mark.parametrize(
@@ -262,13 +264,11 @@ def test_provider_neutral_preferences_convert_to_canonical_variants(
         {"kind": "want_a_day_off", "minutes": 60},
     ],
 )
-def test_provider_neutral_preferences_reject_incomplete_or_irrelevant_fields(
+def test_tool_preferences_reject_incomplete_or_irrelevant_fields(
     wire_preference: dict[str, JsonValue],
 ) -> None:
-    tool_preference = ToolPreference.model_validate_json(json.dumps(wire_preference), strict=True)
-
-    with pytest.raises(ValueError):
-        tool_preference.to_preference()
+    with pytest.raises(ValidationError):
+        PREFERENCE_ADAPTER.validate_json(json.dumps(wire_preference), strict=True)
 
 
 def test_tool_schema_exposes_provenance_and_university_only_hard_blocks(
@@ -301,6 +301,33 @@ def test_tool_schema_exposes_provenance_and_university_only_hard_blocks(
     assert "preview_preferences" not in serialized_definitions
     assert '"priority"' not in serialized_definitions
     assert FacultySubmission.model_fields["decision_summary"].is_required()
-    assert {"$defs", "$ref", "anyOf", "oneOf", "discriminator", "strict"}.isdisjoint(
-        emitted_schema_keys
+    assert {"$defs", "$ref", "anyOf", "discriminator", "strict"}.isdisjoint(emitted_schema_keys)
+    assert "oneOf" in emitted_schema_keys
+
+    save_function = next(
+        function
+        for definition in definitions
+        if (function := cast(dict[str, JsonValue], definition["function"]))["name"]
+        == "save_faculty_submission"
     )
+    parameters = cast(dict[str, JsonValue], save_function["parameters"])
+    parameter_properties = cast(dict[str, JsonValue], parameters["properties"])
+    submission = cast(dict[str, JsonValue], parameter_properties["submission"])
+    submission_properties = cast(dict[str, JsonValue], submission["properties"])
+    preferences = cast(dict[str, JsonValue], submission_properties["preferences"])
+    preference_items = cast(dict[str, JsonValue], preferences["items"])
+    variants = cast(list[dict[str, JsonValue]], preference_items["oneOf"])
+    want_day_off = next(
+        variant
+        for variant in variants
+        if cast(dict[str, dict[str, JsonValue]], variant["properties"])["kind"].get("const")
+        == "want_a_day_off"
+    )
+    avoid_gap = next(
+        variant
+        for variant in variants
+        if cast(dict[str, dict[str, JsonValue]], variant["properties"])["kind"].get("const")
+        == "avoid_gap_between_class_clusters_shorter_than"
+    )
+    assert set(cast(dict[str, JsonValue], want_day_off["properties"])) == {"kind"}
+    assert set(cast(dict[str, JsonValue], avoid_gap["properties"])) == {"kind", "minutes"}

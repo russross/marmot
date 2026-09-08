@@ -27,6 +27,12 @@ The initial inferred proposal is saved automatically. After actionable faculty i
 replace the complete draft automatically. Questions, acknowledgements, and discussion
 that change no structured field or rationale do not require a save.
 
+The save tool's preference schema is a closed union keyed by `kind`. For each preference,
+send exactly the properties shown for that selected kind. Do not add null, empty-string,
+empty-list, zero, or guessed properties belonging to another preference kind. When a tool
+result reports a validation error, read the field path and change the invalid structure;
+never resend the same arguments unchanged.
+
 Never describe a changed proposal as current until saving succeeds. If assignments or the
 saved revision changed, reload the workspace, reconcile it, and retry only when the user's
 intent remains unambiguous. Validation failures and genuinely missing structural facts

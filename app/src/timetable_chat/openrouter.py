@@ -138,6 +138,8 @@ class OpenRouterAgent:
 
         total_input_tokens = 0
         total_output_tokens = 0
+        previous_tool_error: tuple[str, str] | None = None
+        failed_tool_attempts = 0
         for round_number in range(self.max_tool_rounds + 1):
             text_parts: list[str] = []
             reasoning_parts: list[str] = []
@@ -211,6 +213,13 @@ class OpenRouterAgent:
                     f"OpenRouter returned tool calls with finish reason {finish_reason!r}"
                 )
             if round_number == self.max_tool_rounds:
+                if failed_tool_attempts:
+                    raise OpenRouterError(
+                        "I couldn't complete the requested update because the model kept "
+                        "producing invalid tool requests. The previous working draft is "
+                        "unchanged. Please retry the message; if this continues, ask the "
+                        "operator to review the session log."
+                    )
                 raise OpenRouterError("model exceeded the configured tool-call round limit")
 
             for tool_call in tool_calls:
@@ -239,6 +248,26 @@ class OpenRouterAgent:
                         "name": tool_call.function.name,
                         "content": result_text,
                     }
+                )
+                if not is_error:
+                    previous_tool_error = None
+                    continue
+
+                failed_tool_attempts += 1
+                tool_error = (tool_call.function.name, result_text)
+                if tool_error != previous_tool_error:
+                    previous_tool_error = tool_error
+                    continue
+
+                operation = (
+                    "update the working draft"
+                    if tool_call.function.name == "save_faculty_submission"
+                    else f"complete {tool_call.function.name}"
+                )
+                raise OpenRouterError(
+                    f"I couldn't {operation} because the model repeated the same invalid "
+                    "tool request. The previous working draft is unchanged. Please retry the "
+                    "message; if this continues, ask the operator to review the session log."
                 )
         raise OpenRouterError("unreachable tool loop state")
 

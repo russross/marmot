@@ -1,4 +1,5 @@
 .env
+.local/
 .venv/
 .pytest_cache/
 .ruff_cache/
@@ -8,4 +9,3 @@ frontend/out/
 frontend/node_modules/
 runtime/preferences/*.py
 runtime/sessions/*.jsonl
-

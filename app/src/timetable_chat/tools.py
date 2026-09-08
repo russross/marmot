@@ -1,5 +1,4 @@
 import json
-from enum import StrEnum
 from typing import Literal
 
 from pydantic import Field, JsonValue, TypeAdapter
@@ -11,7 +10,6 @@ from timetable_chat.assignments import (
 )
 from timetable_chat.models import (
     AssignmentChangeKind,
-    DurationMinutes,
     FacultyContext,
     FacultySubmission,
     Preference,
@@ -31,39 +29,6 @@ class SchedulingReferenceArguments(StrictModel):
     topic: Literal["preferences", "rooms_and_times", "curriculum"]
 
 
-class PreferenceKind(StrEnum):
-    WANT_A_DAY_OFF = "want_a_day_off"
-    DO_NOT_WANT_A_DAY_OFF = "do_not_want_a_day_off"
-    WANT_CLASSES_EVENLY_SPREAD_ACROSS_DAYS = "want_classes_evenly_spread_across_days"
-    WANT_BACK_TO_BACK_CLASSES_IN_THE_SAME_ROOM = "want_back_to_back_classes_in_the_same_room"
-    WANT_CLASSES_PACKED_INTO_AS_FEW_ROOMS_AS_POSSIBLE = (
-        "want_classes_packed_into_as_few_rooms_as_possible"
-    )
-    AVOID_GAP_BETWEEN_CLASS_CLUSTERS_SHORTER_THAN = "avoid_gap_between_class_clusters_shorter_than"
-    AVOID_GAP_BETWEEN_CLASS_CLUSTERS_LONGER_THAN = "avoid_gap_between_class_clusters_longer_than"
-    AVOID_CLASS_CLUSTER_SHORTER_THAN = "avoid_class_cluster_shorter_than"
-    AVOID_CLASS_CLUSTER_LONGER_THAN = "avoid_class_cluster_longer_than"
-    AVOID_SECTION_IN_ROOMS = "avoid_section_in_rooms"
-    AVOID_SECTION_IN_TIME_SLOTS = "avoid_section_in_time_slots"
-    AVOID_TIME_SLOT = "avoid_time_slot"
-    USE_SAME_TIME_PATTERN = "use_same_time_pattern"
-
-
-class ToolPreference(StrictModel):
-    kind: PreferenceKind
-    minutes: DurationMinutes | None = None
-    section: str | None = None
-    room_tags: list[str] | None = None
-    time_slot_tags: list[str] | None = None
-    time_slot: str | None = None
-    sections: list[str] | None = None
-
-    def to_preference(self) -> Preference:
-        return PREFERENCE_ADAPTER.validate_json(
-            self.model_dump_json(exclude_none=True), strict=True
-        )
-
-
 class ToolProposedSection(ProposedSection):
     credit_hours: float | None = Field(
         default=None,
@@ -75,16 +40,10 @@ class ToolProposedSection(ProposedSection):
 
 class ToolFacultySubmission(FacultySubmission):
     sections: list[ToolProposedSection]
-    preferences: list[ToolPreference]
+    preferences: list[Preference]
 
     def to_submission(self) -> FacultySubmission:
-        submission_data: dict[str, JsonValue] = self.model_dump(
-            mode="json", exclude={"preferences"}
-        )
-        submission_data["preferences"] = [
-            preference.to_preference().model_dump(mode="json") for preference in self.preferences
-        ]
-        return FacultySubmission.model_validate_json(json.dumps(submission_data), strict=True)
+        return FacultySubmission.model_validate_json(self.model_dump_json(), strict=True)
 
 
 class SaveFacultySubmissionArguments(StrictModel):
@@ -97,7 +56,6 @@ class SaveFacultySubmissionArguments(StrictModel):
 
 FACULTY_NAME_ADAPTER = TypeAdapter(FacultyNameArguments)
 REFERENCE_ADAPTER = TypeAdapter(SchedulingReferenceArguments)
-PREFERENCE_ADAPTER = TypeAdapter(Preference)
 SAVE_SUBMISSION_ADAPTER = TypeAdapter(SaveFacultySubmissionArguments)
 
 
@@ -180,7 +138,9 @@ class ToolService:
                 "Validate and atomically create or replace the speaker's complete working draft. "
                 "Call whenever actionable input changes the draft, including the initial inferred "
                 "proposal. Pass the saved revision returned by load_faculty_workspace to prevent "
-                "stale conversation branches from overwriting newer work.",
+                "stale conversation branches from overwriting newer work. Each preference is one "
+                "closed variant selected by kind: send only the fields required by that variant, "
+                "never empty placeholder fields from other variants.",
                 SAVE_SUBMISSION_ADAPTER.json_schema(),
             ),
         ]

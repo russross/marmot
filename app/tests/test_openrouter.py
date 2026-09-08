@@ -10,6 +10,7 @@ from timetable_chat.models import UiMessage
 from timetable_chat.openrouter import (
     MessageFinished,
     OpenRouterAgent,
+    OpenRouterError,
     TextDelta,
     ToolArgumentsDelta,
     ToolArgumentsFinished,
@@ -243,3 +244,74 @@ async def test_agent_streams_fragmented_text_and_tool_rounds(
         .splitlines()
     ]
     assert [event["event"] for event in events] == ["request", "tool", "assistant"]
+
+
+@pytest.mark.asyncio
+async def test_agent_stops_after_repeated_identical_tool_error(
+    spring_repository: SemesterRepository,
+    assignment_client: AssignmentWorkbookClient,
+    runtime_directory: Path,
+) -> None:
+    request_count = 0
+
+    def provider(request: httpx.Request) -> httpx.Response:
+        nonlocal request_count
+        request_count += 1
+        call_id = f"call-{request_count}"
+        events: list[dict[str, object]] = [
+            {
+                "id": f"generation-{request_count}",
+                "choices": [
+                    {
+                        "index": 0,
+                        "delta": {
+                            "tool_calls": [
+                                {
+                                    "index": 0,
+                                    "id": call_id,
+                                    "type": "function",
+                                    "function": {
+                                        "name": "save_faculty_submission",
+                                        "arguments": "{}",
+                                    },
+                                }
+                            ]
+                        },
+                        "finish_reason": "tool_calls",
+                    }
+                ],
+            }
+        ]
+        return httpx.Response(200, stream=FragmentedStream(sse_fragments(events)))
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(provider))
+    tools = ToolService(
+        spring_repository,
+        PreferenceStore(runtime_directory / "preferences", spring_repository),
+        assignment_client,
+    )
+    agent = OpenRouterAgent(
+        api_key="test-key",
+        model="test/model",
+        base_url="https://openrouter.test/api/v1",
+        max_tool_rounds=8,
+        tools=tools,
+        sessions=SessionLog(runtime_directory / "sessions"),
+        client=client,
+    )
+    streamed: list[object] = []
+
+    with pytest.raises(OpenRouterError, match="repeated the same invalid tool request"):
+        async for event in agent.stream(
+            system_prompt="Test system prompt",
+            ui_messages=[UiMessage(role="user", content="Save my preferences")],
+            session_id="repeated-error",
+        ):
+            streamed.append(event)
+
+    await client.aclose()
+
+    results = [event for event in streamed if isinstance(event, ToolResult)]
+    assert len(results) == 2
+    assert all(result.is_error for result in results)
+    assert request_count == 2

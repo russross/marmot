@@ -15,29 +15,36 @@ Development setup
     there. The default model is `stealth/ox-alpha`. Every request asks OpenRouter to choose
     the highest-throughput provider. Set `OPENROUTER_MODEL=deepseek/deepseek-v4-flash-0731`
     to switch back to DeepSeek without changing application code.
-2.  Install Python dependencies and run checks:
+2.  Install Python and frontend dependencies:
 
     ```console
-    uv sync
-    uv run ruff check .
-    uv run ty check
-    uv run pytest
+    make install
     ```
 
-3.  Build the client:
+    The Makefile installs its pinned npm CLI, prefix, and cache under `.local/` and always
+    places `.local/bin` first for npm package scripts. It does not discover or use an npm
+    installation or cache from the user account or operating system. Node.js and `curl`
+    are the only bootstrap requirements.
+
+3.  Run all checks and build the static client:
 
     ```console
-    cd frontend
-    npm install
-    npm run lint
-    npm run build
+    make check
     ```
 
-4.  Start the combined app from this directory:
+Individual targets include `make test`, `make lint`, `make typecheck`, and `make build`.
+`make clean` removes generated build and cache files but deliberately preserves everything
+under `runtime/`, including saved sessions and faculty preference files.
+
+For a development server, start the combined app from this directory:
 
     ```console
     uv run uvicorn timetable_chat.main:app --host 0.0.0.0 --port 8000
     ```
+
+The installed system service is managed with `make start`, `make stop`, `make restart`,
+and `make status`. These targets invoke `sudo systemctl` for
+`marmot-timetable-chat.service`.
 
 Runtime files are created below `runtime/`. Session events are append-only JSONL files in
 `runtime/sessions/`; the current faculty snippets are in `runtime/preferences/`. Assignment
