@@ -722,6 +722,7 @@ def build_courses(db: queries.DB) -> None:
     db.add_prereqs('CS 4600', ['CS 2100', 'CS 2420', 'CS 2810', 'CS 3005', 'MATH 1210'])
     db.add_prereqs('CS 4800R', ['CS 2420', 'CS 2810'])
     db.add_prereqs('CS 4920R', ['CS 2420', 'CS 2810', 'CS 3005'])
+    db.add_prereqs('CS 4990', ['CS 2810'])
     db.add_prereqs('CS 4991R', ['CS 1400'])
     db.add_prereqs('CS 4992R', ['CS 2420', 'CS 2810'])
     db.add_prereqs('CS 4995', ['CS 2420', 'CS 3005'])

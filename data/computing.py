@@ -75,6 +75,7 @@ def build_post(db: DB) -> None:
         'CS 3150', 'CS 3400', 'CS 3410', 'CS 3520', 'CS 3600',
         'CS 4300', 'CS 4307', 'CS 4320', 'CS 4550',
         'SE 3200',
+        'CS 4990',
     ])
     db.make_conflict('Computer Science', 'math electives and supported science option', 6, 'boost', [
         # core requirements
@@ -91,6 +92,7 @@ def build_post(db: DB) -> None:
         'CS 3150', 'CS 3400', 'CS 3410', 'CS 3520', 'CS 3600',
         'CS 4300', 'CS 4307', 'CS 4320', 'CS 4550',
         'SE 3200',
+        'CS 4990',
 
         # math electives
         'MATH 1220',
@@ -297,7 +299,7 @@ def build_post(db: DB) -> None:
         'SE 3200',
 
         # give 4995 a better chance to make
-        'CS 4995-01',
+        'CS 4995',
     ])
 
     db.make_conflict('Software Engineering', 'only need one of AI/data mining', None, 'reduce',
@@ -419,8 +421,8 @@ def build_post(db: DB) -> None:
     #db.add_multiple_section_override('SE 4600', 1)
 
     db.make_conflict('Computer Science', 'spread out CS 1400', 5, 'boost',
-        ['CS 1400-01', 'CS 1400-02', 'CS 1400-03', 'CS 1400-04'])
+        ['CS 1400-01', 'CS 1400-02'])
     db.make_conflict('Computer Science', 'spread out CS 1410', 5, 'boost',
         ['CS 1410-01', 'CS 1410-02'])
     db.make_conflict('Information Technology', 'spread out IT 1100', 5, 'boost',
-        ['IT 1100-01', 'IT 1100-02', 'IT 1100-03'])
+        ['IT 1100-01', 'IT 1100-02'])
