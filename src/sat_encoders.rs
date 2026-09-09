@@ -2067,9 +2067,10 @@ fn is_back_to_back(input: &Input, ts1: usize, ts2: usize, max_gap: Duration) -> 
 //
 // A faculty no room switch constraint specifies that a faculty member should not
 // have to switch rooms between back-to-back classes, where back-to-back means the
-// gap between classes is <= max_gap_within_cluster. This function creates a hallpass
-// variable and adds clauses to enforce that if the faculty member teaches in different
-// rooms in back-to-back time slots, the hallpass variable must be true.
+// gap between classes is <= max_gap_within_cluster. This function creates one hallpass
+// for each section pair and checked day, then adds clauses to enforce that the pair's
+// hallpass is true when the faculty member teaches those consecutive classes in
+// different rooms.
 pub fn encode_faculty_no_room_switch(
     input: &Input,
     encoding: &mut Encoding,
@@ -2091,10 +2092,7 @@ pub fn encode_faculty_no_room_switch(
         ));
     }
 
-    // Add the problem to the encoding
     let faculty_name = &input.faculty[faculty].name;
-    let hallpass = encoding
-        .new_hallpass(priority, format!("{} should not switch rooms between back-to-back classes", faculty_name));
 
     // Create faculty_room_time variables
     let faculty_room_time_vars = make_faculty_room_time_vars(input, encoding, faculty, days_to_check)?;
@@ -2114,6 +2112,7 @@ pub fn encode_faculty_no_room_switch(
     // For each back-to-back section pair:
     for BackToBackSectionPair { day, sections, common_rooms } in back_to_back_section_pairs {
         let [section1, section2] = sections;
+        let mut hallpass = None;
 
         // Skip if no common rooms (shouldn't happen due to filtering in get_back_to_back_section_pairs)
         if common_rooms.is_empty() {
@@ -2193,6 +2192,28 @@ pub fn encode_faculty_no_room_switch(
                                 }
                             }
                         }
+                        let hallpass = *hallpass.get_or_insert_with(|| {
+                            let day_name = match day {
+                                0 => "Monday",
+                                1 => "Tuesday",
+                                2 => "Wednesday",
+                                3 => "Thursday",
+                                4 => "Friday",
+                                5 => "Saturday",
+                                6 => "Sunday",
+                                _ => unreachable!("only 7 days in a week"),
+                            };
+                            encoding.new_hallpass(
+                                priority,
+                                format!(
+                                    "{} should not switch rooms between {} and {} on {}",
+                                    faculty_name,
+                                    input.sections[section1].name,
+                                    input.sections[section2].name,
+                                    day_name,
+                                ),
+                            )
+                        });
                         clause.push(hallpass);
                         encoding.add_clause(clause);
                     }
@@ -2396,5 +2417,43 @@ mod tests {
                 && clause.contains(&intervening_time)
                 && clause.contains(&hallpass)
         }));
+    }
+
+    #[test]
+    fn no_room_switch_uses_one_hallpass_per_adjacent_pair_and_day() {
+        let monday = Days::parse("M").unwrap();
+        let input = Input {
+            term_name: "test".to_string(),
+            rooms: vec![Room { name: "A".to_string() }, Room { name: "B".to_string() }],
+            time_slots: (0..3)
+                .map(|index| TimeSlot {
+                    name: format!("T{index}"),
+                    days: monday,
+                    start_time: Time::new(index * 50),
+                    duration: Duration::new(50),
+                })
+                .collect(),
+            faculty: vec![Faculty { name: "Faculty".to_string(), sections: vec![0, 1, 2] }],
+            sections: vec![section("A", 0, &[0, 1]), section("B", 1, &[0, 1]), section("C", 2, &[0, 1])],
+            criteria: vec![],
+            faculty_preference_priority_policy: FacultyPreferencePriorityPolicy::Stated,
+            time_slot_conflicts: vec![vec![true, false, false], vec![false, true, false], vec![false, false, true]],
+        };
+        let mut encoding = Encoding::new();
+        for section in 0..3 {
+            let time_var = encoding.new_var();
+            encoding.section_time_vars.insert((section, section), time_var);
+            for room in input.sections[section].rooms.iter().map(|option| option.room) {
+                let room_var = encoding.new_var();
+                encoding.section_room_vars.insert((section, room), room_var);
+            }
+        }
+
+        encode_faculty_no_room_switch(&input, &mut encoding, 10, 0, monday, Duration::new(0)).unwrap();
+
+        let hallpasses = &encoding.hallpasses[&10];
+        assert_eq!(hallpasses.len(), 2);
+        assert!(encoding.problems.values().any(|(_, message)| message.contains("A and B on Monday")));
+        assert!(encoding.problems.values().any(|(_, message)| message.contains("B and C on Monday")));
     }
 }

@@ -230,9 +230,10 @@ associated criterion violation is counted.
 
 *   FacultyNoRoomSwitch
 
-    Create `H`.  For every relevant ordered section pair, checked day,
-    back-to-back time-slot pair, and different room assignment, add
-    `!R[s1,r1] OR !T[s1,t1] OR !R[s2,r2] OR !T[s2,t2] OR H`.
+    Create one `H[pair,day]` for every relevant section pair and checked day.
+    For every back-to-back time-slot pair and different room assignment, add
+    `!R[s1,r1] OR !T[s1,t1] OR !R[s2,r2] OR !T[s2,t2] OR H[pair,day]`.
+    Each actual adjacent room switch therefore contributes one violation.
 
 *   FacultyTooManyRooms
 
