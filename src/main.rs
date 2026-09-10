@@ -7,6 +7,8 @@ pub mod sat_criteria;
 pub mod sat_encoders;
 pub mod sat_solver;
 pub mod score;
+#[cfg(test)]
+mod shared_day_off_tests;
 pub mod solver;
 use self::error::Result;
 use self::faculty_preferences::*;

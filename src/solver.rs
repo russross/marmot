@@ -263,6 +263,40 @@ pub fn move_section(
     PlacementLog { moves, criteria }
 }
 
+#[cfg(test)]
+mod shared_day_off_tests {
+    use super::*;
+    use crate::shared_day_off_tests::input;
+
+    #[test]
+    fn moving_either_partner_and_undoing_matches_full_scoring() {
+        let input = input();
+        let mut schedule = Schedule::new(&input);
+        for (section, time) in [0, 2, 0, 2].into_iter().enumerate() {
+            move_section(&input, &mut schedule, section, time, &None);
+        }
+        assert!(schedule.score.is_zero());
+        for section in [0, 2] {
+            let before = schedule.score;
+            let delta = speculative_move_section(&input, &mut schedule, section, 1, &None);
+            assert!(schedule.score == before);
+            let log = move_section(&input, &mut schedule, section, 1, &None);
+            assert!(schedule.score == before + delta);
+            let full = input
+                .criteria
+                .iter()
+                .flat_map(|c| c.check(&input, &schedule))
+                .fold(Score::new(), |score, penalty| score + penalty.get_priority());
+            assert!(schedule.score == full);
+            assert_eq!(schedule.score.levels[20], 1);
+            assert_eq!(schedule.score.levels[21], 1);
+            revert_move(&input, &mut schedule, &log);
+            assert!(schedule.score == before);
+            assert_eq!(schedule.placements[section].time_slot, Some(0));
+        }
+    }
+}
+
 fn revert_move(input: &Input, schedule: &mut Schedule, log: &PlacementLog) {
     // the section placement functions want to record their moves,
     // but we will just throw it away afterward

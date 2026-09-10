@@ -78,6 +78,7 @@ pub enum FacultyPreferenceKind {
     AvoidRooms { section: usize, rooms: Vec<usize> },
     AvoidTimeSlots { section: usize, time_slots: Vec<usize> },
     DaysOff { days_to_check: Days, desired: usize },
+    SameDayOffAs { other_faculty: usize, days_to_check: Days },
     EvenlySpread { days_to_check: Days },
     NoRoomSwitch { days_to_check: Days, max_gap: Duration },
     TooManyRooms { desired_max_rooms: usize },
@@ -145,6 +146,11 @@ pub enum Penalty {
         faculty: usize,
         desired: usize,
         actual: usize,
+    },
+    SameDayOffAs {
+        priority: u8,
+        faculty: usize,
+        other_faculty: usize,
     },
     DaysEvenlySpread {
         priority: u8,
@@ -802,6 +808,13 @@ impl Criterion {
     }
 }
 
+pub fn faculty_teaching_days(input: &Input, schedule: &Schedule, faculty: usize, days_to_check: Days) -> Days {
+    let days = input.faculty[faculty].sections.iter().fold(0, |days, &section| {
+        days | schedule.placements[section].time_slot.map_or(0, |slot| input.time_slots[slot].days.days)
+    });
+    Days { days: days & days_to_check.days }
+}
+
 impl FacultyPreference {
     pub fn description(&self, input: &Input) -> String {
         let faculty = &input.faculty[self.faculty].name;
@@ -822,6 +835,9 @@ impl FacultyPreference {
             ),
             FacultyPreferenceKind::DaysOff { desired, .. } => {
                 format!("have exactly {desired} representative day{} off", if *desired == 1 { "" } else { "s" })
+            }
+            FacultyPreferenceKind::SameDayOffAs { other_faculty, .. } => {
+                format!("have exactly one representative day off, the same as {}", input.faculty[*other_faculty].name)
             }
             FacultyPreferenceKind::EvenlySpread { .. } => "spread classes evenly across days".to_string(),
             FacultyPreferenceKind::NoRoomSwitch { .. } => "avoid room switches between consecutive classes".to_string(),
@@ -850,6 +866,15 @@ impl FacultyPreference {
 
     pub fn check(&self, input: &Input, schedule: &Schedule) -> Vec<Penalty> {
         match &self.kind {
+            &FacultyPreferenceKind::SameDayOffAs { other_faculty, days_to_check } => {
+                let own_days = faculty_teaching_days(input, schedule, self.faculty, days_to_check);
+                let other_days = faculty_teaching_days(input, schedule, other_faculty, days_to_check);
+                if own_days.days == other_days.days && own_days.len() + 1 == days_to_check.len() {
+                    Vec::new()
+                } else {
+                    vec![Penalty::SameDayOffAs { priority: self.priority, faculty: self.faculty, other_faculty }]
+                }
+            }
             FacultyPreferenceKind::AvoidRooms { section, rooms } => {
                 let Some(room) = schedule.placements[*section].room else {
                     return Vec::new();
@@ -953,7 +978,8 @@ impl FacultyPreference {
                     }
                     FacultyPreferenceKind::AvoidRooms { .. }
                     | FacultyPreferenceKind::AvoidTimeSlots { .. }
-                    | FacultyPreferenceKind::TimePatternMatch { .. } => unreachable!(),
+                    | FacultyPreferenceKind::TimePatternMatch { .. }
+                    | FacultyPreferenceKind::SameDayOffAs { .. } => unreachable!(),
                 }
 
                 Criterion::FacultyPreference {
@@ -984,6 +1010,7 @@ impl Penalty {
             | Penalty::GapTooShort { faculty, .. }
             | Penalty::GapTooLong { faculty, .. }
             | Penalty::DaysOff { faculty, .. }
+            | Penalty::SameDayOffAs { faculty, .. }
             | Penalty::DaysEvenlySpread { faculty, .. }
             | Penalty::RoomSwitch { faculty, .. }
             | Penalty::RoomCount { faculty, .. } => Some(faculty),
@@ -1010,6 +1037,7 @@ impl Penalty {
             Penalty::GapTooLong { priority, .. } => priority,
 
             Penalty::DaysOff { priority, .. } => priority,
+            Penalty::SameDayOffAs { priority, .. } => priority,
 
             Penalty::DaysEvenlySpread { priority, .. } => priority,
 
@@ -1044,6 +1072,13 @@ impl Penalty {
             &Penalty::GapTooLong { faculty, .. } => input.faculty[faculty].sections.clone(),
 
             &Penalty::DaysOff { faculty, .. } => input.faculty[faculty].sections.clone(),
+            &Penalty::SameDayOffAs { faculty, other_faculty, .. } => {
+                let mut sections = input.faculty[faculty].sections.clone();
+                sections.extend_from_slice(&input.faculty[other_faculty].sections);
+                sections.sort_unstable();
+                sections.dedup();
+                sections
+            }
 
             &Penalty::DaysEvenlySpread { faculty, .. } => input.faculty[faculty].sections.clone(),
 
@@ -1199,6 +1234,13 @@ impl Penalty {
                 format!("{} has to wait {} between clusters of classes", input.faculty[faculty].name, duration,),
             ),
 
+            &Penalty::SameDayOffAs { priority, faculty, other_faculty } => (
+                priority,
+                format!(
+                    "{} wants exactly one representative day off, the same as {}, but did not get it",
+                    input.faculty[faculty].name, input.faculty[other_faculty].name
+                ),
+            ),
             &Penalty::DaysOff { priority, faculty, desired, actual: _actual } => (
                 priority,
                 if desired == 0 {

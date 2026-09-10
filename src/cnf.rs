@@ -13,6 +13,9 @@ pub struct Encoding {
     // maps (section, time slot) pairs to variable IDs
     pub section_time_vars: HashMap<(usize, usize), i32>,
 
+    // Each cached variable is linked to all section-time assignments for that faculty day.
+    pub faculty_day_vars: HashMap<(usize, u8), i32>,
+
     // maps variable IDs to problem descriptions with priority levels
     pub problems: HashMap<i32, (u8, String)>,
 
@@ -27,6 +30,7 @@ impl Encoding {
             clauses: Vec::new(),
             section_room_vars: HashMap::new(),
             section_time_vars: HashMap::new(),
+            faculty_day_vars: HashMap::new(),
             problems: HashMap::new(),
             hallpasses: HashMap::new(),
         }

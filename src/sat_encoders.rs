@@ -33,6 +33,9 @@ pub fn encode_criterion(
         SatCriterion::FacultyDaysOff { faculty, days_to_check, desired_days_off, priority } => {
             encode_faculty_days_off(input, encoding, *priority, *faculty, *days_to_check, *desired_days_off)
         }
+        SatCriterion::FacultySameDayOff { faculty, days_to_check, priority } => {
+            encode_faculty_same_day_off(input, encoding, *priority, *faculty, *days_to_check)
+        }
 
         SatCriterion::FacultyEvenlySpread { faculty, days_to_check, priority } => {
             encode_faculty_evenly_spread(input, encoding, *priority, *faculty, *days_to_check)
@@ -499,6 +502,45 @@ fn encode_time_pattern_match(input: &Input, encoding: &mut Encoding, priority: u
 // specific number of days without classes. This function creates a hallpass variable
 // and adds clauses to enforce that if the faculty member's schedule doesn't have
 // the desired number of days off, the hallpass variable must be true.
+fn encode_faculty_same_day_off(
+    input: &Input,
+    encoding: &mut Encoding,
+    priority: u8,
+    faculty: [usize; 2],
+    days_to_check: Days,
+) -> Result<()> {
+    if faculty[0] == faculty[1]
+        || days_to_check.len() < 2
+        || faculty.iter().any(|&f| input.faculty.get(f).is_none_or(|f| f.sections.is_empty()))
+    {
+        return err("shared day off requires two faculty with schedulable sections and at least two checked days");
+    }
+    let first = make_faculty_day_vars(input, encoding, faculty[0], &days_to_check)?;
+    let second = make_faculty_day_vars(input, encoding, faculty[1], &days_to_check)?;
+    let vars: Vec<i32> =
+        days_to_check.into_iter().map(|d| first[&d]).chain(days_to_check.into_iter().map(|d| second[&d])).collect();
+    let hallpass = encoding.new_hallpass(
+        priority,
+        format!(
+            "{} wants exactly one representative day off, the same as {}",
+            input.faculty[faculty[0]].name, input.faculty[faculty[1]].name
+        ),
+    );
+    let n = days_to_check.len();
+    let mask = (1_usize << n) - 1;
+    for pattern in 0_usize..1 << (2 * n) {
+        let a = pattern & mask;
+        let b = pattern >> n;
+        if a == b && a.count_ones() as usize + 1 == n {
+            continue;
+        }
+        let mut clause = vec![hallpass];
+        clause.extend(vars.iter().enumerate().map(|(bit, &var)| if pattern & (1 << bit) == 0 { var } else { -var }));
+        encoding.add_clause(clause);
+    }
+    Ok(())
+}
+
 fn encode_faculty_days_off(
     input: &Input,
     encoding: &mut Encoding,
@@ -585,76 +627,40 @@ fn encode_faculty_days_off(
 
 // Create variables that represent whether a faculty member teaches on specific days.
 //
-// For each day in days_to_check, creates a variable that will be true if and only if
-// at least one of the faculty member's sections is scheduled on that day.
+// Variables and their links are shared by all criteria in this encoding. Each
+// variable is true if and only if a faculty section is scheduled on that day.
 fn make_faculty_day_vars(
     input: &Input,
     encoding: &mut Encoding,
     faculty: usize,
     days_to_check: &Days,
 ) -> Result<HashMap<u8, i32>> {
-    // Create the map of day variables we'll return
-    let mut day_to_var: HashMap<u8, i32> = HashMap::new();
-
-    // Create mappings to help with encoding
-    let mut var_to_section_time_vars: HashMap<i32, Vec<i32>> = HashMap::new();
-
-    // Initialize day variables
+    let mut day_to_var = HashMap::new();
     for day in days_to_check.into_iter() {
-        let var = encoding.new_var();
-        day_to_var.insert(day, var);
-        var_to_section_time_vars.insert(var, Vec::new());
-    }
-
-    // For each section taught by this faculty
-    for &section in &input.faculty[faculty].sections {
-        // For each day of interest
-        for day in days_to_check.into_iter() {
-            // For each time slot available to this section
-            for &TimeSlotWithOptionalPriority { time_slot, .. } in &input.sections[section].time_slots {
-                let time_slot_days = &input.time_slots[time_slot].days;
-
-                // Only if this time slot covers this day
-                if !time_slot_days.contains(day) {
-                    continue;
-                }
-
-                // Get the variable for this section-time pair
-                // It must exist if we've initialized correctly
-                if !encoding.section_time_vars.contains_key(&(section, time_slot)) {
-                    return err(format!("Missing variable for section {}, time slot {}", section, time_slot));
-                }
-
-                // Record this for encoding
-                let time_var = encoding.section_time_vars[&(section, time_slot)];
-                if let Some(vars) = var_to_section_time_vars.get_mut(&day_to_var[&day]) {
-                    vars.push(time_var);
+        if let Some(&var) = encoding.faculty_day_vars.get(&(faculty, day)) {
+            day_to_var.insert(day, var);
+            continue;
+        }
+        let mut section_time_vars = Vec::new();
+        for &section in &input.faculty[faculty].sections {
+            for option in &input.sections[section].time_slots {
+                if input.time_slots[option.time_slot].days.contains(day) {
+                    let &var = encoding.section_time_vars.get(&(section, option.time_slot)).ok_or_else(|| {
+                        format!("Missing variable for section {}, time slot {}", section, option.time_slot)
+                    })?;
+                    section_time_vars.push(var);
                 }
             }
         }
-    }
-
-    // Add the clauses for each day variable
-    for (&day_var, section_time_vars) in &var_to_section_time_vars {
-        if section_time_vars.is_empty() {
-            // If there are no possible section-time assignments for this day,
-            // this variable must be false
-            encoding.add_clause(vec![-day_var]);
-            continue;
-        }
-
-        // Encode day_var -> (time_slot_1 OR time_slot_2 OR ...)
-        // i.e. !day_var OR time_slot_1 OR time_slot_2 OR ...
+        let day_var = encoding.new_var();
         let mut clause = vec![-day_var];
-        clause.extend(section_time_vars.iter());
+        clause.extend_from_slice(&section_time_vars);
         encoding.add_clause(clause);
-
-        // Encode: (any of the time slots) -> day_var
-        // i.e.: (!time_slot_1 AND !time_slot_2 AND ...) OR day_var
-        // i.e.: (!time_slot_1 OR day_var) AND (!time_slot_2 OR day_var) AND ...
-        for &time_var in section_time_vars {
+        for time_var in section_time_vars {
             encoding.add_clause(vec![-time_var, day_var]);
         }
+        encoding.faculty_day_vars.insert((faculty, day), day_var);
+        day_to_var.insert(day, day_var);
     }
 
     Ok(day_to_var)

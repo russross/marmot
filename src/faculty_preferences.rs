@@ -1,9 +1,12 @@
 use super::error::{Result, err};
 use super::input::{Days, Input, Time};
-use super::score::{Criterion, FacultyPreferenceKind, MAX_PRIORITY, START_LEVEL_FOR_PREFERENCES};
+use super::score::{
+    Criterion, FacultyPreferenceKind, MAX_PRIORITY, START_LEVEL_FOR_PREFERENCES, faculty_teaching_days,
+};
 use super::solver::Schedule;
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, btree_map::Entry};
+use std::iter::once;
 use std::time::Instant;
 
 const EFFECTIVE_PRIORITY_BUCKETS: usize = (MAX_PRIORITY - START_LEVEL_FOR_PREFERENCES + 1) as usize;
@@ -34,8 +37,8 @@ struct TierImpact {
     stated_priority: u8,
     criteria: Vec<usize>,
     effective_preferences: usize,
-    total: u64,
-    remaining: u64,
+    total: u128,
+    remaining: u128,
 }
 
 struct ImpactBucket {
@@ -60,6 +63,28 @@ struct CountingStats {
     room_cache_misses: u64,
 }
 
+struct DayHistogram {
+    counts: [u128; 128],
+    total: u128,
+}
+
+impl DayHistogram {
+    fn new() -> Self {
+        Self { counts: [0; 128], total: 0 }
+    }
+
+    fn add(&mut self, days: Days, count: u64) -> Result<()> {
+        self.total = self.total.checked_add(count as u128).ok_or("faculty schedule count overflow")?;
+        self.counts[days.days as usize] =
+            self.counts[days.days as usize].checked_add(count as u128).ok_or("faculty schedule count overflow")?;
+        Ok(())
+    }
+
+    fn matching(&self, days: Days, mask: u8) -> u128 {
+        self.counts.iter().enumerate().filter(|(m, _)| *m as u8 & days.days == mask).map(|(_, &n)| n).sum()
+    }
+}
+
 pub fn rebalance_faculty_preferences(input: &mut Input, show_details: bool) -> Result<()> {
     let started = Instant::now();
     let mut grouped: BTreeMap<(usize, u8), Vec<usize>> = BTreeMap::new();
@@ -77,15 +102,15 @@ pub fn rebalance_faculty_preferences(input: &mut Input, show_details: bool) -> R
     let mut impacts = Vec::new();
     let mut stats = CountingStats::default();
     for tiers in tiers_by_faculty.values() {
-        let counts = count_preference_prefixes(input, tiers, &mut stats)?;
-        let total = counts[0];
-        if total == 0 {
+        let counts = count_preference_impacts(input, tiers, &mut stats)?;
+        if counts.iter().any(|&(total, _)| total == 0) {
             return err(format!(
                 "faculty {} has no conflict-free local schedule",
                 input.faculty[tiers[0].faculty].name
             ));
         }
         for (tier_index, tier) in tiers.iter().enumerate() {
+            let (total, remaining) = counts[tier_index];
             let effective_preferences = tier
                 .criteria
                 .iter()
@@ -97,7 +122,7 @@ pub fn rebalance_faculty_preferences(input: &mut Input, show_details: bool) -> R
                 criteria: tier.criteria.clone(),
                 effective_preferences,
                 total,
-                remaining: counts[tier_index + 1],
+                remaining,
             });
         }
     }
@@ -152,12 +177,147 @@ fn print_rebalancing_details(input: &Input, buckets: &[ImpactBucket]) {
     }
 }
 
-fn count_preference_prefixes(input: &Input, tiers: &[PreferenceTier], stats: &mut CountingStats) -> Result<Vec<u64>> {
+fn count_preference_impacts(
+    input: &Input,
+    tiers: &[PreferenceTier],
+    stats: &mut CountingStats,
+) -> Result<Vec<(u128, u128)>> {
+    let local = count_preference_prefixes(input, tiers, stats)?;
+    let owner = tiers[0].faculty;
+    let mut partners: BTreeMap<usize, Days> = BTreeMap::new();
+    let mut baselines = BTreeMap::new();
+    let mut impacts = Vec::new();
+    for (tier_index, tier) in tiers.iter().enumerate() {
+        for &index in &tier.criteria {
+            if let Criterion::OwnedFacultyPreference(preference) = &input.criteria[index]
+                && let FacultyPreferenceKind::SameDayOffAs { other_faculty, days_to_check } = preference.kind
+            {
+                partners.insert(other_faculty, days_to_check);
+            }
+        }
+        let members: Vec<usize> = once(owner).chain(partners.keys().copied()).collect();
+        let overlapping = members.iter().enumerate().any(|(i, &a)| {
+            members[..i]
+                .iter()
+                .any(|&b| input.faculty[a].sections.iter().any(|section| input.faculty[b].sections.contains(section)))
+        });
+        if overlapping {
+            impacts.push(count_joint_assignments(input, &tiers[..=tier_index], &members)?);
+            continue;
+        }
+        for &partner in partners.keys() {
+            if let Entry::Vacant(entry) = baselines.entry(partner) {
+                let baseline_tier = PreferenceTier { faculty: partner, stated_priority: 10, criteria: Vec::new() };
+                let mut counts = count_preference_prefixes(input, &[baseline_tier], stats)?;
+                entry.insert(counts.remove(0));
+            }
+        }
+        let mut total = local[0].total;
+        for &partner in partners.keys() {
+            total = total.checked_mul(baselines[&partner].total).ok_or("joint faculty schedule count overflow")?;
+        }
+        let mut remaining = 0_u128;
+        for (mask, &count) in local[tier_index + 1].counts.iter().enumerate() {
+            if count == 0 {
+                continue;
+            }
+            let mut count = count;
+            for (&partner, &days) in &partners {
+                let mask = mask as u8 & days.days;
+                if mask.count_ones() as usize + 1 != days.len() {
+                    count = 0;
+                    break;
+                }
+                count = count
+                    .checked_mul(baselines[&partner].matching(days, mask))
+                    .ok_or("joint faculty schedule count overflow")?;
+            }
+            remaining = remaining.checked_add(count).ok_or("joint faculty schedule count overflow")?;
+        }
+        impacts.push((total, remaining));
+    }
+    Ok(impacts)
+}
+
+// Shared sections have one placement even when several local domains contain them.
+struct JointCounter<'a> {
+    input: &'a Input,
+    tiers: &'a [PreferenceTier],
+    members: &'a [usize],
+    sections: Vec<usize>,
+    schedule: Schedule,
+    total: u128,
+    remaining: u128,
+}
+
+fn count_joint_assignments(input: &Input, tiers: &[PreferenceTier], members: &[usize]) -> Result<(u128, u128)> {
+    let mut sections: Vec<usize> = members.iter().flat_map(|&f| input.faculty[f].sections.iter().copied()).collect();
+    sections.sort_unstable();
+    sections.dedup();
+    sections.sort_unstable_by_key(|&s| input.sections[s].time_slots.len());
+    let mut counter =
+        JointCounter { input, tiers, members, sections, schedule: Schedule::new(input), total: 0, remaining: 0 };
+    counter.times(0)?;
+    Ok((counter.total, counter.remaining))
+}
+
+impl JointCounter<'_> {
+    fn times(&mut self, index: usize) -> Result<()> {
+        if index == self.sections.len() {
+            return self.rooms(0);
+        }
+        let section = self.sections[index];
+        for option in &self.input.sections[section].time_slots {
+            let conflict = self.sections[..index].iter().any(|&other| {
+                self.members.iter().any(|&f| {
+                    self.input.faculty[f].sections.contains(&section) && self.input.faculty[f].sections.contains(&other)
+                }) && self.schedule.placements[other]
+                    .time_slot
+                    .is_some_and(|t| self.input.time_slot_conflicts[option.time_slot][t])
+            });
+            if conflict {
+                continue;
+            }
+            self.schedule.placements[section].time_slot = Some(option.time_slot);
+            self.times(index + 1)?;
+        }
+        self.schedule.placements[section].time_slot = None;
+        Ok(())
+    }
+
+    fn rooms(&mut self, index: usize) -> Result<()> {
+        if index == self.sections.len() {
+            self.total = self.total.checked_add(1).ok_or("joint faculty schedule count overflow")?;
+            if self.tiers.iter().all(|tier| {
+                tier.criteria.iter().all(|&c| self.input.criteria[c].check(self.input, &self.schedule).is_empty())
+            }) {
+                self.remaining = self.remaining.checked_add(1).ok_or("joint faculty schedule count overflow")?;
+            }
+            return Ok(());
+        }
+        let section = self.sections[index];
+        if self.input.sections[section].rooms.is_empty() {
+            return self.rooms(index + 1);
+        }
+        for option in &self.input.sections[section].rooms {
+            self.schedule.placements[section].room = Some(option.room);
+            self.rooms(index + 1)?;
+        }
+        self.schedule.placements[section].room = None;
+        Ok(())
+    }
+}
+
+fn count_preference_prefixes(
+    input: &Input,
+    tiers: &[PreferenceTier],
+    stats: &mut CountingStats,
+) -> Result<Vec<DayHistogram>> {
     let faculty = tiers[0].faculty;
     let mut ordered_sections = input.faculty[faculty].sections.clone();
     ordered_sections.sort_unstable_by_key(|&section| input.sections[section].time_slots.len());
     let mut schedule = Schedule::new(input);
-    let mut counts = vec![0_u64; tiers.len() + 1];
+    let mut counts: Vec<DayHistogram> = (0..=tiers.len()).map(|_| DayHistogram::new()).collect();
     let mut room_cache: HashMap<(usize, Vec<usize>), u64> = HashMap::new();
 
     enumerate_time_assignments(input, tiers, &ordered_sections, 0, &mut schedule, &mut counts, &mut room_cache, stats)?;
@@ -171,7 +331,7 @@ fn enumerate_time_assignments(
     ordered_sections: &[usize],
     section_index: usize,
     schedule: &mut Schedule,
-    counts: &mut [u64],
+    counts: &mut [DayHistogram],
     room_cache: &mut HashMap<(usize, Vec<usize>), u64>,
     stats: &mut CountingStats,
 ) -> Result<()> {
@@ -212,9 +372,7 @@ fn enumerate_time_assignments(
         if room_count == 0 {
             break;
         }
-        counts[prefix] = counts[prefix]
-            .checked_add(room_count)
-            .ok_or("faculty schedule count overflow; reduce the local schedule domain")?;
+        counts[prefix].add(faculty_teaching_days(input, schedule, tiers[0].faculty, Days { days: 127 }), room_count)?;
     }
     Ok(())
 }
@@ -226,6 +384,7 @@ fn tier_time_preferences_satisfied(input: &Input, tier: &PreferenceTier, schedul
         };
         match preference.kind {
             FacultyPreferenceKind::AvoidRooms { .. }
+            | FacultyPreferenceKind::SameDayOffAs { .. }
             | FacultyPreferenceKind::NoRoomSwitch { .. }
             | FacultyPreferenceKind::TooManyRooms { .. } => true,
             _ => preference.check(input, schedule).is_empty(),
@@ -412,6 +571,7 @@ fn effective_preference_count(criterion: &Criterion) -> usize {
         FacultyPreferenceKind::AvoidRooms { rooms, .. } => rooms.len(),
         FacultyPreferenceKind::AvoidTimeSlots { time_slots, .. } => time_slots.len(),
         FacultyPreferenceKind::DaysOff { .. }
+        | FacultyPreferenceKind::SameDayOffAs { .. }
         | FacultyPreferenceKind::EvenlySpread { .. }
         | FacultyPreferenceKind::NoRoomSwitch { .. }
         | FacultyPreferenceKind::TooManyRooms { .. }
@@ -495,7 +655,24 @@ fn compare_impact(a: &TierImpact, b: &TierImpact) -> Ordering {
         (0, 0) => Ordering::Equal,
         (0, _) => Ordering::Greater,
         (_, 0) => Ordering::Less,
-        _ => (a.total as u128 * b.remaining as u128).cmp(&(b.total as u128 * a.remaining as u128)),
+        _ => compare_ratios(a.total, a.remaining, b.total, b.remaining),
+    }
+}
+
+fn compare_ratios(mut a: u128, mut b: u128, mut c: u128, mut d: u128) -> Ordering {
+    let mut reversed = false;
+    loop {
+        let comparison = (a / b).cmp(&(c / d));
+        if comparison != Ordering::Equal {
+            return if reversed { comparison.reverse() } else { comparison };
+        }
+        let (r, s) = (a % b, c % d);
+        if r == 0 || s == 0 {
+            let comparison = r.cmp(&s);
+            return if reversed { comparison.reverse() } else { comparison };
+        }
+        (a, b, c, d) = (b, r, d, s);
+        reversed = !reversed;
     }
 }
 
@@ -510,6 +687,7 @@ mod tests {
         CreditHours, Duration, Faculty, Room, RoomWithOptionalPriority, Section, TimeSlot, TimeSlotWithOptionalPriority,
     };
     use crate::score::{FacultyPreference, FacultyPreferenceKind};
+    use crate::shared_day_off_tests::input as shared_input;
 
     fn section(name: &str, time_slots: &[usize]) -> Section {
         Section {
@@ -540,7 +718,7 @@ mod tests {
         })
     }
 
-    fn impact(faculty: usize, effective_preferences: usize, remaining: u64) -> TierImpact {
+    fn impact(faculty: usize, effective_preferences: usize, remaining: u128) -> TierImpact {
         TierImpact {
             faculty,
             stated_priority: 10,
@@ -553,6 +731,83 @@ mod tests {
 
     fn bucket_weights(buckets: &[ImpactBucket]) -> Vec<usize> {
         buckets.iter().map(|bucket| bucket.impacts.iter().map(|impact| impact.effective_preferences).sum()).collect()
+    }
+
+    #[test]
+    fn shared_histograms_match_exhaustive_room_weighted_prefixes() {
+        let mut input = shared_input();
+        input.criteria.push(preference(10, FacultyPreferenceKind::AvoidRooms { section: 0, rooms: vec![0] }));
+        input.criteria.push(preference(22, FacultyPreferenceKind::AvoidRooms { section: 1, rooms: vec![1] }));
+        let tiers: Vec<_> = [2, 0, 3]
+            .into_iter()
+            .enumerate()
+            .map(|(i, c)| PreferenceTier { faculty: 0, stated_priority: 10 + i as u8, criteria: vec![c] })
+            .collect();
+        let mut stats = CountingStats::default();
+        let counts = count_preference_impacts(&input, &tiers, &mut stats).unwrap();
+        assert_eq!(counts, vec![(24, 12), (576, 64), (576, 32)]);
+        for prefix in 1..=tiers.len() {
+            let members = if prefix == 1 { vec![0] } else { vec![0, 1] };
+            assert_eq!(counts[prefix - 1], count_joint_assignments(&input, &tiers[..prefix], &members).unwrap());
+        }
+        // The partner's earlier preferences are not part of the owner's prefix.
+        input.criteria.push(Criterion::OwnedFacultyPreference(FacultyPreference {
+            faculty: 1,
+            sections: vec![2, 3],
+            stated_priority: 10,
+            priority: 10,
+            kind: FacultyPreferenceKind::AvoidTimeSlots { section: 2, time_slots: vec![0, 1, 2] },
+        }));
+        assert_eq!(counts, count_preference_impacts(&input, &tiers, &mut stats).unwrap());
+        let partner_tiers = vec![
+            PreferenceTier { faculty: 1, stated_priority: 10, criteria: vec![4] },
+            PreferenceTier { faculty: 1, stated_priority: 21, criteria: vec![1] },
+        ];
+        assert_eq!(count_preference_impacts(&input, &partner_tiers, &mut stats).unwrap(), vec![(24, 0), (576, 0)]);
+    }
+
+    #[test]
+    fn shared_sections_are_counted_once() {
+        let mut input = shared_input();
+        input.faculty[0].sections = vec![0];
+        input.faculty[1].sections = vec![0];
+        let tiers = vec![PreferenceTier { faculty: 0, stated_priority: 20, criteria: vec![0] }];
+        let counts = count_preference_impacts(&input, &tiers, &mut CountingStats::default()).unwrap();
+        // Three times and two rooms for the one shared section, four with one MT day off.
+        assert_eq!(counts, vec![(6, 4)]);
+    }
+
+    #[test]
+    fn multiple_partner_prefixes_match_joint_enumeration() {
+        let mut input = shared_input();
+        input.faculty.push(Faculty { name: "C".into(), sections: vec![4, 5] });
+        input.sections.extend([section("C1", &[0, 1, 2]), section("C2", &[0, 1, 2])]);
+        input.criteria.push(preference(
+            22,
+            FacultyPreferenceKind::SameDayOffAs { other_faculty: 2, days_to_check: Days::parse("MT").unwrap() },
+        ));
+        let tiers = vec![
+            PreferenceTier { faculty: 0, stated_priority: 20, criteria: vec![0] },
+            PreferenceTier { faculty: 0, stated_priority: 22, criteria: vec![2] },
+        ];
+        let counts = count_preference_impacts(&input, &tiers, &mut CountingStats::default()).unwrap();
+        assert_eq!(counts, vec![(576, 128), (13824, 1024)]);
+        assert_eq!(counts[1], count_joint_assignments(&input, &tiers, &[0, 1, 2]).unwrap());
+    }
+
+    #[test]
+    fn rational_impact_comparison_handles_full_width_counts() {
+        assert_eq!(compare_ratios(u128::MAX, u128::MAX - 1, u128::MAX - 1, u128::MAX - 2), Ordering::Less);
+        assert_eq!(compare_ratios(u128::MAX, 3, u128::MAX / 3, 1), Ordering::Equal);
+        for a in 0..20 {
+            for b in 1..20 {
+                for c in 0..20 {
+                    for d in 1..20 {
+                        assert_eq!(compare_ratios(a, b, c, d), (a * d).cmp(&(c * b)));
+                    }
+                }
+            }
+        }
     }
 
     #[test]
@@ -592,9 +847,13 @@ mod tests {
             .collect();
         let mut stats = CountingStats::default();
 
-        let counts = count_preference_prefixes(&input, &tiers, &mut stats).unwrap();
+        let counts: Vec<u128> = count_preference_prefixes(&input, &tiers, &mut stats)
+            .unwrap()
+            .iter()
+            .map(|histogram| histogram.total)
+            .collect();
 
-        let mut brute_force_counts = vec![0_u64; 5];
+        let mut brute_force_counts = vec![0_u128; 5];
         let mut schedule = Schedule::new(&input);
         for &first_time in &[0, 1] {
             for &second_time in &[1, 2] {
@@ -648,7 +907,7 @@ mod tests {
                 criteria: vec![index],
                 effective_preferences: 1,
                 total: 100,
-                remaining: if index + 1 == impact_count { 0 } else { 100 - index as u64 * 3 },
+                remaining: if index + 1 == impact_count { 0 } else { 100 - index as u128 * 3 },
             })
             .collect();
 
@@ -663,7 +922,7 @@ mod tests {
         let impacts = [8, 7, 6, 5, 4]
             .into_iter()
             .enumerate()
-            .map(|(index, weight)| impact(index, weight, 95 - index as u64 * 5))
+            .map(|(index, weight)| impact(index, weight, 95 - index as u128 * 5))
             .collect();
 
         let buckets = distribute_preference_tiers(impacts, 3);

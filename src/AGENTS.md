@@ -85,6 +85,14 @@ types.
     the least-loaded non-empty checked day.  Requires at least two checked days
     and more than three faculty sections.
 
+*   FacultySameDayOff
+
+    Both faculty must have exactly one empty day among the same checked days,
+    and that day must match. Each reciprocal request is faculty-owned and has
+    its own stated and effective priority and one hallpass. Individual days-off
+    requests are optional, independently scored criteria. All schedulable
+    sections from both faculty participate in dependency tracking.
+
 *   FacultyNoRoomSwitch
 
     A faculty member should not teach back-to-back classes in different rooms.
@@ -220,6 +228,14 @@ associated criterion violation is counted.
     number of false days is not `desired_days_off`; for each bad pattern, add a
     clause negating that exact pattern plus `H`.
 
+*   FacultySameDayOff
+
+    Use faculty-day variables for both participants. Enumerate joint day-mask
+    assignments and forbid each failing assignment unless the owner's hallpass
+    is true. Both this encoder and FacultyDaysOff share cached variables and
+    links keyed by `(faculty, day)` in `Encoding`, created on first use
+    regardless of criterion priority or the presence of an individual request.
+
 *   FacultyEvenlySpread
 
     Create section-day variables `SD[s,d]` linked bidirectionally to the
@@ -287,3 +303,15 @@ associated criterion violation is counted.
     at-most-one clauses are used.  Otherwise a totalizer at-most-`k` encoding is
     used.  If `k` is at least the number of hallpasses, no counting clauses are
     needed.
+
+Faculty preference entropy
+--------------------------
+
+Shared requests use the owner's cumulative preference prefix and the baseline
+local domains of partners mentioned through that prefix. Day-mask histograms
+retain room-assignment weights. Disjoint faculty domains combine by matching
+masks with exactly one empty checked day; overlapping domains enumerate unique
+section placements so shared teaching assignments are counted once. Partner
+preferences are assessed in their own prefixes, not imposed on the owner's.
+Counts use checked `u128` arithmetic and overflow-safe rational comparison.
+Automatic stated ranks may reach 99; balanced effective ranks remain 10–25.

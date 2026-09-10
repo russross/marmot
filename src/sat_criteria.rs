@@ -40,6 +40,12 @@ pub enum SatCriterion {
         priority: u8,
     },
 
+    FacultySameDayOff {
+        faculty: [usize; 2],
+        days_to_check: Days,
+        priority: u8,
+    },
+
     // A preference for a faculty member's classes to be evenly spread across days
     FacultyEvenlySpread {
         faculty: usize,
@@ -114,6 +120,7 @@ impl SatCriterion {
             SatCriterion::RoomPreference { priority, .. } => *priority,
             SatCriterion::TimeSlotPreference { priority, .. } => *priority,
             SatCriterion::FacultyDaysOff { priority, .. } => *priority,
+            SatCriterion::FacultySameDayOff { priority, .. } => *priority,
             SatCriterion::FacultyEvenlySpread { priority, .. } => *priority,
             SatCriterion::FacultyNoRoomSwitch { priority, .. } => *priority,
             SatCriterion::FacultyTooManyRooms { priority, .. } => *priority,
@@ -319,6 +326,13 @@ impl SatCriteria {
                                     priority,
                                 });
                             }
+                        }
+                        FacultyPreferenceKind::SameDayOffAs { other_faculty, days_to_check } => {
+                            criteria.add_criterion(SatCriterion::FacultySameDayOff {
+                                faculty: [faculty, *other_faculty],
+                                days_to_check: *days_to_check,
+                                priority,
+                            });
                         }
                         FacultyPreferenceKind::DaysOff { days_to_check, desired } => {
                             criteria.add_criterion(SatCriterion::FacultyDaysOff {

@@ -389,6 +389,15 @@ pub fn load_input(
         load_collapsed_room_time_preferences(&sections, &mut criteria);
     }
 
+    load_shared_day_off_preferences(&db, &faculty, &faculty_index, &mut criteria)?;
+    if faculty_preference_priority_policy == FacultyPreferencePriorityPolicy::Stated
+        && criteria.iter().any(|criterion| {
+            matches!(criterion,
+            Criterion::OwnedFacultyPreference(preference) if preference.priority > MAX_PRIORITY)
+        })
+    {
+        return err("faculty preference ranks above 25 require --balance-faculty-preferences true");
+    }
     compute_neighbors(&mut sections, &criteria);
     println!(" took {}ms", start.elapsed().as_millis());
 
@@ -1208,6 +1217,139 @@ pub fn load_faculty_section_assignments(
     prefs.into_iter().flatten().for_each(|elt| criteria.push(elt));
 
     Ok(())
+}
+
+fn load_shared_day_off_preferences(
+    db: &Connection,
+    faculty: &[Faculty],
+    faculty_index: &HashMap<String, usize>,
+    criteria: &mut Vec<Criterion>,
+) -> Result<()> {
+    let mut stmt = db.prepare("
+        SELECT request.faculty, request.other_faculty, request.priority,
+            owner.days_to_check, partner.days_to_check,
+            EXISTS (SELECT 1 FROM faculty_shared_day_off_preferences AS reciprocal
+                WHERE reciprocal.faculty = request.other_faculty
+                  AND reciprocal.other_faculty = request.faculty),
+            EXISTS (SELECT 1 FROM faculty_sections_to_be_scheduled AS sections WHERE sections.faculty = request.faculty),
+            EXISTS (SELECT 1 FROM faculty_sections_to_be_scheduled AS sections WHERE sections.faculty = request.other_faculty)
+        FROM faculty_shared_day_off_preferences AS request
+        LEFT JOIN faculty_preferences AS owner ON owner.faculty = request.faculty
+        LEFT JOIN faculty_preferences AS partner ON partner.faculty = request.other_faculty
+        ORDER BY request.faculty, request.other_faculty")?;
+    while stmt.next()? == State::Row {
+        let name: String = stmt.read(0)?;
+        let other_name: String = stmt.read(1)?;
+        let label = format!("{name} and {other_name}: shared day off");
+        let priority: i64 = stmt.read(2)?;
+        let days: Option<String> = stmt.read(3)?;
+        let other_days: Option<String> = stmt.read(4)?;
+        let reciprocal: i64 = stmt.read(5)?;
+        if stmt.read::<i64, _>(6)? == 0 || stmt.read::<i64, _>(7)? == 0 {
+            return err(format!("{label} requires schedulable sections for both faculty"));
+        }
+        if name == other_name || reciprocal == 0 || !(10..=99).contains(&priority) {
+            return err(format!(
+                "{label} requires distinct faculty, reciprocal preferences, and stated priorities 10..99"
+            ));
+        }
+        let (Some(days), Some(other_days)) = (days, other_days) else {
+            return err(format!("{label} requires preferences for both faculty"));
+        };
+        let days_to_check = Days::parse(&days)?;
+        if days_to_check.len() < 2 || days_to_check.days != Days::parse(&other_days)?.days {
+            return err(format!("{label} requires the same set of at least two representative days"));
+        }
+        let owner = faculty_index.get(&name);
+        let partner = faculty_index.get(&other_name);
+        if owner.is_none() && partner.is_none() {
+            continue;
+        }
+        let (Some(&owner), Some(&partner)) = (owner, partner) else {
+            return err(format!("{label} requires schedulable sections for both faculty in the selected departments"));
+        };
+        let mut sections = faculty[owner].sections.clone();
+        sections.extend_from_slice(&faculty[partner].sections);
+        sections.sort_unstable();
+        sections.dedup();
+        criteria.push(Criterion::OwnedFacultyPreference(FacultyPreference {
+            faculty: owner,
+            sections,
+            stated_priority: priority as u8,
+            priority: priority as u8,
+            kind: FacultyPreferenceKind::SameDayOffAs { other_faculty: partner, days_to_check },
+        }));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod shared_day_off_tests {
+    use super::*;
+    use crate::shared_day_off_tests::input;
+
+    fn database() -> Connection {
+        let db = Connection::open(":memory:").unwrap();
+        db.execute(include_str!("../data/schema.sql")).unwrap();
+        db.execute(
+            "PRAGMA foreign_keys = ON;
+            INSERT INTO departments VALUES ('Computing');
+            INSERT INTO faculty VALUES ('A', 'Computing'), ('B', 'Computing');
+            INSERT INTO faculty_preferences VALUES
+                ('A', 'MT', NULL, NULL, NULL, NULL, NULL, 50),
+                ('B', 'MT', NULL, NULL, NULL, NULL, NULL, 50);
+            INSERT INTO faculty_shared_day_off_preferences VALUES ('A', 'B', 25), ('B', 'A', 21);
+            INSERT INTO courses VALUES ('CS 1000', 'Computing', 'Test', 3, 3);
+            INSERT INTO sections VALUES ('CS 1000-01', 3), ('CS 1000-02', 3), ('CS 1000-03', 3);
+            INSERT INTO time_slot_tags VALUES ('test');
+            INSERT INTO section_time_slot_tags VALUES ('CS 1000-01', 'test'), ('CS 1000-02', 'test');
+            INSERT INTO faculty_sections VALUES ('A', 'CS 1000-01'), ('B', 'CS 1000-02'), ('B', 'CS 1000-03');",
+        )
+        .unwrap();
+        db
+    }
+
+    #[test]
+    fn loader_keeps_owned_ranks_and_links_both_faculty() {
+        let db = database();
+        let mut input = input();
+        input.criteria.clear();
+        for section in &mut input.sections {
+            section.criteria.clear();
+            section.neighbors.clear();
+        }
+        let names = HashMap::from([("A".to_string(), 0), ("B".to_string(), 1)]);
+        load_shared_day_off_preferences(&db, &input.faculty, &names, &mut input.criteria).unwrap();
+        compute_neighbors(&mut input.sections, &input.criteria);
+        assert_eq!(input.criteria.len(), 2);
+        for (owner, criterion) in input.criteria.iter().enumerate() {
+            let Criterion::OwnedFacultyPreference(preference) = criterion else { unreachable!() };
+            assert_eq!(preference.faculty, owner);
+            assert_eq!(preference.stated_priority, if owner == 0 { 25 } else { 21 });
+            assert_eq!(preference.sections, vec![0, 1, 2, 3]);
+        }
+        assert!(input.sections.iter().all(|s| s.criteria == vec![0, 1]));
+        assert!(input.sections.iter().all(|s| s.neighbors.len() == 3));
+    }
+
+    #[test]
+    fn loader_rejects_incomplete_pairs_and_online_only_participants() {
+        let input = input();
+        let names = HashMap::from([("A".to_string(), 0), ("B".to_string(), 1)]);
+        for sql in [
+            "DELETE FROM faculty_shared_day_off_preferences WHERE faculty = 'B'",
+            "UPDATE faculty_preferences SET days_to_check = 'MW' WHERE faculty = 'B'",
+            "DELETE FROM section_time_slot_tags WHERE section = 'CS 1000-02'",
+        ] {
+            let db = database();
+            db.execute(sql).unwrap();
+            assert!(load_shared_day_off_preferences(&db, &input.faculty, &names, &mut Vec::new()).is_err());
+        }
+        let db = database();
+        let partial_names = HashMap::from([("A".to_string(), 0)]);
+        let error = load_shared_day_off_preferences(&db, &input.faculty, &partial_names, &mut Vec::new()).unwrap_err();
+        assert!(error.to_string().contains("selected departments"));
+    }
 }
 
 fn compute_neighbors(sections: &mut [Section], criteria: &[Criterion]) {
