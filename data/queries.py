@@ -6,45 +6,57 @@ from typing import Callable, Concatenate, TypeVar, Optional, ParamSpec, Protocol
 
 MIN_PREF_PRIORITY = 10
 PRIORITY_LEVELS = 25
+MAX_STATED_PRIORITY = 99
 
 @dataclass
 class FacultyPreferences:
     pass
 
 @dataclass
+class WantSameDayOffAs(FacultyPreferences):
+    other_faculty: str
+    priority: int | None = None
+
+    def __post_init__(self) -> None:
+        if not self.other_faculty.strip():
+            raise ValueError('a shared day off requires another faculty member')
+        if self.priority is not None and not MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS:
+            raise ValueError('faculty preference priority must be between 10 and 25')
+
+@dataclass
 class WantADayOff(FacultyPreferences):
     priority: Optional[int] = None
 
     def __post_init__(self) -> None:
-        assert(self.priority is None or self.priority >= MIN_PREF_PRIORITY and self.priority < PRIORITY_LEVELS)
+        assert(self.priority is None or MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS)
 
 @dataclass
 class DoNotWantADayOff(FacultyPreferences):
     priority: Optional[int] = None
 
     def __post_init__(self) -> None:
-        assert(self.priority is None or self.priority >= MIN_PREF_PRIORITY and self.priority < PRIORITY_LEVELS)
+        assert(self.priority is None or MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS)
 
 @dataclass
 class WantClassesEvenlySpreadAcrossDays(FacultyPreferences):
     priority: Optional[int] = None
 
     def __post_init__(self) -> None:
-        assert(self.priority is None or self.priority >= MIN_PREF_PRIORITY and self.priority < PRIORITY_LEVELS)
+        assert(self.priority is None or MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS)
 
 @dataclass
 class WantBackToBackClassesInTheSameRoom(FacultyPreferences):
     priority: Optional[int] = None
 
     def __post_init__(self) -> None:
-        assert(self.priority is None or self.priority >= MIN_PREF_PRIORITY and self.priority < PRIORITY_LEVELS)
+        assert(self.priority is None or MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS)
 
 @dataclass
 class WantClassesPackedIntoAsFewRoomsAsPossible(FacultyPreferences):
     priority: Optional[int] = None
 
     def __post_init__(self) -> None:
-        assert(self.priority is None or self.priority >= MIN_PREF_PRIORITY and self.priority < PRIORITY_LEVELS)
+        assert(self.priority is None or MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS)
 
 @dataclass
 class AvoidGapBetweenClassClustersShorterThan(FacultyPreferences):
@@ -54,7 +66,7 @@ class AvoidGapBetweenClassClustersShorterThan(FacultyPreferences):
     def __post_init__(self) -> None:
         self.minutes = parse_minutes(self.minutes)
         assert(type(self.minutes) == int and self.minutes > 50 and self.minutes < 720)
-        assert(self.priority is None or self.priority >= MIN_PREF_PRIORITY and self.priority < PRIORITY_LEVELS)
+        assert(self.priority is None or MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS)
 
 @dataclass
 class AvoidGapBetweenClassClustersLongerThan(FacultyPreferences):
@@ -64,7 +76,7 @@ class AvoidGapBetweenClassClustersLongerThan(FacultyPreferences):
     def __post_init__(self) -> None:
         self.minutes = parse_minutes(self.minutes)
         assert(type(self.minutes) == int and self.minutes > 50 and self.minutes < 720)
-        assert(self.priority is None or self.priority >= MIN_PREF_PRIORITY and self.priority < PRIORITY_LEVELS)
+        assert(self.priority is None or MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS)
 
 @dataclass
 class AvoidClassClusterShorterThan(FacultyPreferences):
@@ -74,7 +86,7 @@ class AvoidClassClusterShorterThan(FacultyPreferences):
     def __post_init__(self) -> None:
         self.minutes = parse_minutes(self.minutes)
         assert(type(self.minutes) == int and self.minutes > 50 and self.minutes < 720)
-        assert(self.priority is None or self.priority >= MIN_PREF_PRIORITY and self.priority < PRIORITY_LEVELS)
+        assert(self.priority is None or MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS)
 
 @dataclass
 class AvoidClassClusterLongerThan(FacultyPreferences):
@@ -84,7 +96,7 @@ class AvoidClassClusterLongerThan(FacultyPreferences):
     def __post_init__(self) -> None:
         self.minutes = parse_minutes(self.minutes)
         assert(type(self.minutes) == int and self.minutes > 50 and self.minutes < 720)
-        assert(self.priority is None or self.priority >= MIN_PREF_PRIORITY and self.priority < PRIORITY_LEVELS)
+        assert(self.priority is None or MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS)
 
 @dataclass
 class AvoidSectionInRooms(FacultyPreferences):
@@ -93,7 +105,7 @@ class AvoidSectionInRooms(FacultyPreferences):
     priority: Optional[int] = None
 
     def __post_init__(self) -> None:
-        assert(self.priority is None or self.priority >= MIN_PREF_PRIORITY and self.priority < PRIORITY_LEVELS)
+        assert(self.priority is None or MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS)
 
 @dataclass
 class AvoidSectionInTimeSlots(FacultyPreferences):
@@ -102,7 +114,7 @@ class AvoidSectionInTimeSlots(FacultyPreferences):
     priority: Optional[int] = None
 
     def __post_init__(self) -> None:
-        assert(self.priority is None or self.priority >= MIN_PREF_PRIORITY and self.priority < PRIORITY_LEVELS)
+        assert(self.priority is None or MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS)
 
 @dataclass
 class AvoidTimeSlot(FacultyPreferences):
@@ -110,7 +122,7 @@ class AvoidTimeSlot(FacultyPreferences):
     priority: Optional[int] = None
 
     def __post_init__(self) -> None:
-        assert(self.priority is None or self.priority >= MIN_PREF_PRIORITY and self.priority < PRIORITY_LEVELS)
+        assert(self.priority is None or MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS)
 
 @dataclass
 class UnavailableTimeSlot(FacultyPreferences):
@@ -122,7 +134,7 @@ class UseSameTimePattern(FacultyPreferences):
     priority: Optional[int] = None
 
     def __post_init__(self) -> None:
-        assert(self.priority is None or self.priority >= MIN_PREF_PRIORITY and self.priority < PRIORITY_LEVELS)
+        assert(self.priority is None or MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS)
 
 
 class TimeInterval:
@@ -313,10 +325,18 @@ class DB:
                 priority += 1
             else:
                 priority = p
+            if not MIN_PREF_PRIORITY <= priority <= MAX_STATED_PRIORITY:
+                raise ValueError(f'{faculty}: automatic faculty preference priority must be between 10 and 99')
             return priority
 
         for elt in prefs:
             match elt:
+                case WantSameDayOffAs(other_faculty, p):
+                    if faculty == other_faculty:
+                        raise ValueError(f'{faculty}: a shared day off requires a different faculty member')
+                    self.db.execute(
+                        'INSERT INTO faculty_shared_day_off_preferences VALUES (?, ?, ?)',
+                        (faculty, other_faculty, next_priority(p)))
                 case WantADayOff(p):
                     days_off = 1
                     days_off_priority = next_priority(p)
@@ -391,6 +411,29 @@ class DB:
         for payload in cluster:
             self.db.execute('INSERT INTO faculty_preference_intervals VALUES (?, ?, ?, ?, ?)',
                 payload)
+
+    def validate_shared_day_off_preferences(self) -> None:
+        rows: list[tuple[str, str, str | None, str | None, int, int, int]] = self.db.execute('''
+            SELECT request.faculty, request.other_faculty, owner.days_to_check, partner.days_to_check,
+                EXISTS (SELECT 1 FROM faculty_shared_day_off_preferences AS reciprocal
+                    WHERE reciprocal.faculty = request.other_faculty
+                      AND reciprocal.other_faculty = request.faculty),
+                EXISTS (SELECT 1 FROM faculty_sections_to_be_scheduled AS sections
+                    WHERE sections.faculty = request.faculty),
+                EXISTS (SELECT 1 FROM faculty_sections_to_be_scheduled AS sections
+                    WHERE sections.faculty = request.other_faculty)
+            FROM faculty_shared_day_off_preferences AS request
+            LEFT JOIN faculty_preferences AS owner ON owner.faculty = request.faculty
+            LEFT JOIN faculty_preferences AS partner ON partner.faculty = request.other_faculty
+        ''').fetchall()
+        for faculty, partner, days, partner_days, reciprocal, owner_sections, partner_sections in rows:
+            label = f'{faculty} and {partner}: shared day off'
+            if not reciprocal:
+                raise ValueError(f'{label} requires reciprocal preferences')
+            if days is None or partner_days is None or days != partner_days or len(days) < 2:
+                raise ValueError(f'{label} requires the same set of at least two representative days')
+            if not owner_sections or not partner_sections:
+                raise ValueError(f'{label} requires schedulable sections for both faculty')
 
     @rollback_on_exception
     def make_course(

@@ -40,7 +40,8 @@ def build_pre(db: DB) -> None:
     db.make_time_slot('W1800+150', ['3 credit evening'])
 
     print('adding special case computing course')
-    db.make_course('Computing', 'SA 1400', 'Success CS 1400', 3, 3)
+    db.make_course('Computing', 'SA 1410', 'Success CS 1410', 3, 3)
+    db.make_course('Computing', 'SA 1100', 'Success IT 1100', 3, 3)
 
 def build_post(db: DB) -> None:
     print('building computing conflicts')

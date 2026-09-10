@@ -225,7 +225,9 @@ Faculty preferences are created by `faculty_preferences(faculty, days_to_check, 
 
 Priority behavior in `queries.py`:
 
-- faculty preference priorities live in the range `10..25`
+- explicit faculty preference priorities live in the range `10..25`; automatic
+  stated ranks can continue through `99`, and entropy balancing maps them to
+  effective priorities `10..25`
 - if a preference omits `priority=...`, priorities are assigned in list order starting at `10`
 - faculty preference rows only reach the solver for faculty who have at least one scheduleable section in `sections_to_be_scheduled`
 - `days_to_check` must contain at least two representative days for day-distribution preferences; `faculty_preferences(..., 'M', ...)` is not valid for `WantADayOff()`, `DoNotWantADayOff()`, or `WantClassesEvenlySpreadAcrossDays()`
@@ -240,6 +242,17 @@ Priority behavior in `queries.py`:
 - `DoNotWantADayOff()`
   Prefers teaching on both representative days.
   This is evaluated by whether each representative day has any class at all, not by balancing counts or minutes.
+
+- `WantSameDayOffAs('Other Faculty')`
+  Requires both faculty to have exactly one empty representative day and for that
+  day to match. Each faculty lists a reciprocal request at their own desired
+  rank, with identical `days_to_check` of at least two days and at least one
+  schedulable section each. Individual `WantADayOff()` requests are optional;
+  this request does not introduce a separate individual fallback preference.
+  Directed rows in `faculty_shared_day_off_preferences` retain both ranks.
+  References may point forward within the build transaction. `data/build`
+  calls `validate_shared_day_off_preferences()` after input loading.
+  A failure counts once per owner at that owner's effective priority.
 
 - `WantClassesEvenlySpreadAcrossDays()`
   Prefers balanced teaching counts across the representative days.
@@ -375,7 +388,8 @@ These matter if new input starts using them, but they are not central to the cur
 
 - `0`: hard conflicts and unplaced-section penalty level
 - `1..9`: program conflicts and anti-conflicts
-- `10..25`: faculty and section soft preferences
+- `10..25`: effective faculty and section soft preferences; automatically
+  assigned stated faculty ranks can extend through `99` before balancing
 
 Lower numbers are more important.
 

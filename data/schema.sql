@@ -183,6 +183,20 @@ CREATE TABLE faculty_preferences (
     FOREIGN KEY (faculty) REFERENCES faculty (faculty) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
 
+-- Each participant retains their own stated rank. The partner may be created
+-- later in the same input transaction.
+CREATE TABLE faculty_shared_day_off_preferences (
+    faculty                     TEXT NOT NULL,
+    other_faculty               TEXT NOT NULL,
+    priority                    INTEGER NOT NULL CHECK (priority BETWEEN 10 AND 99),
+    PRIMARY KEY (faculty, other_faculty),
+    CHECK (faculty <> other_faculty),
+    FOREIGN KEY (faculty) REFERENCES faculty_preferences (faculty)
+        ON DELETE CASCADE ON UPDATE CASCADE DEFERRABLE INITIALLY DEFERRED,
+    FOREIGN KEY (other_faculty) REFERENCES faculty_preferences (faculty)
+        ON DELETE CASCADE ON UPDATE CASCADE DEFERRABLE INITIALLY DEFERRED
+) WITHOUT ROWID;
+
 -- Gap and cluster preferences share one compact shape. is_cluster chooses the
 -- measured object, and is_too_short chooses which side of interval_minutes is a
 -- violation.

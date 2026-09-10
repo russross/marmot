@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+from sqlite3 import IntegrityError
 
 import courses
 import computing
@@ -31,12 +32,16 @@ db.make_holiday('2027-03-10')
 db.make_holiday('2027-03-11')
 db.make_holiday('2027-03-12')
 
-courses.build_courses(db)
-computing.build_pre(db)
-computingfaculty.build_faculty(db)
-computing.build_post(db)
-
-db.db.commit()
+try:
+    courses.build_courses(db)
+    computing.build_pre(db)
+    computingfaculty.build_faculty(db)
+    computing.build_post(db)
+    db.validate_shared_day_off_preferences()
+    db.db.commit()
+except (ValueError, IntegrityError) as error:
+    db.rollback()
+    raise SystemExit(f'input build failed: {error}') from None
 
 db.db.execute('VACUUM')
 db.db.execute('ANALYZE')
