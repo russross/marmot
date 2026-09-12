@@ -40,6 +40,18 @@ def build_faculty(db: DB) -> None:
         AvoidSectionInRooms('CS 4550-01', ['flex']),
     )
 
+    db.make_faculty('Brayden Connole', 'Computing', default_availability)
+    db.make_faculty_section('Brayden Connole', 'CS 4600-03', '3 credit bell schedule', 'flex', 'stadium')
+    db.make_section_with_no_faculty('SE 4600-03')
+    db.add_cross_listing('CS 4600-03', ['SE 4600-03'])
+    db.faculty_preferences('Brayden Connole', 'MT',
+        AvoidTimeSlot('MWF0900+50'),
+        AvoidTimeSlot('TR0900+75'),
+        AvoidTimeSlot('MWF1000+50'),
+        AvoidTimeSlot('TR1030+75'),
+        AvoidTimeSlot('MWF1100+50'),
+    )
+
     db.make_faculty('Carol Stander', 'Computing', default_availability)
     db.make_faculty_section('Carol Stander', 'CS 1410-02', '3 credit bell schedule', 'flex', 'pcs')
     db.make_faculty_section('Carol Stander', 'CS 1410-40')
@@ -64,22 +76,13 @@ def build_faculty(db: DB) -> None:
 
     db.make_faculty('Curtis Larsen', 'Computing', default_availability)
     db.make_faculty_section('Curtis Larsen', 'CS 4320-01', '3 credit bell schedule', 'Smith 116')
-    db.make_faculty_section('Curtis Larsen', 'CS 4600-03', '3 credit bell schedule', 'flex', 'stadium')
-    db.make_section_with_no_faculty('SE 4600-03')
-    db.add_cross_listing('CS 4600-03', ['SE 4600-03'])
     db.make_faculty_section('Curtis Larsen', 'CS 4920R-01', credit_hours=1)
-
     db.faculty_preferences('Curtis Larsen', 'MT',
         AvoidTimeSlot('MWF0900+50'),
         AvoidTimeSlot('TR0900+75'),
         AvoidTimeSlot('MWF1000+50'),
         AvoidTimeSlot('TR1030+75'),
         AvoidTimeSlot('MWF1100+50'),
-        AvoidClassClusterLongerThan('2h45m'),
-        AvoidClassClusterShorterThan('1h50m'),
-        AvoidGapBetweenClassClustersLongerThan('1h45m'),
-        WantBackToBackClassesInTheSameRoom(),
-        WantClassesPackedIntoAsFewRoomsAsPossible(),
     )
 
     db.make_faculty('DJ Holt', 'Computing', default_availability)
@@ -88,17 +91,20 @@ def build_faculty(db: DB) -> None:
     db.add_cross_listing('CS 4600-02', ['SE 4600-02'])
     db.make_faculty_section('DJ Holt', 'CS 4800R-03', credit_hours=1)
     db.make_faculty_section('DJ Holt', 'SD 6200-01', 'T1630+150', 'Smith 117')
-    db.make_faculty_section('DJ Holt', 'SE 3250-01', '3 credit bell schedule', 'Smith 109')
-    db.make_faculty_section('DJ Holt', 'SE 4200-01', '3 credit bell schedule', 'Smith 117')
+    db.make_faculty_section('DJ Holt', 'SE 3250-01', '3 credit bell schedule', 'Smith 109') # might drop
+    db.make_faculty_section('DJ Holt', 'SE 4200-01', '3 credit bell schedule', 'stadium', 'flex')
     db.faculty_preferences('DJ Holt', 'MT',
         AvoidTimeSlot('MWF0900+50'),
         AvoidTimeSlot('MWF1000+50'),
         AvoidTimeSlot('MWF1100+50'),
         AvoidTimeSlot('TR0900+75'),
         AvoidTimeSlot('TR1030+75'),
+        AvoidClassClusterShorterThan('1h45m'),
+        AvoidClassClusterShorterThan('4h'),
+        AvoidClassClusterShorterThan('5h30m'),
         AvoidGapBetweenClassClustersLongerThan('1h45m'),
-        AvoidClassClusterShorterThan('1h50m'),
         WantADayOff(),
+        AvoidSectionInRooms('SE 4200-01', ['flex', 'Smith 116']),
         WantClassesPackedIntoAsFewRoomsAsPossible(),
         WantBackToBackClassesInTheSameRoom(),
     )
