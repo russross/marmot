@@ -71,7 +71,6 @@ pub fn encode_criterion(
                 *days_to_check,
                 *duration,
                 *max_gap_within_cluster,
-                sat_criteria,
             )
         }
 
@@ -1199,54 +1198,16 @@ pub fn encode_faculty_cluster_too_short(
     days_to_check: Days,
     min_duration: Duration,
     max_gap_within_cluster: Duration,
-    sat_criteria: &SatCriteria,
 ) -> Result<()> {
-    // Find higher-priority cluster-too-short constraints for this faculty
-    let mut higher_priority_durations: Vec<Duration> = Vec::new();
-
-    // Check each priority level below the current one
-    for p in 0..priority {
-        // Get criteria at this priority level
-        for criterion in sat_criteria.criteria_at_priority(p) {
-            if let SatCriterion::FacultyClusterTooShort { faculty: f, duration, .. } = criterion {
-                if *f == faculty {
-                    higher_priority_durations.push(*duration);
-                }
-            }
-        }
-    }
-
     // Validate specific inputs for this constraint type
     if min_duration.minutes == 0 {
         return err(format!("Non-positive minimum duration for faculty {}", input.faculty[faculty].name));
     }
 
-    // Create a function that detects "too short" clusters, allowing the first one,
-    // and only counting those that aren't already covered by higher-priority constraints
-    let count_too_short_clusters = move |clusters: &[(Time, Time)], _day: u8| -> usize {
-        let mut violation_count = 0;
-
-        for &(start_time, end_time) in clusters {
-            // Calculate the duration of this cluster
-            let cluster_duration = end_time - start_time;
-
-            // Check if this cluster is shorter than the minimum allowed duration
-            if cluster_duration < min_duration {
-                // Check if it's already caught by a higher-priority constraint
-                // For "too short" constraints, a higher priority constraint would have a LARGER minimum
-                let already_caught = higher_priority_durations.iter().any(|&higher_dur| cluster_duration < higher_dur);
-
-                // Only count as a violation if not already caught by higher priority constraint
-                if !already_caught {
-                    violation_count += 1;
-                }
-            }
-        }
-
-        // Important difference from "too long":
-        // First "too short" cluster per day is allowed without penalty
-        if violation_count > 0 { violation_count - 1 } else { 0 }
-    };
+    // Count this preference independently of other minimum-cluster preferences.
+    // The first short cluster for this preference and day is allowed without penalty.
+    let count_too_short_clusters =
+        move |clusters: &[(Time, Time)], _day: u8| count_clusters_shorter_than(clusters, min_duration);
 
     // Create a function that generates descriptions for violations
     let generate_too_short_description = move |i: usize, day: u8| -> String {
@@ -1286,6 +1247,10 @@ pub fn encode_faculty_cluster_too_short(
         count_too_short_clusters,
         generate_too_short_description,
     )
+}
+
+fn count_clusters_shorter_than(clusters: &[(Time, Time)], min_duration: Duration) -> usize {
+    clusters.iter().filter(|&&(start_time, end_time)| end_time - start_time < min_duration).count().saturating_sub(1)
 }
 
 // Encode a faculty gap too long constraint.
@@ -2375,6 +2340,24 @@ mod tests {
             criteria: vec![],
             neighbors: vec![],
         }
+    }
+
+    #[test]
+    fn nested_minimum_cluster_lengths_score_a_four_hour_cluster_at_only_the_longest_threshold() {
+        let clusters = [(Time::new(0), Time::new(75)), (Time::new(180), Time::new(420))];
+
+        assert_eq!(count_clusters_shorter_than(&clusters, Duration::new(105)), 0);
+        assert_eq!(count_clusters_shorter_than(&clusters, Duration::new(240)), 0);
+        assert_eq!(count_clusters_shorter_than(&clusters, Duration::new(330)), 1);
+    }
+
+    #[test]
+    fn nested_minimum_cluster_lengths_score_a_two_and_a_half_hour_cluster_at_both_longer_thresholds() {
+        let clusters = [(Time::new(0), Time::new(75)), (Time::new(180), Time::new(330))];
+
+        assert_eq!(count_clusters_shorter_than(&clusters, Duration::new(105)), 0);
+        assert_eq!(count_clusters_shorter_than(&clusters, Duration::new(240)), 1);
+        assert_eq!(count_clusters_shorter_than(&clusters, Duration::new(330)), 1);
     }
 
     #[test]
