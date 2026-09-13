@@ -396,7 +396,7 @@ pub fn load_input(
             Criterion::OwnedFacultyPreference(preference) if preference.priority > MAX_PRIORITY)
         })
     {
-        return err("faculty preference ranks above 25 require --balance-faculty-preferences true");
+        return err("faculty preference ranks above 49 require --balance-faculty-preferences true");
     }
     compute_neighbors(&mut sections, &criteria);
     println!(" took {}ms", start.elapsed().as_millis());

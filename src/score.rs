@@ -12,7 +12,7 @@ use std::ops;
 //
 
 pub type ScoreLevel = i16;
-pub const MAX_PRIORITY: u8 = 25;
+pub const MAX_PRIORITY: u8 = 49;
 pub const PRIORITY_LEVELS: usize = MAX_PRIORITY as usize + 1;
 pub const LEVEL_FOR_UNPLACED_SECTION: u8 = 0;
 pub const LEVEL_FOR_HARD_CONFLICT: u8 = 0;

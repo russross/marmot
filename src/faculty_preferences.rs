@@ -900,14 +900,15 @@ mod tests {
     #[test]
     fn bucketing_keeps_infinite_impact_last_and_caps_levels() {
         let impact_count = EFFECTIVE_PRIORITY_BUCKETS + 4;
+        let finite_total = impact_count as u128 * 3;
         let impacts = (0..impact_count)
             .map(|index| TierImpact {
                 faculty: index,
                 stated_priority: 10,
                 criteria: vec![index],
                 effective_preferences: 1,
-                total: 100,
-                remaining: if index + 1 == impact_count { 0 } else { 100 - index as u128 * 3 },
+                total: finite_total,
+                remaining: if index + 1 == impact_count { 0 } else { finite_total - index as u128 * 3 },
             })
             .collect();
 

@@ -314,4 +314,4 @@ masks with exactly one empty checked day; overlapping domains enumerate unique
 section placements so shared teaching assignments are counted once. Partner
 preferences are assessed in their own prefixes, not imposed on the owner's.
 Counts use checked `u128` arithmetic and overflow-safe rational comparison.
-Automatic stated ranks may reach 99; balanced effective ranks remain 10–25.
+Stated ranks may reach 99; balanced effective ranks remain 10–49.
