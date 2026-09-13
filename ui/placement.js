@@ -10,9 +10,26 @@ window.placement = [
             "Carol Stander"
         ],
         "is_placed": true,
-        "room": "Smith 109",
-        "time_slot": "MW1500+75",
-        "problems": []
+        "room": "Smith 107",
+        "time_slot": "TR1500+75",
+        "problems": [
+            {
+                "score": 42,
+                "message": "Carol Stander has a cluster of classes that is only 1h15m long"
+            },
+            {
+                "score": 42,
+                "message": "Carol Stander has a cluster of classes that is only 1h15m long"
+            },
+            {
+                "score": 33,
+                "message": "Bart Stander wants exactly one representative day off, the same as Carol Stander, but did not get it"
+            },
+            {
+                "score": 37,
+                "message": "Carol Stander wants exactly one representative day off, the same as Bart Stander, but did not get it"
+            }
+        ]
     },
     {
         "names": [
@@ -22,11 +39,11 @@ window.placement = [
             "CS"
         ],
         "instructors": [
-            "Ren Quinn"
+            "Kalyan Venugopal"
         ],
         "is_placed": true,
-        "room": "Smith 107",
-        "time_slot": "MW1330+75",
+        "room": "Smith 117",
+        "time_slot": "TR1500+75",
         "problems": []
     },
     {
@@ -37,41 +54,11 @@ window.placement = [
             "CS"
         ],
         "instructors": [
-            "Lora Klein"
-        ],
-        "is_placed": true,
-        "room": "Smith 108",
-        "time_slot": "MW1200+75",
-        "problems": []
-    },
-    {
-        "names": [
-            "CS 1400-03"
-        ],
-        "prefixes": [
-            "CS"
-        ],
-        "instructors": [
-            "DS Hire"
+            "Kalyan Venugopal"
         ],
         "is_placed": true,
         "room": "Smith 117",
         "time_slot": "TR1200+75",
-        "problems": []
-    },
-    {
-        "names": [
-            "CS 1400-04"
-        ],
-        "prefixes": [
-            "CS"
-        ],
-        "instructors": [
-            "DS Hire"
-        ],
-        "is_placed": true,
-        "room": "Smith 117",
-        "time_slot": "MW1500+75",
         "problems": []
     },
     {
@@ -82,12 +69,25 @@ window.placement = [
             "CS"
         ],
         "instructors": [
-            "Yuanfei Sun"
+            "Ren Quinn"
         ],
         "is_placed": true,
-        "room": "Smith 109",
-        "time_slot": "MWF1000+50",
-        "problems": []
+        "room": "Smith 108",
+        "time_slot": "MW1330+75",
+        "problems": [
+            {
+                "score": 39,
+                "message": "Ren Quinn has more classes some days than others"
+            },
+            {
+                "score": 42,
+                "message": "Ren Quinn has a cluster of classes that is only 50m long"
+            },
+            {
+                "score": 42,
+                "message": "Ren Quinn has a cluster of classes that is only 1h15m long"
+            }
+        ]
     },
     {
         "names": [
@@ -97,27 +97,29 @@ window.placement = [
             "CS"
         ],
         "instructors": [
-            "Yuanfei Sun"
-        ],
-        "is_placed": true,
-        "room": "Smith 109",
-        "time_slot": "MWF1100+50",
-        "problems": []
-    },
-    {
-        "names": [
-            "CS 1500-01"
-        ],
-        "prefixes": [
-            "CS"
-        ],
-        "instructors": [
-            "Jeff Compas"
+            "Carol Stander"
         ],
         "is_placed": true,
         "room": "Smith 108",
-        "time_slot": "TR1030+75",
-        "problems": []
+        "time_slot": "TR0900+75",
+        "problems": [
+            {
+                "score": 42,
+                "message": "Carol Stander has a cluster of classes that is only 1h15m long"
+            },
+            {
+                "score": 42,
+                "message": "Carol Stander has a cluster of classes that is only 1h15m long"
+            },
+            {
+                "score": 33,
+                "message": "Bart Stander wants exactly one representative day off, the same as Carol Stander, but did not get it"
+            },
+            {
+                "score": 37,
+                "message": "Carol Stander wants exactly one representative day off, the same as Bart Stander, but did not get it"
+            }
+        ]
     },
     {
         "names": [
@@ -130,8 +132,40 @@ window.placement = [
             "Bart Stander"
         ],
         "is_placed": true,
-        "room": "Smith 116",
-        "time_slot": "MWF0900+50",
+        "room": "Smith 113",
+        "time_slot": "MW1500+75",
+        "problems": [
+            {
+                "score": 41,
+                "message": "Bart Stander has to wait 3h10m between clusters of classes"
+            },
+            {
+                "score": 39,
+                "message": "Bart Stander has a run of back-to-back classes that lasts 2h50m"
+            },
+            {
+                "score": 33,
+                "message": "Bart Stander wants exactly one representative day off, the same as Carol Stander, but did not get it"
+            },
+            {
+                "score": 37,
+                "message": "Carol Stander wants exactly one representative day off, the same as Bart Stander, but did not get it"
+            }
+        ]
+    },
+    {
+        "names": [
+            "CS 2320-01"
+        ],
+        "prefixes": [
+            "CS"
+        ],
+        "instructors": [
+            "Kalyan Venugopal"
+        ],
+        "is_placed": true,
+        "room": "Smith 117",
+        "time_slot": "TR1030+75",
         "problems": []
     },
     {
@@ -145,25 +179,26 @@ window.placement = [
             "Bart Stander"
         ],
         "is_placed": true,
-        "room": "Smith 116",
-        "time_slot": "MWF1000+50",
-        "problems": []
-    },
-    {
-        "names": [
-            "CS 2420-02"
-        ],
-        "prefixes": [
-            "CS"
-        ],
-        "instructors": [
-            "Bart Stander",
-            "DS Hire"
-        ],
-        "is_placed": true,
-        "room": "Smith 116",
-        "time_slot": "MW1330+75",
-        "problems": []
+        "room": "Smith 113",
+        "time_slot": "MWF0900+50",
+        "problems": [
+            {
+                "score": 41,
+                "message": "Bart Stander has to wait 3h10m between clusters of classes"
+            },
+            {
+                "score": 39,
+                "message": "Bart Stander has a run of back-to-back classes that lasts 2h50m"
+            },
+            {
+                "score": 33,
+                "message": "Bart Stander wants exactly one representative day off, the same as Carol Stander, but did not get it"
+            },
+            {
+                "score": 37,
+                "message": "Carol Stander wants exactly one representative day off, the same as Bart Stander, but did not get it"
+            }
+        ]
     },
     {
         "names": [
@@ -176,39 +211,14 @@ window.placement = [
             "Jeff Compas"
         ],
         "is_placed": true,
-        "room": "Smith 109",
-        "time_slot": "MW1330+75",
-        "problems": []
-    },
-    {
-        "names": [
-            "CS 2450-02"
-        ],
-        "prefixes": [
-            "CS"
-        ],
-        "instructors": [
-            "Jeff Compas"
-        ],
-        "is_placed": true,
-        "room": "Smith 108",
+        "room": "Smith 116",
         "time_slot": "TR0900+75",
-        "problems": []
-    },
-    {
-        "names": [
-            "CS 2500-01"
-        ],
-        "prefixes": [
-            "CS"
-        ],
-        "instructors": [
-            "Ren Quinn"
-        ],
-        "is_placed": true,
-        "room": "Smith 108",
-        "time_slot": "MWF1100+50",
-        "problems": []
+        "problems": [
+            {
+                "score": 27,
+                "message": "Jeff Compas wants a day off but did not get one"
+            }
+        ]
     },
     {
         "names": [
@@ -221,24 +231,14 @@ window.placement = [
             "Russ Ross"
         ],
         "is_placed": true,
-        "room": "Smith 108",
-        "time_slot": "TR1330+75",
-        "problems": []
-    },
-    {
-        "names": [
-            "CS 2810-02"
-        ],
-        "prefixes": [
-            "CS"
-        ],
-        "instructors": [
-            "Russ Ross"
-        ],
-        "is_placed": true,
-        "room": "Smith 108",
-        "time_slot": "MW1330+75",
-        "problems": []
+        "room": "Smith 109",
+        "time_slot": "MW1200+75",
+        "problems": [
+            {
+                "score": 33,
+                "message": "Russ Ross is scheduled to teach CS 2810-01 at MW1200+75"
+            }
+        ]
     },
     {
         "names": [
@@ -251,9 +251,18 @@ window.placement = [
             "Jeff Compas"
         ],
         "is_placed": true,
-        "room": "Smith 107",
-        "time_slot": "MW1500+75",
-        "problems": []
+        "room": "Smith 109",
+        "time_slot": "MWF1000+50",
+        "problems": [
+            {
+                "score": 27,
+                "message": "Jeff Compas wants a day off but did not get one"
+            },
+            {
+                "score": 34,
+                "message": "Jeff Compas is scheduled to teach CS 3005-01 at MWF1000+50"
+            }
+        ]
     },
     {
         "names": [
@@ -267,12 +276,29 @@ window.placement = [
         ],
         "is_placed": true,
         "room": "Smith 108",
-        "time_slot": "MWF1000+50",
-        "problems": []
+        "time_slot": "MWF0900+50",
+        "problems": [
+            {
+                "score": 39,
+                "message": "Ren Quinn has more classes some days than others"
+            },
+            {
+                "score": 42,
+                "message": "Ren Quinn has a cluster of classes that is only 50m long"
+            },
+            {
+                "score": 42,
+                "message": "Ren Quinn has a cluster of classes that is only 1h15m long"
+            },
+            {
+                "score": 33,
+                "message": "Ren Quinn is scheduled to teach CS 3150-01 at MWF0900+50"
+            }
+        ]
     },
     {
         "names": [
-            "CS 3400-01"
+            "CS 3410-01"
         ],
         "prefixes": [
             "CS"
@@ -281,13 +307,65 @@ window.placement = [
             "Russ Ross"
         ],
         "is_placed": true,
+        "room": "Smith 109",
+        "time_slot": "TR1030+75",
+        "problems": [
+            {
+                "score": 28,
+                "message": "Russ Ross is scheduled to teach CS 3410-01 at TR1030+75"
+            }
+        ]
+    },
+    {
+        "names": [
+            "CS 3510-01"
+        ],
+        "prefixes": [
+            "CS"
+        ],
+        "instructors": [
+            "Yuanfei Sun"
+        ],
+        "is_placed": true,
         "room": "Smith 108",
         "time_slot": "MW1500+75",
         "problems": []
     },
     {
         "names": [
-            "CS 3500-01"
+            "CS 3510-02"
+        ],
+        "prefixes": [
+            "CS"
+        ],
+        "instructors": [
+            "Ren Quinn"
+        ],
+        "is_placed": true,
+        "room": "Smith 108",
+        "time_slot": "TR1500+75",
+        "problems": [
+            {
+                "score": 7,
+                "message": "CS 3510-02 and CS 4320-01 both meet at TR1500+75"
+            },
+            {
+                "score": 39,
+                "message": "Ren Quinn has more classes some days than others"
+            },
+            {
+                "score": 42,
+                "message": "Ren Quinn has a cluster of classes that is only 50m long"
+            },
+            {
+                "score": 42,
+                "message": "Ren Quinn has a cluster of classes that is only 1h15m long"
+            }
+        ]
+    },
+    {
+        "names": [
+            "CS 3600-01"
         ],
         "prefixes": [
             "CS"
@@ -297,12 +375,29 @@ window.placement = [
         ],
         "is_placed": true,
         "room": "Smith 113",
-        "time_slot": "MW1500+75",
-        "problems": []
+        "time_slot": "MWF1100+50",
+        "problems": [
+            {
+                "score": 41,
+                "message": "Bart Stander has to wait 3h10m between clusters of classes"
+            },
+            {
+                "score": 39,
+                "message": "Bart Stander has a run of back-to-back classes that lasts 2h50m"
+            },
+            {
+                "score": 33,
+                "message": "Bart Stander wants exactly one representative day off, the same as Carol Stander, but did not get it"
+            },
+            {
+                "score": 37,
+                "message": "Carol Stander wants exactly one representative day off, the same as Bart Stander, but did not get it"
+            }
+        ]
     },
     {
         "names": [
-            "CS 3520-01"
+            "CS 4307-01"
         ],
         "prefixes": [
             "CS"
@@ -311,43 +406,122 @@ window.placement = [
             "Russ Ross"
         ],
         "is_placed": true,
-        "room": "Smith 108",
-        "time_slot": "TR1500+75",
-        "problems": []
-    },
-    {
-        "names": [
-            "CS 3530-01"
-        ],
-        "prefixes": [
-            "CS"
-        ],
-        "instructors": [
-            "Curtis Larsen"
-        ],
-        "is_placed": true,
-        "room": "Smith 116",
-        "time_slot": "MW1200+75",
-        "problems": []
-    },
-    {
-        "names": [
-            "CS 4300-01"
-        ],
-        "prefixes": [
-            "CS"
-        ],
-        "instructors": [
-            "Curtis Larsen"
-        ],
-        "is_placed": true,
-        "room": "Smith 116",
+        "room": "Smith 109",
         "time_slot": "TR1200+75",
-        "problems": []
+        "problems": [
+            {
+                "score": 35,
+                "message": "Russ Ross is scheduled to teach CS 4307-01 at TR1200+75"
+            }
+        ]
     },
     {
         "names": [
-            "CS 4410-01"
+            "CS 4320-01"
+        ],
+        "prefixes": [
+            "CS"
+        ],
+        "instructors": [
+            "Curtis Larsen"
+        ],
+        "is_placed": true,
+        "room": "Smith 116",
+        "time_slot": "TR1500+75",
+        "problems": [
+            {
+                "score": 7,
+                "message": "CS 3510-02 and CS 4320-01 both meet at TR1500+75"
+            }
+        ]
+    },
+    {
+        "names": [
+            "CS 4400-01"
+        ],
+        "prefixes": [
+            "CS"
+        ],
+        "instructors": [
+            "Ren Quinn"
+        ],
+        "is_placed": true,
+        "room": "Smith 108",
+        "time_slot": "MWF1100+50",
+        "problems": [
+            {
+                "score": 39,
+                "message": "Ren Quinn has more classes some days than others"
+            },
+            {
+                "score": 42,
+                "message": "Ren Quinn has a cluster of classes that is only 50m long"
+            },
+            {
+                "score": 42,
+                "message": "Ren Quinn has a cluster of classes that is only 1h15m long"
+            }
+        ]
+    },
+    {
+        "names": [
+            "CS 4550-01"
+        ],
+        "prefixes": [
+            "CS"
+        ],
+        "instructors": [
+            "Bart Stander"
+        ],
+        "is_placed": true,
+        "room": "Smith 113",
+        "time_slot": "MWF1000+50",
+        "problems": [
+            {
+                "score": 41,
+                "message": "Bart Stander has to wait 3h10m between clusters of classes"
+            },
+            {
+                "score": 39,
+                "message": "Bart Stander has a run of back-to-back classes that lasts 2h50m"
+            },
+            {
+                "score": 33,
+                "message": "Bart Stander wants exactly one representative day off, the same as Carol Stander, but did not get it"
+            },
+            {
+                "score": 37,
+                "message": "Carol Stander wants exactly one representative day off, the same as Bart Stander, but did not get it"
+            }
+        ]
+    },
+    {
+        "names": [
+            "CS 4600-01"
+        ],
+        "prefixes": [
+            "CS"
+        ],
+        "instructors": [
+            "Jeff Compas"
+        ],
+        "is_placed": true,
+        "room": "Smith 108",
+        "time_slot": "TR1330+75",
+        "problems": [
+            {
+                "score": 27,
+                "message": "Jeff Compas wants a day off but did not get one"
+            },
+            {
+                "score": 46,
+                "message": "Jeff Compas is scheduled to teach CS 4600-01 at TR1330+75"
+            }
+        ]
+    },
+    {
+        "names": [
+            "CS 4600-02"
         ],
         "prefixes": [
             "CS"
@@ -357,38 +531,42 @@ window.placement = [
         ],
         "is_placed": true,
         "room": "Smith 117",
-        "time_slot": "TR1500+75",
-        "problems": []
+        "time_slot": "TR1330+75",
+        "problems": [
+            {
+                "score": 33,
+                "message": "DJ Holt wants a day off but did not get one"
+            }
+        ]
     },
     {
         "names": [
-            "CS 4420-01"
+            "CS 4600-03"
         ],
         "prefixes": [
             "CS"
         ],
         "instructors": [
-            "DS Hire"
+            "Brayden Connole"
         ],
         "is_placed": true,
         "room": "Smith 116",
-        "time_slot": "TR0900+75",
+        "time_slot": "TR1330+75",
         "problems": []
     },
     {
         "names": [
-            "CS 4480R-01"
+            "CS 4990-01"
         ],
         "prefixes": [
             "CS"
         ],
         "instructors": [
-            "DS Hire",
-            "Ren Quinn"
+            "Russ Ross"
         ],
         "is_placed": true,
-        "room": "Smith 117",
-        "time_slot": "TR1330+75",
+        "room": "Smith 109",
+        "time_slot": "MW1330+75",
         "problems": []
     },
     {
@@ -404,7 +582,20 @@ window.placement = [
         "is_placed": true,
         "room": "Smith 109",
         "time_slot": "F1400+50",
-        "problems": []
+        "problems": [
+            {
+                "score": 39,
+                "message": "Ren Quinn has more classes some days than others"
+            },
+            {
+                "score": 42,
+                "message": "Ren Quinn has a cluster of classes that is only 50m long"
+            },
+            {
+                "score": 42,
+                "message": "Ren Quinn has a cluster of classes that is only 1h15m long"
+            }
+        ]
     },
     {
         "names": [
@@ -419,36 +610,49 @@ window.placement = [
         "is_placed": true,
         "room": "Smith 109",
         "time_slot": "F1300+50",
-        "problems": []
+        "problems": [
+            {
+                "score": 39,
+                "message": "Ren Quinn has more classes some days than others"
+            },
+            {
+                "score": 42,
+                "message": "Ren Quinn has a cluster of classes that is only 50m long"
+            },
+            {
+                "score": 42,
+                "message": "Ren Quinn has a cluster of classes that is only 1h15m long"
+            }
+        ]
     },
     {
         "names": [
-            "CS 4995-01"
+            "CS 6310-50"
         ],
         "prefixes": [
             "CS"
         ],
         "instructors": [
-            "Bart Stander"
-        ],
-        "is_placed": true,
-        "room": "Smith 113",
-        "time_slot": "MWF1100+50",
-        "problems": []
-    },
-    {
-        "names": [
-            "CS 6300-01"
-        ],
-        "prefixes": [
-            "CS"
-        ],
-        "instructors": [
-            "Curtis Larsen"
+            "Yuanfei Sun"
         ],
         "is_placed": true,
         "room": "Smith 116",
-        "time_slot": "R1800+150",
+        "time_slot": "M1800+150",
+        "problems": []
+    },
+    {
+        "names": [
+            "CS 6322-50"
+        ],
+        "prefixes": [
+            "CS"
+        ],
+        "instructors": [
+            "Yuanfei Sun"
+        ],
+        "is_placed": true,
+        "room": "Smith 116",
+        "time_slot": "W1800+150",
         "problems": []
     },
     {
@@ -459,11 +663,11 @@ window.placement = [
             "IT"
         ],
         "instructors": [
-            "Syed Ali"
+            "Phil Daley"
         ],
         "is_placed": true,
         "room": "Smith 113",
-        "time_slot": "TR1500+75",
+        "time_slot": "MW1200+75",
         "problems": []
     },
     {
@@ -474,26 +678,11 @@ window.placement = [
             "IT"
         ],
         "instructors": [
-            "Syed Ali"
+            "Phil Daley"
         ],
         "is_placed": true,
         "room": "Smith 113",
-        "time_slot": "TR1330+75",
-        "problems": []
-    },
-    {
-        "names": [
-            "IT 1100-03"
-        ],
-        "prefixes": [
-            "IT"
-        ],
-        "instructors": [
-            "Carol Stander"
-        ],
-        "is_placed": true,
-        "room": "Smith 113",
-        "time_slot": "MWF1000+50",
+        "time_slot": "TR0900+75",
         "problems": []
     },
     {
@@ -508,8 +697,33 @@ window.placement = [
         ],
         "is_placed": true,
         "room": "Smith 107",
-        "time_slot": "MW1200+75",
-        "problems": []
+        "time_slot": "MW1500+75",
+        "problems": [
+            {
+                "score": 44,
+                "message": "Jay Sneddon has to wait 3h15m between clusters of classes"
+            }
+        ]
+    },
+    {
+        "names": [
+            "IT 2150-01"
+        ],
+        "prefixes": [
+            "IT"
+        ],
+        "instructors": [
+            "Jay Sneddon"
+        ],
+        "is_placed": true,
+        "room": "Smith 112",
+        "time_slot": "TR1030+75",
+        "problems": [
+            {
+                "score": 44,
+                "message": "Jay Sneddon has to wait 3h15m between clusters of classes"
+            }
+        ]
     },
     {
         "names": [
@@ -522,9 +736,30 @@ window.placement = [
             "Carol Stander"
         ],
         "is_placed": true,
-        "room": "Smith 107",
-        "time_slot": "MWF1100+50",
-        "problems": []
+        "room": "Smith 108",
+        "time_slot": "TR1200+75",
+        "problems": [
+            {
+                "score": 42,
+                "message": "Carol Stander has a cluster of classes that is only 1h15m long"
+            },
+            {
+                "score": 42,
+                "message": "Carol Stander has a cluster of classes that is only 1h15m long"
+            },
+            {
+                "score": 39,
+                "message": "Carol Stander is scheduled to teach IT 2300-01 at TR1200+75"
+            },
+            {
+                "score": 33,
+                "message": "Bart Stander wants exactly one representative day off, the same as Carol Stander, but did not get it"
+            },
+            {
+                "score": 37,
+                "message": "Carol Stander wants exactly one representative day off, the same as Bart Stander, but did not get it"
+            }
+        ]
     },
     {
         "names": [
@@ -538,7 +773,22 @@ window.placement = [
         ],
         "is_placed": true,
         "room": "Smith 107",
-        "time_slot": "TR1500+75",
+        "time_slot": "TR1030+75",
+        "problems": []
+    },
+    {
+        "names": [
+            "IT 2600-01"
+        ],
+        "prefixes": [
+            "IT"
+        ],
+        "instructors": [
+            "Syed Ali"
+        ],
+        "is_placed": true,
+        "room": "Smith 107",
+        "time_slot": "TR0900+75",
         "problems": []
     },
     {
@@ -552,24 +802,14 @@ window.placement = [
             "Jay Sneddon"
         ],
         "is_placed": true,
-        "room": "Smith 107",
-        "time_slot": "TR1030+75",
-        "problems": []
-    },
-    {
-        "names": [
-            "IT 2750-01"
-        ],
-        "prefixes": [
-            "IT"
-        ],
-        "instructors": [
-            "Jay Sneddon"
-        ],
-        "is_placed": true,
-        "room": "Smith 107",
-        "time_slot": "TR1200+75",
-        "problems": []
+        "room": "Smith 116",
+        "time_slot": "MW1200+75",
+        "problems": [
+            {
+                "score": 44,
+                "message": "Jay Sneddon has to wait 3h15m between clusters of classes"
+            }
+        ]
     },
     {
         "names": [
@@ -582,13 +822,13 @@ window.placement = [
             "Phil Daley"
         ],
         "is_placed": true,
-        "room": "Smith 107",
-        "time_slot": "TR1330+75",
+        "room": "Smith 117",
+        "time_slot": "MW1330+75",
         "problems": []
     },
     {
         "names": [
-            "IT 3300-01"
+            "IT 3110-01"
         ],
         "prefixes": [
             "IT"
@@ -597,43 +837,13 @@ window.placement = [
             "Joe Francom"
         ],
         "is_placed": true,
-        "room": "Smith 108",
-        "time_slot": "TR1200+75",
-        "problems": []
-    },
-    {
-        "names": [
-            "IT 3500-01"
-        ],
-        "prefixes": [
-            "IT"
-        ],
-        "instructors": [
-            "Syed Ali"
-        ],
-        "is_placed": true,
-        "room": "Smith 116",
-        "time_slot": "MW1500+75",
-        "problems": []
-    },
-    {
-        "names": [
-            "IT 4200-01"
-        ],
-        "prefixes": [
-            "IT"
-        ],
-        "instructors": [
-            "Brayden Connole"
-        ],
-        "is_placed": true,
         "room": "Smith 109",
-        "time_slot": "TR1500+75",
+        "time_slot": "MWF0900+50",
         "problems": []
     },
     {
         "names": [
-            "IT 4400-01"
+            "IT 3400-01"
         ],
         "prefixes": [
             "IT"
@@ -643,7 +853,101 @@ window.placement = [
         ],
         "is_placed": true,
         "room": "Smith 107",
-        "time_slot": "TR0900+75",
+        "time_slot": "TR1330+75",
+        "problems": [
+            {
+                "score": 32,
+                "message": "Phil Daley is scheduled to teach IT 3400-01 at TR1330+75"
+            }
+        ]
+    },
+    {
+        "names": [
+            "IT 3710-01"
+        ],
+        "prefixes": [
+            "IT"
+        ],
+        "instructors": [
+            "Jay Sneddon"
+        ],
+        "is_placed": true,
+        "room": "Smith 117",
+        "time_slot": "MWF1100+50",
+        "problems": [
+            {
+                "score": 44,
+                "message": "Jay Sneddon has to wait 3h15m between clusters of classes"
+            },
+            {
+                "score": 30,
+                "message": "Jay Sneddon is scheduled to teach IT 3710-01 at MWF1100+50"
+            }
+        ]
+    },
+    {
+        "names": [
+            "IT 3750-01"
+        ],
+        "prefixes": [
+            "IT"
+        ],
+        "instructors": [
+            "Jay Sneddon"
+        ],
+        "is_placed": true,
+        "room": "Smith 107",
+        "time_slot": "TR1200+75",
+        "problems": [
+            {
+                "score": 44,
+                "message": "Jay Sneddon has to wait 3h15m between clusters of classes"
+            }
+        ]
+    },
+    {
+        "names": [
+            "IT 4510-01"
+        ],
+        "prefixes": [
+            "IT"
+        ],
+        "instructors": [
+            "Syed Ali"
+        ],
+        "is_placed": true,
+        "room": "Smith 107",
+        "time_slot": "MW1330+75",
+        "problems": []
+    },
+    {
+        "names": [
+            "IT 4600-01"
+        ],
+        "prefixes": [
+            "IT"
+        ],
+        "instructors": [
+            "Syed Ali"
+        ],
+        "is_placed": true,
+        "room": "Smith 108",
+        "time_slot": "TR1030+75",
+        "problems": []
+    },
+    {
+        "names": [
+            "IT 4700-01"
+        ],
+        "prefixes": [
+            "IT"
+        ],
+        "instructors": [
+            "Syed Ali"
+        ],
+        "is_placed": true,
+        "room": "Smith 107",
+        "time_slot": "MW1200+75",
         "problems": []
     },
     {
@@ -654,16 +958,21 @@ window.placement = [
             "IT"
         ],
         "instructors": [
-            "Syed Ali"
+            "Jay Sneddon"
         ],
         "is_placed": true,
-        "room": "Smith 108",
-        "time_slot": "R1630+100",
-        "problems": []
+        "room": "Smith 107",
+        "time_slot": "T1630+50",
+        "problems": [
+            {
+                "score": 44,
+                "message": "Jay Sneddon has to wait 3h15m between clusters of classes"
+            }
+        ]
     },
     {
         "names": [
-            "SD 6100-01"
+            "SD 6200-01"
         ],
         "prefixes": [
             "SD"
@@ -674,52 +983,47 @@ window.placement = [
         "is_placed": true,
         "room": "Smith 117",
         "time_slot": "T1630+150",
-        "problems": []
+        "problems": [
+            {
+                "score": 33,
+                "message": "DJ Holt wants a day off but did not get one"
+            }
+        ]
     },
     {
         "names": [
-            "SD 6110-01"
+            "SD 6210-01"
         ],
         "prefixes": [
             "SD"
         ],
         "instructors": [
-            "Design Faculty"
-        ],
-        "is_placed": true,
-        "room": "Smith 117",
-        "time_slot": "M1630+150",
-        "problems": []
-    },
-    {
-        "names": [
-            "SD 6400-01"
-        ],
-        "prefixes": [
-            "SD"
-        ],
-        "instructors": [
-            "DJ Holt"
-        ],
-        "is_placed": true,
-        "room": "Smith 117",
-        "time_slot": "W1630+150",
-        "problems": []
-    },
-    {
-        "names": [
-            "SD 6450-01"
-        ],
-        "prefixes": [
-            "SD"
-        ],
-        "instructors": [
-            "DJ Holt"
+            "Eric Pedersen"
         ],
         "is_placed": true,
         "room": "Smith 117",
         "time_slot": "R1630+150",
         "problems": []
+    },
+    {
+        "names": [
+            "SD 6220-01"
+        ],
+        "prefixes": [
+            "SD"
+        ],
+        "instructors": [
+            "Jeff Compas"
+        ],
+        "is_placed": true,
+        "room": "Smith 117",
+        "time_slot": "W1630+150",
+        "problems": [
+            {
+                "score": 27,
+                "message": "Jeff Compas wants a day off but did not get one"
+            }
+        ]
     },
     {
         "names": [
@@ -732,43 +1036,13 @@ window.placement = [
             "Matt Kearl"
         ],
         "is_placed": true,
-        "room": "Smith 113",
-        "time_slot": "TR1200+75",
-        "problems": []
-    },
-    {
-        "names": [
-            "SE 1400-02"
-        ],
-        "prefixes": [
-            "SE"
-        ],
-        "instructors": [
-            "Brayden Connole"
-        ],
-        "is_placed": true,
         "room": "Smith 112",
-        "time_slot": "MW1500+75",
+        "time_slot": "MWF1100+50",
         "problems": []
     },
     {
         "names": [
-            "SE 3010-01"
-        ],
-        "prefixes": [
-            "SE"
-        ],
-        "instructors": [
-            "Brayden Connole"
-        ],
-        "is_placed": true,
-        "room": "Smith 112",
-        "time_slot": "MW1330+75",
-        "problems": []
-    },
-    {
-        "names": [
-            "SE 3150-01"
+            "SE 3100-01"
         ],
         "prefixes": [
             "SE"
@@ -777,9 +1051,18 @@ window.placement = [
             "Jeff Compas"
         ],
         "is_placed": true,
-        "room": "Smith 109",
-        "time_slot": "MW1200+75",
-        "problems": []
+        "room": "Smith 116",
+        "time_slot": "MW1330+75",
+        "problems": [
+            {
+                "score": 27,
+                "message": "Jeff Compas wants a day off but did not get one"
+            },
+            {
+                "score": 46,
+                "message": "Jeff Compas is scheduled to teach SE 3100-01 at MW1330+75"
+            }
+        ]
     },
     {
         "names": [
@@ -789,11 +1072,46 @@ window.placement = [
             "SE"
         ],
         "instructors": [
-            "Joe Francom"
+            "Lora Klein"
+        ],
+        "is_placed": true,
+        "room": "Smith 108",
+        "time_slot": "MW1200+75",
+        "problems": []
+    },
+    {
+        "names": [
+            "SE 3250-01"
+        ],
+        "prefixes": [
+            "SE"
+        ],
+        "instructors": [
+            "DJ Holt"
         ],
         "is_placed": true,
         "room": "Smith 109",
-        "time_slot": "TR1330+75",
+        "time_slot": "TR1500+75",
+        "problems": [
+            {
+                "score": 33,
+                "message": "DJ Holt wants a day off but did not get one"
+            }
+        ]
+    },
+    {
+        "names": [
+            "SE 3450-01"
+        ],
+        "prefixes": [
+            "SE"
+        ],
+        "instructors": [
+            "Matt Kearl"
+        ],
+        "is_placed": true,
+        "room": "Smith 113",
+        "time_slot": "TR1030+75",
         "problems": []
     },
     {
@@ -807,28 +1125,33 @@ window.placement = [
             "Eric Pedersen"
         ],
         "is_placed": true,
-        "room": "Smith 109",
-        "time_slot": "TR1200+75",
-        "problems": []
-    },
-    {
-        "names": [
-            "SE 3550-01"
-        ],
-        "prefixes": [
-            "SE"
-        ],
-        "instructors": [
-            "Matt Kearl"
-        ],
-        "is_placed": true,
-        "room": "Smith 113",
+        "room": "Smith 116",
         "time_slot": "TR1030+75",
         "problems": []
     },
     {
         "names": [
-            "SE 4930R-01"
+            "SE 4200-01"
+        ],
+        "prefixes": [
+            "SE"
+        ],
+        "instructors": [
+            "DJ Holt"
+        ],
+        "is_placed": true,
+        "room": "Smith 117",
+        "time_slot": "MW1200+75",
+        "problems": [
+            {
+                "score": 33,
+                "message": "DJ Holt wants a day off but did not get one"
+            }
+        ]
+    },
+    {
+        "names": [
+            "SE 4600-04"
         ],
         "prefixes": [
             "SE"
@@ -837,8 +1160,8 @@ window.placement = [
             "Eric Pedersen"
         ],
         "is_placed": true,
-        "room": "Smith 112",
-        "time_slot": "TR1530+60",
+        "room": "Smith 109",
+        "time_slot": "TR1330+75",
         "problems": []
     },
     {
@@ -853,22 +1176,7 @@ window.placement = [
         ],
         "is_placed": true,
         "room": "Smith 112",
-        "time_slot": "R1630+150",
-        "problems": []
-    },
-    {
-        "names": [
-            "SE 4990-02"
-        ],
-        "prefixes": [
-            "SE"
-        ],
-        "instructors": [
-            "Brayden Connole"
-        ],
-        "is_placed": true,
-        "room": "Smith 117",
-        "time_slot": "MW1200+75",
+        "time_slot": "TR1500+75",
         "problems": []
     }
 ];

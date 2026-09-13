@@ -15,6 +15,7 @@ use self::faculty_preferences::*;
 use self::input::*;
 use self::print::*;
 use self::sat_solver::*;
+use self::score::{MAX_PRIORITY, ScoreLevel};
 use self::solver::*;
 use std::collections::HashMap;
 use std::time::Instant;
@@ -280,6 +281,7 @@ fn parse_args() -> Result<Opts> {
         "sat" => {
             let mut opts = SatOpts::default();
             parser.string("-d", "--db-path", &mut opts.db_path)?;
+            parser.minimum_hallpasses("", "--min-hallpass", &mut opts.minimum_hallpasses)?;
             parser.boolean("", "--balance-faculty-preferences", &mut opts.balance_faculty_preferences)?;
             parser.boolean("", "--show-faculty-preference-priorities", &mut opts.show_faculty_preference_priorities)?;
             parser.leftover()?;
@@ -384,6 +386,7 @@ impl Default for GenOpts {
 
 pub struct SatOpts {
     pub db_path: String,
+    pub minimum_hallpasses: MinimumHallpasses,
     pub balance_faculty_preferences: bool,
     pub show_faculty_preference_priorities: bool,
 }
@@ -392,9 +395,56 @@ impl Default for SatOpts {
     fn default() -> Self {
         Self {
             db_path: DEFAULT_DB_PATH.to_string(),
+            minimum_hallpasses: MinimumHallpasses::default(),
             balance_faculty_preferences: true,
             show_faculty_preference_priorities: false,
         }
+    }
+}
+
+#[derive(Debug, Default, Eq, PartialEq)]
+pub struct MinimumHallpasses {
+    by_priority: HashMap<u8, ScoreLevel>,
+}
+
+impl MinimumHallpasses {
+    fn parse(value: &str) -> std::result::Result<Self, String> {
+        let mut by_priority = HashMap::new();
+
+        if value.is_empty() {
+            return Err("expected one or more LEVEL:COUNT pairs".to_string());
+        }
+
+        for pair in value.split(',') {
+            let mut fields = pair.split(':');
+            let (Some(priority), Some(count), None) = (fields.next(), fields.next(), fields.next()) else {
+                return Err(format!("expected LEVEL:COUNT, got '{pair}'"));
+            };
+            let priority = priority
+                .parse::<u8>()
+                .map_err(|_| format!("priority '{priority}' must be an integer from 1 to {MAX_PRIORITY}"))?;
+            if priority == 0 {
+                return Err("priority 0 contains hard constraints and cannot have a minimum hallpass count".to_string());
+            }
+            if priority > MAX_PRIORITY {
+                return Err(format!("priority {priority} exceeds the maximum priority {MAX_PRIORITY}"));
+            }
+            let count = count
+                .parse::<ScoreLevel>()
+                .map_err(|_| format!("hallpass count '{count}' must be an integer from 0 to {}", ScoreLevel::MAX))?;
+            if count < 0 {
+                return Err(format!("hallpass count {count} cannot be negative"));
+            }
+            if by_priority.insert(priority, count).is_some() {
+                return Err(format!("priority {priority} is specified more than once"));
+            }
+        }
+
+        Ok(Self { by_priority })
+    }
+
+    pub fn at_priority(&self, priority: u8) -> ScoreLevel {
+        self.by_priority.get(&priority).copied().unwrap_or(0)
     }
 }
 
@@ -558,6 +608,7 @@ fn print_usage(command: Option<String>) {
             eprintln!();
             eprintln!("Options:");
             eprintln!("  -d, --db-path <path>           Database path (default: {})", default.db_path);
+            eprintln!("      --min-hallpass <level:count,...>  First hallpass count to try at each priority level");
             print_preference_balance_usage(default.balance_faculty_preferences);
         }
 
@@ -736,6 +787,15 @@ impl CliParser {
         Ok(())
     }
 
+    fn minimum_hallpasses(&mut self, short: &str, long: &str, target: &mut MinimumHallpasses) -> Result<()> {
+        if let Some((key, val)) = self.pair(short, long) {
+            *target =
+                MinimumHallpasses::parse(&val).map_err(|message| format!("Error parsing option {key}: {message}"))?;
+        }
+
+        Ok(())
+    }
+
     fn tweak_specs(&mut self, short: &str, long: &str, tweaks: &mut Vec<TweakSpec>) -> Result<bool> {
         if let Some((key, val)) = self.pair(short, long) {
             let parts: Vec<&str> = val.split(',').collect();
@@ -756,5 +816,41 @@ impl CliParser {
         } else {
             Ok(false)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::MinimumHallpasses;
+
+    #[test]
+    fn parses_minimum_hallpasses_for_distinct_priorities() {
+        let minimums = MinimumHallpasses::parse("7:1,8:2").unwrap();
+
+        assert_eq!(minimums.at_priority(6), 0);
+        assert_eq!(minimums.at_priority(7), 1);
+        assert_eq!(minimums.at_priority(8), 2);
+    }
+
+    #[test]
+    fn rejects_duplicate_minimum_hallpass_priorities() {
+        let error = MinimumHallpasses::parse("7:1,8:2,7:3").unwrap_err();
+
+        assert_eq!(error, "priority 7 is specified more than once");
+    }
+
+    #[test]
+    fn rejects_minimum_hallpasses_for_hard_constraints() {
+        let error = MinimumHallpasses::parse("0:1").unwrap_err();
+
+        assert_eq!(error, "priority 0 contains hard constraints and cannot have a minimum hallpass count");
+    }
+
+    #[test]
+    fn rejects_invalid_minimum_hallpass_values() {
+        assert!(MinimumHallpasses::parse("").is_err());
+        assert!(MinimumHallpasses::parse("7").is_err());
+        assert!(MinimumHallpasses::parse("7:-1").is_err());
+        assert!(MinimumHallpasses::parse("50:1").is_err());
     }
 }

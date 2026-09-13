@@ -21,6 +21,7 @@ pub fn generate_schedule(config: &SatOpts, input: &Input) -> Result<Schedule> {
 
     // Convert the input to a SAT criteria structure
     let sat_criteria = SatCriteria::from_input(input)?;
+    validate_minimum_hallpasses(config, &sat_criteria)?;
     println!(
         "Loaded {} constraints across {} priority levels",
         sat_criteria.total_criteria_count(),
@@ -44,7 +45,13 @@ pub fn generate_schedule(config: &SatOpts, input: &Input) -> Result<Schedule> {
         }
 
         // solve at this priority level, updating max_violations in place
-        best = solve_at_priority_level(input, &sat_criteria, priority, &mut max_violations)?;
+        best = solve_at_priority_level(
+            input,
+            &sat_criteria,
+            priority,
+            config.minimum_hallpasses.at_priority(priority),
+            &mut max_violations,
+        )?;
         if best.is_none() {
             if priority == 0 {
                 return err("Failed to find a solution that satisfies hard constraints");
@@ -84,24 +91,39 @@ pub fn generate_schedule(config: &SatOpts, input: &Input) -> Result<Schedule> {
     }
 }
 
+fn validate_minimum_hallpasses(config: &SatOpts, sat_criteria: &SatCriteria) -> Result<()> {
+    for priority in 1..=MAX_PRIORITY {
+        let minimum = config.minimum_hallpasses.at_priority(priority);
+        let constraint_count = sat_criteria.criteria_at_priority(priority).len();
+        if minimum as usize > constraint_count {
+            let suffix = if constraint_count == 1 { "" } else { "s" };
+            return err(format!(
+                "Minimum hallpass count {minimum} exceeds the {constraint_count} constraint{suffix} at priority level {priority}"
+            ));
+        }
+    }
+
+    Ok(())
+}
+
 // Solve for a specific priority level, finding minimum violations.
 fn solve_at_priority_level(
     input: &Input,
     sat_criteria: &SatCriteria,
     priority: u8,
+    minimum_hallpasses: ScoreLevel,
     max_violations: &mut Score,
 ) -> Result<Option<Schedule>> {
-    // Get constraints at this priority level
-    let constraints = sat_criteria.criteria_at_priority(priority);
-    let criteria_count = constraints.len();
-
-    // Reset violations at this priority level to start at 0
-    max_violations.levels[priority as usize] = 0;
+    // Reset violations at this priority level to the configured starting point.
+    max_violations.levels[priority as usize] = minimum_hallpasses;
 
     // Try to solve with increasing number of violations until we find a solution
-    while max_violations.levels[priority as usize] <= criteria_count as i16 {
+    loop {
         // Create the SAT instance using current violations from max_violations
         let encoding = create_sat_instance(input, sat_criteria, max_violations, priority)?;
+        let hallpass_count = encoding.hallpasses.get(&priority).map_or(0, HashSet::len);
+        let hallpass_count = ScoreLevel::try_from(hallpass_count)
+            .map_err(|_| format!("Priority level {priority} has too many hallpasses to score"))?;
 
         // print progress display
         print!("\r<");
@@ -121,21 +143,24 @@ fn solve_at_priority_level(
                 return Ok(Some(decode_solution(input, &encoding, &model, priority)?));
             }
             Ok(None) => {
-                // Increment violations at this priority level and try again
-                max_violations.levels[priority as usize] += 1;
-
                 // quit early if we fail to handle hard constraints
                 if priority == 0 {
                     return err("No solution using only hard constraints");
                 }
+
+                // Once all hallpasses are allowed, a larger limit cannot change the result.
+                if max_violations.levels[priority as usize] >= hallpass_count {
+                    return Ok(None);
+                }
+
+                // Increment violations at this priority level and try again
+                max_violations.levels[priority as usize] += 1;
             }
             Err(e) => {
                 return err(format!("Error solving SAT instance: {}", e));
             }
         }
     }
-
-    Ok(None)
 }
 
 // Create a SAT instance for the timetabling problem.
@@ -437,4 +462,21 @@ fn decode_solution(input: &Input, encoding: &Encoding, model: &HashSet<i32>, pri
     }
 
     Ok(schedule)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SatCriteria, SatCriterion, SatOpts, validate_minimum_hallpasses};
+    use crate::MinimumHallpasses;
+
+    #[test]
+    fn rejects_a_minimum_hallpass_count_above_the_constraint_count() {
+        let mut criteria = SatCriteria::new();
+        criteria.add_criterion(SatCriterion::Conflict { sections: [0, 1], priority: 7 });
+        let config = SatOpts { minimum_hallpasses: MinimumHallpasses::parse("7:2").unwrap(), ..SatOpts::default() };
+
+        let error = validate_minimum_hallpasses(&config, &criteria).unwrap_err();
+
+        assert_eq!(error.to_string(), "Minimum hallpass count 2 exceeds the 1 constraint at priority level 7");
+    }
 }

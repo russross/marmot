@@ -29,10 +29,10 @@ def build_faculty(db: DB) -> None:
     db.make_faculty_section('Bart Stander', 'CS 4550-01', '3 credit bell schedule', 'flex', 'pcs', 'stadium')
 
     db.faculty_preferences('Bart Stander', 'MT',
-        AvoidTimeSlot('MW1200+75'),
-        AvoidTimeSlot('TR1200+75'),
         WantADayOff(),
         WantSameDayOffAs('Carol Stander'),
+        AvoidTimeSlot('MW1200+75'),
+        AvoidTimeSlot('TR1200+75'),
         WantClassesEvenlySpreadAcrossDays(),
         AvoidClassClusterLongerThan('2h45m'),
         AvoidClassClusterShorterThan('1h50m'),
@@ -51,10 +51,10 @@ def build_faculty(db: DB) -> None:
     db.add_cross_listing('CS 4600-03', ['SE 4600-03'])
     db.faculty_preferences('Brayden Connole', 'MT',
         AvoidTimeSlot('MWF0900+50'),
-        AvoidTimeSlot('TR0900+75'),
         AvoidTimeSlot('MWF1000+50'),
-        AvoidTimeSlot('TR1030+75'),
         AvoidTimeSlot('MWF1100+50'),
+        AvoidTimeSlot('TR0900+75'),
+        AvoidTimeSlot('TR1030+75'),
     )
 
     db.make_faculty('Carol Stander', 'Computing', default_availability)
@@ -106,6 +106,7 @@ def build_faculty(db: DB) -> None:
         AvoidClassClusterShorterThan('5h30m'),
         AvoidGapBetweenClassClustersLongerThan('1h45m'),
         WantADayOff(),
+        AvoidSectionInRooms('CS 4600-02', ['flex', 'Smith 116']),
         AvoidSectionInRooms('SE 4200-01', ['flex', 'Smith 116']),
         WantClassesPackedIntoAsFewRoomsAsPossible(),
         WantBackToBackClassesInTheSameRoom(),
@@ -172,14 +173,15 @@ def build_faculty(db: DB) -> None:
     db.make_faculty_section('Jeff Compas', 'SE 3100-01', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Jeff Compas', 'CS 3005-01', '3 credit bell schedule', 'flex', 'stadium')
 
-    db.faculty_preferences('Jeff Compas', 'MT',
+    db.faculty_preferences('Jeff Compas', 'WR',
+        WantADayOff(),
         AvoidTimeSlot('MWF0900+50'),
+        AvoidTimeSlot('MWF1000+50'),
+        AvoidTimeSlot('MWF1100+50'),
         AvoidTimeSlot('MW1500+75'),
         AvoidTimeSlot('TR1500+75'),
-        AvoidTimeSlot('MWF1000+50'),
         AvoidTimeSlot('MW1330+75'),
         AvoidTimeSlot('TR1330+75'),
-        AvoidTimeSlot('MWF1100+50'),
         AvoidTimeSlot('MW1200+75'),
         AvoidTimeSlot('TR1200+75'),
         AvoidTimeSlot('TR1030+75'),
