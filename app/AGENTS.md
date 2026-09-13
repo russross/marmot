@@ -135,7 +135,7 @@ Scheduling domain invariants
 *   Faculty do not choose section numbers. Normal sections begin at 01, online sections at
     40, and evening sections at 50 in isolated faculty input. A later merge assigns
     globally unique section numbers.
-*   Faculty priorities occupy 10 through 24 and are lexicographic; lower numbers matter
+*   Effective faculty priorities occupy 10 through 49 and are lexicographic; lower numbers matter
     more. Program/curriculum priorities 0 through 9 are department-owned and are not
     faculty preferences.
 *   Fixed-credit sections infer their catalog credit in the input API. Scheduled sections

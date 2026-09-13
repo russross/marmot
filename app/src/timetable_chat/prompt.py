@@ -291,7 +291,7 @@ restrictive tiers while preserving the practical hierarchy of stated requests.
 
 Only if they want the implementation details, explain that faculty preference tiers are
 sorted by this impact and partitioned into contiguous buckets across the available
-effective faculty-priority levels, currently 10 through 24. Nearby impacts therefore share
+effective faculty-priority levels, currently 10 through 49. Nearby impacts therefore share
 an effective bucket. The partition weights bundled room/time requests by their number of
 effective preferences and balances that weight across buckets. The scheduler then compares
 these effective priority buckets lexicographically. Do not volunteer the entropy or
