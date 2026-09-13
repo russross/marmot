@@ -5,8 +5,8 @@ import sqlite3
 from typing import Callable, Concatenate, TypeVar, Optional, ParamSpec, Protocol
 
 MIN_PREF_PRIORITY = 10
-PRIORITY_LEVELS = 25
 MAX_STATED_PRIORITY = 99
+PRIORITY_LEVELS = MAX_STATED_PRIORITY
 
 @dataclass
 class FacultyPreferences:
@@ -21,7 +21,7 @@ class WantSameDayOffAs(FacultyPreferences):
         if not self.other_faculty.strip():
             raise ValueError('a shared day off requires another faculty member')
         if self.priority is not None and not MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS:
-            raise ValueError('faculty preference priority must be between 10 and 25')
+            raise ValueError('faculty preference priority must be between 10 and 99')
 
 @dataclass
 class WantADayOff(FacultyPreferences):

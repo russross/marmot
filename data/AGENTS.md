@@ -225,9 +225,8 @@ Faculty preferences are created by `faculty_preferences(faculty, days_to_check, 
 
 Priority behavior in `queries.py`:
 
-- explicit faculty preference priorities live in the range `10..25`; automatic
-  stated ranks can continue through `99`, and entropy balancing maps them to
-  effective priorities `10..25`
+- explicit and automatic stated faculty preference priorities live in the range
+  `10..99`; entropy balancing maps them to effective priorities `10..49`
 - if a preference omits `priority=...`, priorities are assigned in list order starting at `10`
 - faculty preference rows only reach the solver for faculty who have at least one scheduleable section in `sections_to_be_scheduled`
 - `days_to_check` must contain at least two representative days for day-distribution preferences; `faculty_preferences(..., 'M', ...)` is not valid for `WantADayOff()`, `DoNotWantADayOff()`, or `WantClassesEvenlySpreadAcrossDays()`
@@ -388,7 +387,7 @@ These matter if new input starts using them, but they are not central to the cur
 
 - `0`: hard conflicts and unplaced-section penalty level
 - `1..9`: program conflicts and anti-conflicts
-- `10..25`: effective faculty and section soft preferences; automatically
+- `10..49`: effective faculty and section soft preferences; automatically
   assigned stated faculty ranks can extend through `99` before balancing
 
 Lower numbers are more important.

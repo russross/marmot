@@ -414,15 +414,20 @@ def build_post(db: DB) -> None:
 
     # Misc
 
-    #db.add_anti_conflict(5, 'CS 4600-01', ['CS 4600-02', 'CS 4600-03'])
-    #db.add_anti_conflict(5, 'CS 4600-02', ['CS 4600-01', 'CS 4600-03'])
-    #db.add_anti_conflict(5, 'CS 4600-03', ['CS 4600-01', 'CS 4600-02'])
+    # all CS/SE senior project sections should meet at the same time
+    db.add_anti_conflict(5, 'CS 4600-01', ['CS 4600-02'])
+    db.add_anti_conflict(5, 'CS 4600-02', ['CS 4600-03'])
+    db.add_anti_conflict(5, 'CS 4600-03', ['SE 4600-04'])
+    db.add_anti_conflict(5, 'SE 4600-04', ['CS 4600-01'])
+
     db.add_anti_conflict(5, 'CS 1030-01', ['CS 1400'])
-    #db.add_multiple_section_override('CS 4600', 1)
-    #db.add_multiple_section_override('SE 4600', 1)
+    db.add_multiple_section_override('CS 4600', 1)
+    db.add_multiple_section_override('SE 4600', 1)
 
     db.make_conflict('Computer Science', 'spread out CS 1400', 5, 'boost',
         ['CS 1400-01', 'CS 1400-02'])
+    db.make_conflict('Computer Science', 'spread out CS 3510', 5, 'boost',
+        ['CS 3510-01', 'CS 3510-02'])
     db.make_conflict('Computer Science', 'spread out CS 1410', 5, 'boost',
         ['CS 1410-01', 'CS 1410-02'])
     db.make_conflict('Information Technology', 'spread out IT 1100', 5, 'boost',

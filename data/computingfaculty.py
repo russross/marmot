@@ -9,6 +9,7 @@ from queries import (
     DoNotWantADayOff,
     TimeInterval,
     UnavailableTimeSlot,
+    UseSameTimePattern,
     WantADayOff,
     WantSameDayOffAs,
     WantBackToBackClassesInTheSameRoom,
@@ -28,16 +29,20 @@ def build_faculty(db: DB) -> None:
     db.make_faculty_section('Bart Stander', 'CS 4550-01', '3 credit bell schedule', 'flex', 'pcs', 'stadium')
 
     db.faculty_preferences('Bart Stander', 'MT',
-        WantADayOff(),
         AvoidTimeSlot('MW1200+75'),
         AvoidTimeSlot('TR1200+75'),
+        WantADayOff(),
         WantSameDayOffAs('Carol Stander'),
-        WantBackToBackClassesInTheSameRoom(),
-        WantClassesPackedIntoAsFewRoomsAsPossible(),
+        WantClassesEvenlySpreadAcrossDays(),
+        AvoidClassClusterLongerThan('2h45m'),
+        AvoidClassClusterShorterThan('1h50m'),
+        AvoidGapBetweenClassClustersLongerThan('1h45m'),
         AvoidSectionInRooms('CS 3600-01', ['stadium']),
         AvoidSectionInRooms('CS 3600-01', ['flex']),
         AvoidSectionInRooms('CS 4550-01', ['stadium']),
         AvoidSectionInRooms('CS 4550-01', ['flex']),
+        WantBackToBackClassesInTheSameRoom(),
+        WantClassesPackedIntoAsFewRoomsAsPossible(),
     )
 
     db.make_faculty('Brayden Connole', 'Computing', default_availability)
@@ -59,18 +64,15 @@ def build_faculty(db: DB) -> None:
     db.make_faculty_section('Carol Stander', 'IT 2300-01', '3 credit bell schedule', 'flex', 'pcs')
     db.make_faculty_section('Carol Stander', 'CS 1030-01', '3 credit bell schedule', 'flex', 'pcs')
     db.faculty_preferences('Carol Stander', 'MT',
-        WantADayOff(),
-        AvoidTimeSlot('TR1030+75'),
         AvoidClassClusterLongerThan('1h50m'),
+        WantADayOff(),
+        WantSameDayOffAs('Bart Stander'),
+        AvoidTimeSlot('TR1030+75'),
         AvoidTimeSlot('MW1200+75'),
         AvoidTimeSlot('TR1200+75'),
-        WantSameDayOffAs('Bart Stander'),
-        AvoidSectionInTimeSlots('CS 1030-01', ['MWF0900+50']),
-        AvoidSectionInTimeSlots('CS 1030-01', ['MW1500+75']),
-        AvoidSectionInTimeSlots('CS 1030-01', ['TR1500+75']),
-        AvoidSectionInTimeSlots('CS 1030-01', ['MWF1000+50']),
-        AvoidSectionInTimeSlots('CS 1030-01', ['MWF1100+50']),
         AvoidTimeSlot('MWF0900+50'),
+        AvoidGapBetweenClassClustersLongerThan('1h45m'),
+        AvoidClassClusterShorterThan('1h50m'),
         AvoidSectionInRooms('CS 1410-02', ['Smith 113']),
     )
 
@@ -129,14 +131,19 @@ def build_faculty(db: DB) -> None:
         AvoidSectionInTimeSlots('SE 3500-01', ['TR1200+75']),
         AvoidSectionInTimeSlots('SE 3500-01', ['TR1330+75']),
         AvoidSectionInTimeSlots('SE 3500-01', ['TR1500+75']),
+        WantClassesEvenlySpreadAcrossDays(),
+        AvoidClassClusterLongerThan('2h45m'),
+        AvoidClassClusterShorterThan('1h50m'),
+        AvoidGapBetweenClassClustersLongerThan('1h45m'),
         AvoidSectionInRooms('SE 3500-01', ['Smith 117']),
         AvoidSectionInRooms('SE 3500-01', ['flex']),
     )
 
     db.make_faculty('Jay Sneddon', 'Computing', default_availability)
-    db.make_faculty_section('Jay Sneddon', 'IT 2700-01', '3 credit bell schedule', 'Smith 107')
+    db.make_faculty_section('Jay Sneddon', 'IT 1200-01', 'MW1200+75', 'MW1500+75', 'TR1200+75', 'flex', 'stadium')
+    db.make_faculty_section('Jay Sneddon', 'IT 2700-01', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Jay Sneddon', 'IT 2150-01', '3 credit bell schedule', 'flex', 'macs', 'pcs', 'stadium')
-    db.make_faculty_section('Jay Sneddon', 'IT 3710-01', '3 credit bell schedule', 'Smith 107')
+    db.make_faculty_section('Jay Sneddon', 'IT 3710-01', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Jay Sneddon', 'IT 3750-01', '3 credit bell schedule', 'Smith 107')
     db.make_faculty_section('Jay Sneddon', 'IT 4920R-01', credit_hours=1)
     db.make_faculty_section('Jay Sneddon', 'IT 4920R-01B', credit_hours=1)
@@ -145,12 +152,13 @@ def build_faculty(db: DB) -> None:
     db.faculty_preferences('Jay Sneddon', 'MT',
         UnavailableTimeSlot('TR1500+75'),
         UnavailableTimeSlot('TR1630+75'),
+        AvoidSectionInRooms('IT 1200-01', ['Smith 108', 'Smith 109', 'stadium']),
         AvoidTimeSlot('MWF0900+50'),
         AvoidTimeSlot('MWF1000+50'),
         AvoidTimeSlot('MWF1100+50'),
-        AvoidTimeSlot('TR0900+75'),
-        AvoidTimeSlot('TR1030+75'),
         DoNotWantADayOff(),
+        WantClassesEvenlySpreadAcrossDays(),
+        AvoidClassClusterLongerThan('2h45m'),
         AvoidClassClusterShorterThan('1h50m'),
         AvoidGapBetweenClassClustersLongerThan('1h45m'),
     )
@@ -189,9 +197,22 @@ def build_faculty(db: DB) -> None:
     )
 
     db.make_faculty('Kalyan Venugopal', 'Computing', default_availability)
+    db.make_faculty_section('Kalyan Venugopal', 'CS 1400-01', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Kalyan Venugopal', 'CS 1400-02', '3 credit bell schedule', 'flex', 'stadium')
+    db.make_faculty_section('Kalyan Venugopal', 'CS 2320-01', '3 credit bell schedule', 'flex', 'stadium')
+    db.make_faculty_section('Kalyan Venugopal', 'CS 6351-01B', credit_hours=1)
     # First-block one-credit project with no scheduled meetings.
     db.make_faculty_section('Kalyan Venugopal', 'CS 6352-01A', credit_hours=1)
+
+    db.faculty_preferences('Kalyan Venugopal', 'MT',
+        WantADayOff(),
+        UseSameTimePattern(['CS 1400-01', 'CS 1400-02']),
+        AvoidSectionInTimeSlots('CS 1400-01', ['MWF 3×50 bell schedule']),
+        AvoidSectionInTimeSlots('CS 1400-02', ['MWF 3×50 bell schedule']),
+        AvoidClassClusterLongerThan('2h45m'),
+        AvoidClassClusterShorterThan('1h50m'),
+        AvoidGapBetweenClassClustersLongerThan('1h45m'),
+    )
 
     db.make_faculty('Lora Klein', 'Computing', default_availability)
     # Success: CS 1410 sections are MW0930+80 and MW1330+80
@@ -228,22 +249,25 @@ def build_faculty(db: DB) -> None:
     db.make_faculty_section('Phil Daley', 'IT 3100-01', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Phil Daley', 'IT 3400-01', '3 credit bell schedule', 'flex', 'stadium')
     db.faculty_preferences('Phil Daley', 'MT',
-        WantADayOff(),
         AvoidTimeSlot('MWF0900+50'),
         AvoidTimeSlot('MWF1000+50'),
         AvoidTimeSlot('MWF1100+50'),
         AvoidTimeSlot('TR1500+75'),
         AvoidTimeSlot('TR1330+75'),
         AvoidTimeSlot('TR1200+75'),
+        WantClassesEvenlySpreadAcrossDays(),
+        AvoidClassClusterLongerThan('2h45m'),
+        AvoidClassClusterShorterThan('1h50m'),
+        AvoidGapBetweenClassClustersLongerThan('1h45m'),
         AvoidSectionInRooms('IT 1100-01', ['stadium', 'flex']),
         AvoidSectionInRooms('IT 1100-02', ['stadium', 'flex']),
         WantBackToBackClassesInTheSameRoom(),
     )
 
     db.make_faculty('Ren Quinn', 'Computing', default_availability)
-    db.make_faculty_section('Ren Quinn', 'CS 1400-01', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Ren Quinn', 'CS 1410-01', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Ren Quinn', 'CS 3150-01', '3 credit bell schedule', 'flex', 'stadium')
+    db.make_faculty_section('Ren Quinn', 'CS 3510-02', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Ren Quinn', 'CS 4400-01', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Ren Quinn', 'CS 4800R-01', credit_hours=1)
     db.make_faculty_section('Ren Quinn', 'CS 4991R-01', 'F1400+50', 'flex')
@@ -253,12 +277,15 @@ def build_faculty(db: DB) -> None:
         AvoidTimeSlot('TR1030+75'),
         AvoidTimeSlot('TR1200+75'),
         WantBackToBackClassesInTheSameRoom(),
-        AvoidSectionInRooms('CS 1400-01', ['stadium']),
         AvoidSectionInRooms('CS 1410-01', ['stadium']),
         AvoidSectionInRooms('CS 3150-01', ['stadium']),
         AvoidSectionInRooms('CS 4400-01', ['stadium']),
         AvoidTimeSlot('MWF0900+50'),
         DoNotWantADayOff(),
+        WantClassesEvenlySpreadAcrossDays(),
+        AvoidClassClusterLongerThan('2h45m'),
+        AvoidClassClusterShorterThan('1h50m'),
+        AvoidGapBetweenClassClustersLongerThan('1h45m'),
     )
 
     db.make_faculty('Russ Ross', 'Computing', default_availability)
@@ -297,6 +324,10 @@ def build_faculty(db: DB) -> None:
         AvoidTimeSlot('TR1330+75'),
         AvoidTimeSlot('MWF1100+50'),
         AvoidTimeSlot('TR1200+75'),
+        WantClassesEvenlySpreadAcrossDays(),
+        AvoidClassClusterLongerThan('2h45m'),
+        AvoidClassClusterShorterThan('1h50m'),
+        AvoidGapBetweenClassClustersLongerThan('1h45m'),
         AvoidSectionInRooms('IT 4510-01', ['stadium']),
         AvoidSectionInRooms('IT 2600-01', ['stadium']),
         AvoidSectionInRooms('IT 4700-01', ['stadium']),
@@ -305,11 +336,11 @@ def build_faculty(db: DB) -> None:
 
     db.make_faculty('Yuanfei Sun', 'Computing', default_availability)
     db.make_faculty_section('Yuanfei Sun', 'CS 3510-01', '3 credit bell schedule', 'flex')
-    db.make_faculty_section('Yuanfei Sun', 'CS 3510-02', '3 credit bell schedule', 'flex')
     db.make_faculty_section('Yuanfei Sun', 'CS 6310-50', 'M1800+150', 'Smith 116')
     db.make_faculty_section('Yuanfei Sun', 'CS 6322-50', 'W1800+150', 'Smith 116')
     # First-block project: individual Zoom appointments, no regular meeting.
     db.make_faculty_section('Yuanfei Sun', 'CS 6350-01A', credit_hours=1)
+    db.make_faculty_section('Yuanfei Sun', 'CS 6353-01B', credit_hours=1)
     db.faculty_preferences('Yuanfei Sun', 'MT',
         AvoidTimeSlot('TR0900+75'),
         AvoidTimeSlot('TR1030+75'),
@@ -321,9 +352,3 @@ def build_faculty(db: DB) -> None:
         AvoidClassClusterShorterThan('1h50m'),
         AvoidClassClusterLongerThan('2h45m'),
     )
-
-    # all CS/SE senior project sections should meet at the same time
-    db.add_anti_conflict(5, 'CS 4600-01', ['CS 4600-02'])
-    db.add_anti_conflict(5, 'CS 4600-02', ['CS 4600-03'])
-    db.add_anti_conflict(5, 'CS 4600-03', ['SE 4600-04'])
-    db.add_anti_conflict(5, 'SE 4600-04', ['CS 4600-01'])
