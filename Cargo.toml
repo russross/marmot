@@ -3,12 +3,6 @@ name = "marmot"
 version = "0.3.0"
 edition = "2024"
 
-[profile.dev]
-opt-level = 3
-
-[profile.release]
-debug = true
-
 [dependencies]
 fastrand = "2.4.1"
 itertools = "0.15.0"
