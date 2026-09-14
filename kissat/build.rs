@@ -15,6 +15,8 @@ pub fn main() {
         .collect::<Vec<_>>();
 
     cc::Build::new()
+        .opt_level(3)
+        .debug(false)
         .define("COMPACT", None)
         .define("NDEBUG", None)
         .define("NPROOFS", None)

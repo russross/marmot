@@ -1,7 +1,7 @@
 [package]
 name = "kissat"
-version = "0.2.0"
-edition = "2018"
+version = "4.0.4"
+edition = "2024"
 build = "build.rs"
 description = "A simple wrapper for the Kissat SAT solver"
 readme = "README.md"
@@ -18,4 +18,4 @@ exclude = [
 ]
 
 [build-dependencies]
-cc = "1.2.65"
+cc = "1.4.6"

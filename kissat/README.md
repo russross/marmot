@@ -11,7 +11,7 @@ in Rust.
 This crate builds the entire source code of Kissat, and provides a safe
 interface over it.
 
-Wrapper version 0.2.0 vendors Kissat release 4.0.4, upstream tag
+Crate version 4.0.4 vendors Kissat release 4.0.4, upstream tag
 `rel-4.0.4`, commit `8af8e56f174b778aef3aa45af9f739b2a5f492c2`.
 
 The upstream release metadata and license are retained in the `kissat`

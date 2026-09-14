@@ -34,7 +34,7 @@ struct kissat {
     _unused: [u8; 0],
 }
 
-extern "C" {
+unsafe extern "C" {
     fn kissat_init() -> *mut kissat;
     fn kissat_set_configuration(solver: *mut kissat, name: *const c_char) -> c_int;
     fn kissat_add(solver: *mut kissat, lit: c_int);
@@ -53,7 +53,7 @@ pub enum Configuration {
 impl Configuration {
     fn name(self) -> *const c_char {
         match self {
-            Self::Plain => b"plain\0".as_ptr().cast(),
+            Self::Plain => c"plain".as_ptr(),
         }
     }
 }
