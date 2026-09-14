@@ -105,9 +105,9 @@ def build_faculty(db: DB) -> None:
         AvoidClassClusterShorterThan('4h'),
         AvoidClassClusterShorterThan('5h30m'),
         AvoidGapBetweenClassClustersLongerThan('1h45m'),
-        WantADayOff(),
-        AvoidSectionInRooms('CS 4600-02', ['flex', 'Smith 116']),
+        #WantADayOff(),
         AvoidSectionInRooms('SE 4200-01', ['flex', 'Smith 116']),
+        AvoidSectionInRooms('CS 4600-02', ['flex', 'Smith 116']),
         WantClassesPackedIntoAsFewRoomsAsPossible(),
         WantBackToBackClassesInTheSameRoom(),
     )
@@ -238,10 +238,15 @@ def build_faculty(db: DB) -> None:
     db.make_faculty_section('Matt Kearl', 'SE 3550-40')
     db.make_faculty_section('Matt Kearl', 'SE 4920-01')
     db.faculty_preferences('Matt Kearl', 'MT',
+        AvoidSectionInTimeSlots('SE 1400-01', ['MWF 3×50 bell schedule']),
+        AvoidSectionInTimeSlots('SE 3450-01', ['MWF 3×50 bell schedule']),
+        WantADayOff(),
+        AvoidTimeSlot('MWF0900+50'),
+        AvoidTimeSlot('MWF1000+50'),
+        AvoidTimeSlot('MWF1100+50'),
         AvoidTimeSlot('MW1500+75'),
-        AvoidTimeSlot('MW1200+75'),
         AvoidTimeSlot('MW1330+75'),
-        AvoidTimeSlot('TR1500+75'),
+        AvoidTimeSlot('MW1200+75'),
     )
 
     db.make_faculty('Phil Daley', 'Computing', default_availability)

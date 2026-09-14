@@ -834,10 +834,10 @@ impl FacultyPreference {
                 input.sections[*section].name
             ),
             FacultyPreferenceKind::DaysOff { desired, .. } => {
-                format!("have exactly {desired} representative day{} off", if *desired == 1 { "" } else { "s" })
+                format!("have {desired} day{} off", if *desired == 1 { "" } else { "s" })
             }
             FacultyPreferenceKind::SameDayOffAs { other_faculty, .. } => {
-                format!("have exactly one representative day off, the same as {}", input.faculty[*other_faculty].name)
+                format!("have one day off that matches {}", input.faculty[*other_faculty].name)
             }
             FacultyPreferenceKind::EvenlySpread { .. } => "spread classes evenly across days".to_string(),
             FacultyPreferenceKind::NoRoomSwitch { .. } => "avoid room switches between consecutive classes".to_string(),
@@ -1237,7 +1237,7 @@ impl Penalty {
             &Penalty::SameDayOffAs { priority, faculty, other_faculty } => (
                 priority,
                 format!(
-                    "{} wants exactly one representative day off, the same as {}, but did not get it",
+                    "{} wants one day off that matches {}, but did not get it",
                     input.faculty[faculty].name, input.faculty[other_faculty].name
                 ),
             ),
