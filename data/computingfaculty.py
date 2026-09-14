@@ -141,7 +141,7 @@ def build_faculty(db: DB) -> None:
     )
 
     db.make_faculty('Jay Sneddon', 'Computing', default_availability)
-    db.make_faculty_section('Jay Sneddon', 'IT 1200-01', 'MW1200+75', 'MW1500+75', 'TR1200+75', 'flex', 'stadium')
+    db.make_faculty_section('Jay Sneddon', 'IT 1200-01', 'MW1200+75', 'MW1500+75', 'TR1200+75', 'Smith 107')
     db.make_faculty_section('Jay Sneddon', 'IT 2700-01', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Jay Sneddon', 'IT 2150-01', '3 credit bell schedule', 'flex', 'macs', 'pcs', 'stadium')
     db.make_faculty_section('Jay Sneddon', 'IT 3710-01', '3 credit bell schedule', 'flex', 'stadium')
@@ -173,18 +173,16 @@ def build_faculty(db: DB) -> None:
     db.make_faculty_section('Jeff Compas', 'SE 3100-01', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Jeff Compas', 'CS 3005-01', '3 credit bell schedule', 'flex', 'stadium')
 
-    db.faculty_preferences('Jeff Compas', 'WR',
-        WantADayOff(),
+    db.faculty_preferences('Jeff Compas', 'MT',
         AvoidTimeSlot('MWF0900+50'),
         AvoidTimeSlot('MWF1000+50'),
         AvoidTimeSlot('MWF1100+50'),
         AvoidTimeSlot('MW1500+75'),
-        AvoidTimeSlot('TR1500+75'),
         AvoidTimeSlot('MW1330+75'),
-        AvoidTimeSlot('TR1330+75'),
         AvoidTimeSlot('MW1200+75'),
-        AvoidTimeSlot('TR1200+75'),
-        AvoidTimeSlot('TR1030+75'),
+        AvoidClassClusterLongerThan('2h45m'),
+        AvoidClassClusterShorterThan('1h50m'),
+        AvoidGapBetweenClassClustersLongerThan('1h45m'),
     )
 
     db.make_faculty('Joe Francom', 'Computing', default_availability)
