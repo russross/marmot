@@ -246,12 +246,14 @@ Priority behavior in `queries.py`:
   Requires both faculty to have exactly one empty representative day and for that
   day to match. Each faculty lists a reciprocal request at their own desired
   rank, with identical `days_to_check` of at least two days and at least one
-  schedulable section each. Individual `WantADayOff()` requests are optional;
-  this request does not introduce a separate individual fallback preference.
-  Directed rows in `faculty_shared_day_off_preferences` retain both ranks.
-  References may point forward within the build transaction. `data/build`
-  calls `validate_shared_day_off_preferences()` after input loading.
-  A failure counts once per owner at that owner's effective priority.
+  schedulable section each. A faculty member may participate in only one pair.
+  Individual `WantADayOff()` requests are optional; this request does not
+  introduce a separate individual fallback preference. Directed rows in
+  `faculty_shared_day_off_preferences` retain both ranks for entropy-prefix
+  construction. References may point forward within the build transaction.
+  `data/build` calls `validate_shared_day_off_preferences()` after input loading.
+  The pair becomes one effective preference, and a failure counts once at its
+  joint effective priority.
 
 - `WantClassesEvenlySpreadAcrossDays()`
   Prefers balanced teaching counts across the representative days.

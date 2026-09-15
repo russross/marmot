@@ -312,6 +312,9 @@ class DB:
 
     @rollback_on_exception
     def faculty_preferences(self, faculty: str, days_to_check: str, *prefs: FacultyPreferences) -> None:
+        shared_day_off_count = sum(isinstance(preference, WantSameDayOffAs) for preference in prefs)
+        if shared_day_off_count > 1:
+            raise ValueError(f'{faculty}: a shared day off may be requested with only one other faculty member')
         days_off, days_off_priority = (None, None)
         evenly_spread_priority = None
         no_room_switch_priority = None

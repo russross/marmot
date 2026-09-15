@@ -183,13 +183,14 @@ CREATE TABLE faculty_preferences (
     FOREIGN KEY (faculty) REFERENCES faculty (faculty) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
 
--- Each participant retains their own stated rank. The partner may be created
--- later in the same input transaction.
+-- Each participant retains their own stated rank. A faculty member may belong
+-- to only one reciprocal pair. The partner may be created later in the same
+-- input transaction.
 CREATE TABLE faculty_shared_day_off_preferences (
     faculty                     TEXT NOT NULL,
     other_faculty               TEXT NOT NULL,
     priority                    INTEGER NOT NULL CHECK (priority BETWEEN 10 AND 99),
-    PRIMARY KEY (faculty, other_faculty),
+    PRIMARY KEY (faculty),
     CHECK (faculty <> other_faculty),
     FOREIGN KEY (faculty) REFERENCES faculty_preferences (faculty)
         ON DELETE CASCADE ON UPDATE CASCADE DEFERRABLE INITIALLY DEFERRED,
