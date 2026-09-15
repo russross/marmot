@@ -1,4 +1,4 @@
-use super::error::Result;
+use super::error::{Result, err};
 use super::input::*;
 use super::score::*;
 
@@ -305,6 +305,14 @@ impl SatCriteria {
                     });
                 }
 
+                Criterion::SharedDayOffPreference { faculty, days_to_check, priority, .. } => {
+                    criteria.add_criterion(SatCriterion::FacultySameDayOff {
+                        faculty: *faculty,
+                        days_to_check: *days_to_check,
+                        priority: *priority,
+                    });
+                }
+
                 Criterion::OwnedFacultyPreference(preference) => {
                     let priority = preference.priority;
                     let faculty = preference.faculty;
@@ -327,12 +335,8 @@ impl SatCriteria {
                                 });
                             }
                         }
-                        FacultyPreferenceKind::SameDayOffAs { other_faculty, days_to_check } => {
-                            criteria.add_criterion(SatCriterion::FacultySameDayOff {
-                                faculty: [faculty, *other_faculty],
-                                days_to_check: *days_to_check,
-                                priority,
-                            });
+                        FacultyPreferenceKind::SameDayOffAs { .. } => {
+                            return err("shared day-off preferences must be merged before SAT encoding");
                         }
                         FacultyPreferenceKind::DaysOff { days_to_check, desired } => {
                             criteria.add_criterion(SatCriterion::FacultyDaysOff {

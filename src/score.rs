@@ -61,6 +61,13 @@ pub enum Criterion {
         priority: u8,
         sections: Vec<usize>,
     },
+    SharedDayOffPreference {
+        faculty: [usize; 2],
+        sections: Vec<usize>,
+        days_to_check: Days,
+        stated_priorities: [u8; 2],
+        priority: u8,
+    },
     OwnedFacultyPreference(FacultyPreference),
 }
 
@@ -151,6 +158,10 @@ pub enum Penalty {
         priority: u8,
         faculty: usize,
         other_faculty: usize,
+    },
+    SharedDayOff {
+        priority: u8,
+        faculty: [usize; 2],
     },
     DaysEvenlySpread {
         priority: u8,
@@ -340,6 +351,8 @@ impl Criterion {
             Criterion::FacultyPreference { sections, .. } => sections.clone(),
 
             Criterion::SectionsWithDifferentTimePatterns { sections, .. } => sections.clone(),
+
+            Criterion::SharedDayOffPreference { sections, .. } => sections.clone(),
 
             Criterion::OwnedFacultyPreference(preference) => preference.sections.clone(),
         }
@@ -671,6 +684,16 @@ impl Criterion {
                 }
             }
 
+            &Criterion::SharedDayOffPreference { faculty, days_to_check, priority, .. } => {
+                let first_days = faculty_teaching_days(input, schedule, faculty[0], days_to_check);
+                let second_days = faculty_teaching_days(input, schedule, faculty[1], days_to_check);
+                if first_days.days == second_days.days && first_days.len() + 1 == days_to_check.len() {
+                    Vec::new()
+                } else {
+                    vec![Penalty::SharedDayOff { priority, faculty }]
+                }
+            }
+
             Criterion::OwnedFacultyPreference(preference) => preference.check(input, schedule),
         }
     }
@@ -798,6 +821,19 @@ impl Criterion {
                     sep = " and ";
                 }
                 write!(&mut s, " to have the same time pattern").unwrap();
+            }
+
+            Criterion::SharedDayOffPreference { faculty, stated_priorities, priority, .. } => {
+                write!(
+                    &mut s,
+                    "{} (stated {} and {}): {} and {} want one matching day off",
+                    priority,
+                    stated_priorities[0],
+                    stated_priorities[1],
+                    input.faculty[faculty[0]].name,
+                    input.faculty[faculty[1]].name,
+                )
+                .unwrap();
             }
 
             Criterion::OwnedFacultyPreference(preference) => {
@@ -1000,11 +1036,11 @@ impl FacultyPreference {
 }
 
 impl Penalty {
-    pub fn faculty(&self) -> Option<usize> {
+    pub fn faculty(&self) -> Vec<usize> {
         match *self {
             Penalty::RoomPreference { faculty, .. }
             | Penalty::TimeSlotPreference { faculty, .. }
-            | Penalty::SectionsWithDifferentTimePatterns { faculty, .. } => faculty,
+            | Penalty::SectionsWithDifferentTimePatterns { faculty, .. } => faculty.into_iter().collect(),
             Penalty::ClusterTooShort { faculty, .. }
             | Penalty::ClusterTooLong { faculty, .. }
             | Penalty::GapTooShort { faculty, .. }
@@ -1013,8 +1049,9 @@ impl Penalty {
             | Penalty::SameDayOffAs { faculty, .. }
             | Penalty::DaysEvenlySpread { faculty, .. }
             | Penalty::RoomSwitch { faculty, .. }
-            | Penalty::RoomCount { faculty, .. } => Some(faculty),
-            Penalty::SoftConflict { .. } | Penalty::AntiConflict { .. } => None,
+            | Penalty::RoomCount { faculty, .. } => vec![faculty],
+            Penalty::SharedDayOff { faculty, .. } => faculty.to_vec(),
+            Penalty::SoftConflict { .. } | Penalty::AntiConflict { .. } => Vec::new(),
         }
     }
 
@@ -1038,6 +1075,7 @@ impl Penalty {
 
             Penalty::DaysOff { priority, .. } => priority,
             Penalty::SameDayOffAs { priority, .. } => priority,
+            Penalty::SharedDayOff { priority, .. } => priority,
 
             Penalty::DaysEvenlySpread { priority, .. } => priority,
 
@@ -1075,6 +1113,13 @@ impl Penalty {
             &Penalty::SameDayOffAs { faculty, other_faculty, .. } => {
                 let mut sections = input.faculty[faculty].sections.clone();
                 sections.extend_from_slice(&input.faculty[other_faculty].sections);
+                sections.sort_unstable();
+                sections.dedup();
+                sections
+            }
+            &Penalty::SharedDayOff { faculty, .. } => {
+                let mut sections = input.faculty[faculty[0]].sections.clone();
+                sections.extend_from_slice(&input.faculty[faculty[1]].sections);
                 sections.sort_unstable();
                 sections.dedup();
                 sections
@@ -1237,8 +1282,15 @@ impl Penalty {
             &Penalty::SameDayOffAs { priority, faculty, other_faculty } => (
                 priority,
                 format!(
-                    "{} wants one day off that matches {}, but did not get it",
+                    "{} wants one day off that matches {}, but do not get it",
                     input.faculty[faculty].name, input.faculty[other_faculty].name
+                ),
+            ),
+            &Penalty::SharedDayOff { priority, faculty } => (
+                priority,
+                format!(
+                    "{} and {} want one matching day off, do did not get it",
+                    input.faculty[faculty[0]].name, input.faculty[faculty[1]].name
                 ),
             ),
             &Penalty::DaysOff { priority, faculty, desired, actual: _actual } => (

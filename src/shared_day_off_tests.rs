@@ -1,5 +1,7 @@
 use crate::cnf::Encoding;
-use crate::faculty_preferences::{FacultyPreferencePriorityPolicy, rebalance_faculty_preferences};
+use crate::faculty_preferences::{
+    FacultyPreferencePriorityPolicy, merge_shared_day_off_preferences, rebalance_faculty_preferences,
+};
 use crate::input::{
     CreditHours, Days, Duration, Faculty, Input, Room, RoomWithOptionalPriority, Section, Time, TimeSlot,
     TimeSlotWithOptionalPriority,
@@ -10,7 +12,7 @@ use crate::score::{Criterion, FacultyPreference, FacultyPreferenceKind};
 use crate::solver::Schedule;
 use kissat::Solver;
 
-pub fn input() -> Input {
+pub fn owned_input() -> Input {
     let days = Days::parse("MT").unwrap();
     Input {
         term_name: "test".into(),
@@ -58,6 +60,15 @@ pub fn input() -> Input {
     }
 }
 
+pub fn input() -> Input {
+    let mut input = owned_input();
+    merge_shared_day_off_preferences(&mut input.criteria).unwrap();
+    for section in &mut input.sections {
+        section.criteria = vec![0];
+    }
+    input
+}
+
 fn satisfiable(encoding: &Encoding) -> bool {
     let mut solver = Solver::new();
     let vars: Vec<_> = (0..encoding.last_var).map(|_| solver.var()).collect();
@@ -72,6 +83,11 @@ fn satisfiable(encoding: &Encoding) -> bool {
         solver.add(&literals);
     }
     solver.sat().is_some()
+}
+
+#[test]
+fn sat_conversion_rejects_unmerged_shared_day_off_requests() {
+    assert!(SatCriteria::from_input(&owned_input()).is_err());
 }
 
 #[test]
@@ -114,9 +130,9 @@ fn individual_requests_are_optional_and_day_links_are_reused_in_either_order() {
                     }
                     let hallpasses: Vec<_> =
                         encoding.hallpasses.values().flat_map(|group| group.iter().copied()).collect();
-                    assert_eq!(hallpasses.len(), 2 + individual_owners.count_ones() as usize);
+                    assert_eq!(hallpasses.len(), 1 + individual_owners.count_ones() as usize);
                     assert_eq!(encoding.faculty_day_vars.len(), 4);
-                    // Twelve assignment variables, four day variables, and one hallpass per request.
+                    // Twelve assignment variables, four day variables, one shared hallpass, and optional individual hallpasses.
                     assert_eq!(encoding.last_var as usize, 16 + hallpasses.len());
                     encoding.totalizer_at_most_k(&hallpasses, allowed, None);
                     assert_eq!(satisfiable(&encoding), allowed >= violations);
@@ -127,9 +143,9 @@ fn individual_requests_are_optional_and_day_links_are_reused_in_either_order() {
 }
 
 #[test]
-fn shared_day_off_sat_matches_scoring_and_owner_counts() {
+fn shared_day_off_sat_matches_scoring_with_one_joint_penalty() {
     for (same_priority, balanced) in [(false, false), (true, false), (false, true)] {
-        let mut input = input();
+        let mut input = owned_input();
         if same_priority {
             let Criterion::OwnedFacultyPreference(preference) = &mut input.criteria[1] else { unreachable!() };
             preference.priority = 20;
@@ -138,6 +154,7 @@ fn shared_day_off_sat_matches_scoring_and_owner_counts() {
             input.faculty_preference_priority_policy = FacultyPreferencePriorityPolicy::EntropyBalancedV1;
             rebalance_faculty_preferences(&mut input, false).unwrap();
         }
+        merge_shared_day_off_preferences(&mut input.criteria).unwrap();
         let criteria = SatCriteria::from_input(&input).unwrap();
         for pattern in 0..81 {
             let mut schedule = Schedule::new(&input);
@@ -153,22 +170,22 @@ fn shared_day_off_sat_matches_scoring_and_owner_counts() {
             }
             let satisfied = matches!((masks[0], masks[1]), (1, 1) | (2, 2));
             let penalties: Vec<_> = input.criteria.iter().flat_map(|c| c.check(&input, &schedule)).collect();
-            assert_eq!(penalties.len(), if satisfied { 0 } else { 2 });
-            for (owner, penalty) in penalties.iter().enumerate() {
-                assert_eq!(penalty.faculty(), Some(owner));
+            assert_eq!(penalties.len(), usize::from(!satisfied));
+            for penalty in &penalties {
+                assert_eq!(penalty.faculty(), vec![0, 1]);
                 assert_eq!(penalty.get_sections(&input), vec![0, 1, 2, 3]);
                 assert_eq!(
                     penalty.get_priority(),
                     if balanced {
-                        10 + owner as u8
+                        10
                     } else if same_priority {
                         20
                     } else {
-                        20 + owner as u8
+                        21
                     }
                 );
             }
-            for allowed in 0..=2 {
+            for allowed in 0..=1 {
                 let mut encoding = Encoding::new();
                 for section in 0..4 {
                     for time in 0..3 {
@@ -187,9 +204,9 @@ fn shared_day_off_sat_matches_scoring_and_owner_counts() {
                     }
                 }
                 let hallpasses: Vec<_> = encoding.hallpasses.values().flat_map(|group| group.iter().copied()).collect();
-                assert_eq!(hallpasses.len(), 2);
+                assert_eq!(hallpasses.len(), 1);
                 encoding.totalizer_at_most_k(&hallpasses, allowed, None);
-                assert_eq!(satisfiable(&encoding), satisfied || allowed == 2, "pattern {pattern}, budget {allowed}");
+                assert_eq!(satisfiable(&encoding), satisfied || allowed == 1, "pattern {pattern}, budget {allowed}");
             }
         }
     }
@@ -198,13 +215,8 @@ fn shared_day_off_sat_matches_scoring_and_owner_counts() {
 #[test]
 fn shared_day_off_requires_exactly_one_empty_checked_day() {
     let mut input = input();
-    for criterion in &mut input.criteria {
-        let Criterion::OwnedFacultyPreference(preference) = criterion else { unreachable!() };
-        preference.kind = FacultyPreferenceKind::SameDayOffAs {
-            other_faculty: 1 - preference.faculty,
-            days_to_check: Days::parse("MTW").unwrap(),
-        };
-    }
+    let Criterion::SharedDayOffPreference { days_to_check, .. } = &mut input.criteria[0] else { unreachable!() };
+    *days_to_check = Days::parse("MTW").unwrap();
     let mut schedule = Schedule::new(&input);
     for (times, satisfied) in [([0, 0, 0, 0], false), ([0, 1, 0, 1], true), ([0, 1, 0, 2], false)] {
         for (section, time) in times.into_iter().enumerate() {

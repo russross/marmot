@@ -1,7 +1,9 @@
 #![allow(clippy::collapsible_if)]
 
 use super::error::{Result, err};
-use super::faculty_preferences::{FacultyPreferencePriorityPolicy, rebalance_faculty_preferences};
+use super::faculty_preferences::{
+    FacultyPreferencePriorityPolicy, merge_shared_day_off_preferences, rebalance_faculty_preferences,
+};
 use super::score::*;
 use super::solver::*;
 use sqlite::{Connection, OpenFlags, State, Value};
@@ -398,7 +400,6 @@ pub fn load_input(
     {
         return err("faculty preference ranks above 49 require --balance-faculty-preferences true");
     }
-    compute_neighbors(&mut sections, &criteria);
     println!(" took {}ms", start.elapsed().as_millis());
 
     let mut input = Input {
@@ -414,6 +415,8 @@ pub fn load_input(
     if faculty_preference_priority_policy == FacultyPreferencePriorityPolicy::EntropyBalancedV1 {
         rebalance_faculty_preferences(&mut input, show_faculty_preference_priorities)?;
     }
+    merge_shared_day_off_preferences(&mut input.criteria)?;
+    compute_neighbors(&mut input.sections, &input.criteria);
 
     Ok(input)
 }
@@ -1310,7 +1313,7 @@ mod shared_day_off_tests {
     }
 
     #[test]
-    fn loader_keeps_owned_ranks_and_links_both_faculty() {
+    fn loader_merges_owned_ranks_at_the_lower_priority_and_links_both_faculty() {
         let db = database();
         let mut input = input();
         input.criteria.clear();
@@ -1320,15 +1323,19 @@ mod shared_day_off_tests {
         }
         let names = HashMap::from([("A".to_string(), 0), ("B".to_string(), 1)]);
         load_shared_day_off_preferences(&db, &input.faculty, &names, &mut input.criteria).unwrap();
+        merge_shared_day_off_preferences(&mut input.criteria).unwrap();
         compute_neighbors(&mut input.sections, &input.criteria);
-        assert_eq!(input.criteria.len(), 2);
-        for (owner, criterion) in input.criteria.iter().enumerate() {
-            let Criterion::OwnedFacultyPreference(preference) = criterion else { unreachable!() };
-            assert_eq!(preference.faculty, owner);
-            assert_eq!(preference.stated_priority, if owner == 0 { 25 } else { 21 });
-            assert_eq!(preference.sections, vec![0, 1, 2, 3]);
-        }
-        assert!(input.sections.iter().all(|s| s.criteria == vec![0, 1]));
+        assert_eq!(input.criteria.len(), 1);
+        let Criterion::SharedDayOffPreference { faculty, sections, stated_priorities, priority, .. } =
+            &input.criteria[0]
+        else {
+            unreachable!()
+        };
+        assert_eq!(*faculty, [0, 1]);
+        assert_eq!(*stated_priorities, [25, 21]);
+        assert_eq!(*priority, 25);
+        assert_eq!(*sections, vec![0, 1, 2, 3]);
+        assert!(input.sections.iter().all(|s| s.criteria == vec![0]));
         assert!(input.sections.iter().all(|s| s.neighbors.len() == 3));
     }
 
@@ -1510,7 +1517,7 @@ pub fn save_schedule(
         for penalty in penalty_list {
             let (priority, msg) = penalty.get_score_message(input, schedule);
             let sections = penalty.get_sections(input);
-            let mut faculty = penalty.faculty().map_or_else(Vec::new, |owner| vec![owner]);
+            let mut faculty = penalty.faculty();
             if faculty.is_empty() {
                 for &section in &sections {
                     faculty.extend_from_slice(&input.sections[section].faculty);

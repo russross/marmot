@@ -88,10 +88,14 @@ types.
 *   FacultySameDayOff
 
     Both faculty must have exactly one empty day among the same checked days,
-    and that day must match. Each reciprocal request is faculty-owned and has
-    its own stated and effective priority and one hallpass. Individual days-off
-    requests are optional, independently scored criteria. All schedulable
-    sections from both faculty participate in dependency tracking.
+    and that day must match. Each faculty member may participate in only one
+    reciprocal pair. Their entropy prefixes are independent before the shared
+    request. At that request, both higher-ranked prefixes and the shared rule
+    become one joint entropy prefix; each participant's later preferences extend
+    that common prefix independently. The reciprocal requests become one scored
+    criterion with one hallpass. Individual days-off requests are optional,
+    independently scored criteria. All schedulable sections from both faculty
+    participate in dependency tracking.
 
 *   FacultyNoRoomSwitch
 
@@ -307,11 +311,13 @@ associated criterion violation is counted.
 Faculty preference entropy
 --------------------------
 
-Shared requests use the owner's cumulative preference prefix and the baseline
-local domains of partners mentioned through that prefix. Day-mask histograms
-retain room-assignment weights. Disjoint faculty domains combine by matching
-masks with exactly one empty checked day; overlapping domains enumerate unique
-section placements so shared teaching assignments are counted once. Partner
-preferences are assessed in their own prefixes, not imposed on the owner's.
-Counts use checked `u128` arithmetic and overflow-safe rational comparison.
-Stated ranks may reach 99; balanced effective ranks remain 10–49.
+Shared requests join both participants' cumulative prefixes through their
+respective shared-request tiers. Each later tier extends that common prefix with
+only its owner's subsequent preferences. Day-mask histograms retain
+room-assignment weights. Disjoint faculty domains combine by matching masks with
+exactly one empty checked day, avoiding Cartesian enumeration; overlapping
+domains enumerate unique section placements so shared teaching assignments are
+counted once. Counts use checked `u128` arithmetic and overflow-safe rational
+comparison. Stated ranks may reach 99; balanced effective ranks remain 10–49.
+The joint prefix is bucketed once, and the reciprocal input rows become one
+criterion at that effective rank.

@@ -210,7 +210,7 @@ pub fn print_problems(input: &Input, schedule: &Schedule) {
     }
     for penalty_list in &schedule.penalties {
         for penalty in penalty_list {
-            let mut faculty = penalty.faculty().map_or_else(Vec::new, |owner| vec![owner]);
+            let mut faculty = penalty.faculty();
             if faculty.is_empty() {
                 for section in penalty.get_sections(input) {
                     faculty.extend_from_slice(&input.sections[section].faculty);

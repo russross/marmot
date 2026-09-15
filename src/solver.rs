@@ -288,7 +288,6 @@ mod shared_day_off_tests {
                 .flat_map(|c| c.check(&input, &schedule))
                 .fold(Score::new(), |score, penalty| score + penalty.get_priority());
             assert!(schedule.score == full);
-            assert_eq!(schedule.score.levels[20], 1);
             assert_eq!(schedule.score.levels[21], 1);
             revert_move(&input, &mut schedule, &log);
             assert!(schedule.score == before);
