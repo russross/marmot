@@ -30,19 +30,17 @@ def build_faculty(db: DB) -> None:
 
     db.faculty_preferences('Bart Stander', 'MT',
         WantADayOff(),
-        WantSameDayOffAs('Carol Stander'),
         AvoidTimeSlot('MW1200+75'),
         AvoidTimeSlot('TR1200+75'),
-        WantClassesEvenlySpreadAcrossDays(),
-        AvoidClassClusterLongerThan('2h45m'),
-        AvoidClassClusterShorterThan('1h50m'),
-        AvoidGapBetweenClassClustersLongerThan('1h45m'),
+        AvoidTimeSlot('TR1330+75'),
+        AvoidTimeSlot('TR1500+75'),
+        WantSameDayOffAs('Carol Stander'),
+        WantBackToBackClassesInTheSameRoom(),
+        WantClassesPackedIntoAsFewRoomsAsPossible(),
         AvoidSectionInRooms('CS 3600-01', ['stadium']),
         AvoidSectionInRooms('CS 3600-01', ['flex']),
         AvoidSectionInRooms('CS 4550-01', ['stadium']),
         AvoidSectionInRooms('CS 4550-01', ['flex']),
-        WantBackToBackClassesInTheSameRoom(),
-        WantClassesPackedIntoAsFewRoomsAsPossible(),
     )
 
     db.make_faculty('Brayden Connole', 'Computing', default_availability)
@@ -323,12 +321,13 @@ def build_faculty(db: DB) -> None:
     db.make_faculty_section('Syed Ali', 'IT 4700-01', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Syed Ali', 'IT 2600-01', '3 credit bell schedule', 'flex', 'stadium')
     db.faculty_preferences('Syed Ali', 'MT',
+        AvoidSectionInTimeSlots('IT 4600-01', ['MWF 3×50 bell schedule']),
         AvoidTimeSlot('MWF0900+50'),
+        AvoidTimeSlot('MWF1000+50'),
+        AvoidTimeSlot('MWF1100+50'),
         AvoidTimeSlot('MW1500+75'),
         AvoidTimeSlot('TR1500+75'),
-        AvoidTimeSlot('MWF1000+50'),
         AvoidTimeSlot('TR1330+75'),
-        AvoidTimeSlot('MWF1100+50'),
         AvoidTimeSlot('TR1200+75'),
         WantClassesEvenlySpreadAcrossDays(),
         AvoidClassClusterLongerThan('2h45m'),

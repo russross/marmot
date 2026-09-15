@@ -1289,7 +1289,7 @@ impl Penalty {
             &Penalty::SharedDayOff { priority, faculty } => (
                 priority,
                 format!(
-                    "{} and {} want one matching day off, do did not get it",
+                    "{} and {} want one matching day off, but do not get it",
                     input.faculty[faculty[0]].name, input.faculty[faculty[1]].name
                 ),
             ),
