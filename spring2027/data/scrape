@@ -1,0 +1,234 @@
+#!/usr/bin/env -S uv run -q --script
+# /// script
+# dependencies = [
+#     "pyquery",
+# ]
+# ///
+
+import re
+from dataclasses import dataclass
+from decimal import Decimal
+
+from pyquery import PyQuery as pq
+
+
+@dataclass(frozen=True)
+class CreditHours:
+    minimum: Decimal
+    maximum: Decimal
+
+    @classmethod
+    def parse(cls, text: str) -> 'CreditHours':
+        match = re.fullmatch(r'(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))? Hours?\.', text)
+        if match is None:
+            raise ValueError(f'unrecognized credit hours: {text!r}')
+
+        minimum = Decimal(match.group(1))
+        maximum = Decimal(match.group(2) or match.group(1))
+        if minimum > maximum:
+            raise ValueError(f'credit-hour range is reversed: {text!r}')
+
+        return cls(minimum, maximum)
+
+    def __str__(self) -> str:
+        if self.minimum == self.maximum:
+            return f'{self.minimum} credit {"hour" if self.minimum == 1 else "hours"}'
+        return f'{self.minimum}-{self.maximum} credit hours'
+
+    def arguments(self) -> str:
+        return f'{self.minimum}, {self.maximum}'
+
+prefixes = {
+    'CS':         'Computing',
+    'IT':         'Computing',
+    'SE':         'Computing',
+    'SD':         'Computing',
+    'DES':        'Design',
+    'IXD':        'Design',
+    'UXD':        'Design',
+    'MATH':       'Math',
+    'ECE':        'Engineering',
+    'ENGR':       'Engineering',
+    'MECH':       'Engineering',
+    'MTRN':       'Engineering',
+    'PHYS':       'Engineering',
+} 
+
+pages = [
+    'cs', 'it', 'se', 'sd',
+    'des', 'ixd', 'muxd',
+    'math',
+    'ece', 'engr', 'mech', 'mtrn', 'phys',
+]
+
+courses = {}
+
+CONCURRENT_PREREQ_RE = re.compile(
+    r'can be (?:concurrently enrolled|taken concurrently)',
+    re.IGNORECASE,
+)
+
+COURSE_CODE_RE = re.compile(r'\b([A-Z]{2,5})\s*(\d{4}[A-Z]?)\b', re.IGNORECASE)
+
+def parse_requisite_section(desc_html, labels):
+    start = -1
+    for label in labels:
+        start = desc_html.find(label)
+        if start >= 0:
+            break
+    if start < 0:
+        return ('', [])
+
+    section = desc_html[start:]
+    section = section[section.find(':') + 1:]
+    section = section[:section.find('.')]
+
+    links = []
+    for elt in pq(section).find('a.bubblelink.code'):
+        links.append((elt.text, elt.tail or ''))
+
+    return (section, links)
+
+def add_plain_requisite(section, links, known_courses):
+    linked_codes = {code.upper() for (code, _) in links}
+    plain_codes = {
+        f'{prefix.upper()} {number.upper()}'
+        for (prefix, number) in COURSE_CODE_RE.findall(pq(section).text())
+    }
+    unlinked_codes = plain_codes - linked_codes
+    if len(unlinked_codes) != 1:
+        return
+    (code,) = unlinked_codes
+    if code in known_courses:
+        links.append((code, ''))
+
+def crawl_prefix(prefix):
+    page = pq(url=f'https://catalog.utahtech.edu/courses/{prefix}/')
+    # download from newcatalog as cs.html, etc., and use the following:
+    #page = pq(url=f'file:///home/russ/Downloads/{prefix}.html')
+    for div in page('.courseblock'):
+        title = pq(div).find('p.courseblocktitle strong')[0]
+        (course, title, hours_text) = title.text_content().split('.  ')
+        credit_hours = CreditHours.parse(hours_text)
+
+        desc = pq(div).find('p.courseblockdesc')
+        desc_html = desc.html()
+        (pre_section, pre_pairs) = parse_requisite_section(desc_html, ['Prerequisites:', 'Prerequisite:'])
+        pre = [code for (code, _) in pre_pairs]
+
+        (co_section, co_pairs) = parse_requisite_section(desc_html, ['Corequisites:', 'Corequisite:'])
+        co = [code for (code, _) in co_pairs]
+
+        # Some prereqs are annotated as allowed concurrent enrollment.
+        # These should be modeled as both prereq and coreq.
+        for (code, tail) in pre_pairs:
+            if CONCURRENT_PREREQ_RE.search(tail):
+                if code not in co:
+                    co.append(code)
+
+        match = re.search(r'\. (FA)?(?:, )?(SP)?(?:, )?(SU)?\.<br/>', desc_html)
+        if match: (fa, sp, su) = (match.group(1) == 'FA', match.group(2) == 'SP', match.group(3) == 'SU')
+        else: fa = sp = su = False
+
+        courses[course] = {
+            'title': title,
+            'credit_hours': credit_hours,
+            'pre': pre,
+            'co': co,
+            'pre_section': pre_section,
+            'co_section': co_section,
+            'rot': (fa, sp, su),
+        }
+
+depts = set()
+print('import queries')
+print()
+print('def build_courses(db: queries.DB) -> None:')
+print("    print('building departments')")
+for dept in sorted(set(prefixes.values())):
+    print(f'    db.make_department({repr(dept)})')
+
+for page in pages:
+    crawl_prefix(page)
+
+for data in courses.values():
+    pre_pairs = [(code, '') for code in data['pre']]
+    add_plain_requisite(data['pre_section'], pre_pairs, courses)
+    data['pre'] = [code for (code, _) in pre_pairs]
+    co_pairs = [(code, '') for code in data['co']]
+    add_plain_requisite(data['co_section'], co_pairs, courses)
+    data['co'] = [code for (code, _) in co_pairs]
+
+#
+# corrections
+#
+
+patches = {
+    'CS 4600': { 'pre': ['CS 2100', 'CS 2420', 'CS 2810', 'CS 3005', 'MATH 1210'] },
+    'IT 4600': { 'pre': ['CS 1410', 'IT 2150', 'IT 2400', 'IT 2700', 'IT 3100'] },
+    'SE 4600': { 'pre': ['CS 2100', 'CS 2420', 'CS 2450', 'CS 2810', 'CS 3005', 'IT 1100', 'SE 1400', 'SE 3200'] },
+}
+# DES 4600 needs de facto prerequisites once the Design curriculum is modeled.
+for (name, patch) in patches.items():
+    if name not in courses: continue
+    for (kind, lst) in patch.items():
+        for elt in lst:
+            if elt not in courses[name][kind]:
+                courses[name][kind].append(elt)
+
+manual_overrides = {
+    'ECE 2210': { 'co': ['ECE 2215'] },
+    'MTRN 3410': { 'co': ['MTRN 3415'] },
+}
+for (name, override) in manual_overrides.items():
+    for (kind, lst) in override.items():
+        for elt in lst:
+            if elt not in courses[name][kind]:
+                courses[name][kind].append(elt)
+
+print()
+print("    print('building courses')")
+for name in sorted(courses.keys()):
+    data = courses[name]
+    title = data['title']
+    dept = prefixes[name[:name.index(' ')]]
+    (fall, spring, summer) = data['rot']
+    credit_hours = data['credit_hours']
+    print(f'    db.make_course({repr(dept)}, {repr(name)}, {repr(title)}, {credit_hours.arguments()})')
+    if fall:   print(f"    db.add_course_rotation({repr(name)}, 'fall')")
+    if spring: print(f"    db.add_course_rotation({repr(name)}, 'spring')")
+    if summer: print(f"    db.add_course_rotation({repr(name)}, 'summer')")
+
+def filter_courses(lst, context):
+    filtered = []
+    prefix = ''
+    for elt in lst:
+        if elt in filtered:
+            continue
+        if ' ' in elt:
+            prefix = elt[:elt.index(' ')]
+        if elt in courses:
+            filtered.append(elt)
+        elif f'{prefix} {elt}' in courses:
+            filtered.append(f'{prefix} {elt}')
+        else:
+            if prefix in prefixes:
+                print(f'    course {repr(elt)} not found for course {context}')
+
+    return filtered
+
+print()
+print("    print('adding prereqs')")
+for (name, data) in sorted(courses.items()):
+    lst = filter_courses(data['pre'], name)
+    if len(lst) == 0:
+        continue
+    print(f'    db.add_prereqs({repr(name)}, {repr(lst)})')
+
+print()
+print("    print('adding coreqs')")
+for (name, data) in sorted(courses.items()):
+    lst = filter_courses(data['co'], name)
+    if len(lst) == 0:
+        continue
+    print(f'    db.add_coreqs({repr(name)}, {repr(lst)})')
