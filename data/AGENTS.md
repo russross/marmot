@@ -329,7 +329,7 @@ harmless, but they usually mean the preference has no effect.
 Calls:
 
 - `make_program(program, department)`
-- `make_conflict(program, conflict_name, priority, boost_or_reduce, courses_or_sections)`
+- `make_conflict(program, conflict_name, priority, boost_or_reduce, courses_or_sections, *, include=())`
 
 Semantics:
 
@@ -340,6 +340,8 @@ Semantics:
 - `reduce` means "students usually need only one, so reduce or cancel overlap pressure"
 
 These rules are combined in SQL views into section-to-section conflict pairs. The solver does not read `make_conflict` rows directly; it reads the derived `conflict_pairs` view.
+
+`include=['core requirements']` includes all direct and transitive members of existing groups in the same program. Multiple included groups and an empty direct member list are supported. The receiving group applies its own priority and boost/reduce mode; each included group still contributes its own independent rule. Membership is stored as edges in `conflict_includes` and expanded by SQL, with duplicates removed before pairing. Missing references and inclusion cycles are rejected. Referenced groups must be unlinked before deletion; renaming a group cascades to references. Define dependencies before groups that include them.
 
 Computing uses this for:
 

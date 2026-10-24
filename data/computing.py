@@ -62,39 +62,13 @@ def build_post(db: DB) -> None:
         'CS 2100',
     ])
     db.make_conflict('Computer Science', 'core electives', 2, 'boost', [
-        # core requirements
-        'CS 1030', 'CS 1400', 'CS 1410',
-        'CS 2420', 'CS 2450', 'CS 2810',
-        'CS 3005', 'CS 3530', 'CS 3510',
-        'CS 4600',
-
-        # math core requirements
-        'MATH 1210', 'MATH 3400',
-        'CS 2100',
-
         # core electives
         'CS 3150', 'CS 3400', 'CS 3410', 'CS 3520', 'CS 3600',
         'CS 4300', 'CS 4307', 'CS 4320', 'CS 4550',
         'SE 3200',
         'CS 4990',
-    ])
+    ], include=['core requirements'])
     db.make_conflict('Computer Science', 'math electives and supported science option', 6, 'boost', [
-        # core requirements
-        'CS 1030', 'CS 1400', 'CS 1410',
-        'CS 2420', 'CS 2450', 'CS 2810',
-        'CS 3005', 'CS 3530', 'CS 3510',
-        'CS 4600',
-
-        # math core requirements
-        'MATH 1210', 'MATH 3400',
-        'CS 2100',
-
-        # core electives
-        'CS 3150', 'CS 3400', 'CS 3410', 'CS 3520', 'CS 3600',
-        'CS 4300', 'CS 4307', 'CS 4320', 'CS 4550',
-        'SE 3200',
-        'CS 4990',
-
         # math electives
         'MATH 1220',
         'MATH 2210', 'MATH 2250', 'MATH 2270', 'MATH 2280',
@@ -102,7 +76,7 @@ def build_post(db: DB) -> None:
 
         # science core option available in the course catalog
         'PHYS 2210', 'PHYS 2215',
-    ])
+    ], include=['core electives'])
 
     #
     # Data science degree
@@ -125,65 +99,20 @@ def build_post(db: DB) -> None:
         'MATH 3400',
     ])
     db.make_conflict('Data Science', 'AI/ML track', 5, 'boost', [
-        # computing core requirements
-        'CS 1030', 'CS 1400', 'CS 1410',
-        'CS 2100', 'CS 2420', 'CS 2810',
-        'CS 3510',
-        'IT 1500',
-
-        # data science core requirements
-        'CS 2500',
-        'CS 4400', 'CS 4410', 'CS 4420', 'CS 4480R', 'CS 4490R',
-
-        # math core requirements
-        'MATH 1210', 'MATH 1220',
-        'MATH 2270',
-        'MATH 3400',
-
         # ai/ml track
         'CS 3005',
         'CS 4300', 'CS 4320',
-    ])
+    ], include=['core requirements'])
     db.make_conflict('Data Science', 'Data engineering track', 5, 'boost', [
-        # computing core requirements
-        'CS 1030', 'CS 1400', 'CS 1410',
-        'CS 2100', 'CS 2420', 'CS 2810',
-        'CS 3510',
-        'IT 1500',
-
-        # data science core requirements
-        'CS 2500',
-        'CS 4400', 'CS 4410', 'CS 4420', 'CS 4480R', 'CS 4490R',
-
-        # math core requirements
-        'MATH 1210', 'MATH 1220',
-        'MATH 2270',
-        'MATH 3400',
-
         # data engineering track
         'CS 3150',
         'CS 3410', 'CS 4307',
-    ])
+    ], include=['core requirements'])
     db.make_conflict('Data Science', 'Software engineering track', 5, 'boost', [
-        # computing core requirements
-        'CS 1030', 'CS 1400', 'CS 1410',
-        'CS 2100', 'CS 2420', 'CS 2810',
-        'CS 3510',
-        'IT 1500',
-
-        # data science core requirements
-        'CS 2500',
-        'CS 4400', 'CS 4410', 'CS 4420', 'CS 4480R', 'CS 4490R',
-
-        # math core requirements
-        'MATH 1210', 'MATH 1220',
-        'MATH 2270',
-        'MATH 3400',
-
         # software engineering track
         'CS 2450',
         'SE 3100', 'SE 3150',
-    ])
+    ], include=['core requirements'])
     db.make_conflict('Data Science', 'all tracks combined', 7, 'boost', [
         # all track courses (students complete two tracks)
         'CS 2450',
@@ -210,89 +139,29 @@ def build_post(db: DB) -> None:
         'MATH 2050',
     ])
     db.make_conflict('Software Engineering', 'Entrepreneurial and marketing track', 5, 'boost', [
-        # core requirements
-        'CS 1030', 'CS 1400', 'CS 1410',
-        'CS 2100', 'CS 2420', 'CS 2450', 'CS 2810',
-        'CS 3005', 'CS 3150', 'CS 3510',
-        'CS 4307', 'IT 2300', # one database class
-        'IT 1100',
-        'SE 1400',
-        'SE 3100', 'SE 3150', 'SE 3200', 'SE 3400',
-        'SE 4200', 'SE 4600',
-        'MATH 1100', 'MATH 1210', # one calc class
-        'MATH 2050',
-
         # entrepreneurial and marketing track
         'DES 2100',
         'SE 3500', 'SE 3550',
-    ])
+    ], include=['core requirements'])
     db.make_conflict('Software Engineering', 'DevOps track', 5, 'boost', [
-        # core requirements
-        'CS 1030', 'CS 1400', 'CS 1410',
-        'CS 2100', 'CS 2420', 'CS 2450', 'CS 2810',
-        'CS 3005', 'CS 3150', 'CS 3510',
-        'CS 4307', 'IT 2300', # one database class
-        'IT 1100',
-        'SE 1400',
-        'SE 3100', 'SE 3150', 'SE 3200', 'SE 3400',
-        'SE 4200', 'SE 4600',
-        'MATH 1100', 'MATH 1210', # one calc class
-        'MATH 2050',
-
         # devops track
         'IT 3110', 'IT 3300',
         'IT 4200',
-    ])
+    ], include=['core requirements'])
     db.make_conflict('Software Engineering', 'Application track', 5, 'boost', [
-        # core requirements
-        'CS 1030', 'CS 1400', 'CS 1410',
-        'CS 2100', 'CS 2420', 'CS 2450', 'CS 2810',
-        'CS 3005', 'CS 3150', 'CS 3510',
-        'CS 4307', 'IT 2300', # one database class
-        'IT 1100',
-        'SE 1400',
-        'SE 3100', 'SE 3150', 'SE 3200', 'SE 3400',
-        'SE 4200', 'SE 4600',
-        'MATH 1100', 'MATH 1210', # one calc class
-        'MATH 2050',
-
         # application track
         'SE 3010', 'SE 3250', 'SE 3450',
-    ])
+    ], include=['core requirements'])
     db.make_conflict('Software Engineering', 'Data science track', 5, 'boost', [
-        # core requirements
-        'CS 1030', 'CS 1400', 'CS 1410',
-        'CS 2100', 'CS 2420', 'CS 2450', 'CS 2810',
-        'CS 3005', 'CS 3150', 'CS 3510',
-        'CS 4307', 'IT 2300', # one database class
-        'IT 1100',
-        'SE 1400',
-        'SE 3100', 'SE 3150', 'SE 3200', 'SE 3400',
-        'SE 4200', 'SE 4600',
-        'MATH 1100', 'MATH 1210', # one calc class
-        'MATH 2050',
-
         # data science track
         'CS 4300', 'CS 4400', # ai or data mining
         'CS 4320', 'CS 4410',
-    ])
+    ], include=['core requirements'])
     db.make_conflict('Software Engineering', 'Game development track', 5, 'boost', [
-        # core requirements
-        'CS 1030', 'CS 1400', 'CS 1410',
-        'CS 2100', 'CS 2420', 'CS 2450', 'CS 2810',
-        'CS 3005', 'CS 3150', 'CS 3510',
-        'CS 4307', 'IT 2300', # one database class
-        'IT 1100',
-        'SE 1400',
-        'SE 3100', 'SE 3150', 'SE 3200', 'SE 3400',
-        'SE 4200', 'SE 4600',
-        'MATH 1100', 'MATH 1210', # one calc class
-        'MATH 2050',
-
         # game development track
         'CS 3500', 'CS 3600',
         'CS 4995',
-    ])
+    ], include=['core requirements'])
     db.make_conflict('Software Engineering', 'CS 4995 special case', 9, 'boost', [
         # CS core electives
         'CS 3150', 'CS 3400', 'CS 3410', 'CS 3520', 'CS 3600',
@@ -326,49 +195,21 @@ def build_post(db: DB) -> None:
         'MATH 1040', 'MATH 1050',
     ])
     db.make_conflict('Information Technology', 'core electives', 2, 'boost', [
-        # core requirements
-        'CS 1030', 'CS 1400', 'CS 1410',
-        'IT 1100', 'IT 1200', 'IT 1500',
-        'IT 2150', 'IT 2300', 'IT 2400', 'IT 2700',
-        'IT 3100', 'IT 3400', 'IT 3510',
-        'IT 4600',
-        'MATH 1040', 'MATH 1050',
-
         # core electives
         'IT 3110', 'IT 3300', 'IT 3710',
         'IT 4100', 'IT 4200', 'IT 4400', 'IT 4510', 'IT 4920R',
-    ])
+    ], include=['core requirements'])
 
     # DevOps
     db.make_conflict('Information Technology', 'DevOps requirements', 3, 'boost', [
-        # core requirements
-        'CS 1030', 'CS 1400', 'CS 1410',
-        'IT 1100', 'IT 1200', 'IT 1500',
-        'IT 2150', 'IT 2300', 'IT 2400', 'IT 2700',
-        'IT 3100', 'IT 3400', 'IT 3510',
-        'IT 4600',
-        'MATH 1040', 'MATH 1050',
-
         # DevOps requirements
         'CS 2450',
         'IT 3110', 'IT 3300', 'IT 4200',
-    ])
+    ], include=['core requirements'])
     db.make_conflict('Information Technology', 'DevOps requirements vs DevOps core electives', 5, 'boost', [
-        # core requirements
-        'CS 1030', 'CS 1400', 'CS 1410',
-        'IT 1100', 'IT 1200', 'IT 1500',
-        'IT 2150', 'IT 2300', 'IT 2400', 'IT 2700',
-        'IT 3100', 'IT 3400', 'IT 3510',
-        'IT 4600',
-        'MATH 1040', 'MATH 1050',
-
-        # DevOps requirements
-        'CS 2450',
-        'IT 3110', 'IT 3300', 'IT 4200',
-
         # DevOps core electives
         'IT 4100', 'IT 4400', 'IT 4510', 'IT 4920R',
-    ])
+    ], include=['DevOps requirements'])
 
     # IT BAP
     db.make_program('Information Technology BAP', 'Computing')
@@ -380,19 +221,12 @@ def build_post(db: DB) -> None:
         'IT 4600',
     ])
     db.make_conflict('Information Technology BAP', 'electives', 4, 'boost', [
-        # core requirements
-        'CS 1030', 'CS 1400', 'CS 1410',
-        'IT 1100', 'IT 1200', 'IT 1500',
-        'IT 2150', 'IT 2300', 'IT 2400', 'IT 2700',
-        'IT 3100', 'IT 3400', 'IT 3510',
-        'IT 4600',
-
         # electives
         'CS 2450', 'CS 3005',
         'IT 3110', 'IT 3300', 'IT 3700', 'IT 3710',
         'IT 4100', 'IT 4200', 'IT 4310', 'IT 4400',
         'IT 4510', 'IT 4700', 'IT 4920R', 'IT 4990',
-    ])
+    ], include=['core requirements'])
 
     # only need one math class
     db.make_conflict('Information Technology', 'only need one math class', None, 'reduce',

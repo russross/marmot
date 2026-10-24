@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import wraps
 import math
@@ -556,7 +557,7 @@ class DB:
         self.db.execute('INSERT INTO programs VALUES (?, ?)', (program, department))
 
     @rollback_on_exception
-    def make_conflict(self, program: str, conflict_name: str, conflict_priority: Optional[int], boost: str, courses: list[str]) -> None:
+    def make_conflict(self, program: str, conflict_name: str, conflict_priority: Optional[int], boost: str, courses: list[str], *, include: Sequence[str] = ()) -> None:
         if boost not in ('boost', 'reduce'):
             raise RuntimeError(f'make_conflict: {program} {conflict_name}: boost option must be "boost" or "reduce"')
         if boost == 'boost' and conflict_priority is None:
@@ -565,6 +566,13 @@ class DB:
             raise RuntimeError(f'make_conflict: {program} {conflict_name}: conflict priority option must be None or between 0 and {MIN_PREF_PRIORITY-1}')
 
         self.db.execute('INSERT INTO conflicts VALUES (?, ?, ?, ?)', (program, conflict_name, conflict_priority, boost == 'boost'))
+
+        # Includes retain references to existing groups in this program. SQL
+        # expands membership transitively and applies this group's rule settings.
+        for included_name in include:
+            if self.db.execute('SELECT 1 FROM conflicts WHERE program = ? AND conflict_name = ?', (program, included_name)).fetchone() is None:
+                raise ValueError(f'make_conflict: {program} {conflict_name}: no included group "{included_name}" found')
+            self.db.execute('INSERT INTO conflict_includes VALUES (?, ?, ?)', (program, conflict_name, included_name))
 
         for elt in courses:
             if '-' not in elt:

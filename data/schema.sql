@@ -444,6 +444,60 @@ CREATE TABLE conflicts (
     FOREIGN KEY (program) REFERENCES programs (program) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
 
+-- Inclusion reuses membership within a program without inheriting priorities
+-- or boost/reduce settings. Referenced groups must be explicitly unlinked
+-- before deletion so dependent cliques cannot silently lose members.
+CREATE TABLE conflict_includes (
+    program                     TEXT NOT NULL,
+    conflict_name               TEXT NOT NULL,
+    included_conflict_name      TEXT NOT NULL,
+
+    PRIMARY KEY (program, conflict_name, included_conflict_name),
+    CHECK (conflict_name <> included_conflict_name),
+    FOREIGN KEY (program, conflict_name) REFERENCES conflicts (program, conflict_name) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (program, included_conflict_name) REFERENCES conflicts (program, conflict_name) ON DELETE RESTRICT ON UPDATE CASCADE
+) WITHOUT ROWID;
+
+-- Reject edges that would make the receiving group reachable from its own
+-- dependency. UNION also bounds traversal if malformed data already exists.
+CREATE TRIGGER conflict_includes_no_insert_cycle
+BEFORE INSERT ON conflict_includes
+BEGIN
+    SELECT RAISE(ABORT, 'conflict inclusion cycle')
+    WHERE EXISTS (
+        WITH RECURSIVE dependencies(name) AS (
+            SELECT NEW.included_conflict_name
+            UNION
+            SELECT edge.included_conflict_name
+            FROM dependencies
+            JOIN conflict_includes AS edge
+                ON edge.program = NEW.program AND edge.conflict_name = dependencies.name
+        )
+        SELECT 1 FROM dependencies WHERE name = NEW.conflict_name
+    );
+END;
+
+-- Replacing an edge evaluates reachability without the old edge. This also
+-- permits foreign-key rename cascades without retaining stale dependencies.
+CREATE TRIGGER conflict_includes_no_update_cycle
+BEFORE UPDATE ON conflict_includes
+BEGIN
+    SELECT RAISE(ABORT, 'conflict inclusion cycle')
+    WHERE EXISTS (
+        WITH RECURSIVE dependencies(name) AS (
+            SELECT NEW.included_conflict_name
+            UNION
+            SELECT edge.included_conflict_name
+            FROM dependencies
+            JOIN conflict_includes AS edge
+                ON edge.program = NEW.program AND edge.conflict_name = dependencies.name
+            WHERE NOT (edge.program = OLD.program AND edge.conflict_name = OLD.conflict_name
+                AND edge.included_conflict_name = OLD.included_conflict_name)
+        )
+        SELECT 1 FROM dependencies WHERE name = NEW.conflict_name
+    );
+END;
+
 -- Conflict groups can name whole courses, individual sections, or both. Views
 -- expand these raw references into concrete section pairs after cross-listing
 -- canonicalization.
@@ -466,6 +520,31 @@ CREATE TABLE conflict_sections (
     FOREIGN KEY (program, conflict_name) REFERENCES conflicts (program, conflict_name) ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (section) REFERENCES sections (section) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
+
+-- Each receiving group sees its own direct members plus every reachable
+-- group's members. Deduplication handles diamonds and overlapping direct lists.
+CREATE VIEW conflict_membership_closure (program, conflict_name, source_name) AS
+    WITH RECURSIVE closure(program, conflict_name, source_name) AS (
+        SELECT program, conflict_name, conflict_name FROM conflicts
+        UNION
+        SELECT closure.program, closure.conflict_name, edge.included_conflict_name
+        FROM closure
+        JOIN conflict_includes AS edge
+            ON edge.program = closure.program AND edge.conflict_name = closure.source_name
+    )
+    SELECT program, conflict_name, source_name FROM closure;
+
+CREATE VIEW expanded_conflict_courses (program, conflict_name, course) AS
+    SELECT DISTINCT closure.program, closure.conflict_name, members.course
+    FROM conflict_membership_closure AS closure
+    JOIN conflict_courses AS members
+        ON members.program = closure.program AND members.conflict_name = closure.source_name;
+
+CREATE VIEW expanded_conflict_sections (program, conflict_name, section) AS
+    SELECT DISTINCT closure.program, closure.conflict_name, members.section
+    FROM conflict_membership_closure AS closure
+    JOIN conflict_sections AS members
+        ON members.program = closure.program AND members.conflict_name = closure.source_name;
 
 -- Overrides replace the raw count of sections for conflict discounting. They
 -- are for cases where "number of rows in sections" is not the right count of
@@ -1189,14 +1268,14 @@ CREATE VIEW undiscounted_conflict_pairs (department_a, course_a, section_a, depa
             COALESCE(x1.primary_section, s1.section) AS section_a,
             COALESCE(x2.primary_section, s2.section) AS section_b
         FROM conflicts
-        JOIN conflict_courses c1
+        JOIN expanded_conflict_courses c1
             ON  c1.program                                      =  conflicts.program
             AND c1.conflict_name                                =  conflicts.conflict_name
         JOIN sections s1
             ON  s1.course                                       =  c1.course
         LEFT OUTER JOIN cross_listing_sections x1
             ON  x1.section                                      =  s1.section
-        JOIN conflict_courses c2
+        JOIN expanded_conflict_courses c2
             ON  c2.program                                      =  conflicts.program
             AND c2.conflict_name                                =  conflicts.conflict_name
         JOIN sections s2
@@ -1214,12 +1293,12 @@ CREATE VIEW undiscounted_conflict_pairs (department_a, course_a, section_a, depa
             COALESCE(x1.primary_section, s1.section) AS section_a,
             COALESCE(x2.primary_section, s2.section) AS section_b
         FROM conflicts
-        JOIN conflict_sections s1
+        JOIN expanded_conflict_sections s1
             ON  s1.program                                      =  conflicts.program
             AND s1.conflict_name                                =  conflicts.conflict_name
         LEFT OUTER JOIN cross_listing_sections x1
             ON  x1.section                                      =  s1.section
-        JOIN conflict_sections s2
+        JOIN expanded_conflict_sections s2
             ON  s2.program                                      =  conflicts.program
             AND s2.conflict_name                                =  conflicts.conflict_name
         LEFT OUTER JOIN cross_listing_sections x2
@@ -1235,12 +1314,12 @@ CREATE VIEW undiscounted_conflict_pairs (department_a, course_a, section_a, depa
             COALESCE(x1.primary_section, s1.section) AS section_a,
             COALESCE(x2.primary_section, s2.section) AS section_b
         FROM conflicts
-        JOIN conflict_sections s1
+        JOIN expanded_conflict_sections s1
             ON  s1.program                                      =  conflicts.program
             AND s1.conflict_name                                =  conflicts.conflict_name
         LEFT OUTER JOIN cross_listing_sections x1
             ON  x1.section                                      =  s1.section
-        JOIN conflict_courses c2
+        JOIN expanded_conflict_courses c2
             ON  c2.program                                      =  conflicts.program
             AND c2.conflict_name                                =  conflicts.conflict_name
         JOIN sections s2
@@ -1257,14 +1336,14 @@ CREATE VIEW undiscounted_conflict_pairs (department_a, course_a, section_a, depa
             COALESCE(x1.primary_section, s1.section) AS section_a,
             COALESCE(x2.primary_section, s2.section) AS section_b
         FROM conflicts
-        JOIN conflict_courses c1
+        JOIN expanded_conflict_courses c1
             ON  c1.program                                      =  conflicts.program
             AND c1.conflict_name                                =  conflicts.conflict_name
         JOIN sections s1
             ON  s1.course                                       =  c1.course
         LEFT OUTER JOIN cross_listing_sections x1
             ON  x1.section                                      =  s1.section
-        JOIN conflict_sections s2
+        JOIN expanded_conflict_sections s2
             ON  s2.program                                      =  conflicts.program
             AND s2.conflict_name                                =  conflicts.conflict_name
         LEFT OUTER JOIN cross_listing_sections x2
