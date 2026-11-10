@@ -1275,44 +1275,36 @@ CREATE VIEW undiscounted_conflict_pairs (department_a, course_a, section_a, depa
     -- handled later and same-course spreads should not conflict by default.
     WITH paired_conflict_courses_courses AS (
         SELECT conflicts.program, conflicts.conflict_name, conflict_priority, boost_priority,
-            COALESCE(x1.primary_section, s1.section) AS section_a,
-            COALESCE(x2.primary_section, s2.section) AS section_b
+            s1.section AS section_a,
+            s2.section AS section_b
         FROM conflicts
         JOIN expanded_conflict_courses c1
             ON  c1.program                                      =  conflicts.program
             AND c1.conflict_name                                =  conflicts.conflict_name
         JOIN sections s1
             ON  s1.course                                       =  c1.course
-        LEFT OUTER JOIN cross_listing_sections x1
-            ON  x1.section                                      =  s1.section
         JOIN expanded_conflict_courses c2
             ON  c2.program                                      =  conflicts.program
             AND c2.conflict_name                                =  conflicts.conflict_name
         JOIN sections s2
             ON  s2.course                                       =  c2.course
-        LEFT OUTER JOIN cross_listing_sections x2
-            ON  x2.section                                      =  s2.section
         WHERE   c2.course                                       <> c1.course
     ),
 
     -- Expand section-vs-section conflict cliques. Raw section names may be
-    -- secondary cross-listing names, so COALESCE maps each side to the primary
-    -- section that the solver actually schedules.
+    -- secondary cross-listing names; their identities remain distinct while
+    -- program-specific reductions and course policies are applied.
     paired_conflict_sections_sections AS (
         SELECT conflicts.program, conflicts.conflict_name, conflict_priority, boost_priority,
-            COALESCE(x1.primary_section, s1.section) AS section_a,
-            COALESCE(x2.primary_section, s2.section) AS section_b
+            s1.section AS section_a,
+            s2.section AS section_b
         FROM conflicts
         JOIN expanded_conflict_sections s1
             ON  s1.program                                      =  conflicts.program
             AND s1.conflict_name                                =  conflicts.conflict_name
-        LEFT OUTER JOIN cross_listing_sections x1
-            ON  x1.section                                      =  s1.section
         JOIN expanded_conflict_sections s2
             ON  s2.program                                      =  conflicts.program
             AND s2.conflict_name                                =  conflicts.conflict_name
-        LEFT OUTER JOIN cross_listing_sections x2
-            ON  x2.section                                      =  s2.section
         WHERE   s2.section                                      <> s1.section
     ),
 
@@ -1321,21 +1313,17 @@ CREATE VIEW undiscounted_conflict_pairs (department_a, course_a, section_a, depa
     -- a raw course named by the same rule.
     paired_conflict_sections_courses AS (
         SELECT conflicts.program, conflicts.conflict_name, conflict_priority, boost_priority,
-            COALESCE(x1.primary_section, s1.section) AS section_a,
-            COALESCE(x2.primary_section, s2.section) AS section_b
+            s1.section AS section_a,
+            s2.section AS section_b
         FROM conflicts
         JOIN expanded_conflict_sections s1
             ON  s1.program                                      =  conflicts.program
             AND s1.conflict_name                                =  conflicts.conflict_name
-        LEFT OUTER JOIN cross_listing_sections x1
-            ON  x1.section                                      =  s1.section
         JOIN expanded_conflict_courses c2
             ON  c2.program                                      =  conflicts.program
             AND c2.conflict_name                                =  conflicts.conflict_name
         JOIN sections s2
             ON  s2.course                                       =  c2.course
-        LEFT OUTER JOIN cross_listing_sections x2
-            ON  x2.section                                      =  s2.section
         WHERE   s2.section                                      <> s1.section
     ),
 
@@ -1343,21 +1331,17 @@ CREATE VIEW undiscounted_conflict_pairs (department_a, course_a, section_a, depa
     -- both directions preserves the ordered pair shape consumed downstream.
     paired_conflict_courses_sections AS (
         SELECT conflicts.program, conflicts.conflict_name, conflict_priority, boost_priority,
-            COALESCE(x1.primary_section, s1.section) AS section_a,
-            COALESCE(x2.primary_section, s2.section) AS section_b
+            s1.section AS section_a,
+            s2.section AS section_b
         FROM conflicts
         JOIN expanded_conflict_courses c1
             ON  c1.program                                      =  conflicts.program
             AND c1.conflict_name                                =  conflicts.conflict_name
         JOIN sections s1
             ON  s1.course                                       =  c1.course
-        LEFT OUTER JOIN cross_listing_sections x1
-            ON  x1.section                                      =  s1.section
         JOIN expanded_conflict_sections s2
             ON  s2.program                                      =  conflicts.program
             AND s2.conflict_name                                =  conflicts.conflict_name
-        LEFT OUTER JOIN cross_listing_sections x2
-            ON  x2.section                                      =  s2.section
         WHERE   s2.section                                      <> s1.section
     ),
 
@@ -1409,18 +1393,18 @@ CREATE VIEW undiscounted_conflict_pairs (department_a, course_a, section_a, depa
         WHERE priority IS NOT NULL
     )
 
-    -- Merge conflicts across programs. department_a and department_b are
-    -- course-owning departments for the scheduled sections, not program
-    -- departments. If multiple programs produce the same ordered pair, the
-    -- strongest remaining priority wins.
-    SELECT  as_a.department, as_a.course, section_a,
-            as_b.department, as_b.course, section_b, MIN(priority)
+    -- Preserve original listings through prerequisite filtering and section
+    -- discounts. Cross-listed courses can have different curricular roles;
+    -- the representative meeting must not supply their course identities.
+    SELECT as_a.department, as_a.course, section_a,
+           as_b.department, as_b.course, section_b, MIN(priority)
     FROM reduced_conflicts
     JOIN sections_to_be_scheduled AS as_a
-        ON section_a = as_a.section
+        ON section_a = as_a.secondary_section
     JOIN sections_to_be_scheduled AS as_b
-        ON section_b = as_b.section
-    GROUP BY as_a.department, section_a, as_b.department, section_b;
+        ON section_b = as_b.secondary_section
+    GROUP BY as_a.department, as_a.course, section_a,
+             as_b.department, as_b.course, section_b;
 
 -- Courses that should not be conflict-penalized because one course is a
 -- prerequisite path for the other. We treat prereqs and coreqs as edges while
@@ -1508,7 +1492,8 @@ CREATE VIEW conflict_pairs (department_a, section_a, department_b, section_b, pr
     -- multiple sections. This branch produces soft and hard curriculum
     -- conflicts after final adjustment.
     WITH merged (department_a, section_a, department_b, section_b, priority) AS (
-        SELECT department_a, section_a, department_b, section_b,
+        SELECT department_a, COALESCE(x1.primary_section, section_a),
+               department_b, COALESCE(x2.primary_section, section_b),
             CASE WHEN undiscounted.priority = 0
                     -- hard conflicts are never reduced
                     THEN undiscounted.priority
@@ -1525,6 +1510,10 @@ CREATE VIEW conflict_pairs (department_a, section_a, department_b, section_b, pr
                     undiscounted.priority
             END AS discounted_priority
         FROM undiscounted_conflict_pairs AS undiscounted
+        -- Map surviving listing relationships to physical meetings only after
+        -- course-specific prerequisite and student-choice policies are applied.
+        LEFT JOIN cross_listing_sections AS x1 ON x1.section = undiscounted.section_a
+        LEFT JOIN cross_listing_sections AS x2 ON x2.section = undiscounted.section_b
         -- Two left joins are intentionally used instead of one OR join. The
         -- prereq relation is directional, and this shape lets SQLite use the
         -- simple equality predicates on both probes.
@@ -1567,9 +1556,16 @@ CREATE VIEW conflict_pairs (department_a, section_a, department_b, section_b, pr
             AND sec_a.section                                   <> sec_b.section
     )
 
-    SELECT department_a, section_a, department_b, section_b, MIN(priority)
+    -- Export each physical pair once using its representatives' departments.
+    -- Distinct listings may contribute different departments and priorities.
+    SELECT ca.department, section_a, cb.department, section_b, MIN(priority)
     FROM merged
-    GROUP BY department_a, section_a, department_b, section_b;
+    JOIN sections AS sa ON sa.section = section_a
+    JOIN courses AS ca ON ca.course = sa.course
+    JOIN sections AS sb ON sb.section = section_b
+    JOIN courses AS cb ON cb.course = sb.course
+    WHERE section_a <> section_b
+    GROUP BY ca.department, section_a, cb.department, section_b;
 
 -- Anti-conflicts are the opposite of ordinary conflicts: the single section
 -- should be scheduled at the same concrete time as at least one section in the

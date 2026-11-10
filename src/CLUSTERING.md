@@ -1,0 +1,183 @@
+Totalizer input ordering experiments
+===================================
+
+Status and next action
+----------------------
+
+Paused on November 10, 2026. The experiment infrastructure is implemented. On the tested timetable, `current` ordering finishes through priority 6 in about four minutes; `shuffle` and `cluster` were each stopped after about twenty minutes without reaching the same point. No alternative ordering proposed below has been implemented or measured.
+
+The recommended next experiment is subtree-local accumulated proximity: preserve the current large-scale order, reorder only within small existing totalizer subtrees, and select each next criterion by its total connection to the group already selected. First apply it only to the priority-6 counter, retaining `current` for earlier counters. Per-priority ordering selection and isolated fixed-bound probes are not implemented yet.
+
+Keep experimental integration shallow and easy to remove. Git remains read-only unless explicitly authorized otherwise. Preserve the existing scoring semantics, hard constraints, lexicographic priority optimization, and saved optimum-prefix semantics.
+
+
+Problem and evidence
+--------------------
+
+The solver permits violations using Boolean hallpasses and constrains their count separately at each priority. Optimization retains the established budgets for earlier priorities while searching the next priority. A curriculum conflict normally emits one hallpass; some faculty criteria emit several.
+
+Construction time is trivial compared with difficult solves on the user's data. Failed probes are usually slower than successful probes. A discovered optimum of 98 at priority 6 is difficult both to establish and to retain while optimizing later priorities. Every later probe includes the priority-6 bound of at most 98. If 98 is the proven optimum, all feasible later schedules necessarily incur exactly 98 violations there, even though the CNF explicitly encodes only the upper bound.
+
+Observed baseline command, run from `/home/russ/marmot/src`:
+
+    time cargo run -r -- sat --search binary --stop-after-priority 6 --schedule-output none --sat-timings --totalizer-order current
+
+The run loaded input in 2606 ms and balanced 344 effective faculty preferences from 162 stated preferences into 40 effective priorities in 88 ms. SAT conversion reported 4282 constraints across 50 priority levels. Solver-reported total time was 239.193617552 seconds; shell wall time was 4m1.969s. The completed score prefix was `[0,14,0,18,4,44,98]`.
+
+| Priority | Criteria | Optimal allowed hallpasses | Observed behavior                  |
+| -------- | -------- | -------------------------- | ---------------------------------- |
+| 0        | 619      | 0                          | SAT in 0.13 s.                     |
+| 1        | 727      | 14                         | Probes took 0.11–0.16 s.           |
+| 2        | 65       | 0                          | All probes SAT, about 0.14 s each. |
+| 3        | 253      | 18                         | Probes took 0.14–0.17 s.           |
+| 4        | 76       | 4                          | Probes took 0.14–0.21 s.           |
+| 5        | 640      | 44                         | First substantial UNSAT costs.     |
+| 6        | 1252     | 98                         | Dominates total solving time.      |
+
+Priority-5 baseline probes:
+
+| Allowed | Result | Seconds |
+| ------- | ------ | ------- |
+| 320     | SAT    | 0.22    |
+| 160     | SAT    | 0.16    |
+| 80      | SAT    | 0.17    |
+| 40      | UNSAT  | 2.89    |
+| 60      | SAT    | 0.21    |
+| 50      | SAT    | 0.17    |
+| 45      | SAT    | 0.22    |
+| 43      | UNSAT  | 3.75    |
+| 44      | SAT    | 0.45    |
+
+Priority-6 baseline probes; variable and clause counts describe the complete probe, including retained earlier budgets:
+
+| Allowed | Variables | Clauses | Result | Seconds |
+| ------- | --------- | ------- | ------ | ------- |
+| 626     | 30636     | 1853889 | SAT    | 0.35    |
+| 313     | 29699     | 1608499 | SAT    | 0.32    |
+| 156     | 28604     | 1447892 | SAT    | 1.75    |
+| 78      | 27438     | 1358313 | UNSAT  | 49.42   |
+| 117     | 28023     | 1403865 | SAT    | 4.27    |
+| 98      | 27738     | 1381863 | SAT    | 6.16    |
+| 88      | 27588     | 1370138 | UNSAT  | 15.68   |
+| 93      | 27663     | 1376013 | UNSAT  | 6.88    |
+| 96      | 27708     | 1379526 | UNSAT  | 99.40   |
+| 97      | 27723     | 1380695 | UNSAT  | 31.86   |
+| 98      | 27738     | 1381863 | SAT    | 6.23    |
+
+Priority 6 accounts for 222.32 seconds, about 93% of the solver-reported total. Its UNSAT calls account for 203.24 seconds, about 85% of that total. Difficulty is not monotonic in the bound: proving 96 impossible took much longer than proving 97 impossible. Similar formula sizes have very different solve times. The working hypothesis is that auxiliary-variable groupings affect the solver's ability to learn useful proofs; formula size alone does not explain these results.
+
+The user also tried the same overall test with the other orderings. `shuffle` was killed after approximately twenty minutes while working on priority 5. `cluster` was killed after approximately twenty minutes on priority 6, with several probes still needed before finding the optimum. These are censored observations, not completed runtimes. The shuffle seed and exact interrupted probes were not recorded in the supplied results. Changing the global policy also changes earlier retained counters, so the priority-6 slowdown cannot yet be attributed solely to its own counter ordering.
+
+
+Current implementation
+----------------------
+
+Read `AGENTS.md` for SAT criterion semantics and `../NOTES.md`, section “SAT preparation and ordering experiments,” for the operational specification.
+
+| File              | Relevant responsibility                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------------------- |
+| `main.rs`         | SAT CLI parsing, defaults, and final schedule/problem output selection.                           |
+| `sat_solver.rs`   | Linear/binary probe loops, partial-run stopping, saves, and Kissat timing records.                |
+| `sat_prep.rs`     | `PreparedCnf`, prepared priority boundaries, cached hallpass ordering, and clustering.            |
+| `cnf.rs`          | Hallpass allocation, ordered/default totalizer entry points, tree construction, and Kissat calls. |
+| `sat_criteria.rs` | Conversion from loaded criteria to priority-indexed SAT criteria.                                 |
+
+`PreparedCnf::new` creates assignment variables and intrinsic clauses, then encodes all main criteria in ascending priority order once. Each prepared level records `clause_end`, `last_var`, and ordered `hallpasses`. `Encoding::hallpass_order` records creation order so emitted hallpasses can be associated with each criterion. Shared faculty-day links occur in the first priority prefix needing them.
+
+Each probe clones the prepared template, truncates its clauses and variable range to the selected prefix, filters later-priority metadata, and adds budgets for all included priorities. Counter variables start after that prefix's last main variable. Preparation includes main criteria beyond a requested stopping level. Each probe uses a fresh Kissat solver; learned clauses are not retained between probes.
+
+Zero budgets use negative unit clauses. A budget of one with at most 30 hallpasses uses pairwise clauses. Other nontrivial budgets use the bounded totalizer; budgets at least as large as the input count need no counting clauses. The tree divides each input slice at `len / 2` and retains only the first `k + 1` outputs per node. Merges use forward lower-bound implications; forbidding the root's `k + 1` output enforces the upper bound. No reverse counting implications are required for this use.
+
+`Encoding::totalizer_at_most_k` sorts by variable ID. `ordered_totalizer_at_most_k` preserves the supplied order. Priority hallpass counters use the latter; faculty room-count counters retain the original sorted behavior.
+
+Current options:
+
+| Option                                        | Default    | Behavior                                                                                      |
+| --------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------- |
+| `--totalizer-order current\|shuffle\|cluster` | `current`  | Selects the ordering for every priority counter.                                              |
+| `--shuffle-seed N`                            | `0`        | Private per-priority shuffle RNG uses seed plus priority, with wrapping addition.             |
+| `--stop-after-priority N`                     | No cutoff  | Optimizes priorities through N, inclusive; accepts 0–49.                                      |
+| `--schedule-output all\|problems\|none`       | `problems` | Controls the final grid and problem list; progress/save messages remain.                      |
+| `--sat-timings`                               | Off        | Prints one row per Kissat call at solver completion; accepts a bare flag or explicit boolean. |
+
+Timings are always collected around `Encoding::solve`: they include Kissat setup, clause loading, solving, and model extraction, but exclude CNF preparation and schedule decoding/saving. Rows show the probed priority, criterion count at that priority, allowed hallpasses there, total probe variables/clauses, selected ordering, seconds to two decimals, and SAT/UNSAT/ERROR. The ordering label is printed even when the bound needs no totalizer.
+
+`--search linear|binary|hybrid` selects the probe strategy and defaults to binary. `--min-hallpass LEVEL:COUNT,...` sets starting probes; it does not lock earlier priorities to specified values or provide isolated fixed-bound tests. Binary search can repeat the final feasible bound, as the baseline shows. Probe-strategy changes are separate from the ordering experiment.
+
+All runs save placements to the selected database. Partial runs retain a complete actual schedule score but certify only the optimized prefix. Their final save comment indicates the last resolved priority rather than claiming full completion.
+
+
+What the existing orderings actually do
+--------------------------------------
+
+`current` orders hallpasses by creation, equivalent to ascending variable ID within a priority. `input.rs::load_conflicts` reads curriculum conflict pairs with `ORDER BY section_a, section_b`. `SatCriteria::from_input` preserves their relative order while grouping by priority. Thus the baseline already groups conflicts around the same first section, with additional locality from course/section naming. It is plausible that this produces useful local counters; this explanation has not been measured directly.
+
+`shuffle` permutes individual hallpasses once per priority during preparation. A fixed seed reproduces the permutation for a fixed creation sequence, but existing unordered iteration elsewhere means it does not guarantee identical full CNFs across processes.
+
+`cluster` maps each criterion to its distinct participating sections. Faculty criteria include all their faculty's sections; shared requests include both owners. Two criteria receive an edge weighted by the number of shared sections. A greedy walk starts at the highest weighted-degree criterion, follows the strongest edge from the last selected criterion, and restarts at the strongest remaining vertex when needed. Ties prefer higher degree, then original order. Multiple hallpasses from one criterion remain adjacent.
+
+Two limitations distinguish this walk from a suitable hierarchical grouping: it scores only the last selected criterion rather than the whole selected group, and it ignores totalizer split boundaries. For example, after `(A,B)` and `(A,C)`, it can follow `(C,D)` and abandon the remaining A-related constraints. Even adjacent related criteria may land on opposite sides of a large subtree boundary.
+
+
+Candidate experiments, in recommended order
+------------------------------------------
+
+### 1. Subtree-local accumulated proximity
+
+Preserve current order outside small existing tree ranges. Reorder only inside actual subtrees containing approximately 16, 32, or 64 hallpasses. Use the real recursive `len / 2` ranges rather than assuming power-of-two boundaries.
+
+Within a range, choose each next criterion using the sum of its shared-section edge weights to the selected group, with original order as the tie-breaker. Keep a criterion's multiple hallpasses together where applicable. This limits disruption and tests a specific correction to the failed walk. Start with curriculum conflicts at priority 6, where the criterion/hallpass relationship is simple. This is a proposed adaptation, not a published guarantee.
+
+### 2. Preserve section or course blocks
+
+Treat existing runs with the same first section as indivisible blocks. Reorder blocks using accumulated shared-section affinity, retaining current order within each block. A separate variant groups by the first section's course while preserving section order within each course. The hypothesis is that section-centered or course-centered summaries explain part of the baseline advantage.
+
+Course identity should come from an established project representation or a documented section-name convention; do not silently invent a parser for names. Keep the two variants separate so their effects can be distinguished.
+
+### 3. Refine the order against the actual totalizer tree
+
+Start from current order. Consider exchanges across sibling boundaries that reduce section dependencies crossing those boundaries, while keeping the same subtree sizes. One candidate cost is `sum(n_v * |S(left_v) intersect S(right_v)|)` over internal nodes, where `n_v` is the number of hallpasses below the node and `S` is the union of participating sections below a child. Lower cost favors keeping shared dependencies out of large splits.
+
+The size weighting makes a root-level separation more costly than a leaf-level separation. An unweighted sum of shared-section intersections is unsuitable: for a section occurring in a fixed number of leaves, its total number of branching intersections is invariant under reordering. The weighted metric is still only a hypothesis; evaluate whether it predicts runtime before using it as an optimization objective.
+
+### 4. Clause-based proximity through assignment variables
+
+Use the prepared main clauses through the relevant priority to derive connections through all variables, then restrict the resulting order to that priority's hallpasses. Direct hallpass co-occurrence alone misses most curriculum relationships because hallpasses interact through section-time variables.
+
+Exclude hallpass counting clauses from the analysis so the counter being investigated does not create artificial connections. Include intrinsic/hard clauses and relevant earlier-priority main clauses. Known section-assignment at-most-one groups can supply structural information directly, without rediscovering them from CNF. Short-clause weighting and accumulated proximity have direct research support, but an exact implementation can have substantial initialization cost on million-clause inputs. Analysis remains a once-per-initialization operation, not per probe.
+
+
+Research to return to
+---------------------
+
+[The Impact of Literal Sorting on Cardinality Constraint Encodings, AAAI 2025](https://www.cs.cmu.edu/~jereeves/research/AAAI25-paper.pdf), by Reeves, Boucinha de Sá, Hsu, Martins, and Heule, is the most directly relevant paper. Its premise is that changing leaf groups changes the abstractions available for clause learning even when encoding size is unchanged. Natural order beat occurrence sorting and even the best of five random permutations on their benchmark set. Proximity approaches improved on natural order. Their tests used CaDiCaL and MaxSAT-derived instances, so transfer to Kissat and timetable constraints remains experimental.
+
+The paper's proximity algorithm accumulates variable scores through shared clauses, favoring short clauses; an extension gives strong connections to variables in detected at-most-one groups. It is not a last-vertex greedy walk. The paper also studies community ordering and clause coverage, offering diagnostics for whether groups summarize comparable amounts of the formula. Expensive global analysis can outweigh benefits on easy formulas.
+
+Supporting resources:
+
+*   [Authors' implementation, LiteralSorting](https://github.com/jreeves3/LiteralSorting).
+*   [Reeves's dissertation, Cardinality Constraints in Boolean Satisfiability Solving, chapter 4](https://www.cs.cmu.edu/~jereeves/research/jereeves_phd_csd_2025.pdf).
+*   [Author's introductory explanation](https://www.cs.cmu.edu/~jereeves/research/cardinality-constraints/).
+
+Cardinality networks, sequential counters, and incremental/core-guided optimization remain possible separate experiments. They are not the immediate next step. Construction overhead is not the reported bottleneck, and replacing the counting encoding would confound this investigation into ordering.
+
+
+Resume checklist
+----------------
+
+1. Preserve the input database snapshot and baseline configuration. Record its identity/hash, solver build, balancing policy, seed, and exact command. Repeat the current baseline to assess cross-process variation. Use a scratch database copy when benchmark placements should not enter working history.
+2. Add a narrow way to override ordering only at priority 6, retaining `current` at priorities 0–5. Keep selection and ordering analysis in `sat_prep.rs`; avoid changes to criterion semantics or solver strategy.
+3. Add a small fixed-probe test path or harness. Use earlier budgets `[0,14,0,18,4,44]` and priority-6 probes at 78, 96, 97, and 98. These are dataset-specific measurements, not permanent assumptions about optima. The existing CLI cannot directly select this probe set.
+4. Implement only subtree-local accumulated proximity first. Compare its subtree-size variants against current order on identical probes. Record SAT/UNSAT, runtime, variable/clause counts, preparation cost, and timeouts. If exact formula isolation is needed, reuse one prepared main CNF so unrelated unordered iteration cannot change between treatments.
+5. Retain an ordering only if fixed-probe improvements survive a complete binary-search run through priority 6 and then a run through priority 8. Later probes retain earlier budgets, so improving one proof can still make subsequent optimization worse.
+
+Failed runs and timeouts are results; record the active priority/bound and cutoff rather than assigning a completed runtime. Compare the same probes before comparing total runs with different search paths. No claim that an alternative improves this timetable is supported yet.
+
+
+Validation state
+----------------
+
+The implemented preparation/ordering infrastructure passed 34 Rust tests before this research note. Tests cover small exhaustive placement/budget equivalence across all three methods, exclusion of future-priority clauses, reuse of shared faculty-day links, and counts around a limit of 98. CLI checks on temporary database copies exercised all three orderings, both search strategies, output modes, timing rows, and saved partial optimum prefixes.
+
+The last Clippy run reported an existing `items_after_test_module` warning in `input.rs`; it was not suppressed or changed. For future Rust changes, run formatting, then Clippy, then affected tests. Documentation-only edits require no solver rerun. Git has not been used to checkout, reset, or commit these experiments.

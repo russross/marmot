@@ -49,8 +49,5 @@ def build_programs(db: DB) -> None:
     cancel_alternatives(db, program, 'physics sequence alternatives',
                         ['PHYS 2010', 'PHYS 2015', 'PHYS 2020', 'PHYS 2025'],
                         ['PHYS 2210', 'PHYS 2215', 'PHYS 2220', 'PHYS 2225'])
-    db.make_conflict(program, 'program electives', 3, 'boost', [
-        'CHEM 4100', 'CHEM 4610', 'CHEM 4900', 'CHEM 4905',
-        'BIOL 3010', 'BIOL 3250', 'BIOL 3360', 'BIOL 3420',
-        'BIOL 3450', 'BIOL 3455', 'BIOL 3470', 'BIOL 3460', 'BIOL 4400',
-    ], include=['required courses'])
+    # Three electives from a broad chemistry/biology pool are opportunistic
+    # choices and contribute no conflict pressure.

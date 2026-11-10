@@ -53,6 +53,93 @@ class SchedulingInputTests(unittest.TestCase):
         self.assertEqual(source, (1,))
         self.assertEqual(exposed, [(3,)])
 
+    def check_cross_listing_prerequisites(self, left: str, right: str) -> None:
+        # The alias belongs to a different curricular sequence from the
+        # representative. Every rule shape must filter using that alias.
+        self.db.make_course('Test', 'BIO 3000', 'Earlier course', 3, 3)
+        self.db.make_section_with_no_faculty('BIO 1000-01', 'MWF0900+50')
+        self.db.make_section_with_no_faculty('BIO 2000-01')
+        self.db.make_section_with_no_faculty('BIO 3000-01', 'TR0900+75')
+        self.db.add_cross_listing('BIO 1000-01', ['BIO 2000-01'])
+        self.db.add_prereqs('BIO 2000', ['BIO 3000'])
+        self.db.make_program('Alias curriculum', 'Test')
+        self.db.make_conflict('Alias curriculum', 'requirements', 1, 'boost', [left, right])
+        self.assertEqual(self.db.db.execute('SELECT * FROM conflict_pairs').fetchall(), [])
+
+        # A separate curriculum can still require the representative and the
+        # earlier course together. The alias's prerequisite must not hide it.
+        self.db.make_program('Other curriculum', 'Test')
+        self.db.make_conflict('Other curriculum', 'requirements', 3, 'boost', ['BIO 1000', 'BIO 3000'])
+        self.assertEqual(self.db.db.execute(
+            'SELECT section_a, section_b, priority FROM conflict_pairs WHERE section_a < section_b'
+        ).fetchall(), [('BIO 1000-01', 'BIO 3000-01', 3)])
+
+    def test_cross_listing_course_course_prerequisites(self) -> None:
+        self.check_cross_listing_prerequisites('BIO 2000', 'BIO 3000')
+
+    def test_cross_listing_section_section_prerequisites(self) -> None:
+        self.check_cross_listing_prerequisites('BIO 2000-01', 'BIO 3000-01')
+
+    def test_cross_listing_section_course_prerequisites(self) -> None:
+        self.check_cross_listing_prerequisites('BIO 2000-01', 'BIO 3000')
+
+    def test_cross_listing_course_section_prerequisites(self) -> None:
+        self.check_cross_listing_prerequisites('BIO 2000', 'BIO 3000-01')
+
+    def test_cross_listing_reduction_does_not_cancel_another_listing(self) -> None:
+        self.db.make_course('Test', 'BIO 3000', 'Shared requirement', 3, 3)
+        self.db.make_section_with_no_faculty('BIO 1000-01', 'MWF0900+50')
+        self.db.make_section_with_no_faculty('BIO 2000-01')
+        self.db.make_section_with_no_faculty('BIO 3000-01', 'TR0900+75')
+        self.db.add_cross_listing('BIO 1000-01', ['BIO 2000-01'])
+        self.db.make_program('Test program', 'Test')
+        self.db.make_conflict('Test program', 'requirements', 1, 'boost', ['BIO 1000', 'BIO 2000', 'BIO 3000'])
+        self.db.make_conflict('Test program', 'alternatives', None, 'reduce', ['BIO 2000', 'BIO 3000'])
+
+        # Canceling the alias relationship leaves the representative's rule.
+        # The two listings of the shared meeting never create a self-conflict.
+        self.assertEqual(self.db.db.execute(
+            'SELECT section_a, section_b, priority FROM conflict_pairs WHERE section_a <= section_b'
+        ).fetchall(), [('BIO 1000-01', 'BIO 3000-01', 1)])
+
+    def test_cross_listing_discount_uses_original_course_choices(self) -> None:
+        self.db.make_department('Other')
+        self.db.make_course('Other', 'ALT 3000', 'Alias', 3, 3)
+        self.db.make_section_with_no_faculty('BIO 1000-01', 'MWF0900+50')
+        self.db.make_section_with_no_faculty('ALT 3000-01')
+        self.db.make_section_with_no_faculty('ALT 3000-02')
+        self.db.make_section_with_no_faculty('BIO 2000-01', 'TR0900+75')
+        self.db.add_cross_listing('BIO 1000-01', ['ALT 3000-01'])
+        self.db.make_program('Test program', 'Test')
+        self.db.make_conflict('Test program', 'alias choices', 1, 'boost', ['ALT 3000', 'BIO 2000'])
+        self.db.make_conflict('Test program', 'primary requirements', 8, 'boost', ['BIO 1000', 'BIO 2000'])
+
+        # The alias has an untimed alternative, so its priority becomes six.
+        # Both listing rules merge into one pair in the primary department.
+        self.assertEqual(self.db.db.execute(
+            'SELECT * FROM conflict_pairs WHERE section_a < section_b'
+        ).fetchall(), [('Test', 'BIO 1000-01', 'Test', 'BIO 2000-01', 6)])
+
+    def test_cross_listing_conflicts_do_not_depend_on_representative(self) -> None:
+        self.db.make_course('Test', 'BIO 3000', 'Earlier course', 3, 3)
+        self.db.make_section_with_no_faculty('BIO 1000-01', 'MWF0900+50')
+        self.db.make_section_with_no_faculty('BIO 2000-01', 'MWF0900+50')
+        self.db.make_section_with_no_faculty('BIO 3000-01', 'TR0900+75')
+        self.db.add_prereqs('BIO 2000', ['BIO 3000'])
+        self.db.make_program('Test program', 'Test')
+        self.db.make_conflict('Test program', 'requirements', 1, 'boost', ['BIO 2000', 'BIO 3000'])
+
+        # Either listing can own the physical meeting. Delete only the alias's
+        # time tags before attaching it, as required by the cross-listing API.
+        for primary, secondary in [('BIO 1000-01', 'BIO 2000-01'), ('BIO 2000-01', 'BIO 1000-01')]:
+            with self.subTest(primary=primary):
+                self.db.db.execute('SAVEPOINT representative')
+                self.db.db.execute('DELETE FROM section_time_slot_tags WHERE section = ?', (secondary,))
+                self.db.add_cross_listing(primary, [secondary])
+                self.assertEqual(self.db.db.execute('SELECT * FROM conflict_pairs').fetchall(), [])
+                self.db.db.execute('ROLLBACK TO representative')
+                self.db.db.execute('RELEASE representative')
+
     def test_supplemental_classification_uses_weekly_credit_minutes(self) -> None:
         path = Path(self.directory.name) / 'input.csv'
         fields = ['CRN', 'Subject', 'Course', 'Section', 'Credits', 'Days', 'Time', 'Location', 'Instructor', 'Attributes', 'Cap']

@@ -44,13 +44,18 @@ def build_programs(db: DB) -> None:
             for b in right:
                 db.make_conflict(program, f'{label}: {a} or {b}', None, 'reduce', [a, b])
 
-    # Students choose two of five tracks, so courses in different tracks may
-    # still be needed together. The core already contains BIOL 3030/4300/4305.
-    db.make_conflict(program, 'track choices', 3, 'boost', [
-        'BTEC 2050', 'BTEC 3050', 'BTEC 4040', 'BTEC 4050',
-        'BTEC 2020', 'BTEC 4020', 'BTEC 2010', 'BTEC 3010',
-        'BIOL 2300', 'BIOL 3300', 'CS 1400', 'BIOL 2070', 'BIOL 3070',
-    ], include=['required courses'])
+    # Students complete two tracks. Preserve compatibility within each track
+    # and with the core, but omit pressure between optional track combinations.
+    # BIOL 3030/4300/4305 also appear in the mandatory core.
+    for label, track in [
+        ('functional genomics', ['BTEC 2050', 'BTEC 3050', 'BTEC 4040', 'BTEC 4050']),
+        ('protein characterization', ['BTEC 2020', 'BIOL 4300', 'BIOL 4305', 'BTEC 4020']),
+        ('genetic sequencing', ['BTEC 2010', 'BIOL 3030', 'BTEC 3010']),
+        ('bioinformatics', ['BIOL 2300', 'CS 1400', 'BIOL 3300']),
+        ('machine learning', ['BIOL 2070', 'CS 1400', 'BIOL 3070']),
+    ]:
+        db.make_conflict(program, f'{label} track', 3, 'boost', track,
+                         include=['required courses'])
 
     # Bioinformatics BS, 2026–2027 worksheet:
     # https://catalog.utahtech.edu/programs/biological-sciences/bioinformatics-bs/
@@ -71,19 +76,8 @@ def build_programs(db: DB) -> None:
                      include=['required courses'])
     db.make_conflict(program, 'only one technical lab', None, 'reduce', lab_choices)
 
-    # Fifteen credits come from a large elective list. Animal-focused options
-    # are omitted because only one course or lecture/lab set may be selected.
-    db.make_conflict(program, 'program electives', 5, 'boost', [
-        'BIOL 3040', 'BIOL 3100', 'BIOL 3250', 'BIOL 3450', 'BIOL 3455',
-        'BIOL 3460', 'BIOL 3470', 'BIOL 3550', 'BIOL 3555',
-        'CHEM 2310', 'CHEM 2315', 'CHEM 2320', 'CHEM 2325',
-        'CHEM 3510', 'CHEM 3515', 'CHEM 3520', 'CHEM 3525',
-        'CS 3005', 'CS 3510', 'CS 4300', 'CS 4307', 'CS 4320',
-        'SE 3100', 'SE 3150', 'MATH 1220', 'MATH 2270', 'MATH 2280',
-        'MATH 3400', 'MATH 3500', 'BTEC 3010', 'BTEC 3015R',
-        'BTEC 3020', 'BTEC 3040', 'BTEC 3050', 'BTEC 4020',
-        'BTEC 4040', 'BTEC 4050', 'BTEC 4060R',
-    ], include=['required courses'])
+    # The fifteen-credit elective requirement spans many departments and
+    # allows opportunistic choices, so it contributes no conflict pressure.
 
     # Genomics MS worksheets list 5000/6000 paired numbers. Use the 6000
     # graduate numbers here; prerequisite undergraduate courses are admission

@@ -14,12 +14,6 @@ def build_programs(db: DB) -> None:
         'DES 2300', 'DES 2710', 'DES 2780', 'DES 3000', 'DES 3610',
         'DES 4600', 'DES 4610', 'IXD 1200', 'IXD 1300', 'SET 1000',
     ]
-    elective_pool = [
-        'DES 1610', 'DES 3300', 'DES 3400', 'DES 3600', 'DES 3710',
-        'DES 3780', 'DES 3800', 'DES 4300', 'DES 4650', 'DES 4750',
-        'DES 4990', 'IXD 2000', 'IXD 3500', 'IXD 4100', 'IXD 4200',
-        'SE 3500', 'SE 3550',
-    ]
     emphases = [
         ('Design - Digital Design', ['DES 3300', 'DES 3400', 'DES 3600', 'IXD 3500']),
         ('Design - Graphic Design', ['DES 3300', 'DES 3780', 'DES 3800', 'DES 4650', 'DES 4750']),
@@ -34,11 +28,8 @@ def build_programs(db: DB) -> None:
             for part in ('DES 1101', 'DES 1102', 'DES 1103'):
                 db.make_conflict(program, f'intro alternative: {single} or {part}', None, 'reduce', [single, part])
         db.make_conflict(program, 'intro single-course alternatives', None, 'reduce', ['DES 1100', 'DES 1111'])
-        # Fifteen elective credits allow substantial choice. Research and
-        # internship are individualized and are omitted from this group.
-        db.make_conflict(program, 'design electives', 4, 'boost',
-                         [course for course in elective_pool if course not in emphasis],
-                         include=['required courses'])
+        # Fifteen elective credits come from a broad DES/IXD/SE pool. Only
+        # the emphasis's mandatory courses contribute conflict pressure.
 
     # https://catalog.utahtech.edu/programs/design/user-experience-design-muxd/
     db.make_program('User Experience Design', 'Design')

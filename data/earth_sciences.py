@@ -27,16 +27,8 @@ def build_programs(db: DB) -> None:
     db.make_conflict(name, 'required courses', 1, 'boost', core + [
         'BIOL 3110', 'GEO 1220', 'GEO 1225', 'GEO 2700R', 'GEO 2990R', 'GEO 3700',
     ])
-    # The worksheet requires 22 credits from a broad elective list. The
-    # in-person discipline courses get a lower priority; travel and independent
-    # study options are excluded until their scheduling is understood. The
-    # worksheet's ENVS 4085 has no course description in the current catalog.
-    db.make_conflict(name, 'geoscience electives', 4, 'boost', [
-        'GEO 3060', 'GEO 3180', 'GEO 3200', 'GEO 3500', 'GEO 3550',
-        'GEO 3600', 'GEO 3710', 'GEO 4600', 'ENVS 3280', 'ENVS 3410',
-        'ENVS 3510', 'ENVS 4080', 'GEOG 4140', 'GEOG 3410',
-        'GEOG 4180', 'MATH 1210',
-    ], include=['required courses'])
+    # The 22-credit elective list spans GEO, ENVS, GEOG, MATH, ENGL, and
+    # travel/research choices. This broad pool contributes no conflict pressure.
 
     # https://catalog.utahtech.edu/programs/earth-environmental-sciences/geological-sciences-bs/
     name = 'Geological Sciences'

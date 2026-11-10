@@ -19,22 +19,10 @@ def build_programs(db: DB) -> None:
         'ECE 4735', 'ECE 4005', 'ECE 4015',
     ])
 
-    # The worksheet requires 12 credits of upper-division engineering
-    # electives, including 3 ECE credits. Priority 5 reflects the large
-    # choice. Research and practicum options are omitted as individualized.
-    engineering_electives = [
-        'ECE 4100', 'ECE 4200', 'ECE 4290', 'ECE 4300', 'ECE 4400',
-        'ECE 4500', 'ECE 4510', 'ECE 4610', 'ECE 4990', 'ECE 4995',
-        'MECH 4110', 'MECH 4150', 'MECH 4170', 'MECH 4400',
-        'MECH 4510', 'MECH 4520', 'MECH 4690', 'MECH 4790',
-        'MECH 4990', 'MECH 4991', 'MECH 4995', 'MTRN 4990',
-    ]
-    db.make_conflict('Computer Engineering', 'engineering electives', 5, 'boost',
-                     engineering_electives, include=['required courses'])
-
-    # The other three engineering worksheets use the same broad elective
-    # pool, with differing credit and prefix requirements. They each have
-    # distinct mandatory cores; non-college ENGL 3010 is not modeled.
+    # The engineering degrees have broad upper-division elective pools with
+    # differing credit and prefix requirements. Those opportunistic choices
+    # contribute no conflict pressure; each mandatory core remains separate.
+    # Non-college ENGL 3010 is not modeled.
     # https://catalog.utahtech.edu/programs/engineering/electrical-engineering-bs/
     # https://catalog.utahtech.edu/programs/engineering/mechanical-engineering-bs/
     # https://catalog.utahtech.edu/programs/engineering/mechatronics-bs/
@@ -74,6 +62,3 @@ def build_programs(db: DB) -> None:
     for program, required in programs:
         db.make_program(program, 'Engineering')
         db.make_conflict(program, 'required courses', 1, 'boost', required)
-        db.make_conflict(program, 'engineering electives', 5, 'boost',
-                         engineering_electives + ['ECE 4730', 'ECE 4735'],
-                         include=['required courses'])

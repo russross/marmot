@@ -89,6 +89,25 @@ The raw tables preserve provenance where practical. The Rust-facing views are
 allowed to be lossy because they are solver inputs, but avoid collapsing
 different input sources in base tables.
 
+Cross-listings share a physical meeting, not a curricular identity. Expand
+conflict groups and apply program-specific reductions to the original listings;
+then apply prerequisite exclusions and section-count discounts using those
+listings' own courses. Only after those calculations may surviving pairs map to
+representative sections and merge by minimum priority. Remove mapped self-pairs
+and export each physical pair once with the representatives' departments.
+Choosing a different representative must not change curricular pressure. A
+reduction or prerequisite exclusion for one listing must not cancel a surviving
+relationship from another listing. Keep regression coverage for course/course,
+section/section, mixed rules, listing-specific reductions and discounts, and
+representative independence in `test_dry_run.py`.
+
+Broad elective pools contribute no conflict pressure when students choose a
+modest fraction of a large list, especially across programs or departments.
+Focused requirements can remain modeled, such as CS mathematics electives.
+Record every retained or omitted pool judgment and its rationale in
+`QUESTIONS.md` for chair review. Optional tracks may have separate internal and
+core conflicts without introducing a clique across all track choices.
+
 `./compare-posted [placement_id]` reports meeting-level differences for the
 selected placement, defaulting to the newest. It maps cross-listings, SI, and
 known split meetings back to their posted CRNs. Rebuilding deletes placements,
