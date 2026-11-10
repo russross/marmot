@@ -282,6 +282,7 @@ fn parse_args() -> Result<Opts> {
             let mut opts = SatOpts::default();
             parser.string("-d", "--db-path", &mut opts.db_path)?;
             parser.minimum_hallpasses("", "--min-hallpass", &mut opts.minimum_hallpasses)?;
+            parser.boolean("", "--binary-search", &mut opts.binary_search)?;
             parser.boolean("", "--balance-faculty-preferences", &mut opts.balance_faculty_preferences)?;
             parser.boolean("", "--show-faculty-preference-priorities", &mut opts.show_faculty_preference_priorities)?;
             parser.leftover()?;
@@ -385,6 +386,7 @@ impl Default for GenOpts {
 }
 
 pub struct SatOpts {
+    pub binary_search: bool,
     pub db_path: String,
     pub minimum_hallpasses: MinimumHallpasses,
     pub balance_faculty_preferences: bool,
@@ -396,6 +398,7 @@ impl Default for SatOpts {
         Self {
             db_path: DEFAULT_DB_PATH.to_string(),
             minimum_hallpasses: MinimumHallpasses::default(),
+            binary_search: false,
             balance_faculty_preferences: true,
             show_faculty_preference_priorities: false,
         }
@@ -608,6 +611,7 @@ fn print_usage(command: Option<String>) {
             eprintln!();
             eprintln!("Options:");
             eprintln!("  -d, --db-path <path>           Database path (default: {})", default.db_path);
+            eprintln!("      --binary-search            Find minimum hallpasses by binary search");
             eprintln!("      --min-hallpass <level:count,...>  First hallpass count to try at each priority level");
             print_preference_balance_usage(default.balance_faculty_preferences);
         }
@@ -691,6 +695,10 @@ struct CliParser {
 impl CliParser {
     fn new() -> Result<Self> {
         let args: Vec<String> = std::env::args().collect();
+        Self::from_args(&args)
+    }
+
+    fn from_args(args: &[String]) -> Result<Self> {
         if args.len() < 2 {
             return Err("Error: no command specified".into());
         }
@@ -698,12 +706,22 @@ impl CliParser {
         if args[2..].contains(&"-h".to_string()) {
             return Err(String::new().into());
         }
-        if args.len() % 2 == 1 {
-            return Err(format!("Error: 'marmot {}' options must each have a value, e.g., -t 30m", command).into());
-        }
+        // SAT binary search accepts a bare flag; other options consume their next argument.
         let mut pairs = HashMap::new();
-        for pair in args[2..].chunks_exact(2) {
-            pairs.insert(pair[0].clone(), pair[1].clone());
+        let mut options = args[2..].iter().peekable();
+        while let Some(key) = options.next() {
+            let bare_binary_search = command == "sat"
+                && key == "--binary-search"
+                && options.peek().is_none_or(|value| value.starts_with('-'));
+            let value = if bare_binary_search {
+                "true".to_string()
+            } else {
+                options
+                    .next()
+                    .ok_or_else(|| format!("Error: 'marmot {command}' option {key} requires a value"))?
+                    .clone()
+            };
+            pairs.insert(key.clone(), value);
         }
 
         Ok(CliParser { command: args[1].clone(), pairs })
@@ -822,6 +840,29 @@ impl CliParser {
 #[cfg(test)]
 mod tests {
     use super::MinimumHallpasses;
+
+    #[test]
+    fn parses_binary_search_flag_and_explicit_values() {
+        for options in [
+            vec!["--binary-search"],
+            vec!["--binary-search", "true"],
+            vec!["--binary-search", "--min-hallpass", "7:2"],
+            vec!["--min-hallpass", "7:2", "--binary-search"],
+        ] {
+            let args: Vec<String> = ["marmot", "sat"].into_iter().chain(options).map(String::from).collect();
+            let mut parser = super::CliParser::from_args(&args).unwrap();
+            let mut enabled = false;
+            parser.boolean("", "--binary-search", &mut enabled).unwrap();
+            assert!(enabled);
+        }
+        let args = ["marmot", "sat", "--binary-search", "false"].map(String::from);
+        let mut parser = super::CliParser::from_args(&args).unwrap();
+        let mut enabled = true;
+        parser.boolean("", "--binary-search", &mut enabled).unwrap();
+        assert!(!enabled);
+        let args = ["marmot", "sat", "--binary-search", "--min-hallpass"].map(String::from);
+        assert!(super::CliParser::from_args(&args).is_err());
+    }
 
     #[test]
     fn parses_minimum_hallpasses_for_distinct_priorities() {

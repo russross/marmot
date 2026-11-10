@@ -5,9 +5,25 @@ import subprocess
 from sqlite3 import IntegrityError
 
 import courses
+import biology
+import biology_faculty
+import biotechnology_faculty
+import chemistry
+import chemistry_faculty
 import computing
 import computingfaculty
+import engineering
+import engineering_faculty
+import earth_sciences
+import earth_sciences_faculty
+import design
+import design_faculty
+import mathematics
+import mathematics_faculty
+import physics_faculty
 import queries
+import rooms
+import timeslots
 
 DB_FILE = 'timetable.db'
 
@@ -34,9 +50,25 @@ db.make_holiday('2027-03-12')
 
 try:
     courses.build_courses(db)
+    rooms.build_rooms(db)
+    timeslots.build_time_slots(db)
     computing.build_pre(db)
     computingfaculty.build_faculty(db)
+    mathematics_faculty.build_faculty(db)
+    physics_faculty.build_faculty(db)
+    engineering_faculty.build_faculty(db)
+    earth_sciences_faculty.build_faculty(db)
+    design_faculty.build_faculty(db)
+    biotechnology_faculty.build_faculty(db)
+    biology_faculty.build_faculty(db)
+    chemistry_faculty.build_faculty(db)
     computing.build_post(db)
+    biology.build_programs(db)
+    chemistry.build_programs(db)
+    engineering.build_programs(db)
+    earth_sciences.build_programs(db)
+    design.build_programs(db)
+    mathematics.build_programs(db)
     db.validate_shared_day_off_preferences()
     db.db.commit()
 except (ValueError, IntegrityError) as error:
@@ -45,5 +77,3 @@ except (ValueError, IntegrityError) as error:
 
 db.db.execute('VACUUM')
 db.db.execute('ANALYZE')
-
-subprocess.run(['rm', '-r', '__pycache__'], check=True)

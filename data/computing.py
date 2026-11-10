@@ -1,35 +1,8 @@
-import queries
-from queries import *
+from queries import DB
 
 def build_pre(db: DB) -> None:
-    print('building smith building and classrooms')
-    db.make_building('Smith')
-    db.make_room('Smith 107', 32, ['flex'])
-    db.make_room('Smith 108', 32, ['flex'])
-    db.make_room('Smith 109', 32, ['flex'])
-    db.make_room('Smith 112', 24, ['macs'])
-    db.make_room('Smith 113', 24, ['pcs'])
-    db.make_room('Smith 116', 38, ['stadium'])
-    db.make_room('Smith 117', 38, ['stadium'])
-
-    print('building core time slots')
-
-    db.make_time_slot('MWF0800+50', [])
-    db.make_time_slot('MWF0900+50', ['3 credit bell schedule', 'MWF 3×50 bell schedule'])
-    db.make_time_slot('MWF1000+50', ['3 credit bell schedule', 'MWF 3×50 bell schedule'])
-    db.make_time_slot('MWF1100+50', ['3 credit bell schedule', 'MWF 3×50 bell schedule'])
-    db.make_time_slot('MW1200+75', ['3 credit bell schedule', '2×75 bell schedule', 'MW 2×75 bell schedule'])
-    db.make_time_slot('MW1330+75', ['3 credit bell schedule', '2×75 bell schedule', 'MW 2×75 bell schedule'])
-    db.make_time_slot('MW1500+75', ['3 credit bell schedule', '2×75 bell schedule', 'MW 2×75 bell schedule'])
-    db.make_time_slot('MW1630+75', [])
-
-    db.make_time_slot('TR0900+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
-    db.make_time_slot('TR1030+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
-    db.make_time_slot('TR1200+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
-    db.make_time_slot('TR1330+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
-    db.make_time_slot('TR1500+75', ['3 credit bell schedule', '2×75 bell schedule', 'TR 2×75 bell schedule'])
-    db.make_time_slot('TR1630+75', [])
-
+    # Computing graduate sections use these evening groups in addition to
+    # individually specified evening time slots.
     db.make_time_slot('M1630+150', ['3 credit early evening'])
     db.make_time_slot('T1630+150', ['3 credit early evening'])
     db.make_time_slot('W1630+150', ['3 credit early evening'])
@@ -200,16 +173,22 @@ def build_post(db: DB) -> None:
         'IT 4100', 'IT 4200', 'IT 4400', 'IT 4510', 'IT 4920R',
     ], include=['core requirements'])
 
-    # DevOps
-    db.make_conflict('Information Technology', 'DevOps requirements', 3, 'boost', [
-        # DevOps requirements
-        'CS 2450',
-        'IT 3110', 'IT 3300', 'IT 4200',
-    ], include=['core requirements'])
-    db.make_conflict('Information Technology', 'DevOps requirements vs DevOps core electives', 5, 'boost', [
-        # DevOps core electives
+    # DevOps is a separate published emphasis. Its four emphasis courses are
+    # mandatory rather than choices within the regular IT degree.
+    # https://catalog.utahtech.edu/programs/computing/information-technology-devops-bs/
+    db.make_program('Information Technology - DevOps', 'Computing')
+    db.make_conflict('Information Technology - DevOps', 'core requirements', 1, 'boost', [
+        'CS 1030', 'CS 1400', 'CS 1410', 'IT 1100', 'IT 1200', 'IT 1500',
+        'IT 2150', 'IT 2300', 'IT 2400', 'IT 2700', 'IT 3100', 'IT 3400',
+        'IT 3510', 'IT 4600', 'MATH 1040', 'MATH 1050',
+        'CS 2450', 'IT 3110', 'IT 3300', 'IT 4200',
+    ])
+    db.make_conflict('Information Technology - DevOps', 'core electives', 2, 'boost', [
         'IT 4100', 'IT 4400', 'IT 4510', 'IT 4920R',
-    ], include=['DevOps requirements'])
+    ], include=['core requirements'])
+    # A second nine-credit elective list is much broader and is omitted.
+    db.make_conflict('Information Technology - DevOps', 'only need one math class', None, 'reduce',
+        ['MATH 1040', 'MATH 1050'])
 
     # IT BAP
     db.make_program('Information Technology BAP', 'Computing')
@@ -244,6 +223,26 @@ def build_post(db: DB) -> None:
     ])
     db.make_conflict('Cybersecurity', 'only need one math class', None, 'reduce',
         ['MATH 1040', 'MATH 1050'])
+
+    # The master's worksheets list required courses and one mobile elective.
+    # https://catalog.utahtech.edu/programs/computing/software-development-msd/
+    # https://catalog.utahtech.edu/programs/computing/artifical-intelligence-ms/
+    db.make_program('Software Development MS', 'Computing')
+    db.make_conflict('Software Development MS', 'required courses', 1, 'boost', [
+        'SD 6100', 'SD 6110', 'SD 6200', 'SD 6210', 'SD 6220',
+        'SD 6300', 'SD 6310', 'SD 6400', 'SD 6450',
+    ])
+    db.make_conflict('Software Development MS', 'mobile elective', 1, 'boost',
+        ['SD 6330', 'SD 6340'], include=['required courses'])
+    db.make_conflict('Software Development MS', 'only one mobile elective', None, 'reduce',
+        ['SD 6330', 'SD 6340'])
+
+    # Block A and B sections still use the solver's full-term overlap model.
+    db.make_program('Artificial Intelligence MS', 'Computing')
+    db.make_conflict('Artificial Intelligence MS', 'required courses', 1, 'boost', [
+        'CS 6300', 'CS 6310', 'CS 6320', 'CS 6321', 'CS 6322', 'CS 6323',
+        'CS 6350', 'CS 6351', 'CS 6352', 'CS 6353',
+    ])
 
 
     # Misc

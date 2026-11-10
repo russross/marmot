@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+
+import argparse
+import csv
+import sqlite3
+import sys
+from collections import Counter
+from pathlib import Path
+
+from posted_schedule import PostedMeeting, room_name, supplemental_offerings
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description='Compare a generated placement with posted meetings.')
+    parser.add_argument('placement', nargs='?', type=int, help='placement ID (default: newest)')
+    parser.add_argument('--all', action='store_true', help='include unchanged meetings')
+    parser.add_argument('--db', type=Path, default=Path(__file__).parent / 'timetable.db')
+    args = parser.parse_args()
+    directory = Path(__file__).parent / 'postedschedule'
+    with sqlite3.connect(args.db.resolve().as_uri() + '?mode=ro', uri=True) as db:
+        placement = args.placement
+        if placement is None:
+            placement = db.execute('SELECT MAX(placement_id) FROM placements').fetchone()[0]
+        if placement is None or db.execute('SELECT 1 FROM placements WHERE placement_id = ?', (placement,)).fetchone() is None:
+            raise ValueError('no matching generated placement found')
+        positions = {
+            section: (slot, room)
+            for section, slot, room in db.execute(
+                'SELECT section, time_slot, room FROM placement_sections WHERE placement_id = ?', (placement,),
+            )
+        }
+        aliases = dict(db.execute('SELECT section, primary_section FROM cross_listing_sections'))
+        scheduled = {row[0] for row in db.execute('SELECT DISTINCT section FROM sections_to_be_scheduled')}
+
+    si = {offering.crn: offering for offering in supplemental_offerings(directory)}
+    # These CRNs are modeled as a primary section plus a second instructor-led
+    # meeting with an extra suffix. Source order determines their suffixes.
+    split_sections = {
+        'BTEC 2050-01', 'BTEC 2050-02', 'BTEC 4050-01A', 'BTEC 4805-01',
+        'CHEM 4510-01', 'MTRN 3455-01', 'ENVS 4080-01', 'GEO 3700-01',
+    }
+    seen: Counter[str] = Counter()
+    counts: Counter[str] = Counter()
+    changed: list[tuple[str, str, str, str, str]] = []
+    for path in sorted(directory.glob('*.csv')):
+        with path.open(encoding='utf-8-sig', newline='') as file:
+            for row in csv.DictReader(file):
+                if int(row['Cap']) == 0 or not row['Days'] or row['Time'] == 'TBA':
+                    continue
+                course = row['Course'].removeprefix('="').removesuffix('"')
+                number = row['Section'].removeprefix('="').removesuffix('"')
+                original = f"{row['Subject']} {course}-{number}"
+                meeting = PostedMeeting(row['Days'], row['Time'], row['Location'], row['Instructor'])
+                section = original
+                if row['CRN'] in si and meeting == si[row['CRN']].supplemental:
+                    section += 'si'
+                elif original in split_sections:
+                    if seen[row['CRN']]:
+                        section += 'extra'
+                    seen[row['CRN']] += 1
+                primary = aliases.get(section, section)
+                posted_slot = meeting.slot_name()
+                posted_room = None if meeting.location in ('', 'VIRT', 'ONLINE') else room_name(meeting.location)
+                if primary not in positions:
+                    status = 'unplaced' if primary in scheduled else 'not scheduled'
+                    generated_slot, generated_room = '', ''
+                else:
+                    generated_slot, generated_room = positions[primary]
+                    status = 'unchanged' if (posted_slot, posted_room) == (generated_slot, generated_room) else 'changed'
+                counts[status] += 1
+                if args.all or status != 'unchanged':
+                    posted = f'{posted_slot} {posted_room or "(no room)"}'
+                    generated = f'{generated_slot} {generated_room or "(no room)"}' if generated_slot else ''
+                    changed.append((section, row['CRN'], status, posted, generated))
+
+    print(f'Placement {placement}: ' + ', '.join(f'{key}={counts[key]}' for key in ('unchanged', 'changed', 'unplaced', 'not scheduled')))
+    print('Weekly time and room comparison; semester date ranges are not modeled.')
+    writer = csv.writer(sys.stdout, delimiter='\t', lineterminator='\n')
+    writer.writerow(('section', 'CRN', 'status', 'posted', 'generated'))
+    writer.writerows(changed)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (OSError, sqlite3.Error, ValueError) as error:
+        raise SystemExit(f'compare-posted: {error}') from None

@@ -109,9 +109,10 @@ def build_faculty(db: DB) -> None:
 
     db.make_faculty('Eric Pedersen', 'Computing', default_availability)
     db.make_faculty_section('Eric Pedersen', 'SD 6210-01', 'R1630+150', 'Smith 117')
-    db.make_section_with_no_faculty('UXD 6240-01')
-    db.add_cross_listing('SD 6210-01', ['UXD 6240-01'])
     db.make_faculty_section('Eric Pedersen', 'SE 4600-04', '3 credit bell schedule', 'flex', 'stadium')
+    # The posted CS and SE sections meet together with Eric Pedersen.
+    db.make_section_with_no_faculty('CS 4600-04')
+    db.add_cross_listing('SE 4600-04', ['CS 4600-04'])
     # ParksPass also includes 30 minutes outside Smith, arranged separately.
     db.make_faculty_section('Eric Pedersen', 'SE 4990-01', 'TR1500+75', 'Smith 112', credit_hours=3)
     db.make_faculty_section('Eric Pedersen', 'SE 3500-01', '3 credit bell schedule', 'flex', 'stadium')
@@ -135,21 +136,21 @@ def build_faculty(db: DB) -> None:
         AvoidSectionInRooms('SE 3500-01', ['flex']),
     )
 
+    # The posted schedule assigns this section to Cameron Carroll at TR 15:00.
+    db.make_faculty('Cameron Jeffrey Carroll', 'Computing', default_availability)
+    db.make_faculty_section('Cameron Jeffrey Carroll', 'IT 1200-01', 'TR1500+75', 'Smith 107')
+
     db.make_faculty('Jay Sneddon', 'Computing', default_availability)
-    db.make_faculty_section('Jay Sneddon', 'IT 1200-01', 'MW1200+75', 'MW1500+75', 'TR1200+75', 'Smith 107')
     db.make_faculty_section('Jay Sneddon', 'IT 2700-01', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Jay Sneddon', 'IT 2150-01', '3 credit bell schedule', 'flex', 'macs', 'pcs', 'stadium')
     db.make_faculty_section('Jay Sneddon', 'IT 3710-01', '3 credit bell schedule', 'flex', 'stadium')
     db.make_faculty_section('Jay Sneddon', 'IT 3750-01', '3 credit bell schedule', 'Smith 107')
-    db.make_faculty_section('Jay Sneddon', 'IT 4920R-01', credit_hours=1)
-    db.make_faculty_section('Jay Sneddon', 'IT 4920R-01B', credit_hours=1)
-    db.make_faculty_section('Jay Sneddon', 'IT 4991R-01', 'T1630+50', 'Smith 107')
+    db.make_faculty_section('Jay Sneddon', 'IT 4991R-01', 'T1630+100', 'Smith 107')
 
     db.faculty_preferences('Jay Sneddon', 'MT',
         UnavailableTimeSlot('TR1500+75'),
         UnavailableTimeSlot('TR1630+75'),
-        AvoidSectionInRooms('IT 1200-01', ['Smith 108', 'Smith 109', 'stadium']),
-        AvoidTimeSlot('MWF0900+50'),
+        AvoidTimeSlot('MWF0900+50', priority=11),
         AvoidTimeSlot('MWF1000+50'),
         AvoidTimeSlot('MWF1100+50'),
         DoNotWantADayOff(),

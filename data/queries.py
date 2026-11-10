@@ -66,7 +66,7 @@ class AvoidGapBetweenClassClustersShorterThan(FacultyPreferences):
 
     def __post_init__(self) -> None:
         self.minutes = parse_minutes(self.minutes)
-        assert(type(self.minutes) == int and self.minutes > 50 and self.minutes < 720)
+        assert(type(self.minutes) is int and self.minutes > 50 and self.minutes < 720)
         assert(self.priority is None or MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS)
 
 @dataclass
@@ -76,7 +76,7 @@ class AvoidGapBetweenClassClustersLongerThan(FacultyPreferences):
 
     def __post_init__(self) -> None:
         self.minutes = parse_minutes(self.minutes)
-        assert(type(self.minutes) == int and self.minutes > 50 and self.minutes < 720)
+        assert(type(self.minutes) is int and self.minutes > 50 and self.minutes < 720)
         assert(self.priority is None or MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS)
 
 @dataclass
@@ -86,7 +86,7 @@ class AvoidClassClusterShorterThan(FacultyPreferences):
 
     def __post_init__(self) -> None:
         self.minutes = parse_minutes(self.minutes)
-        assert(type(self.minutes) == int and self.minutes > 50 and self.minutes < 720)
+        assert(type(self.minutes) is int and self.minutes > 50 and self.minutes < 720)
         assert(self.priority is None or MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS)
 
 @dataclass
@@ -96,7 +96,7 @@ class AvoidClassClusterLongerThan(FacultyPreferences):
 
     def __post_init__(self) -> None:
         self.minutes = parse_minutes(self.minutes)
-        assert(type(self.minutes) == int and self.minutes > 50 and self.minutes < 720)
+        assert(type(self.minutes) is int and self.minutes > 50 and self.minutes < 720)
         assert(self.priority is None or MIN_PREF_PRIORITY <= self.priority <= PRIORITY_LEVELS)
 
 @dataclass
@@ -354,16 +354,16 @@ class DB:
                 case WantClassesPackedIntoAsFewRoomsAsPossible(p):
                     too_many_rooms_priority = next_priority(p)
                 case AvoidGapBetweenClassClustersShorterThan(minutes, p):
-                    assert(type(minutes) == int)
+                    assert(type(minutes) is int)
                     cluster.append( (faculty, False, True, minutes, next_priority(p)) )
                 case AvoidGapBetweenClassClustersLongerThan(minutes, p):
-                    assert(type(minutes) == int)
+                    assert(type(minutes) is int)
                     cluster.append( (faculty, False, False, minutes, next_priority(p)) )
                 case AvoidClassClusterShorterThan(minutes, p):
-                    assert(type(minutes) == int)
+                    assert(type(minutes) is int)
                     cluster.append( (faculty, True, True, minutes, next_priority(p)) )
                 case AvoidClassClusterLongerThan(minutes, p):
-                    assert(type(minutes) == int)
+                    assert(type(minutes) is int)
                     cluster.append( (faculty, True, False, minutes, next_priority(p)) )
                 case AvoidTimeSlot(time_slot, p):
                     # it has to be an existing time slot, so check it and let the db do the parsing
@@ -520,7 +520,21 @@ class DB:
 
     @rollback_on_exception
     def assign_faculty_to_existing_section(self, faculty: str, section: str) -> None:
+        if self.db.execute('SELECT 1 FROM supplemental_instruction WHERE section = ?', (section,)).fetchone():
+            raise ValueError('supplemental instruction cannot have assigned faculty')
         self.db.execute('INSERT INTO faculty_sections VALUES (?, ?)', (faculty, section))
+
+    @rollback_on_exception
+    def add_supplemental_instruction(self, primary: str, supplemental: str) -> None:
+        rows = self.db.execute(
+            'SELECT section, course FROM sections WHERE section IN (?, ?)',
+            (primary, supplemental),
+        ).fetchall()
+        if len(rows) != 2 or rows[0][1] != rows[1][1]:
+            raise ValueError('supplemental instruction must reference two distinct sections of the same course')
+        if self.db.execute('SELECT 1 FROM faculty_sections WHERE section = ?', (supplemental,)).fetchone():
+            raise ValueError('supplemental instruction cannot have assigned faculty')
+        self.db.execute('INSERT INTO supplemental_instruction VALUES (?, ?)', (supplemental, primary))
 
     @rollback_on_exception
     def make_faculty_section(
@@ -536,7 +550,7 @@ class DB:
     @rollback_on_exception
     def add_cross_listing(self, primary: str, sections: list[str]) -> None:
         if len(sections) < 1:
-            raise RuntimeError(f'add_cross_listing needs at least two sections to cross list')
+            raise RuntimeError('add_cross_listing needs at least two sections to cross list')
         self.db.execute('INSERT INTO cross_listings VALUES (?)', (primary,))
         for section in sections:
             self.db.execute('INSERT INTO cross_listing_sections VALUES (?, ?)', (section, primary))
@@ -544,7 +558,7 @@ class DB:
     @rollback_on_exception
     def add_anti_conflict(self, priority: int, single: str, group: list[str]) -> None:
         if len(group) < 1:
-            raise RuntimeError(f'add_anti_conflict needs at least one section in the group')
+            raise RuntimeError('add_anti_conflict needs at least one section in the group')
         self.db.execute('INSERT INTO anti_conflicts VALUES (?, ?)', (single, int(priority)))
         for elt in group:
             if '-' not in elt:

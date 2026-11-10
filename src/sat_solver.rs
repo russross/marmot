@@ -45,13 +45,30 @@ pub fn generate_schedule(config: &SatOpts, input: &Input) -> Result<Schedule> {
         }
 
         // solve at this priority level, updating max_violations in place
-        best = solve_at_priority_level(
-            input,
-            &sat_criteria,
-            priority,
-            config.minimum_hallpasses.at_priority(priority),
-            &mut max_violations,
-        )?;
+        best = if config.binary_search {
+            solve_binary(input, &sat_criteria, priority, config, &mut max_violations, |schedule| {
+                // The initial save announces its placement id
+                if placement_id.is_none() {
+                    print!("\r");
+                }
+                placement_id = Some(save_schedule(
+                    &config.db_path,
+                    input,
+                    schedule,
+                    &format!("SAT generated: probing priority level {priority}"),
+                    placement_id,
+                )?);
+                Ok(())
+            })?
+        } else {
+            solve_at_priority_level(
+                input,
+                &sat_criteria,
+                priority,
+                config.minimum_hallpasses.at_priority(priority),
+                &mut max_violations,
+            )?
+        };
         if best.is_none() {
             if priority == 0 {
                 return err("Failed to find a solution that satisfies hard constraints");
@@ -70,10 +87,12 @@ pub fn generate_schedule(config: &SatOpts, input: &Input) -> Result<Schedule> {
             unreachable!("best schedule cannot be none");
         };
         schedule.optimum_score_prefix = schedule.score.levels[..=priority as usize].to_vec();
-        print!("\r");
+        if placement_id.is_none() {
+            println!();
+        }
         placement_id = Some(save_schedule(&config.db_path, input, schedule, msg.as_str(), placement_id)?);
     }
-    println!("\r{}    ", max_violations);
+    println!("\r{}\x1b[K", max_violations);
 
     if let Some(schedule) = best {
         // Sanity check: compare max_violations with schedule score
@@ -92,6 +111,9 @@ pub fn generate_schedule(config: &SatOpts, input: &Input) -> Result<Schedule> {
 }
 
 fn validate_minimum_hallpasses(config: &SatOpts, sat_criteria: &SatCriteria) -> Result<()> {
+    if config.binary_search {
+        return Ok(());
+    }
     for priority in 1..=MAX_PRIORITY {
         let minimum = config.minimum_hallpasses.at_priority(priority);
         let constraint_count = sat_criteria.criteria_at_priority(priority).len();
@@ -104,6 +126,23 @@ fn validate_minimum_hallpasses(config: &SatOpts, sat_criteria: &SatCriteria) -> 
     }
 
     Ok(())
+}
+
+// Erase the remainder of the line because speculative counts can shrink between probes.
+fn print_progress(limits: &Score, priority: u8, range: Option<(ScoreLevel, ScoreLevel)>) {
+    print!("\r<");
+    let mut sep = "";
+    for p in 0..=priority {
+        if limits.levels[p as usize] > 0 || p == priority {
+            print!("{}{}×{}", sep, p, limits.levels[p as usize]);
+            sep = ",";
+        }
+    }
+    if let Some((lower, upper)) = range {
+        print!("∈[{lower},{upper}]");
+    }
+    print!("\x1b[K");
+    let _ = std::io::stdout().flush();
 }
 
 // Solve for a specific priority level, finding minimum violations.
@@ -125,22 +164,15 @@ fn solve_at_priority_level(
         let hallpass_count = ScoreLevel::try_from(hallpass_count)
             .map_err(|_| format!("Priority level {priority} has too many hallpasses to score"))?;
 
-        // print progress display
-        print!("\r<");
-        let mut sep = "";
-        for p in 0..=priority {
-            if max_violations.levels[p as usize] > 0 || p == priority {
-                print!("{}{}×{}", sep, p, max_violations.levels[p as usize]);
-                sep = ",";
-            }
-        }
-        let _ = std::io::stdout().flush();
+        print_progress(max_violations, priority, None);
 
         // Solve the SAT instance
         match encoding.solve() {
             Ok(Some(model)) => {
                 // Convert the SAT solution into a schedule
-                return Ok(Some(decode_solution(input, &encoding, &model, priority)?));
+                let schedule = decode_solution(input, &encoding, &model)?;
+                verify_solution_score(input, &schedule, model_problems(&encoding, &model), priority);
+                return Ok(Some(schedule));
             }
             Ok(None) => {
                 // quit early if we fail to handle hard constraints
@@ -161,6 +193,66 @@ fn solve_at_priority_level(
             }
         }
     }
+}
+
+// Binary probes retain feasible refinements while only certifying completed priorities.
+fn solve_binary(
+    input: &Input,
+    criteria: &SatCriteria,
+    priority: u8,
+    config: &SatOpts,
+    limits: &mut Score,
+    mut save: impl FnMut(&Schedule) -> Result<()>,
+) -> Result<Option<Schedule>> {
+    let index = priority as usize;
+    let initial = create_sat_instance(input, criteria, limits, priority)?;
+    let count = initial.hallpasses.get(&priority).map_or(0, HashSet::len);
+    let mut upper = ScoreLevel::try_from(count)
+        .map_err(|_| format!("Priority level {priority} has too many hallpasses to score"))?;
+    let mut lower = config.minimum_hallpasses.at_priority(priority);
+    if lower > upper {
+        return err(format!(
+            "Minimum hallpass count {lower} exceeds the {upper} hallpasses at priority level {priority}"
+        ));
+    }
+    if priority == 0 {
+        upper = 0;
+    }
+    let mut probe =
+        if config.minimum_hallpasses.by_priority.contains_key(&priority) { lower } else { lower + (upper - lower) / 2 };
+    let mut best = None;
+
+    // Feasible probes lower the ceiling; infeasible probes exclude their entire prefix.
+    loop {
+        limits.levels[index] = probe;
+        print_progress(limits, priority, Some((lower, upper)));
+        let encoding = create_sat_instance(input, criteria, limits, priority)?;
+        match encoding.solve().map_err(|e| format!("Error solving SAT instance: {e}"))? {
+            Some(model) => {
+                let mut schedule = decode_solution(input, &encoding, &model)?;
+                schedule.optimum_score_prefix = limits.levels[..index].to_vec();
+                save(&schedule)?;
+                best = Some(schedule);
+                upper = probe;
+                if lower == upper {
+                    verify_solution_score(input, best.as_ref().unwrap(), model_problems(&encoding, &model), priority);
+                    break;
+                }
+            }
+            None => {
+                if priority == 0 {
+                    return err("No solution using only hard constraints");
+                }
+                if probe == upper {
+                    return Ok(best);
+                }
+                lower = probe + 1;
+            }
+        }
+        probe = lower + (upper - lower) / 2;
+    }
+    limits.levels[index] = upper;
+    Ok(best)
 }
 
 // Create a SAT instance for the timetabling problem.
@@ -386,7 +478,7 @@ fn encode_constraints(
 }
 
 // Decode a SAT solution into a schedule.
-fn decode_solution(input: &Input, encoding: &Encoding, model: &HashSet<i32>, priority: u8) -> Result<Schedule> {
+fn decode_solution(input: &Input, encoding: &Encoding, model: &HashSet<i32>) -> Result<Schedule> {
     // Create reverse lookup tables to find section/room and section/time from var
     let var_to_section_room: HashMap<i32, (usize, usize)> =
         encoding.section_room_vars.iter().map(|(&k, &v)| (v, k)).collect();
@@ -395,7 +487,6 @@ fn decode_solution(input: &Input, encoding: &Encoding, model: &HashSet<i32>, pri
 
     let mut section_to_room: HashMap<usize, usize> = HashMap::new();
     let mut section_to_time_slot: HashMap<usize, usize> = HashMap::new();
-    let mut problems: Vec<(u8, String)> = Vec::new();
 
     // Process all positive variable assignments
     for &var in model {
@@ -407,8 +498,6 @@ fn decode_solution(input: &Input, encoding: &Encoding, model: &HashSet<i32>, pri
             section_to_room.insert(section, room);
         } else if let Some(&(section, time_slot)) = var_to_section_time.get(&var) {
             section_to_time_slot.insert(section, time_slot);
-        } else if let Some(&(priority, ref message)) = encoding.problems.get(&var) {
-            problems.push((priority, message.clone()));
         }
     }
 
@@ -423,6 +512,16 @@ fn decode_solution(input: &Input, encoding: &Encoding, model: &HashSet<i32>, pri
         let _log = move_section(input, &mut schedule, section, time_slot, &room);
     }
 
+    Ok(schedule)
+}
+
+// Preserve the model's reported violations independently of placement decoding.
+fn model_problems(encoding: &Encoding, model: &HashSet<i32>) -> Vec<(u8, String)> {
+    model.iter().filter(|&&var| var > 0).filter_map(|var| encoding.problems.get(var).cloned()).collect()
+}
+
+// Compare scores only when the current priority's allowed count is established.
+fn verify_solution_score(input: &Input, schedule: &Schedule, mut problems: Vec<(u8, String)>, priority: u8) {
     // Verify that the schedule score matches our expectation
     let mut expected_score = Score::new();
     for (priority, _) in &problems {
@@ -441,7 +540,7 @@ fn decode_solution(input: &Input, encoding: &Encoding, model: &HashSet<i32>, pri
             let mut lst: Vec<(u8, String)> = Vec::new();
             for penalty_list in &schedule.penalties {
                 for penalty in penalty_list {
-                    lst.push(penalty.get_score_message(input, &schedule));
+                    lst.push(penalty.get_score_message(input, schedule));
                 }
             }
             lst.sort_unstable_by(|a, b| if a.0 != b.0 { a.0.cmp(&b.0) } else { a.1.cmp(&b.1) });
@@ -460,14 +559,40 @@ fn decode_solution(input: &Input, encoding: &Encoding, model: &HashSet<i32>, pri
             }
         }
     }
-
-    Ok(schedule)
 }
 
 #[cfg(test)]
 mod tests {
     use super::{SatCriteria, SatCriterion, SatOpts, validate_minimum_hallpasses};
     use crate::MinimumHallpasses;
+
+    #[test]
+    fn binary_search_certifies_empty_levels_and_rejects_excess_hints() {
+        let input = crate::input::Input {
+            term_name: String::new(),
+            rooms: vec![],
+            time_slots: vec![],
+            faculty: vec![],
+            sections: vec![],
+            criteria: vec![],
+            time_slot_conflicts: vec![],
+            faculty_preference_priority_policy: crate::faculty_preferences::FacultyPreferencePriorityPolicy::Stated,
+        };
+        let criteria = SatCriteria::new();
+        let mut limits = crate::score::Score::new();
+        let mut saves = 0;
+        let result = super::solve_binary(&input, &criteria, 1, &SatOpts::default(), &mut limits, |schedule| {
+            saves += 1;
+            assert_eq!(schedule.optimum_score_prefix, vec![0]);
+            Ok(())
+        })
+        .unwrap();
+        assert!(result.is_some());
+        assert_eq!(saves, 1);
+        assert_eq!(limits.levels[1], 0);
+        let config = SatOpts { minimum_hallpasses: MinimumHallpasses::parse("1:1").unwrap(), ..SatOpts::default() };
+        assert!(super::solve_binary(&input, &criteria, 1, &config, &mut limits, |_| Ok(())).is_err());
+    }
 
     #[test]
     fn rejects_a_minimum_hallpass_count_above_the_constraint_count() {

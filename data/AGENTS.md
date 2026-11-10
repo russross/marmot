@@ -1,5 +1,50 @@
 # Marmot Input Format
 
+This directory is scratch space for a college-wide Spring 2027 dry run using
+the posted schedule in `postedschedule/`. The computing input is an inherited
+starting point, not the scope of the project. It is archived separately and
+need not be preserved here. The goal is to compare generated schedules with
+the posted schedule and refine inputs with department chairs before use in a
+future semester.
+
+Collect all courses scheduled by college departments, and model bachelor's
+and master's programs from their worksheets, excluding integrated studies
+emphases. Preserve source details and inferences in comments. Infer generous
+but defensible faculty availability and conservative room groups; record
+uncertainties for chairs. Retain existing computing preferences, but do not
+infer faculty preferences for other departments. The 2024 college and 2026
+math dry runs under `../archive/` are reference material, not current truth.
+
+Posted sections with the `SI` attribute include supplemental instruction.
+Identify the supplemental meeting by comparing weekly meeting minutes with
+the reported credits, using 50 minutes per credit as the normal baseline.
+The mismatching meeting is generally shorter. Represent it as a separate
+section with `si` appended to the section
+number, assign it no faculty, and require a hard conflict with its primary
+section. The instructor of record teaches the primary meeting, not the
+supplemental meeting. For example, BIOL 1010-02 has TR 09:00–10:15 as the
+primary meeting and W 09:00–09:50 as supplemental instruction. Inspect
+ambiguous meeting patterns rather than guessing. SI records in the posted
+files also occur in mathematics and chemistry.
+CHEM 3300-01 (CRN 21557) is believed to have an unmarked SI meeting: use
+the MWF lecture as primary and the Thursday meeting as supplemental.
+BIOL 2420-03 and -07 (CRNs 20543 and 22611) also have unmarked SI: use the
+MWF lecture as primary and the Tuesday or Thursday meeting as supplemental.
+Exclude posted sections with a capacity of zero from the dry-run inputs.
+The two BTEC 4050-01A meetings are a custom lab arrangement; represent them
+as distinct faculty-assigned sections fixed at their posted times.
+Section suffix A means the first half of the semester and B the second half.
+The current solver checks weekly time overlaps without accounting for these
+date ranges, so its conflicts can be conservative for different blocks.
+Create the two sections first, then call
+`add_supplemental_instruction(primary, supplemental)`. The relationship
+creates the hard conflict and excludes the supplemental meeting from counts
+of student choices. The supplemental section retains the offering's catalog
+credit hours; its actual meeting duration is represented by its time slot.
+
+The audit script's existing warnings are not a priority at this stage of the
+dry run. Focus validation on the behavior of the new inputs and imports.
+
 This repo is larger than the timetabling input pipeline. For input work, focus on:
 
 - `data/build`: creates `data/timetable.db` from scratch.
@@ -8,6 +53,15 @@ This repo is larger than the timetabling input pipeline. For input work, focus o
 - `data/courses.py`: the generated course catalog and rotations.
 - `data/computing.py`: department-wide setup for computing.
 - `data/computingfaculty.py`: faculty section assignments and faculty preferences.
+- `data/mathematics.py` and `data/engineering.py`: degree conflict groups.
+- `data/biology.py` and `data/chemistry.py`: degree conflict groups.
+- `data/design.py` and `data/earth_sciences.py`: degree conflict groups.
+- `data/mathematics_faculty.py`: mathematics assignments inferred from the current posted CSV.
+- `data/physics_faculty.py`, `data/chemistry_faculty.py`, and `data/biotechnology_faculty.py`: physics assignments and the currently modeled chemistry and biotechnology cases.
+- `data/biology_faculty.py`, `data/engineering_faculty.py`, `data/earth_sciences_faculty.py`, and `data/design_faculty.py`: posted section imports and inference rules.
+- `data/rooms.py` and `data/timeslots.py`: shared room and time-slot definitions.
+- `data/postedschedule/`: downloaded schedule records by subject prefix.
+- `data/compare-posted`: compares a generated placement with posted timed meetings; `--all` includes unchanged meetings.
 - `scheduling.md`: faculty-facing guidance. Useful background, but the Python files above are the source of truth for what the system actually consumes.
 
 ## End-to-end flow
@@ -16,9 +70,17 @@ Input does not go directly into Rust source. The workflow is:
 
 1. `data/build` deletes `timetable.db`, loads `schema.sql`, creates the term and holidays, then calls:
    - `courses.build_courses(db)`
+   - `rooms.build_rooms(db)` and `timeslots.build_time_slots(db)`
    - `computing.build_pre(db)`
    - `computingfaculty.build_faculty(db)`
+   - `mathematics_faculty.build_faculty(db)`
+   - `physics_faculty.build_faculty(db)`, `engineering_faculty.build_faculty(db)`, `earth_sciences_faculty.build_faculty(db)`, and `design_faculty.build_faculty(db)`
+   - `biotechnology_faculty.build_faculty(db)`, `biology_faculty.build_faculty(db)`, and `chemistry_faculty.build_faculty(db)`
    - `computing.build_post(db)`
+   - `biology.build_programs(db)` and `chemistry.build_programs(db)`
+   - `engineering.build_programs(db)`
+   - `earth_sciences.build_programs(db)` and `design.build_programs(db)`
+   - `mathematics.build_programs(db)`
 2. Those Python scripts populate normalized tables in SQLite through `queries.DB`.
 3. `schema.sql` defines views such as `sections_to_be_scheduled`, `time_slots_available_to_sections`, `conflict_pairs`, and `anti_conflict_pairs`.
 4. The Rust solver reads those views from SQLite. The real contract is the database contents, not the Python source layout.
@@ -26,6 +88,11 @@ Input does not go directly into Rust source. The workflow is:
 The raw tables preserve provenance where practical. The Rust-facing views are
 allowed to be lossy because they are solver inputs, but avoid collapsing
 different input sources in base tables.
+
+`./compare-posted [placement_id]` reports meeting-level differences for the
+selected placement, defaulting to the newest. It maps cross-listings, SI, and
+known split meetings back to their posted CRNs. Rebuilding deletes placements,
+so generate a new placement before comparing after an input rebuild.
 
 ## What counts as a scheduleable section
 
@@ -169,6 +236,15 @@ Examples:
 Section tags do not carry soft priorities. They only define the allowed rooms
 and time slots for a section. Use `AvoidSectionInRooms(...)` and
 `AvoidSectionInTimeSlots(...)` for soft section-specific restrictions.
+
+Science lecture-room tags are based on the posted room's provisional capacity.
+They include the posted room and college-owned SET/Snow science lecture rooms
+at least as large; floated Brown, COE, GCB, and UHB rooms are not added as
+alternatives for other posted rooms. The posted room itself remains allowed.
+Ordinary 110- and 170-minute labs may use staggered daytime starts on the same
+posted day or day pair; SI meetings of 50 minutes may use weekday daytime
+slots. Special split labs and outside-hours meetings retain their explicit
+times. HURCTR remains fixed pending instructor and travel information.
 
 Implementation details:
 
@@ -372,6 +448,7 @@ This is a niche mechanism. It is not the same as ordinary conflict avoidance.
 
 - `add_cross_listing(primary, sections)`
   Secondary cross-listed sections inherit scheduling from the primary section and may not carry their own room/time/faculty rows.
+  Raw section credits remain distinct; solver-facing rows use the primary section's credits for the shared placement.
 
 - `add_multiple_section_override(course, override_section_count)`
   Adjusts how curriculum-conflict discounts are computed for courses with multiple sections.

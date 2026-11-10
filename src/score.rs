@@ -606,14 +606,14 @@ impl Criterion {
                                             }
                                         }
                                     }
-                                    DistributionInterval::ClusterTooLong { priority, duration } => {
-                                        if actual > duration {
-                                            penalties.push(Penalty::ClusterTooLong {
-                                                priority,
-                                                faculty: *faculty,
-                                                duration: actual,
-                                            });
-                                        }
+                                    DistributionInterval::ClusterTooLong { priority, duration }
+                                        if actual > duration =>
+                                    {
+                                        penalties.push(Penalty::ClusterTooLong {
+                                            priority,
+                                            faculty: *faculty,
+                                            duration: actual,
+                                        });
                                     }
                                     _ => {}
                                 }
@@ -630,10 +630,8 @@ impl Criterion {
                                             too_short_priority = std::cmp::min(priority, too_short_priority);
                                         }
                                     }
-                                    DistributionInterval::GapTooLong { priority, duration } => {
-                                        if actual > duration {
-                                            too_long_priority = std::cmp::min(priority, too_long_priority);
-                                        }
+                                    DistributionInterval::GapTooLong { priority, duration } if actual > duration => {
+                                        too_long_priority = std::cmp::min(priority, too_long_priority);
                                     }
                                     _ => {}
                                 }

@@ -1,0 +1,8 @@
+"CRN","Subject","Course","Section","Campus","Credits","Title","Days","Time","Cap","Act","Rem","WL Cap","WL Act","WL Rem","Instructor","Dates","Location","Attributes"
+"21586","GEOG",="1000",="02","A01","3","Physical Geography","TR","1:30 pm-2:45 pm","24","2","22","10","0","10","TBA","01/11-05/04","SET 527","PS"
+"20628","GEOG",="1000",="40","O01","3","Physical Geography","","TBA","40","1","39","10","0","10","Zhenyu Jin (P)","01/11-05/04","ONLINE","PS"
+"20495","GEOG",="1005",="04","A01","1","Physical Geography Lab","W","10:00 am-11:50 am","24","2","22","10","0","10","Zhenyu Jin (P)","01/11-05/04","SET 526","LAB"
+"23288","GEOG",="1300",="01","A01","3","World Regional Geography","TR","10:30 am-11:45 am","40","6","34","20","0","20","Elizabeth C Libero (P)","01/11-05/04","GCB 220",""
+"20753","GEOG",="3600",="01","A01","3","Intro to GIS","TR","10:30 am-11:45 am","14","0","14","10","0","10","Zhenyu Jin (P)","01/11-05/04","SET 408",""
+"20754","GEOG",="3605",="01","A01","1","Intro to GIS Lab","F","9:00 am-11:50 am","14","0","14","10","0","10","Zhenyu Jin (P)","01/11-05/04","SET 408",""
+"22053","GEOG",="4180",="01","A01","3","Geoprocessing with Python","TR","4:30 pm-5:45 pm","14","2","12","0","0","0","Zhenyu Jin (P)","01/11-05/04","SET 408",""

@@ -6,6 +6,7 @@
 # ///
 
 import re
+import sys
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -46,6 +47,17 @@ prefixes = {
     'DES':        'Design',
     'IXD':        'Design',
     'UXD':        'Design',
+    'BIOL':       'Biological Sciences',
+    'BTEC':       'Biological Sciences',
+    'CHEM':       'Chemistry and Biochemistry',
+    'ENER':       'Earth, Energy and Environmental Science',
+    'ENVS':       'Earth, Energy and Environmental Science',
+    'GEO':        'Earth, Energy and Environmental Science',
+    'GEOG':       'Earth, Energy and Environmental Science',
+    'SCI':        'Earth, Energy and Environmental Science',
+    # SET 1000 is a college-wide career-planning course, not a department
+    # scheduling assignment in the current posted subject files.
+    'SET':        'College of Science, Engineering and Technology',
     'MATH':       'Math',
     'ECE':        'Engineering',
     'ENGR':       'Engineering',
@@ -57,6 +69,8 @@ prefixes = {
 pages = [
     'cs', 'it', 'se', 'sd',
     'des', 'ixd', 'muxd',
+    # BTEC is published under the btech page, not btec.
+    'biol', 'btech', 'chem', 'ener', 'envs', 'geo', 'geog', 'sci', 'set',
     'math',
     'ece', 'engr', 'mech', 'mtrn', 'phys',
 ]
@@ -95,11 +109,8 @@ def add_plain_requisite(section, links, known_courses):
         f'{prefix.upper()} {number.upper()}'
         for (prefix, number) in COURSE_CODE_RE.findall(pq(section).text())
     }
-    unlinked_codes = plain_codes - linked_codes
-    if len(unlinked_codes) != 1:
-        return
-    (code,) = unlinked_codes
-    if code in known_courses:
+    # The catalog sometimes fails to link more than one valid course code.
+    for code in sorted((plain_codes - linked_codes) & known_courses.keys()):
         links.append((code, ''))
 
 def crawl_prefix(prefix):
@@ -127,8 +138,10 @@ def crawl_prefix(prefix):
                     co.append(code)
 
         match = re.search(r'\. (FA)?(?:, )?(SP)?(?:, )?(SU)?\.<br/>', desc_html)
-        if match: (fa, sp, su) = (match.group(1) == 'FA', match.group(2) == 'SP', match.group(3) == 'SU')
-        else: fa = sp = su = False
+        if match:
+            (fa, sp, su) = (match.group(1) == 'FA', match.group(2) == 'SP', match.group(3) == 'SU')
+        else:
+            fa = sp = su = False
 
         courses[course] = {
             'title': title,
@@ -167,10 +180,13 @@ patches = {
     'CS 4600': { 'pre': ['CS 2100', 'CS 2420', 'CS 2810', 'CS 3005', 'MATH 1210'] },
     'IT 4600': { 'pre': ['CS 1410', 'IT 2150', 'IT 2400', 'IT 2700', 'IT 3100'] },
     'SE 4600': { 'pre': ['CS 2100', 'CS 2420', 'CS 2450', 'CS 2810', 'CS 3005', 'IT 1100', 'SE 1400', 'SE 3200'] },
+    # The design worksheets place these common requirements before the
+    # senior project; they stand in for its unstated senior standing.
+    'DES 4600': { 'pre': ['DES 1600', 'DES 3000', 'DES 3610', 'IXD 1200', 'IXD 1300'] },
 }
-# DES 4600 needs de facto prerequisites once the Design curriculum is modeled.
 for (name, patch) in patches.items():
-    if name not in courses: continue
+    if name not in courses:
+        continue
     for (kind, lst) in patch.items():
         for elt in lst:
             if elt not in courses[name][kind]:
@@ -180,6 +196,9 @@ manual_overrides = {
     'ECE 2210': { 'co': ['ECE 2215'] },
     'MTRN 3410': { 'co': ['MTRN 3415'] },
 }
+# The catalog lists BIOL 4380 as 2 credits, while Spring 2027's posted
+# section lists 3. Permit both until the department confirms the discrepancy.
+courses['BIOL 4380']['credit_hours'] = CreditHours(Decimal(2), Decimal(3))
 for (name, override) in manual_overrides.items():
     for (kind, lst) in override.items():
         for elt in lst:
@@ -195,9 +214,43 @@ for name in sorted(courses.keys()):
     (fall, spring, summer) = data['rot']
     credit_hours = data['credit_hours']
     print(f'    db.make_course({repr(dept)}, {repr(name)}, {repr(title)}, {credit_hours.arguments()})')
-    if fall:   print(f"    db.add_course_rotation({repr(name)}, 'fall')")
-    if spring: print(f"    db.add_course_rotation({repr(name)}, 'spring')")
-    if summer: print(f"    db.add_course_rotation({repr(name)}, 'summer')")
+    if fall:
+        print(f"    db.add_course_rotation({repr(name)}, 'fall')")
+    if spring:
+        print(f"    db.add_course_rotation({repr(name)}, 'spring')")
+    if summer:
+        print(f"    db.add_course_rotation({repr(name)}, 'summer')")
+
+unresolved: set[str] = set()
+warnings: set[str] = set()
+
+# The source still names retired or missing codes. These references are not
+# added as edges; current alternatives and the two lab-prefix corrections are
+# preserved separately. The department questions file records their review.
+known_missing = {
+    ('BIOL 1615A', 'BIOL 1610A'), ('CS 3510', 'CS 3310'), ('CS 3530', 'CS 3310'),
+    ('ECE 2210', 'MECH 2215'), ('ECE 2220', 'MECH 2210'), ('ECE 2285', 'ECE 2280'),
+    ('ECE 3100', 'MECH 2210'), ('ECE 3300', 'MECH 2210'), ('ECE 3600', 'MECH 2210'),
+    ('ECE 4000', 'ECE 2100'), ('ECE 4000', 'ECE 2280'), ('ECE 4005', 'ECE 2280'),
+    ('ENER 4310', 'ENER 2310'), ('MECH 2250', 'MECH 2210'), ('MECH 4790', 'MECH 4500'),
+    ('MTRN 3410', 'MECH 3415'), ('MTRN 4000', 'MTRN 3360'),
+}
+
+def report_missing(context, code):
+    message = f'{context} references missing college course {code}'
+    if (context, code) in known_missing:
+        warnings.add(message)
+    else:
+        unresolved.add(message)
+
+# A missing catalog link can leave a college course code as plain text. Report
+# references outside the scraped catalog rather than silently dropping them.
+for name, data in sorted(courses.items()):
+    for kind in ('pre_section', 'co_section'):
+        for prefix, number in COURSE_CODE_RE.findall(pq(data[kind]).text()):
+            code = f'{prefix.upper()} {number.upper()}'
+            if prefix.upper() in prefixes and code not in courses:
+                report_missing(name, code)
 
 def filter_courses(lst, context):
     filtered = []
@@ -213,7 +266,7 @@ def filter_courses(lst, context):
             filtered.append(f'{prefix} {elt}')
         else:
             if prefix in prefixes:
-                print(f'    course {repr(elt)} not found for course {context}')
+                report_missing(context, elt if ' ' in elt else f'{prefix} {elt}')
 
     return filtered
 
@@ -232,3 +285,10 @@ for (name, data) in sorted(courses.items()):
     if len(lst) == 0:
         continue
     print(f'    db.add_coreqs({repr(name)}, {repr(lst)})')
+
+for message in sorted(warnings):
+    print(f'warning: {message}', file=sys.stderr)
+if unresolved:
+    for message in sorted(unresolved):
+        print(f'error: {message}', file=sys.stderr)
+    raise SystemExit('catalog contains unresolved college course references')

@@ -289,6 +289,14 @@ CREATE TABLE sections (
 
 CREATE INDEX sections_course ON sections (course, section);
 
+-- Supplemental instruction is a separate scheduled meeting of one offering,
+-- not an additional student choice of section.
+CREATE TABLE supplemental_instruction (
+    section TEXT PRIMARY KEY REFERENCES sections (section) ON DELETE CASCADE ON UPDATE CASCADE,
+    primary_section TEXT NOT NULL UNIQUE REFERENCES sections (section) ON DELETE CASCADE ON UPDATE CASCADE,
+    CHECK (section <> primary_section)
+) WITHOUT ROWID;
+
 -- Section tags define allowed rooms only. Soft room penalties are not stored
 -- here because they are faculty-authored preferences, not changes to the
 -- section's allowed set.
@@ -928,15 +936,17 @@ CREATE VIEW sections_to_be_scheduled (
     UNION
 
     SELECT department,
-           course,
+           sections.course,
            schedulable_cross_listings.primary_section,
            schedulable_cross_listings.section,
-           credit_hours
+           primary_sections.credit_hours
     FROM courses
     NATURAL JOIN sections
     NATURAL JOIN schedulable_cross_listings
     JOIN section_time_slot_tags
-        ON section_time_slot_tags.section = schedulable_cross_listings.primary_section;
+        ON section_time_slot_tags.section = schedulable_cross_listings.primary_section
+    JOIN sections AS primary_sections
+        ON primary_sections.section = schedulable_cross_listings.primary_section;
 
 -- The time slots that a section can be assigned to and the associated soft
 -- priority. Section tags define the allowed set. Faculty base availability,
@@ -1458,11 +1468,14 @@ CREATE VIEW prereq_transitive_closure (course, prereq) AS
 -- is not the right student-choice count, such as cross-listing or anti-conflict
 -- modeling. Only courses with final_count > 1 matter for discounting.
 CREATE VIEW section_counts (department, course, section_count) AS
-    -- get raw section counts including online sections
+    -- Count distinct placements, including online sections. Cross-listed
+    -- aliases of the same course do not create an additional lecture choice.
     WITH all_sections AS (
-        SELECT department, course, COUNT(section) AS section_count
+        SELECT department, course, COUNT(DISTINCT COALESCE(x.primary_section, sections.section)) AS section_count
         FROM courses
         NATURAL JOIN sections
+        LEFT JOIN cross_listing_sections AS x ON x.section = sections.section
+        WHERE sections.section NOT IN (SELECT section FROM supplemental_instruction)
         GROUP BY department, course
     ),
     with_overrides AS (
@@ -1527,6 +1540,21 @@ CREATE VIEW conflict_pairs (department_a, section_a, department_b, section_b, pr
             ON  counts_b.course                                 = undiscounted.course_b
         WHERE pre_1.course IS NULL AND pre_1.prereq IS NULL AND pre_2.course IS NULL AND pre_2.prereq IS NULL
         AND discounted_priority < 10
+
+        UNION
+
+        -- Supplemental instruction must not overlap its primary meeting.
+        -- A primary can be a secondary cross-listing, so resolve its raw
+        -- name to the scheduled primary through secondary_section.
+        SELECT a.department, a.section, b.department, b.section, 0
+        FROM supplemental_instruction AS si
+        JOIN sections_to_be_scheduled AS a ON a.secondary_section = si.primary_section
+        JOIN sections_to_be_scheduled AS b ON b.secondary_section = si.section
+        UNION
+        SELECT b.department, b.section, a.department, a.section, 0
+        FROM supplemental_instruction AS si
+        JOIN sections_to_be_scheduled AS a ON a.secondary_section = si.primary_section
+        JOIN sections_to_be_scheduled AS b ON b.secondary_section = si.section
 
         UNION
 
