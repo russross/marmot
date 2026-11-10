@@ -348,6 +348,7 @@ pub fn load_input(
     let start = Instant::now();
 
     let db = Connection::open_with_flags(db_path, OpenFlags::new().with_read_only().with_no_mutex())?;
+    db.execute("PRAGMA busy_timeout = 10000")?;
     db.execute("PRAGMA foreign_keys = ON")?;
     db.execute("PRAGMA temp_store = memory")?;
     db.execute("PRAGMA mmap_size = 100000000")?;
@@ -1286,79 +1287,6 @@ fn load_shared_day_off_preferences(
     Ok(())
 }
 
-#[cfg(test)]
-mod shared_day_off_tests {
-    use super::*;
-    use crate::shared_day_off_tests::input;
-
-    fn database() -> Connection {
-        let db = Connection::open(":memory:").unwrap();
-        db.execute(include_str!("../data/schema.sql")).unwrap();
-        db.execute(
-            "PRAGMA foreign_keys = ON;
-            INSERT INTO departments VALUES ('Computing');
-            INSERT INTO faculty VALUES ('A', 'Computing'), ('B', 'Computing');
-            INSERT INTO faculty_preferences VALUES
-                ('A', 'MT', NULL, NULL, NULL, NULL, NULL, 50),
-                ('B', 'MT', NULL, NULL, NULL, NULL, NULL, 50);
-            INSERT INTO faculty_shared_day_off_preferences VALUES ('A', 'B', 25), ('B', 'A', 21);
-            INSERT INTO courses VALUES ('CS 1000', 'Computing', 'Test', 3, 3);
-            INSERT INTO sections VALUES ('CS 1000-01', 3), ('CS 1000-02', 3), ('CS 1000-03', 3);
-            INSERT INTO time_slot_tags VALUES ('test');
-            INSERT INTO section_time_slot_tags VALUES ('CS 1000-01', 'test'), ('CS 1000-02', 'test');
-            INSERT INTO faculty_sections VALUES ('A', 'CS 1000-01'), ('B', 'CS 1000-02'), ('B', 'CS 1000-03');",
-        )
-        .unwrap();
-        db
-    }
-
-    #[test]
-    fn loader_merges_owned_ranks_at_the_lower_priority_and_links_both_faculty() {
-        let db = database();
-        let mut input = input();
-        input.criteria.clear();
-        for section in &mut input.sections {
-            section.criteria.clear();
-            section.neighbors.clear();
-        }
-        let names = HashMap::from([("A".to_string(), 0), ("B".to_string(), 1)]);
-        load_shared_day_off_preferences(&db, &input.faculty, &names, &mut input.criteria).unwrap();
-        merge_shared_day_off_preferences(&mut input.criteria).unwrap();
-        compute_neighbors(&mut input.sections, &input.criteria);
-        assert_eq!(input.criteria.len(), 1);
-        let Criterion::SharedDayOffPreference { faculty, sections, stated_priorities, priority, .. } =
-            &input.criteria[0]
-        else {
-            unreachable!()
-        };
-        assert_eq!(*faculty, [0, 1]);
-        assert_eq!(*stated_priorities, [25, 21]);
-        assert_eq!(*priority, 25);
-        assert_eq!(*sections, vec![0, 1, 2, 3]);
-        assert!(input.sections.iter().all(|s| s.criteria == vec![0]));
-        assert!(input.sections.iter().all(|s| s.neighbors.len() == 3));
-    }
-
-    #[test]
-    fn loader_rejects_incomplete_pairs_and_online_only_participants() {
-        let input = input();
-        let names = HashMap::from([("A".to_string(), 0), ("B".to_string(), 1)]);
-        for sql in [
-            "DELETE FROM faculty_shared_day_off_preferences WHERE faculty = 'B'",
-            "UPDATE faculty_preferences SET days_to_check = 'MW' WHERE faculty = 'B'",
-            "DELETE FROM section_time_slot_tags WHERE section = 'CS 1000-02'",
-        ] {
-            let db = database();
-            db.execute(sql).unwrap();
-            assert!(load_shared_day_off_preferences(&db, &input.faculty, &names, &mut Vec::new()).is_err());
-        }
-        let db = database();
-        let partial_names = HashMap::from([("A".to_string(), 0)]);
-        let error = load_shared_day_off_preferences(&db, &input.faculty, &partial_names, &mut Vec::new()).unwrap_err();
-        assert!(error.to_string().contains("selected departments"));
-    }
-}
-
 fn compute_neighbors(sections: &mut [Section], criteria: &[Criterion]) {
     for (i, criterion) in criteria.iter().enumerate() {
         let neighbors = criterion.get_culpable_sections();
@@ -1579,6 +1507,7 @@ pub fn load_schedule(
     maybe_placement_id: Option<i64>,
 ) -> Result<()> {
     let db = Connection::open_with_flags(db_path, OpenFlags::new().with_read_only().with_no_mutex())?;
+    db.execute("PRAGMA busy_timeout = 10000")?;
     db.execute("PRAGMA foreign_keys = ON")?;
     db.execute("PRAGMA temp_store = memory")?;
     db.execute("PRAGMA mmap_size = 100000000")?;
@@ -1700,4 +1629,77 @@ fn parse_score_array(json_str: &str) -> Result<Vec<ScoreLevel>> {
     }
 
     Ok(result)
+}
+
+#[cfg(test)]
+mod shared_day_off_tests {
+    use super::*;
+    use crate::shared_day_off_tests::input;
+
+    fn database() -> Connection {
+        let db = Connection::open(":memory:").unwrap();
+        db.execute(include_str!("../data/schema.sql")).unwrap();
+        db.execute(
+            "PRAGMA foreign_keys = ON;
+            INSERT INTO departments VALUES ('Computing');
+            INSERT INTO faculty VALUES ('A', 'Computing'), ('B', 'Computing');
+            INSERT INTO faculty_preferences VALUES
+                ('A', 'MT', NULL, NULL, NULL, NULL, NULL, 50),
+                ('B', 'MT', NULL, NULL, NULL, NULL, NULL, 50);
+            INSERT INTO faculty_shared_day_off_preferences VALUES ('A', 'B', 25), ('B', 'A', 21);
+            INSERT INTO courses VALUES ('CS 1000', 'Computing', 'Test', 3, 3);
+            INSERT INTO sections VALUES ('CS 1000-01', 3), ('CS 1000-02', 3), ('CS 1000-03', 3);
+            INSERT INTO time_slot_tags VALUES ('test');
+            INSERT INTO section_time_slot_tags VALUES ('CS 1000-01', 'test'), ('CS 1000-02', 'test');
+            INSERT INTO faculty_sections VALUES ('A', 'CS 1000-01'), ('B', 'CS 1000-02'), ('B', 'CS 1000-03');",
+        )
+        .unwrap();
+        db
+    }
+
+    #[test]
+    fn loader_merges_owned_ranks_at_the_lower_priority_and_links_both_faculty() {
+        let db = database();
+        let mut input = input();
+        input.criteria.clear();
+        for section in &mut input.sections {
+            section.criteria.clear();
+            section.neighbors.clear();
+        }
+        let names = HashMap::from([("A".to_string(), 0), ("B".to_string(), 1)]);
+        load_shared_day_off_preferences(&db, &input.faculty, &names, &mut input.criteria).unwrap();
+        merge_shared_day_off_preferences(&mut input.criteria).unwrap();
+        compute_neighbors(&mut input.sections, &input.criteria);
+        assert_eq!(input.criteria.len(), 1);
+        let Criterion::SharedDayOffPreference { faculty, sections, stated_priorities, priority, .. } =
+            &input.criteria[0]
+        else {
+            unreachable!()
+        };
+        assert_eq!(*faculty, [0, 1]);
+        assert_eq!(*stated_priorities, [25, 21]);
+        assert_eq!(*priority, 25);
+        assert_eq!(*sections, vec![0, 1, 2, 3]);
+        assert!(input.sections.iter().all(|s| s.criteria == vec![0]));
+        assert!(input.sections.iter().all(|s| s.neighbors.len() == 3));
+    }
+
+    #[test]
+    fn loader_rejects_incomplete_pairs_and_online_only_participants() {
+        let input = input();
+        let names = HashMap::from([("A".to_string(), 0), ("B".to_string(), 1)]);
+        for sql in [
+            "DELETE FROM faculty_shared_day_off_preferences WHERE faculty = 'B'",
+            "UPDATE faculty_preferences SET days_to_check = 'MW' WHERE faculty = 'B'",
+            "DELETE FROM section_time_slot_tags WHERE section = 'CS 1000-02'",
+        ] {
+            let db = database();
+            db.execute(sql).unwrap();
+            assert!(load_shared_day_off_preferences(&db, &input.faculty, &names, &mut Vec::new()).is_err());
+        }
+        let db = database();
+        let partial_names = HashMap::from([("A".to_string(), 0)]);
+        let error = load_shared_day_off_preferences(&db, &input.faculty, &partial_names, &mut Vec::new()).unwrap_err();
+        assert!(error.to_string().contains("selected departments"));
+    }
 }

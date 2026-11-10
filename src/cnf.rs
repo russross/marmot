@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+#[derive(Clone)]
 pub struct Encoding {
     // the last variable ID used
     pub last_var: i32,
@@ -21,6 +22,9 @@ pub struct Encoding {
 
     // hallpass variables that are allowed to violate constraints, grouped by priority
     pub hallpasses: HashMap<u8, HashSet<i32>>,
+
+    // Creation order associates each criterion with the hallpasses it emits.
+    pub hallpass_order: Vec<i32>,
 }
 
 impl Encoding {
@@ -33,6 +37,7 @@ impl Encoding {
             faculty_day_vars: HashMap::new(),
             problems: HashMap::new(),
             hallpasses: HashMap::new(),
+            hallpass_order: Vec::new(),
         }
     }
 
@@ -44,6 +49,7 @@ impl Encoding {
     pub fn new_hallpass(&mut self, priority: u8, problem: String) -> i32 {
         let hallpass = self.new_var();
         self.hallpasses.entry(priority).or_default().insert(hallpass);
+        self.hallpass_order.push(hallpass);
         self.problems.insert(hallpass, (priority, problem));
         hallpass
     }
@@ -69,6 +75,13 @@ impl Encoding {
 
     // encoding a totalizer at-most-k constraint
     pub fn totalizer_at_most_k(&mut self, literals: &[i32], k: usize, hallpass: Option<i32>) {
+        let mut sorted_literals = literals.to_vec();
+        sorted_literals.sort_unstable();
+        self.ordered_totalizer_at_most_k(&sorted_literals, k, hallpass);
+    }
+
+    // Preserve the caller's leaf order while keeping the same counting clauses.
+    pub fn ordered_totalizer_at_most_k(&mut self, literals: &[i32], k: usize, hallpass: Option<i32>) {
         let n = literals.len();
 
         if k >= n {
@@ -87,9 +100,7 @@ impl Encoding {
         }
 
         let output_count = k + 1;
-        let mut sorted_literals = literals.to_vec();
-        sorted_literals.sort_unstable();
-        let output_vars = self.build_bounded_totalizer_tree(&sorted_literals, output_count);
+        let output_vars = self.build_bounded_totalizer_tree(literals, output_count);
 
         // At least k+1 true inputs force output_vars[k] true, so forbidding that
         // output enforces the upper bound. Other output assignments are irrelevant.

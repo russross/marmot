@@ -5,6 +5,7 @@ pub mod input;
 pub mod print;
 pub mod sat_criteria;
 pub mod sat_encoders;
+mod sat_prep;
 pub mod sat_solver;
 pub mod score;
 #[cfg(test)]
@@ -14,6 +15,7 @@ use self::error::Result;
 use self::faculty_preferences::*;
 use self::input::*;
 use self::print::*;
+use self::sat_prep::TotalizerOrder;
 use self::sat_solver::*;
 use self::score::{MAX_PRIORITY, ScoreLevel};
 use self::solver::*;
@@ -69,8 +71,12 @@ fn dispatch_subcommands() -> Result<()> {
                 config.show_faculty_preference_priorities(),
             )?;
             let schedule = generate_schedule(&config, &input)?;
-            //print_schedule(&input, &schedule);
-            print_problems(&input, &schedule);
+            if config.schedule_output == ScheduleOutput::All {
+                print_schedule(&input, &schedule);
+            }
+            if config.schedule_output != ScheduleOutput::None {
+                print_problems(&input, &schedule);
+            }
             Ok(())
         }
 
@@ -282,7 +288,18 @@ fn parse_args() -> Result<Opts> {
             let mut opts = SatOpts::default();
             parser.string("-d", "--db-path", &mut opts.db_path)?;
             parser.minimum_hallpasses("", "--min-hallpass", &mut opts.minimum_hallpasses)?;
-            parser.boolean("", "--binary-search", &mut opts.binary_search)?;
+            parser.value("--search", &mut opts.search)?;
+            parser.boolean("", "--sat-timings", &mut opts.sat_timings)?;
+            parser.value("--totalizer-order", &mut opts.totalizer_order)?;
+            parser.value("--shuffle-seed", &mut opts.shuffle_seed)?;
+            parser.value("--schedule-output", &mut opts.schedule_output)?;
+            if let Some((_, value)) = parser.pair("", "--stop-after-priority") {
+                let priority: u8 = value.parse().map_err(|_| "Expected a priority level from 0 to 49")?;
+                if priority > MAX_PRIORITY {
+                    return Err("Expected a priority level from 0 to 49".into());
+                }
+                opts.stop_after_priority = Some(priority);
+            }
             parser.boolean("", "--balance-faculty-preferences", &mut opts.balance_faculty_preferences)?;
             parser.boolean("", "--show-faculty-preference-priorities", &mut opts.show_faculty_preference_priorities)?;
             parser.leftover()?;
@@ -386,7 +403,12 @@ impl Default for GenOpts {
 }
 
 pub struct SatOpts {
-    pub binary_search: bool,
+    pub stop_after_priority: Option<u8>,
+    pub schedule_output: ScheduleOutput,
+    pub sat_timings: bool,
+    pub totalizer_order: TotalizerOrder,
+    pub shuffle_seed: u64,
+    pub search: Search,
     pub db_path: String,
     pub minimum_hallpasses: MinimumHallpasses,
     pub balance_faculty_preferences: bool,
@@ -396,11 +418,57 @@ pub struct SatOpts {
 impl Default for SatOpts {
     fn default() -> Self {
         Self {
+            stop_after_priority: None,
+            schedule_output: ScheduleOutput::Problems,
+            sat_timings: false,
+            totalizer_order: TotalizerOrder::Current,
+            shuffle_seed: 0,
             db_path: DEFAULT_DB_PATH.to_string(),
             minimum_hallpasses: MinimumHallpasses::default(),
-            binary_search: false,
+            search: Search::Binary,
             balance_faculty_preferences: true,
             show_faculty_preference_priorities: false,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Search {
+    Linear,
+    Binary,
+    Hybrid,
+}
+
+impl std::str::FromStr for Search {
+    type Err = &'static str;
+
+    fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
+        match value {
+            "linear" => Ok(Self::Linear),
+            "binary" => Ok(Self::Binary),
+            "hybrid" => Ok(Self::Hybrid),
+            _ => Err("expected linear, binary, or hybrid"),
+        }
+    }
+}
+
+// Console output does not affect saved schedules or solver progress reporting.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ScheduleOutput {
+    All,
+    Problems,
+    None,
+}
+
+impl std::str::FromStr for ScheduleOutput {
+    type Err = &'static str;
+
+    fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
+        match value {
+            "all" => Ok(Self::All),
+            "problems" => Ok(Self::Problems),
+            "none" => Ok(Self::None),
+            _ => Err("expected all, problems, or none"),
         }
     }
 }
@@ -611,7 +679,12 @@ fn print_usage(command: Option<String>) {
             eprintln!();
             eprintln!("Options:");
             eprintln!("  -d, --db-path <path>           Database path (default: {})", default.db_path);
-            eprintln!("      --binary-search            Find minimum hallpasses by binary search");
+            eprintln!("      --search <linear|binary|hybrid>  Hallpass search strategy (default: binary)");
+            eprintln!("      --stop-after-priority <0..49>  Stop after optimizing this priority");
+            eprintln!("      --schedule-output <all|problems|none>  Console schedule output (default: problems)");
+            eprintln!("      --sat-timings              Print one timing row per Kissat call (default: false)");
+            eprintln!("      --totalizer-order <current|shuffle|cluster>  Hallpass leaf order (default: current)");
+            eprintln!("      --shuffle-seed <u64>       Shuffle seed (default: 0)");
             eprintln!("      --min-hallpass <level:count,...>  First hallpass count to try at each priority level");
             print_preference_balance_usage(default.balance_faculty_preferences);
         }
@@ -706,14 +779,13 @@ impl CliParser {
         if args[2..].contains(&"-h".to_string()) {
             return Err(String::new().into());
         }
-        // SAT binary search accepts a bare flag; other options consume their next argument.
+        // SAT timing output accepts a bare flag or an explicit boolean.
         let mut pairs = HashMap::new();
         let mut options = args[2..].iter().peekable();
         while let Some(key) = options.next() {
-            let bare_binary_search = command == "sat"
-                && key == "--binary-search"
-                && options.peek().is_none_or(|value| value.starts_with('-'));
-            let value = if bare_binary_search {
+            let bare_switch =
+                command == "sat" && key == "--sat-timings" && options.peek().is_none_or(|value| value.starts_with('-'));
+            let value = if bare_switch {
                 "true".to_string()
             } else {
                 options
@@ -747,6 +819,18 @@ impl CliParser {
             *s = val;
         }
 
+        Ok(())
+    }
+
+    // Typed options report their accepted values at the command boundary.
+    fn value<T>(&mut self, long: &str, target: &mut T) -> Result<()>
+    where
+        T: std::str::FromStr,
+        T::Err: std::fmt::Display,
+    {
+        if let Some((key, value)) = self.pair("", long) {
+            *target = value.parse().map_err(|error| format!("Error parsing option {key}: {error}"))?;
+        }
         Ok(())
     }
 
@@ -842,25 +926,51 @@ mod tests {
     use super::MinimumHallpasses;
 
     #[test]
-    fn parses_binary_search_flag_and_explicit_values() {
-        for options in [
-            vec!["--binary-search"],
-            vec!["--binary-search", "true"],
-            vec!["--binary-search", "--min-hallpass", "7:2"],
-            vec!["--min-hallpass", "7:2", "--binary-search"],
-        ] {
-            let args: Vec<String> = ["marmot", "sat"].into_iter().chain(options).map(String::from).collect();
-            let mut parser = super::CliParser::from_args(&args).unwrap();
-            let mut enabled = false;
-            parser.boolean("", "--binary-search", &mut enabled).unwrap();
-            assert!(enabled);
-        }
-        let args = ["marmot", "sat", "--binary-search", "false"].map(String::from);
+    fn parses_sat_experiment_switches_and_rejects_unknown_modes() {
+        let args = [
+            "marmot",
+            "sat",
+            "--sat-timings",
+            "--totalizer-order",
+            "shuffle",
+            "--shuffle-seed",
+            "42",
+            "--schedule-output",
+            "none",
+        ]
+        .map(String::from);
         let mut parser = super::CliParser::from_args(&args).unwrap();
-        let mut enabled = true;
-        parser.boolean("", "--binary-search", &mut enabled).unwrap();
-        assert!(!enabled);
-        let args = ["marmot", "sat", "--binary-search", "--min-hallpass"].map(String::from);
+        let mut opts = super::SatOpts::default();
+        parser.boolean("", "--sat-timings", &mut opts.sat_timings).unwrap();
+        parser.value("--totalizer-order", &mut opts.totalizer_order).unwrap();
+        parser.value("--shuffle-seed", &mut opts.shuffle_seed).unwrap();
+        parser.value("--schedule-output", &mut opts.schedule_output).unwrap();
+        parser.leftover().unwrap();
+        assert!(opts.sat_timings);
+        assert_eq!(opts.totalizer_order, super::TotalizerOrder::Shuffle);
+        assert_eq!(opts.shuffle_seed, 42);
+        assert_eq!(opts.schedule_output, super::ScheduleOutput::None);
+        assert!("shuffled".parse::<super::TotalizerOrder>().is_err());
+        assert!("silent".parse::<super::ScheduleOutput>().is_err());
+    }
+
+    #[test]
+    fn parses_search_strategies() {
+        assert_eq!(super::SatOpts::default().search, super::Search::Binary);
+        for (value, expected) in
+            [("linear", super::Search::Linear), ("binary", super::Search::Binary), ("hybrid", super::Search::Hybrid)]
+        {
+            let args = ["marmot", "sat", "--search", value].map(String::from);
+            let mut parser = super::CliParser::from_args(&args).unwrap();
+            let mut search = super::Search::Binary;
+            parser.value("--search", &mut search).unwrap();
+            parser.leftover().unwrap();
+            assert_eq!(search, expected);
+        }
+        let args = ["marmot", "sat", "--search", "other"].map(String::from);
+        let mut parser = super::CliParser::from_args(&args).unwrap();
+        assert!(parser.value("--search", &mut super::Search::Binary).is_err());
+        let args = ["marmot", "sat", "--search"].map(String::from);
         assert!(super::CliParser::from_args(&args).is_err());
     }
 
