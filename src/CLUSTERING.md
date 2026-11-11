@@ -4,9 +4,7 @@ Totalizer input ordering experiments
 Status and next action
 ----------------------
 
-Paused on November 10, 2026. The experiment infrastructure is implemented. On the tested timetable, `current` ordering finishes through priority 6 in about four minutes; `shuffle` and `cluster` were each stopped after about twenty minutes without reaching the same point. No alternative ordering proposed below has been implemented or measured.
-
-The recommended next experiment is subtree-local accumulated proximity: preserve the current large-scale order, reorder only within small existing totalizer subtrees, and select each next criterion by its total connection to the group already selected. First apply it only to the priority-6 counter, retaining `current` for earlier counters. Per-priority ordering selection and isolated fixed-bound probes are not implemented yet.
+November 10 continuation selected whole first-section blocks with accumulated shared-section incidence, applied to every priority. See the continuation log below for current-dataset measurements, rejected alternatives, and repeat variability. The earlier measurements and candidate list remain research history. No fixed-probe harness or per-priority CLI option was added.
 
 Keep experimental integration shallow and easy to remove. Git remains read-only unless explicitly authorized otherwise. Preserve the existing scoring semantics, hard constraints, lexicographic priority optimization, and saved optimum-prefix semantics.
 
@@ -102,12 +100,12 @@ Current options:
 
 Timings are always collected around `Encoding::solve`: they include Kissat setup, clause loading, solving, and model extraction, but exclude CNF preparation and schedule decoding/saving. Rows show the probed priority, criterion count at that priority, allowed hallpasses there, total probe variables/clauses, selected ordering, seconds to two decimals, and SAT/UNSAT/ERROR. The ordering label is printed even when the bound needs no totalizer.
 
-`--search linear|binary|hybrid` selects the probe strategy and defaults to binary. `--min-hallpass LEVEL:COUNT,...` sets starting probes; it does not lock earlier priorities to specified values or provide isolated fixed-bound tests. Binary search can repeat the final feasible bound, as the baseline shows. Probe-strategy changes are separate from the ordering experiment.
+`--search linear|binary` selects the probe strategy and defaults to binary. `--min-hallpass LEVEL:COUNT,...` sets starting probes; it does not lock earlier priorities to specified values or provide isolated fixed-bound tests. Binary search can repeat the final feasible bound, as the baseline shows. Probe-strategy changes are separate from the ordering experiment.
 
 All runs save placements to the selected database. Partial runs retain a complete actual schedule score but certify only the optimized prefix. Their final save comment indicates the last resolved priority rather than claiming full completion.
 
 
-What the existing orderings actually do
+What the original orderings did
 --------------------------------------
 
 `current` orders hallpasses by creation, equivalent to ascending variable ID within a priority. `input.rs::load_conflicts` reads curriculum conflict pairs with `ORDER BY section_a, section_b`. `SatCriteria::from_input` preserves their relative order while grouping by priority. Thus the baseline already groups conflicts around the same first section, with additional locality from course/section naming. It is plausible that this produces useful local counters; this explanation has not been measured directly.
@@ -181,3 +179,55 @@ Validation state
 The implemented preparation/ordering infrastructure passed 34 Rust tests before this research note. Tests cover small exhaustive placement/budget equivalence across all three methods, exclusion of future-priority clauses, reuse of shared faculty-day links, and counts around a limit of 98. CLI checks on temporary database copies exercised all three orderings, both search strategies, output modes, timing rows, and saved partial optimum prefixes.
 
 The last Clippy run reported an existing `items_after_test_module` warning in `input.rs`; it was not suppressed or changed. For future Rust changes, run formatting, then Clippy, then affected tests. Documentation-only edits require no solver rerun. Git has not been used to checkout, reset, or commit these experiments.
+
+
+November 10 continuation: subtree-local proximity
+------------------------------------------------
+
+The active dataset snapshot (copied from `../data/timetable.db` to `/tmp/marmot-order.db`) has SHA-256 `83f5ebe009b46fb2a8362362625d9510391d51c6253c0456c1593eae9fe31149`. Git was clean at experiment start. Release build uses the existing Cargo.lock and default balanced faculty preferences, seed 0. This input produces 3488 criteria, so the older 4282-criterion measurements above are historical rather than directly comparable.
+
+Command: `marmot sat --db-path /tmp/marmot-order.db --min-hallpass 1:12,3:14,6:94 --search linear --stop-after-priority 6 --sat-timings --schedule-output none --totalizer-order current` (replace current with cluster for candidates). Schedule writes go only to the scratch copy. Initial screening uses a 300-second whole-process timeout and sequential runs.
+
+Candidate family: retain creation order at all priorities except 6. Recursively split the criterion list at len/2 until each subtree has at most 16, 32, or 64 criteria. Within each terminal range start with its first criterion, then maximize cumulative shared-section count against all already selected criteria; break ties by original position. Hallpasses from each criterion remain together. The criterion-count split matches hallpass splits for single-hallpass curriculum rules; it is only approximate when a criterion emits multiple hallpasses. No scoring or counter encoding changes.
+
+Size-16 formatting, Clippy, and the four sat_prep tests pass. Measurements pending below.
+
+Initial clean measurements (seconds):
+
+| Candidate | 6:94 UNSAT | 6:95 SAT | Solver total | Outcome |
+| --------- | ---------- | -------- | ------------ | ------- |
+| current   | 225.09     | 2.13     | 228.64       | baseline |
+| local 16  | 249.74     | 7.12     | 258.34       | slower |
+
+Both completed with prefix `[0,12,0,14,0,0,95]`. Priority-6 probes have 21953/21968 variables and 1335973/1337126 clauses at bounds 94/95 respectively. A runner race briefly overlapped preliminary size-16/32 processes; those were terminated and discarded before the clean sequential measurements. The scratch database contains their placement history, which is not solver input.
+
+Local-32 timed out at 300 seconds still probing 6:94 (no result). Local-64 completed in 270.46 solver seconds: 234.66 UNSAT and 34.41 SAT. Both local-16 and local-64 retain the baseline formula sizes and score prefix. All three local scales therefore fail the initial screen; no finer size tuning is indicated.
+
+Next independent candidates preserve priorities 0–5: (1) preserve consecutive runs with the same first participating section, then reorder those blocks by cumulative shared-section incidence, starting with the first block; (2) stable sort criteria by their last participating section, testing the other endpoint of curriculum pairs. Neither parses course names.
+
+Whole first-section blocks at priority 6 completed in 201.72 seconds, with 160.44 UNSAT and 39.74 SAT: about 12% faster overall than the initial baseline, despite a much slower feasible call. Formula sizes and prefix agree. This is provisional until repeats. Global application to all priorities and repeat baseline/block measurements are queued; the successful policy is not yet selected.
+
+Second-endpoint grouping timed out at 300 seconds on 6:94. Global first-section block ordering completed in 172.88 solver seconds (164.37 UNSAT, 7.09 SAT), about 24% faster than the first baseline. Earlier counters are reordered too; all score prefixes and formula sizes still agree. Baseline and priority-6-only block repeats are running next. A final independent weighting test uses distinct block-section overlap instead of repeated pair incidences to avoid favoring large blocks.
+
+The second baseline process timed out at 300 seconds on 6:94, versus 225.09 seconds for that proof in the first process. This is substantial cross-process variation; the initial 12%/24% improvements are screening observations, not statistically established speedups or isolated-formula comparisons. Existing unordered construction is a known confound. Repeats of the block policies are necessary before selection.
+
+The priority-6-only block repeat completed in 282.15 seconds (261.59 UNSAT, 19.15 SAT), confirming substantial variability. Distinct-section block weighting completed in 247.79 seconds (170.76 UNSAT, 75.55 SAT), losing its proof-time gain on the feasible call. Retain repeated-incidence weighting rather than tune weights or subtree sizes further in this round.
+
+The production implementation applies whole-block accumulated incidence at every priority, without a dataset-specific priority check. Each block is a consecutive run of criteria whose sorted participating-section lists share the same first section. Starting at the first block preserves the natural anchor; subsequent choices maximize total overlap with all selected blocks, with original block position breaking ties. Internal criterion order and all emitted hallpasses remain intact. Empty domains form ordinary runs and all hallpasses remain present. This is a shallow replacement of the previous walk in `sat_prep.rs`; no CLI, solver-search, scoring, counter-tree, or dependency changes were made. `../NOTES.md` now describes that workflow.
+
+Final source validation: cargo fmt, cargo clippy, and all five sat_prep tests pass, including exhaustive placement/budget equivalence and a new whole-run preservation case. The old Clippy warning recorded above did not occur in these runs. Working input database remains untouched; all benchmark saves went to the scratch database. Git remained read-only.
+
+Final global-block repeat completed in 235.94 seconds (219.98 UNSAT, 14.54 SAT). Both global-block runs completed below the cutoff, versus one completed baseline and one censored baseline. The best completed run is 24% faster than the first baseline, but the second global-block run is 3% slower than that baseline. This is evidence for retaining the block heuristic as the best tested replacement, not a robust 24% speedup claim.
+
+| Policy                                            | Solver totals, seconds        | Screen result |
+| ------------------------------------------------- | ----------------------------- | ------------- |
+| current                                           | 228.64; timeout 300 at 6:94   | baseline varies substantially |
+| subtree-local accumulated, 16                     | 258.34                        | rejected |
+| subtree-local accumulated, 32                     | timeout 300 at 6:94           | rejected |
+| subtree-local accumulated, 64                     | 270.46                        | rejected |
+| first-section blocks, priority 6 only             | 201.72; 282.15                | weaker than global blocks |
+| last-section grouping, priority 6 only            | timeout 300 at 6:94           | rejected |
+| first-section blocks, global, repeated incidence  | 172.88; 235.94                | retained |
+| first-section blocks, global, distinct overlap    | 247.79                        | rejected |
+
+Stop this round without finer tuning: all three local scales regress, changing the anchoring endpoint fails, and removing repeated-incidence weights loses on the SAT call. Whole-block preservation is the useful high-level direction from this screen. Tree-cut optimization and clause-based proximity remain unimplemented research candidates; neither has new evidence of likely gains here. With the observed cross-process spread, their next useful prerequisite is an isolated prepared-CNF comparison rather than further small heuristic adjustments. Binary-search and through-priority-8 validation from the older research checklist were not run; the selection targets the requested current-data linear probes through priority 6. No stronger claim about later priorities is supported.

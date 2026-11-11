@@ -436,7 +436,6 @@ impl Default for SatOpts {
 pub enum Search {
     Linear,
     Binary,
-    Hybrid,
 }
 
 impl std::str::FromStr for Search {
@@ -446,8 +445,7 @@ impl std::str::FromStr for Search {
         match value {
             "linear" => Ok(Self::Linear),
             "binary" => Ok(Self::Binary),
-            "hybrid" => Ok(Self::Hybrid),
-            _ => Err("expected linear, binary, or hybrid"),
+            _ => Err("expected linear or binary"),
         }
     }
 }
@@ -679,7 +677,7 @@ fn print_usage(command: Option<String>) {
             eprintln!();
             eprintln!("Options:");
             eprintln!("  -d, --db-path <path>           Database path (default: {})", default.db_path);
-            eprintln!("      --search <linear|binary|hybrid>  Hallpass search strategy (default: binary)");
+            eprintln!("      --search <linear|binary>  Hallpass search strategy (default: binary)");
             eprintln!("      --stop-after-priority <0..49>  Stop after optimizing this priority");
             eprintln!("      --schedule-output <all|problems|none>  Console schedule output (default: problems)");
             eprintln!("      --sat-timings              Print one timing row per Kissat call (default: false)");
@@ -957,9 +955,7 @@ mod tests {
     #[test]
     fn parses_search_strategies() {
         assert_eq!(super::SatOpts::default().search, super::Search::Binary);
-        for (value, expected) in
-            [("linear", super::Search::Linear), ("binary", super::Search::Binary), ("hybrid", super::Search::Hybrid)]
-        {
+        for (value, expected) in [("linear", super::Search::Linear), ("binary", super::Search::Binary)] {
             let args = ["marmot", "sat", "--search", value].map(String::from);
             let mut parser = super::CliParser::from_args(&args).unwrap();
             let mut search = super::Search::Binary;
@@ -967,7 +963,7 @@ mod tests {
             parser.leftover().unwrap();
             assert_eq!(search, expected);
         }
-        let args = ["marmot", "sat", "--search", "other"].map(String::from);
+        let args = ["marmot", "sat", "--search", "hybrid"].map(String::from);
         let mut parser = super::CliParser::from_args(&args).unwrap();
         assert!(parser.value("--search", &mut super::Search::Binary).is_err());
         let args = ["marmot", "sat", "--search"].map(String::from);

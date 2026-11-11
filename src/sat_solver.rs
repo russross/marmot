@@ -82,7 +82,6 @@ impl Drop for SatRun<'_> {
 // a schedule from the solution.
 pub fn generate_schedule(config: &SatOpts, input: &Input) -> Result<Schedule> {
     let start_time = Instant::now();
-    println!("Starting SAT-based schedule generation");
 
     // Convert the input to a SAT criteria structure
     let sat_criteria = SatCriteria::from_input(input)?;
@@ -114,7 +113,7 @@ pub fn generate_schedule(config: &SatOpts, input: &Input) -> Result<Schedule> {
             solve_binary(input, &mut run, priority, &mut max_violations, |schedule| {
                 // The initial save announces its placement id
                 if placement_id.is_none() {
-                    print!("\r");
+                    print!("\r\x1b[K");
                 }
                 placement_id = Some(save_schedule(
                     &config.db_path,
@@ -147,7 +146,7 @@ pub fn generate_schedule(config: &SatOpts, input: &Input) -> Result<Schedule> {
         };
         schedule.optimum_score_prefix = schedule.score.levels[..=priority as usize].to_vec();
         if placement_id.is_none() {
-            println!();
+            print!("\r\x1b[K");
         }
         placement_id = Some(save_schedule(&config.db_path, input, schedule, msg.as_str(), placement_id)?);
     }
@@ -274,15 +273,7 @@ fn solve_binary(
     if priority == 0 {
         upper = 0;
     }
-    let mut probe = if run.config.minimum_hallpasses.by_priority.contains_key(&priority) {
-        lower
-    } else {
-        lower + (upper - lower) / 2
-    };
-    let mut best = None;
-    let mut best_problems = Vec::new();
-    let mut probing_linear = false;
-
+    let mut probe = lower;
     // Feasible probes lower the ceiling; infeasible probes exclude their entire prefix.
     loop {
         limits.levels[index] = probe;
@@ -293,11 +284,11 @@ fn solve_binary(
                 let mut schedule = decode_solution(input, &encoding, &model)?;
                 schedule.optimum_score_prefix = limits.levels[..index].to_vec();
                 save(&schedule)?;
-                best_problems = model_problems(&encoding, &model);
-                best = Some(schedule);
                 upper = probe;
                 if lower == upper {
-                    break;
+                    limits.levels[index] = upper;
+                    verify_solution_score(input, &schedule, model_problems(&encoding, &model), priority);
+                    return Ok(Some(schedule));
                 }
             }
             None => {
@@ -305,41 +296,12 @@ fn solve_binary(
                     return err("No solution using only hard constraints");
                 }
                 if probe == upper {
-                    return Ok(best);
+                    return Ok(None);
                 }
                 lower = probe + 1;
-                if run.config.search == Search::Hybrid && lower == upper && best.is_some() {
-                    break;
-                }
             }
         }
-        probe = next_probe(run.config.search, lower, upper, best.is_some(), probing_linear && probe < lower);
-        probing_linear = run.config.search == Search::Hybrid && upper - lower < 16;
-    }
-    limits.levels[index] = upper;
-    if let Some(schedule) = &best {
-        verify_solution_score(input, schedule, best_problems, priority);
-    }
-    Ok(best)
-}
-
-// A feasible upper bound lets the hybrid search descend in pairs and then
-// inspect the single remaining value after an infeasible probe.
-fn next_probe(
-    search: Search,
-    lower: ScoreLevel,
-    upper: ScoreLevel,
-    feasible_upper: bool,
-    last_unsat: bool,
-) -> ScoreLevel {
-    if search != Search::Hybrid || upper - lower >= 16 {
-        lower + (upper - lower) / 2
-    } else if !feasible_upper {
-        upper
-    } else if last_unsat {
-        lower
-    } else {
-        upper.saturating_sub(2).max(lower)
+        probe = lower + (upper - lower) / 2;
     }
 }
 
@@ -634,16 +596,6 @@ mod tests {
         assert_eq!(error.to_string(), "Minimum hallpass count 2 exceeds the 1 constraint at priority level 7");
     }
 
-    #[test]
-    fn hybrid_probe_boundaries() {
-        use crate::Search::Hybrid;
-        assert_eq!(super::next_probe(Hybrid, 0, 16, true, false), 8);
-        assert_eq!(super::next_probe(Hybrid, 0, 15, false, false), 15);
-        assert_eq!(super::next_probe(Hybrid, 0, 15, true, false), 13);
-        assert_eq!(super::next_probe(Hybrid, 14, 15, true, false), 14);
-        assert_eq!(super::next_probe(Hybrid, 14, 15, true, true), 14);
-    }
-
     // A hard preference fixes the section at slot zero. Soft preferences at
     // that slot are unavoidable; preferences at slot one supply unused capacity.
     fn probe_input(count: usize, optimum: usize) -> crate::input::Input {
@@ -673,14 +625,13 @@ mod tests {
     #[test]
     fn searches_find_every_boundary_and_respect_minimums() {
         use crate::Search;
-        // Cover both sides of the hybrid transition, odd widths,
-        // and minima above the true optimum without depending on chosen models.
+        // Cover odd widths and minima above the true optimum without depending on chosen models.
         for count in [1, 15, 16, 17, 32] {
             for optimum in 0..=count {
                 for minimum in [0, count / 2] {
                     let input = probe_input(count, optimum);
                     let criteria = SatCriteria::from_input(&input).unwrap();
-                    for search in [Search::Linear, Search::Binary, Search::Hybrid] {
+                    for search in [Search::Linear, Search::Binary] {
                         let config = SatOpts {
                             search,
                             minimum_hallpasses: MinimumHallpasses::parse(&format!("1:{minimum}")).unwrap(),
@@ -707,27 +658,35 @@ mod tests {
     }
 
     #[test]
-    fn hybrid_descends_then_checks_the_intermediate_value() {
+    fn binary_probes_default_zero_and_explicit_minimum_first() {
         use crate::Search;
-        for (optimum, expected) in
-            [(3, vec![16, 8, 6, 4, 2, 3]), (4, vec![16, 8, 6, 4, 2, 3]), (32, vec![16, 32, 30, 31])]
+        for (optimum, minimum, expected_first, expected_second) in
+            [(0, None, 0, None), (3, None, 0, Some(16)), (3, Some(2), 2, Some(17)), (3, Some(4), 4, None)]
         {
             let input = probe_input(32, optimum);
             let criteria = SatCriteria::from_input(&input).unwrap();
-            let config = SatOpts { search: Search::Hybrid, ..SatOpts::default() };
+            let config = SatOpts {
+                search: Search::Binary,
+                minimum_hallpasses: minimum
+                    .map(|value| MinimumHallpasses::parse(&format!("1:{value}")).unwrap())
+                    .unwrap_or_default(),
+                ..SatOpts::default()
+            };
             let mut run = super::SatRun::new(&config, &input, &criteria).unwrap();
             let mut limits = crate::score::Score::new();
             super::solve_binary(&input, &mut run, 1, &mut limits, |_| Ok(())).unwrap().unwrap();
-            assert_eq!(run.timings.iter().map(|t| t.allowed).collect::<Vec<_>>(), expected);
-            assert_eq!(limits.levels[1], optimum as crate::score::ScoreLevel);
+            let probes: Vec<_> = run.timings.iter().map(|t| t.allowed).collect();
+            assert_eq!(probes.first(), Some(&expected_first));
+            assert_eq!(probes.get(1), expected_second.as_ref());
+            assert_eq!(limits.levels[1], optimum.max(minimum.unwrap_or(0)) as crate::score::ScoreLevel);
         }
     }
 
     #[test]
-    fn hybrid_handles_hard_constraints_infeasible_bounds_and_save_errors() {
+    fn binary_handles_hard_constraints_infeasible_bounds_and_save_errors() {
         use crate::Search;
         let mut input = probe_input(1, 0);
-        let config = SatOpts { search: Search::Hybrid, ..SatOpts::default() };
+        let config = SatOpts { search: Search::Binary, ..SatOpts::default() };
         let criteria = SatCriteria::from_input(&input).unwrap();
         let mut limits = crate::score::Score::new();
         let mut run = super::SatRun::new(&config, &input, &criteria).unwrap();

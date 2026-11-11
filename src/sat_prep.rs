@@ -6,7 +6,6 @@ use crate::sat_encoders::encode_criterion;
 use crate::sat_solver::{create_basic_variables, encode_basic_constraints, encode_room_conflicts};
 use crate::score::Score;
 use std::cmp::Reverse;
-use std::collections::BTreeMap;
 use std::fmt;
 use std::str::FromStr;
 
@@ -150,44 +149,31 @@ fn participating_sections(input: &Input, criterion: &SatCriterion) -> Vec<usize>
     sections
 }
 
-// Edge weight is the number of shared sections. Walk the strongest remaining
-// edge, preferring highly connected criteria and then original criterion order.
+// Keep runs sharing their first section intact while accumulating affinity
+// between whole runs. This preserves the natural section-centered summaries.
 fn cluster_order(domains: &[Vec<usize>]) -> Vec<usize> {
-    let mut by_section: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
-    for (criterion, sections) in domains.iter().enumerate() {
-        for &section in sections {
-            by_section.entry(section).or_default().push(criterion);
+    let mut blocks: Vec<Vec<usize>> = Vec::new();
+    for i in 0..domains.len() {
+        if i == 0 || domains[i].first() != domains[i - 1].first() {
+            blocks.push(Vec::new());
         }
+        blocks.last_mut().unwrap().push(i);
     }
-    let mut edges = vec![BTreeMap::<usize, usize>::new(); domains.len()];
-    for group in by_section.values() {
-        for (i, &a) in group.iter().enumerate() {
-            for &b in &group[i + 1..] {
-                *edges[a].entry(b).or_default() += 1;
-                *edges[b].entry(a).or_default() += 1;
+    let mut selected = vec![false; blocks.len()];
+    let mut scores = vec![0usize; blocks.len()];
+    let mut result = Vec::with_capacity(domains.len());
+    for _ in 0..blocks.len() {
+        let next = (0..blocks.len()).filter(|&i| !selected[i]).max_by_key(|&i| (scores[i], Reverse(i))).unwrap();
+        selected[next] = true;
+        result.extend(blocks[next].iter().copied());
+        // Count shared incidences, retaining the weight of repeated sections.
+        for i in 0..blocks.len() {
+            for &a in &blocks[i] {
+                for &b in &blocks[next] {
+                    scores[i] += domains[a].iter().filter(|s| domains[b].contains(s)).count();
+                }
             }
         }
-    }
-
-    // Restart at the strongest unvisited vertex when a connected walk ends.
-    let degree: Vec<usize> = edges.iter().map(|neighbors| neighbors.values().sum()).collect();
-    let mut visited = vec![false; domains.len()];
-    let mut result = Vec::with_capacity(domains.len());
-    let mut previous: Option<usize> = None;
-    while result.len() < domains.len() {
-        let neighbor = previous.and_then(|p| {
-            edges[p]
-                .iter()
-                .filter(|(i, _)| !visited[**i])
-                .max_by_key(|(i, weight)| (**weight, degree[**i], Reverse(**i)))
-                .map(|(&i, _)| i)
-        });
-        let next = neighbor.unwrap_or_else(|| {
-            (0..domains.len()).filter(|&i| !visited[i]).max_by_key(|&i| (degree[i], Reverse(i))).unwrap()
-        });
-        visited[next] = true;
-        result.push(next);
-        previous = Some(next);
     }
     result
 }
@@ -204,6 +190,12 @@ mod tests {
         let order = cluster_order(&domains);
         assert_eq!(order, vec![0, 2, 4, 1, 3, 5, 6]);
         assert!(cluster_order(&[]).is_empty());
+    }
+
+    #[test]
+    fn clustering_preserves_section_runs_when_following_related_blocks() {
+        let domains = vec![vec![0, 1], vec![0, 8], vec![3, 4], vec![3, 5], vec![1, 2], vec![1, 9]];
+        assert_eq!(cluster_order(&domains), vec![0, 1, 4, 5, 2, 3]);
     }
 
     fn roomless_input() -> Input {
