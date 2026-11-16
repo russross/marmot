@@ -54,17 +54,18 @@ available during the core hours of 9:00 AM–4:30 PM MTWR and
 and broadened for early morning and evening classes, but that is the
 starting point.
 
-Faculty are then invited to specify their schedule preferences by
-creating a list of requests in descending order of priority. Marmot
-attempts to accommodate as many as possible, weighting everyone's top
-priority equally, everyone's second priority equally, etc.
+Faculty are then invited to specify their schedule preferences by creating a list of requests in descending order of priority. Marmot attempts to accommodate as many as possible.
+
+Marmot balances preferences across faculty according to how much they limit scheduling choices. Each request is considered together with your more important requests: how much flexibility remains if they are all accommodated? A list of several small requests can be comparable to a shorter list of broader requests.
+
+Put your most important requests first. Marmot uses that order while balancing your preferences against those of other faculty, giving greater priority to combinations of requests that leave more scheduling flexibility. The aim is to accommodate preferences across the department without giving one person's highly restrictive requests precedence over everyone else's.
 
 Here are the specific requests a faculty can put in their list,
 given as examples with descriptions. For all preferences that
 concern the distribution of sections across days, we pick two
 representative days. I normally use Monday and Tuesday to represent
 MWF and TR classes, respectivelly, but you can pick a different pair
-of representative days if circumstances call for it.
+of representative days if circumstances call for it. The cluster, gap, and back-to-back room-switching preferences below also use these representative days.
 
 
 #### Preferences related to how classes are spread across the week
@@ -74,17 +75,15 @@ of representative days if circumstances call for it.
     all classes on TR.
 *   DoNotWantADayOff(): prefer to have sections on both days (and by
     implication on all days of the week).
-*   WantClassesEvenlySpreadAcrossDays(): prefer to have the same
-    number of classes on Monday as Tuesday (or off-by-one if an odd
-    number of sections are assigned across those two days).
+*   WantClassesEvenlySpreadAcrossDays(): prefer to have similar numbers of classes on the representative days that have classes, allowing a difference of one. Empty days are ignored, so combine this with DoNotWantADayOff() if you also want classes on both days. This option is available for faculty with at least four scheduled sections.
+*   WantSameDayOffAs('Other Faculty'): prefer that you and another faculty member have the same day off, with exactly one of the representative days free for each of you. Both faculty must include this request and use the same representative days, but it can have different importance to each person. Each faculty member can pair with only one other person. Add WantADayOff() separately if having a day off is also a preference even when the days cannot match.
 
 
 #### Preferences related to minimizing room switching
 
 *   WantBackToBackClassesInTheSameRoom(): prefer to have two
     sections in the same room when they are scheduled back-to-back
-    and it is possible for them to be in the same room (based on
-    section requirements).
+    and they have a room in common that neither section has a preference to avoid.
 *   WantClassesPackedIntoAsFewRoomsAsPossible(): prefer to use as
     few rooms as possible across all the faculty's sections (as
     constrained by section requirements).
@@ -92,8 +91,7 @@ of representative days if circumstances call for it.
 
 ### Clusters and gaps
 
-A “cluster” is a run of one or more sections scheduled back-to-back
-without a break. A “gap” is a span of time between two clusters
+A “cluster” is a run of one or more sections with no break longer than 50 minutes between consecutive classes. Its length runs from the start of the first class to the end of the last, including those short breaks. A “gap” is the longer break between two clusters. The same 50-minute rule defines back-to-back classes for the room-switching preference above.
 
 *   AvoidGapBetweenClassClustersShorterThan('1h30m'): prefer to have
     at least some minimum amount of time between clusters of classes
@@ -101,47 +99,39 @@ without a break. A “gap” is a span of time between two clusters
 *   AvoidGapBetweenClassClustersLongerThan('1h45m'): prefer to have
     at most some maximum amount of time between clusters of classes
     on a given day, i.e., prevent spreading the clusters out.
-*   AvoidClassClusterShorterThan('1h50m'): prefer to teach a cluster
-    of back-to-back classes at least this long before having a
-    break. Only applies when the alternative is to have a gap and
-    another cluster on the same day.
+*   AvoidClassClusterShorterThan('1h50m'): prefer to group classes into clusters at least this long. One shorter cluster per day is allowed, so a day with only one class or one short cluster is fine.
 *   AvoidClassClusterLongerThan('2h45m'): prefer to avoid clusters
     of classes that are too long.
 
 
 ### Time preferences for a faculty's overall schedule
 
-*   AvoidTimeSlot('MWF0900+50'): prefer not to teach during this
-    time slot. We only allow one bell-schedule time slot per
-    request. The faculty can specify multiple such requests, but
-    they will be considered in descending levels of priority against
-    the requests of other faculty.
+*   AvoidTimeSlot('MWF0900+50'): prefer not to teach in this specific time slot. Each request names one existing time slot; list multiple requests in priority order to avoid several slots. This does not cover other slots that happen to overlap it.
 *   UnavailableTimeSlot('TR1500+75'): make a concrete time slot
     unavailable. This is a hard exclusion, not a soft preference.
     If a section is explicitly assigned to that slot, the unavailable
-    request still wins and the audit should catch the conflict.
+    request still wins and the audit should catch the conflict. Like AvoidTimeSlot, this names a specific slot rather than blocking every overlapping slot. It is a requirement rather than a preference to balance against other faculty's requests.
 
 
 ### Section-specific requests
 
-*   AvoidSectionInTimeSlots('SE 1400-03', 'MWF 3×50 bell schedule'):
+*   AvoidSectionInTimeSlots('SE 1400-03', ['MWF 3×50 bell schedule']):
     prefer that a specific section avoid one or more time slots
     (including groups of time slots as in the example). Typically
-    used to ensure a section has, for example, a 2×75 pattern vs a
+    used to favor a section having, for example, a 2×75 pattern vs a
     3×50 pattern (as in this example for SE 1400-03). This only
     affects time slots already allowed for that section.
 *   UseSameTimePattern(['CS 2450-01', 'CS 2450-02']): prefer that
-    both sections of the same course have the same time pattern,
+    the listed sections have the same time pattern,
     e.g., both are on 2×75 patterns or 3×50 patterns. This does not
     let you specify the preferred pattern, just that both sections
-    should have the *same* pattern.
+    should have the *same* pattern. The days and start times can differ; the number of meetings per week and the length of each meeting should match.
 
 This last one requires a little extra explanation:
 
 *   AvoidSectionInRooms('CS 3150-01', ['Smith 116']): prefer to
     avoid having a section in a specific room without making it
-    impossible. This uses a priority slot like other faculty
-    preferences.
+    impossible. This is balanced against other faculty's requests like any other preference.
 
 This does not expand the room options for a section. The section's
 room tags define the allowed rooms, and AvoidSectionInRooms only
@@ -290,10 +280,9 @@ available as lower-priority choices.
 Having lunch hour off is nice, but less important that the ones
 already listed.
 
-        AvoidGapBetweenClassClustersLongerThan('1h50m'),
+        AvoidClassClusterLongerThan('1h50m'),
 
-Carol doesn't like long stretches of classes and would prefer to
-have a break at least every two hours.
+Carol doesn't like long stretches of classes and would prefer clusters no longer than 1 hour 50 minutes, separated by breaks longer than 50 minutes.
 
         AvoidSectionInTimeSlots('IT 1100-01', ['MWF 3×50 bell schedule']),
         AvoidSectionInTimeSlots('IT 2300-01', ['MWF 3×50 bell schedule']),
@@ -334,7 +323,7 @@ This Friday afternoon class is similar.
         AvoidSectionInRooms('CS 3150-01', ['Smith 116']),
 
 Ren does not really want CS 3150-01 in Smith 116, but is willing to
-allow it. This uses a priority slot like other faculty preferences.
+allow it. This is balanced against other faculty's requests like any other preference.
 
         DoNotWantADayOff(),
 
