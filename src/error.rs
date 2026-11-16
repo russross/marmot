@@ -37,13 +37,6 @@ impl From<&str> for MarmotError {
     }
 }
 
-// Implement From for sqlite::Error
-impl From<sqlite::Error> for MarmotError {
-    fn from(error: sqlite::Error) -> Self {
-        MarmotError::new(error.to_string())
-    }
-}
-
 // Type alias for Result with Box<dyn Error>
 pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
 

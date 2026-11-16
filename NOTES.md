@@ -1,3 +1,21 @@
+Rust library and CLI boundaries, 2026-11-16
+==========================================
+
+The `marmot` package now exposes a library and a thin `marmot` binary. Library consumers disable default features to select only the services they need. This is one library crate with independently selectable components, rather than a workspace of separate crates. No serialization contract or WASM bindings are defined yet.
+
+*   No features: `input` owns immutable input types and availability lists; `solver` owns schedules, placement edits, undo, speculative scoring, and penalty bookkeeping; `score` owns criteria, penalties, and lexicographic scores; `faculty_preferences` owns entropy redistribution and reciprocal shared-day-off merging. `preparation` exposes bundled-preference expansion and dependency-neighbor construction. `print` retains existing rendering/formatting helpers. This configuration has no third-party dependencies.
+*   `sqlite`: `sqlite::load_input`, `load_schedule`, and `save_schedule` own database access and existing transactions. The loader selects owned versus collapsed preferences according to priority policy, loads shared requests, rebalances entropy if requested, merges reciprocal requests, then builds criterion/section dependencies before returning input. Core code does not depend on SQLite.
+*   `search`: `search` owns random walks, warmup, climbing, and bounded DFS. It uses `search_options::GenOpts`; `solve` accepts a `FnMut(&Schedule, &str) -> Result<()>` callback at every previous save point. A callback failure retains the previous behavior of reporting the error and returning the best schedule. Search does not depend on storage or SAT.
+*   `sat`: `sat_solver`, `sat_criteria`, `sat_encoders`, `sat_prep`, and `cnf` own SAT preparation and Kissat. `options` owns existing SAT configuration and typed modes. `generate_schedule` accepts the same persistence callback shape and propagates callback errors. Binary probes and completed priority levels invoke it at the existing save points; the certified score prefix is assigned before saving completed levels. SAT does not require search or SQLite.
+*   `cli` (default): `cli::run` retains command parsing, input policy selection, schedule printing, and persistence coordination. It enables all services. CLI closures retain placement IDs and call SQLite at the same solver checkpoints. Command names, flags, defaults, output, and save-error handling remain as before.
+
+For example, a Rust consumer can use `marmot = { path = "...", default-features = false, features = ["search"] }`. SQLite and SAT can each be selected separately. The binary requires `cli`.
+
+Placement edits use `solver::move_section`, which displaces hard conflicts and recomputes affected criteria and section scores, returning a `PlacementLog`; `revert_move` undoes that log. Available room/time indices come from each section's input lists. `Schedule::new` starts with all sections unplaced. Callers must provide consistent input indices and build dependencies with `preparation::compute_neighbors` once after finalizing criteria; it expects initially empty section criterion/neighbor lists. Entropy and shared-request preparation must precede dependency construction. Existing callers and loaders retain responsibility for input validity.
+
+Core and search compile for `wasm32-unknown-unknown`. Runtime browser integration is not implemented: existing timing, console output, and random-source behavior remain unchanged. A SQLite-enabled WASM consumer still needs an appropriate SQLite build/runtime integration.
+
+
 Data input and solver contract
 ==============================
 

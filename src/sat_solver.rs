@@ -5,7 +5,7 @@ use super::sat_criteria::*;
 use super::sat_prep::{PreparedCnf, TotalizerOrder};
 use super::score::*;
 use super::solver::*;
-use super::{SatOpts, Search};
+use crate::options::{SatOpts, Search};
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::time::Instant;
@@ -80,7 +80,11 @@ impl Drop for SatRun<'_> {
 // This function encodes the scheduling problem as a SAT instance, solves it using an
 // incremental approach to minimize violations at each priority level, and then constructs
 // a schedule from the solution.
-pub fn generate_schedule(config: &SatOpts, input: &Input) -> Result<Schedule> {
+pub fn generate_schedule(
+    config: &SatOpts,
+    input: &Input,
+    mut save: impl FnMut(&Schedule, &str) -> Result<()>,
+) -> Result<Schedule> {
     let start_time = Instant::now();
 
     // Convert the input to a SAT criteria structure
@@ -98,7 +102,6 @@ pub fn generate_schedule(config: &SatOpts, input: &Input) -> Result<Schedule> {
 
     // the best schedule so far
     let mut best = None;
-    let mut placement_id = None;
 
     // Process each priority level in order
     let max_priority = sat_criteria.max_priority().min(config.stop_after_priority.unwrap_or(MAX_PRIORITY));
@@ -111,17 +114,7 @@ pub fn generate_schedule(config: &SatOpts, input: &Input) -> Result<Schedule> {
         // solve at this priority level, updating max_violations in place
         best = if config.search != Search::Linear {
             solve_binary(input, &mut run, priority, &mut max_violations, |schedule| {
-                // The initial save announces its placement id
-                if placement_id.is_none() {
-                    print!("\r\x1b[K");
-                }
-                placement_id = Some(save_schedule(
-                    &config.db_path,
-                    input,
-                    schedule,
-                    &format!("SAT generated: probing priority level {priority}"),
-                    placement_id,
-                )?);
+                save(schedule, &format!("SAT generated: probing priority level {priority}"))?;
                 Ok(())
             })?
         } else {
@@ -145,10 +138,7 @@ pub fn generate_schedule(config: &SatOpts, input: &Input) -> Result<Schedule> {
             unreachable!("best schedule cannot be none");
         };
         schedule.optimum_score_prefix = schedule.score.levels[..=priority as usize].to_vec();
-        if placement_id.is_none() {
-            print!("\r\x1b[K");
-        }
-        placement_id = Some(save_schedule(&config.db_path, input, schedule, msg.as_str(), placement_id)?);
+        save(schedule, msg.as_str())?;
     }
     println!("\r{}\x1b[K", max_violations);
 

@@ -1,15 +1,20 @@
+#[cfg(feature = "sat")]
 use crate::cnf::Encoding;
-use crate::faculty_preferences::{
-    FacultyPreferencePriorityPolicy, merge_shared_day_off_preferences, rebalance_faculty_preferences,
-};
+#[cfg(feature = "sat")]
+use crate::faculty_preferences::rebalance_faculty_preferences;
+use crate::faculty_preferences::{FacultyPreferencePriorityPolicy, merge_shared_day_off_preferences};
 use crate::input::{
     CreditHours, Days, Duration, Faculty, Input, Room, RoomWithOptionalPriority, Section, Time, TimeSlot,
     TimeSlotWithOptionalPriority,
 };
+#[cfg(feature = "sat")]
 use crate::sat_criteria::SatCriteria;
+#[cfg(feature = "sat")]
 use crate::sat_encoders::encode_criterion;
 use crate::score::{Criterion, FacultyPreference, FacultyPreferenceKind};
+#[cfg(feature = "sat")]
 use crate::solver::Schedule;
+#[cfg(feature = "sat")]
 use kissat::Solver;
 
 pub fn owned_input() -> Input {
@@ -69,6 +74,7 @@ pub fn input() -> Input {
     input
 }
 
+#[cfg(feature = "sat")]
 fn satisfiable(encoding: &Encoding) -> bool {
     let mut solver = Solver::new();
     let vars: Vec<_> = (0..encoding.last_var).map(|_| solver.var()).collect();
@@ -85,11 +91,13 @@ fn satisfiable(encoding: &Encoding) -> bool {
     solver.sat().is_some()
 }
 
+#[cfg(feature = "sat")]
 #[test]
 fn sat_conversion_rejects_unmerged_shared_day_off_requests() {
     assert!(SatCriteria::from_input(&owned_input()).is_err());
 }
 
+#[cfg(feature = "sat")]
 #[test]
 fn individual_requests_are_optional_and_day_links_are_reused_in_either_order() {
     for individual_owners in 0_u8..4 {
@@ -142,6 +150,7 @@ fn individual_requests_are_optional_and_day_links_are_reused_in_either_order() {
     }
 }
 
+#[cfg(feature = "sat")]
 #[test]
 fn shared_day_off_sat_matches_scoring_with_one_joint_penalty() {
     for (same_priority, balanced) in [(false, false), (true, false), (false, true)] {
@@ -212,6 +221,7 @@ fn shared_day_off_sat_matches_scoring_with_one_joint_penalty() {
     }
 }
 
+#[cfg(feature = "sat")]
 #[test]
 fn shared_day_off_requires_exactly_one_empty_checked_day() {
     let mut input = input();
