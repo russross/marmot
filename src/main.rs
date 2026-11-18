@@ -1,3 +1,3 @@
-fn main() {
-    marmot::cli::run();
+fn main() -> std::process::ExitCode {
+    marmot::cli::run()
 }

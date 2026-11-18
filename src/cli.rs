@@ -8,18 +8,39 @@ use crate::search::*;
 use crate::solver::*;
 use crate::sqlite::*;
 use std::collections::HashMap;
+use std::process::ExitCode;
 use std::time::Instant;
 
 static DEFAULT_DB_PATH: &str = "../data/timetable.db";
 
-pub fn run() {
-    if let Err(e) = dispatch_subcommands() {
-        eprintln!("{}", e);
-    };
+pub fn run() -> ExitCode {
+    let args: Vec<String> = std::env::args().collect();
+    match &args[1..] {
+        [help] if matches!(help.as_str(), "-h" | "--help") => {
+            print_usage(None);
+            return ExitCode::SUCCESS;
+        }
+        [command, help]
+            if matches!(command.as_str(), "gen" | "sat" | "dfs" | "print" | "dump" | "tweak")
+                && matches!(help.as_str(), "-h" | "--help") =>
+        {
+            print_usage(Some(command.clone()));
+            return ExitCode::SUCCESS;
+        }
+        _ => {}
+    }
+
+    match dispatch_subcommands(&args) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("{error}");
+            ExitCode::FAILURE
+        }
+    }
 }
 
-fn dispatch_subcommands() -> Result<()> {
-    match parse_args() {
+fn dispatch_subcommands(args: &[String]) -> Result<()> {
+    match parse_args(args) {
         Ok(Opts::Gen(config)) => {
             let input = load_input(
                 &config.db_path,
@@ -252,14 +273,14 @@ fn dispatch_subcommands() -> Result<()> {
         }
 
         Err(msg) => {
-            print_usage(std::env::args().nth(1));
+            print_usage(args.get(1).cloned());
             Err(msg)
         }
     }
 }
 
-fn parse_args() -> Result<Opts> {
-    let mut parser = CliParser::new()?;
+fn parse_args(args: &[String]) -> Result<Opts> {
+    let mut parser = CliParser::from_args(args)?;
 
     match parser.command.as_ref() {
         "gen" => {
@@ -289,6 +310,7 @@ fn parse_args() -> Result<Opts> {
             parser.value("--search", &mut opts.search)?;
             parser.boolean("", "--sat-timings", &mut opts.sat_timings)?;
             parser.value("--totalizer-order", &mut opts.totalizer_order)?;
+            parser.value("--room-conflict-encoding", &mut opts.room_conflict_encoding)?;
             parser.value("--shuffle-seed", &mut opts.shuffle_seed)?;
             parser.value("--schedule-output", &mut opts.schedule_output)?;
             if let Some((_, value)) = parser.pair("", "--stop-after-priority") {
@@ -526,7 +548,11 @@ fn print_usage(command: Option<String>) {
             eprintln!("      --stop-after-priority <0..49>  Stop after optimizing this priority");
             eprintln!("      --schedule-output <all|problems|none>  Console schedule output (default: problems)");
             eprintln!("      --sat-timings              Print one timing row per Kissat call (default: false)");
-            eprintln!("      --totalizer-order <current|shuffle|cluster>  Hallpass leaf order (default: current)");
+            eprintln!(
+                "      --totalizer-order <default|shuffle|cluster>  Hallpass leaf order (default: {})",
+                default.totalizer_order
+            );
+            eprintln!("      --room-conflict-encoding <proxy|direct>  Room overlap encoding (default: proxy)");
             eprintln!("      --shuffle-seed <u64>       Shuffle seed (default: 0)");
             eprintln!("      --min-hallpass <level:count,...>  First hallpass count to try at each priority level");
             print_preference_balance_usage(default.balance_faculty_preferences);
@@ -609,19 +635,11 @@ struct CliParser {
 }
 
 impl CliParser {
-    fn new() -> Result<Self> {
-        let args: Vec<String> = std::env::args().collect();
-        Self::from_args(&args)
-    }
-
     fn from_args(args: &[String]) -> Result<Self> {
         if args.len() < 2 {
             return Err("Error: no command specified".into());
         }
         let command = &args[1];
-        if args[2..].contains(&"-h".to_string()) {
-            return Err(String::new().into());
-        }
         // SAT timing output accepts a bare flag or an explicit boolean.
         let mut pairs = HashMap::new();
         let mut options = args[2..].iter().peekable();
@@ -768,6 +786,20 @@ impl CliParser {
 mod tests {
     use super::MinimumHallpasses;
     use crate::sat_prep::TotalizerOrder;
+
+    #[test]
+    fn sat_totalizer_order_defaults_to_cluster_and_accepts_creation_order() {
+        for (options, expected) in
+            [(&[][..], TotalizerOrder::Cluster), (&["--totalizer-order", "default"][..], TotalizerOrder::Default)]
+        {
+            let args: Vec<_> = ["marmot", "sat"].into_iter().chain(options.iter().copied()).map(String::from).collect();
+            let super::Opts::Sat(opts) = super::parse_args(&args).unwrap() else {
+                panic!("expected SAT options");
+            };
+            assert_eq!(opts.totalizer_order, expected);
+        }
+        assert!("current".parse::<TotalizerOrder>().is_err());
+    }
 
     #[test]
     fn parses_sat_experiment_switches_and_rejects_unknown_modes() {

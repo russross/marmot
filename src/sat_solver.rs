@@ -6,7 +6,7 @@ use super::sat_prep::{PreparedCnf, TotalizerOrder};
 use super::score::*;
 use super::solver::*;
 use crate::options::{SatOpts, Search};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::Write;
 use std::time::Instant;
 
@@ -31,12 +31,7 @@ struct SatRun<'a> {
 
 impl<'a> SatRun<'a> {
     fn new(config: &'a SatOpts, input: &Input, criteria: &'a SatCriteria) -> Result<Self> {
-        Ok(Self {
-            config,
-            criteria,
-            prepared: PreparedCnf::new(input, criteria, config.totalizer_order, config.shuffle_seed)?,
-            timings: Vec::new(),
-        })
+        Ok(Self { config, criteria, prepared: PreparedCnf::new(input, criteria, config)?, timings: Vec::new() })
     }
 
     // Record successful, infeasible, and failed calls even when reporting is disabled.
@@ -446,6 +441,51 @@ fn encode_room_conflict(
     }
 
     Ok(())
+}
+
+// Link section placements to room occupancy and exclude overlapping occupancy.
+pub(super) fn encode_room_occupancy(input: &Input, encoding: &mut Encoding) {
+    let mut rooms = BTreeMap::<usize, BTreeMap<usize, Vec<usize>>>::new();
+    for &(section, room) in encoding.section_room_vars.keys() {
+        for slot in &input.sections[section].time_slots {
+            rooms.entry(room).or_default().entry(slot.time_slot).or_default().push(section);
+        }
+    }
+
+    for (room, slots) in rooms {
+        let mut occupancies: Vec<(usize, i32)> = Vec::new();
+        for (slot, mut sections) in slots {
+            sections.sort_unstable();
+            sections.dedup();
+            let occupancy = encoding.new_var();
+
+            // Distinct overlapping slots cannot both be occupied in this room.
+            for &(other_slot, other_occupancy) in &occupancies {
+                if input.time_slot_conflicts[slot][other_slot] {
+                    encoding.add_clause(vec![-occupancy, -other_occupancy]);
+                }
+            }
+            occupancies.push((slot, occupancy));
+
+            // Each section using this room and slot forces the shared occupancy.
+            for (index, &section) in sections.iter().enumerate() {
+                let room_var = encoding.section_room_vars[&(section, room)];
+                let time_var = encoding.section_time_vars[&(section, slot)];
+                encoding.add_clause(vec![-time_var, -room_var, occupancy]);
+
+                // A shared occupancy bit cannot distinguish two users of the same slot.
+                if input.time_slot_conflicts[slot][slot] {
+                    for &other in &sections[index + 1..] {
+                        if !input.sections[section].hard_conflicts.contains(&other) {
+                            let other_time = encoding.section_time_vars[&(other, slot)];
+                            let other_room = encoding.section_room_vars[&(other, room)];
+                            encoding.add_clause(vec![-time_var, -room_var, -other_time, -other_room]);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 // Decode a SAT solution into a schedule.

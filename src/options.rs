@@ -7,6 +7,7 @@ pub struct SatOpts {
     pub schedule_output: ScheduleOutput,
     pub sat_timings: bool,
     pub totalizer_order: TotalizerOrder,
+    pub room_conflict_encoding: RoomConflictEncoding,
     pub shuffle_seed: u64,
     pub search: Search,
     pub db_path: String,
@@ -21,13 +22,32 @@ impl Default for SatOpts {
             stop_after_priority: None,
             schedule_output: ScheduleOutput::Problems,
             sat_timings: false,
-            totalizer_order: TotalizerOrder::Current,
+            totalizer_order: TotalizerOrder::Cluster,
+            room_conflict_encoding: RoomConflictEncoding::Proxy,
             shuffle_seed: 0,
             db_path: DEFAULT_DB_PATH.to_string(),
             minimum_hallpasses: MinimumHallpasses::default(),
             search: Search::Binary,
             balance_faculty_preferences: true,
             show_faculty_preference_priorities: false,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RoomConflictEncoding {
+    Proxy,
+    Direct,
+}
+
+impl std::str::FromStr for RoomConflictEncoding {
+    type Err = &'static str;
+
+    fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
+        match value {
+            "proxy" => Ok(Self::Proxy),
+            "direct" => Ok(Self::Direct),
+            _ => Err("expected proxy or direct"),
         }
     }
 }

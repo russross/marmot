@@ -1,9 +1,12 @@
 use crate::cnf::Encoding;
 use crate::error::Result;
 use crate::input::Input;
+use crate::options::{RoomConflictEncoding, SatOpts};
 use crate::sat_criteria::{SatCriteria, SatCriterion};
 use crate::sat_encoders::encode_criterion;
-use crate::sat_solver::{create_basic_variables, encode_basic_constraints, encode_room_conflicts};
+use crate::sat_solver::{
+    create_basic_variables, encode_basic_constraints, encode_room_conflicts, encode_room_occupancy,
+};
 use crate::score::Score;
 use std::cmp::Reverse;
 use std::fmt;
@@ -12,7 +15,7 @@ use std::str::FromStr;
 // Only priority-level hallpass counters participate in the ordering experiment.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TotalizerOrder {
-    Current,
+    Default,
     Shuffle,
     Cluster,
 }
@@ -22,10 +25,10 @@ impl FromStr for TotalizerOrder {
 
     fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
         match value {
-            "current" => Ok(Self::Current),
+            "default" => Ok(Self::Default),
             "shuffle" => Ok(Self::Shuffle),
             "cluster" => Ok(Self::Cluster),
-            _ => Err("expected current, shuffle, or cluster"),
+            _ => Err("expected default, shuffle, or cluster"),
         }
     }
 }
@@ -33,7 +36,7 @@ impl FromStr for TotalizerOrder {
 impl fmt::Display for TotalizerOrder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Current => "current",
+            Self::Default => "default",
             Self::Shuffle => "shuffle",
             Self::Cluster => "cluster",
         })
@@ -53,11 +56,14 @@ pub(super) struct PreparedCnf {
 }
 
 impl PreparedCnf {
-    pub fn new(input: &Input, criteria: &SatCriteria, order: TotalizerOrder, seed: u64) -> Result<Self> {
+    pub fn new(input: &Input, criteria: &SatCriteria, config: &SatOpts) -> Result<Self> {
         let mut template = Encoding::new();
         create_basic_variables(input, &mut template)?;
         encode_basic_constraints(input, &mut template)?;
-        encode_room_conflicts(input, &mut template)?;
+        match config.room_conflict_encoding {
+            RoomConflictEncoding::Proxy => encode_room_occupancy(input, &mut template),
+            RoomConflictEncoding::Direct => encode_room_conflicts(input, &mut template)?,
+        }
 
         // Encode once in priority order so cached faculty-day links belong to
         // the first prefix that needs them, including shared faculty requests.
@@ -73,7 +79,7 @@ impl PreparedCnf {
 
             // A criterion's multiple hallpasses stay adjacent under clustering.
             // Shuffling uses a private per-priority RNG and does not perturb search RNGs.
-            let mut hallpasses = match order {
+            let mut hallpasses = match config.totalizer_order {
                 TotalizerOrder::Cluster => {
                     let domains: Vec<Vec<usize>> =
                         constraints.iter().map(|c| participating_sections(input, c)).collect();
@@ -81,8 +87,9 @@ impl PreparedCnf {
                 }
                 _ => groups.into_iter().flatten().collect::<Vec<_>>(),
             };
-            if order == TotalizerOrder::Shuffle {
-                fastrand::Rng::with_seed(seed.wrapping_add(u64::from(priority))).shuffle(&mut hallpasses);
+            if config.totalizer_order == TotalizerOrder::Shuffle {
+                fastrand::Rng::with_seed(config.shuffle_seed.wrapping_add(u64::from(priority)))
+                    .shuffle(&mut hallpasses);
             }
             levels.push(PreparedLevel { clause_end: template.clauses.len(), last_var: template.last_var, hallpasses });
         }
@@ -181,7 +188,7 @@ fn cluster_order(domains: &[Vec<usize>]) -> Vec<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::input::Days;
+    use crate::input::{Days, RoomWithOptionalPriority};
 
     #[test]
     fn clustering_keeps_disjoint_curriculum_components_together() {
@@ -214,6 +221,29 @@ mod tests {
     }
 
     #[test]
+    fn room_encodings_agree_on_pinned_placements() {
+        let mut input = roomless_input();
+        for section in &mut input.sections[..2] {
+            section.rooms = (0..2).map(|room| RoomWithOptionalPriority { room, priority: None }).collect();
+        }
+        // Slots 0 and 1 overlap even though they are distinct choices.
+        input.time_slot_conflicts[0][1] = true;
+        input.time_slot_conflicts[1][0] = true;
+        let criteria = SatCriteria::new();
+        for room_conflict_encoding in [RoomConflictEncoding::Proxy, RoomConflictEncoding::Direct] {
+            let config = SatOpts { room_conflict_encoding, ..SatOpts::default() };
+            let prepared = PreparedCnf::new(&input, &criteria, &config).unwrap();
+            for (time_b, room_b, feasible) in [(0, 0, false), (1, 0, false), (2, 0, true), (1, 1, true)] {
+                let mut encoding = prepared.instance(&Score::new(), 0);
+                pin_times(&mut encoding, &[0, time_b]);
+                encoding.add_clause(vec![encoding.section_room_vars[&(0, 0)]]);
+                encoding.add_clause(vec![encoding.section_room_vars[&(1, room_b)]]);
+                assert_eq!(encoding.solve().unwrap().is_some(), feasible);
+            }
+        }
+    }
+
+    #[test]
     fn all_orders_preserve_budgets_and_exclude_future_priorities() {
         let input = roomless_input();
         let mut criteria = SatCriteria::new();
@@ -221,10 +251,11 @@ mod tests {
             criteria.add_criterion(SatCriterion::Conflict { sections, priority: 1 });
         }
         criteria.add_criterion(SatCriterion::Conflict { sections: [0, 3], priority: 2 });
-        for order in [TotalizerOrder::Current, TotalizerOrder::Shuffle, TotalizerOrder::Cluster] {
-            let prepared = PreparedCnf::new(&input, &criteria, order, 17).unwrap();
+        for order in [TotalizerOrder::Default, TotalizerOrder::Shuffle, TotalizerOrder::Cluster] {
+            let config = SatOpts { totalizer_order: order, shuffle_seed: 17, ..SatOpts::default() };
+            let prepared = PreparedCnf::new(&input, &criteria, &config).unwrap();
             let original_clauses = prepared.template.clauses.clone();
-            let repeated = PreparedCnf::new(&input, &criteria, order, 17).unwrap();
+            let repeated = PreparedCnf::new(&input, &criteria, &config).unwrap();
             assert_eq!(prepared.levels[1].hallpasses, repeated.levels[1].hallpasses);
             for pattern in 0..27 {
                 let times = [pattern % 3, pattern / 3 % 3, pattern / 9, 0];
@@ -268,7 +299,7 @@ mod tests {
             days_to_check: Days::parse("MT").unwrap(),
             priority: 2,
         });
-        let prepared = PreparedCnf::new(&input, &criteria, TotalizerOrder::Current, 0).unwrap();
+        let prepared = PreparedCnf::new(&input, &criteria, &SatOpts::default()).unwrap();
         assert_eq!(prepared.template.faculty_day_vars.len(), 4);
         for (times, individual, shared) in
             [([0, 2, 0, 2], true, true), ([0, 2, 1, 2], true, false), ([0, 1, 0, 2], false, false)]
@@ -285,7 +316,7 @@ mod tests {
 
     #[test]
     fn ordered_totalizer_handles_counts_near_one_hundred() {
-        for order in [TotalizerOrder::Current, TotalizerOrder::Shuffle, TotalizerOrder::Cluster] {
+        for order in [TotalizerOrder::Default, TotalizerOrder::Shuffle, TotalizerOrder::Cluster] {
             for true_count in [97, 98, 99] {
                 let mut encoding = Encoding::new();
                 let mut inputs: Vec<_> = (0..160).map(|_| encoding.new_var()).collect();
@@ -293,7 +324,7 @@ mod tests {
                     encoding.add_clause(vec![if i < true_count { var } else { -var }]);
                 }
                 match order {
-                    TotalizerOrder::Current => (),
+                    TotalizerOrder::Default => (),
                     TotalizerOrder::Shuffle => fastrand::Rng::with_seed(9).shuffle(&mut inputs),
                     TotalizerOrder::Cluster => inputs.reverse(),
                 }

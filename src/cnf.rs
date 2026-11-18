@@ -185,8 +185,8 @@ impl Encoding {
         // Kissat 4's default preprocessing spends about three seconds on each of these dense,
         // structured CNFs. This optimization loop creates a fresh solver for every bound, while
         // the plain configuration solves the same instances directly without that repeated cost.
-        //let mut solver = kissat::Solver::with_configuration(kissat::Configuration::Plain);
-        let mut solver = kissat::Solver::new();
+        let mut solver = kissat::Solver::with_configuration(kissat::Configuration::Plain);
+        //let mut solver = kissat::Solver::new();
 
         // Create a mapping from our variable indices to kissat variables
         let mut var_map = Vec::with_capacity(self.last_var as usize);

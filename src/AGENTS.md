@@ -39,9 +39,10 @@ types.
 
 *   Room conflict
 
-    Two sections may not use the same room at overlapping time slots.  Pairs
-    already listed as hard conflicts are skipped here because the hard conflict
-    makes their overlap impossible regardless of room.
+    Two sections may not use the same room at overlapping time slots. The
+    default shares a room occupancy variable across sections eligible for the
+    same room and slot. Direct placement clauses cover exact same-slot
+    collisions. The optional direct encoding uses placement clauses for all overlaps.
 
 *   Conflict
 
@@ -200,8 +201,12 @@ associated criterion violation is counted.
 
 *   Room conflict
 
-    For each room, section pair, and overlapping time-slot pair, add
-    `!T[a,ta] OR !R[a,r] OR !T[b,tb] OR !R[b,r]`.
+    In proxy mode, link each eligible placement with
+    `!T[s,t] OR !R[s,r] OR O[r,t]` and forbid distinct overlapping slots with
+    `!O[r,ta] OR !O[r,tb]`. For exact same-slot collisions, add
+    `!T[a,ta] OR !R[a,r] OR !T[b,tb] OR !R[b,r]`. Direct mode uses that
+    four-literal clause for all overlapping slots. Both modes skip these
+    four-literal clauses for section pairs with a hard conflict.
 
 *   Conflict
 

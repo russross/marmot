@@ -6,6 +6,8 @@ Status and next action
 
 November 10 continuation selected whole first-section blocks with accumulated shared-section incidence, applied to every priority. See the continuation log below for current-dataset measurements, rejected alternatives, and repeat variability. The earlier measurements and candidate list remain research history. No fixed-probe harness or per-priority CLI option was added.
 
+The CLI now selects `cluster` when no order is supplied. Use `--totalizer-order default` to select the creation order called `current` in the historical benchmarks below.
+
 Keep experimental integration shallow and easy to remove. Git remains read-only unless explicitly authorized otherwise. Preserve the existing scoring semantics, hard constraints, lexicographic priority optimization, and saved optimum-prefix semantics.
 
 
