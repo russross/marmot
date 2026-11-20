@@ -189,6 +189,7 @@ fn cluster_order(domains: &[Vec<usize>]) -> Vec<usize> {
 mod tests {
     use super::*;
     use crate::input::{Days, RoomWithOptionalPriority};
+    use crate::options::KissatMode;
 
     #[test]
     fn clustering_keeps_disjoint_curriculum_components_together() {
@@ -238,7 +239,7 @@ mod tests {
                 pin_times(&mut encoding, &[0, time_b]);
                 encoding.add_clause(vec![encoding.section_room_vars[&(0, 0)]]);
                 encoding.add_clause(vec![encoding.section_room_vars[&(1, room_b)]]);
-                assert_eq!(encoding.solve().unwrap().is_some(), feasible);
+                assert_eq!(encoding.solve(KissatMode::Default).unwrap().is_some(), feasible);
             }
         }
     }
@@ -268,13 +269,13 @@ mod tests {
                     let mut early = prepared.instance(&limits, 1);
                     assert!(early.problems.values().all(|(p, _)| *p <= 1));
                     pin_times(&mut early, &times);
-                    assert_eq!(early.solve().unwrap().is_some(), violations <= allowed as usize);
+                    assert_eq!(early.solve(KissatMode::Default).unwrap().is_some(), violations <= allowed as usize);
 
                     // The future conflict only becomes hard when its priority is selected.
                     let mut later = prepared.instance(&limits, 2);
                     pin_times(&mut later, &times);
                     assert_eq!(
-                        later.solve().unwrap().is_some(),
+                        later.solve(KissatMode::Default).unwrap().is_some(),
                         violations <= allowed as usize && times[0] != times[3]
                     );
                 }
@@ -307,10 +308,10 @@ mod tests {
             let mut early = prepared.instance(&Score::new(), 1);
             assert_eq!(early.faculty_day_vars.len(), 2);
             pin_times(&mut early, &times);
-            assert_eq!(early.solve().unwrap().is_some(), individual);
+            assert_eq!(early.solve(KissatMode::Default).unwrap().is_some(), individual);
             let mut later = prepared.instance(&Score::new(), 2);
             pin_times(&mut later, &times);
-            assert_eq!(later.solve().unwrap().is_some(), individual && shared);
+            assert_eq!(later.solve(KissatMode::Default).unwrap().is_some(), individual && shared);
         }
     }
 
@@ -329,7 +330,7 @@ mod tests {
                     TotalizerOrder::Cluster => inputs.reverse(),
                 }
                 encoding.ordered_totalizer_at_most_k(&inputs, 98, None);
-                assert_eq!(encoding.solve().unwrap().is_some(), true_count <= 98);
+                assert_eq!(encoding.solve(KissatMode::Default).unwrap().is_some(), true_count <= 98);
             }
         }
     }

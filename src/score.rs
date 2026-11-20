@@ -193,12 +193,7 @@ impl Score {
     }
 
     pub fn is_zero(&self) -> bool {
-        for i in 0..PRIORITY_LEVELS {
-            if self.levels[i] != 0 {
-                return false;
-            }
-        }
-        true
+        self.levels.iter().all(|&level| level == 0)
     }
 
     pub fn unplaced(&self) -> ScoreLevel {

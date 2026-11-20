@@ -102,7 +102,7 @@ Current options:
 
 Timings are always collected around `Encoding::solve`: they include Kissat setup, clause loading, solving, and model extraction, but exclude CNF preparation and schedule decoding/saving. Rows show the probed priority, criterion count at that priority, allowed hallpasses there, total probe variables/clauses, selected ordering, seconds to two decimals, and SAT/UNSAT/ERROR. The ordering label is printed even when the bound needs no totalizer.
 
-`--search linear|binary` selects the probe strategy and defaults to binary. `--min-hallpass LEVEL:COUNT,...` sets starting probes; it does not lock earlier priorities to specified values or provide isolated fixed-bound tests. Binary search can repeat the final feasible bound, as the baseline shows. Probe-strategy changes are separate from the ordering experiment.
+`--search linear|binary` selects the probe strategy and defaults to binary. `--min-hallpass LEVEL:COUNT,...` sets starting probes; it does not lock earlier priorities to specified values or provide isolated fixed-bound tests. The historical baseline repeated the final feasible bound. The current search reuses the retained schedule at that bound. Probe-strategy changes are separate from the ordering experiment.
 
 All runs save placements to the selected database. Partial runs retain a complete actual schedule score but certify only the optimized prefix. Their final save comment indicates the last resolved priority rather than claiming full completion.
 

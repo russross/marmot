@@ -2381,10 +2381,10 @@ mod tests {
             time_slot_conflicts: vec![vec![true, false, false], vec![false, true, false], vec![false, false, true]],
         };
         let mut encoding = Encoding::new();
-        for section in 0..3 {
+        for (section, definition) in input.sections.iter().enumerate() {
             let time_var = encoding.new_var();
             encoding.section_time_vars.insert((section, section), time_var);
-            for room in input.sections[section].rooms.iter().map(|option| option.room) {
+            for room in definition.rooms.iter().map(|option| option.room) {
                 let room_var = encoding.new_var();
                 encoding.section_room_vars.insert((section, room), room_var);
             }
@@ -2429,10 +2429,10 @@ mod tests {
             time_slot_conflicts: vec![vec![true, false, false], vec![false, true, false], vec![false, false, true]],
         };
         let mut encoding = Encoding::new();
-        for section in 0..3 {
+        for (section, definition) in input.sections.iter().enumerate() {
             let time_var = encoding.new_var();
             encoding.section_time_vars.insert((section, section), time_var);
-            for room in input.sections[section].rooms.iter().map(|option| option.room) {
+            for room in definition.rooms.iter().map(|option| option.room) {
                 let room_var = encoding.new_var();
                 encoding.section_room_vars.insert((section, room), room_var);
             }

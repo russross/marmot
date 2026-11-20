@@ -13,13 +13,17 @@ static inline bool kissat_terminated (kissat *solver, int bit,
                                       const char *name, const char *file,
                                       long lineno, const char *fun) {
   assert (0 <= bit), assert (bit < 64);
+  // The flag carries only the stop request, with no other data to publish.
 #ifdef COVERAGE
   const uint64_t mask = (uint64_t) 1 << bit;
-  if (!(solver->termination.flagged & mask))
+  if (!(atomic_load_explicit (&solver->termination.flagged,
+                              memory_order_relaxed) & mask))
     return false;
-  solver->termination.flagged = ~(uint64_t) 0;
+  atomic_store_explicit (&solver->termination.flagged, UINT64_MAX,
+                         memory_order_relaxed);
 #else
-  if (!solver->termination.flagged)
+  if (!atomic_load_explicit (&solver->termination.flagged,
+                             memory_order_relaxed))
     return false;
 #endif
 #ifndef QUIET

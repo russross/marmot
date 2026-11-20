@@ -196,15 +196,11 @@ fn shared_day_off_sat_matches_scoring_with_one_joint_penalty() {
             }
             for allowed in 0..=1 {
                 let mut encoding = Encoding::new();
-                for section in 0..4 {
+                for (section, placement) in schedule.placements.iter().enumerate() {
                     for time in 0..3 {
                         let var = encoding.new_var();
                         encoding.section_time_vars.insert((section, time), var);
-                        encoding.add_clause(vec![if schedule.placements[section].time_slot == Some(time) {
-                            var
-                        } else {
-                            -var
-                        }]);
+                        encoding.add_clause(vec![if placement.time_slot == Some(time) { var } else { -var }]);
                     }
                 }
                 for priority in criteria.priorities() {

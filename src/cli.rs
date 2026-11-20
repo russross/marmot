@@ -309,6 +309,7 @@ fn parse_args(args: &[String]) -> Result<Opts> {
             parser.minimum_hallpasses("", "--min-hallpass", &mut opts.minimum_hallpasses)?;
             parser.value("--search", &mut opts.search)?;
             parser.boolean("", "--sat-timings", &mut opts.sat_timings)?;
+            parser.value("--kissat", &mut opts.kissat)?;
             parser.value("--totalizer-order", &mut opts.totalizer_order)?;
             parser.value("--room-conflict-encoding", &mut opts.room_conflict_encoding)?;
             parser.value("--shuffle-seed", &mut opts.shuffle_seed)?;
@@ -547,7 +548,8 @@ fn print_usage(command: Option<String>) {
             eprintln!("      --search <linear|binary>  Hallpass search strategy (default: binary)");
             eprintln!("      --stop-after-priority <0..49>  Stop after optimizing this priority");
             eprintln!("      --schedule-output <all|problems|none>  Console schedule output (default: problems)");
-            eprintln!("      --sat-timings              Print one timing row per Kissat call (default: false)");
+            eprintln!("      --sat-timings              Print one timing row per SAT probe (default: false)");
+            eprintln!("      --kissat <default|plain|race>  Kissat strategy (default: default)");
             eprintln!(
                 "      --totalizer-order <default|shuffle|cluster>  Hallpass leaf order (default: {})",
                 default.totalizer_order
@@ -785,7 +787,26 @@ impl CliParser {
 #[cfg(test)]
 mod tests {
     use super::MinimumHallpasses;
+    use crate::options::KissatMode;
     use crate::sat_prep::TotalizerOrder;
+
+    #[test]
+    fn sat_kissat_defaults_to_default_and_accepts_all_modes() {
+        for (options, expected) in [
+            (&[][..], KissatMode::Default),
+            (&["--kissat", "default"][..], KissatMode::Default),
+            (&["--kissat", "plain"][..], KissatMode::Plain),
+            (&["--kissat", "race"][..], KissatMode::Race),
+        ] {
+            let args: Vec<_> = ["marmot", "sat"].into_iter().chain(options.iter().copied()).map(String::from).collect();
+            let super::Opts::Sat(opts) = super::parse_args(&args).unwrap() else {
+                panic!("expected SAT options");
+            };
+            assert_eq!(opts.kissat, expected);
+        }
+        let args = ["marmot", "sat", "--kissat", "fast"].map(String::from);
+        assert!(super::parse_args(&args).is_err());
+    }
 
     #[test]
     fn sat_totalizer_order_defaults_to_cluster_and_accepts_creation_order() {

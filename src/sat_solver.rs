@@ -37,7 +37,7 @@ impl<'a> SatRun<'a> {
     // Record successful, infeasible, and failed calls even when reporting is disabled.
     fn solve(&mut self, encoding: &Encoding, priority: u8, limits: &Score) -> Result<Option<HashSet<i32>>> {
         let start = Instant::now();
-        let result = encoding.solve();
+        let result = encoding.solve(self.config.kissat);
         self.timings.push(ProbeTiming {
             priority,
             constraints: self.criteria.criteria_at_priority(priority).len(),
@@ -259,6 +259,7 @@ fn solve_binary(
         upper = 0;
     }
     let mut probe = lower;
+    let mut best = None;
     // Feasible probes lower the ceiling; infeasible probes exclude their entire prefix.
     loop {
         limits.levels[index] = probe;
@@ -270,11 +271,7 @@ fn solve_binary(
                 schedule.optimum_score_prefix = limits.levels[..index].to_vec();
                 save(&schedule)?;
                 upper = probe;
-                if lower == upper {
-                    limits.levels[index] = upper;
-                    verify_solution_score(input, &schedule, model_problems(&encoding, &model), priority);
-                    return Ok(Some(schedule));
-                }
+                best = Some((schedule, model_problems(&encoding, &model)));
             }
             None => {
                 if priority == 0 {
@@ -286,6 +283,15 @@ fn solve_binary(
                 lower = probe + 1;
             }
         }
+
+        // A retained model certifies the ceiling once every smaller bound is ruled out.
+        if lower == upper
+            && let Some((schedule, problems)) = best
+        {
+            limits.levels[index] = upper;
+            verify_solution_score(input, &schedule, problems, priority);
+            return Ok(Some(schedule));
+        }
         probe = lower + (upper - lower) / 2;
     }
 }
@@ -293,8 +299,7 @@ fn solve_binary(
 // Create the basic variables for sections, time slots, and rooms.
 pub(super) fn create_basic_variables(input: &Input, encoding: &mut Encoding) -> Result<()> {
     // Create section-room variables
-    for section_i in 0..input.sections.len() {
-        let section = &input.sections[section_i];
+    for (section_i, section) in input.sections.iter().enumerate() {
         for room_i in section.rooms.iter().map(|r| r.room) {
             let var = encoding.new_var();
             encoding.section_room_vars.insert((section_i, room_i), var);
@@ -302,8 +307,7 @@ pub(super) fn create_basic_variables(input: &Input, encoding: &mut Encoding) -> 
     }
 
     // Create section-time variables
-    for section_i in 0..input.sections.len() {
-        let section = &input.sections[section_i];
+    for (section_i, section) in input.sections.iter().enumerate() {
         for time_slot_i in section.time_slots.iter().map(|t| t.time_slot) {
             let var = encoding.new_var();
             encoding.section_time_vars.insert((section_i, time_slot_i), var);
@@ -710,6 +714,28 @@ mod tests {
             assert_eq!(probes.get(1), expected_second.as_ref());
             assert_eq!(limits.levels[1], optimum.max(minimum.unwrap_or(0)) as crate::score::ScoreLevel);
         }
+    }
+
+    #[test]
+    fn binary_reuses_the_feasible_ceiling_when_the_last_probe_is_unsat() {
+        let input = probe_input(32, 4);
+        let criteria = SatCriteria::from_input(&input).unwrap();
+        let config = SatOpts { search: crate::Search::Binary, ..SatOpts::default() };
+        let mut run = super::SatRun::new(&config, &input, &criteria).unwrap();
+        let mut limits = crate::score::Score::new();
+        let mut saved_scores = Vec::new();
+        let schedule = super::solve_binary(&input, &mut run, 1, &mut limits, |schedule| {
+            saved_scores.push(schedule.score.levels[1]);
+            Ok(())
+        })
+        .unwrap()
+        .unwrap();
+
+        let probes: Vec<_> = run.timings.iter().map(|t| (t.allowed, t.result)).collect();
+        assert_eq!(probes, [(0, "UNSAT"), (16, "SAT"), (8, "SAT"), (4, "SAT"), (2, "UNSAT"), (3, "UNSAT")]);
+        assert_eq!(saved_scores, [4, 4, 4]);
+        assert_eq!(limits.levels[1], 4);
+        assert_eq!(schedule.score.levels[1], 4);
     }
 
     #[test]

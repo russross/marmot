@@ -1,4 +1,8 @@
+use crate::options::KissatMode;
+use kissat::{Configuration, SolveOutcome, Solver};
 use std::collections::{HashMap, HashSet};
+use std::sync::mpsc;
+use std::thread;
 
 #[derive(Clone)]
 pub struct Encoding {
@@ -181,13 +185,47 @@ impl Encoding {
     // - `Ok(Some(HashSet<i32>))` if the problem is satisfiable, with a set of true variables
     // - `Ok(None)` if the problem is unsatisfiable
     // - `Err(String)` if an error occurs during solving
-    pub fn solve(&self) -> Result<Option<HashSet<i32>>, String> {
-        // Kissat 4's default preprocessing spends about three seconds on each of these dense,
-        // structured CNFs. This optimization loop creates a fresh solver for every bound, while
-        // the plain configuration solves the same instances directly without that repeated cost.
-        let mut solver = kissat::Solver::with_configuration(kissat::Configuration::Plain);
-        //let mut solver = kissat::Solver::new();
+    pub fn solve(&self, mode: KissatMode) -> Result<Option<HashSet<i32>>, String> {
+        match mode {
+            KissatMode::Default => self.solve_with(Solver::new()),
+            KissatMode::Plain => self.solve_with(Solver::with_configuration(Configuration::Plain)),
+            KissatMode::Race => self.race(),
+        }
+    }
 
+    fn race(&self) -> Result<Option<HashSet<i32>>, String> {
+        let solvers = [Solver::new(), Solver::with_configuration(Configuration::Plain)];
+        let cancellation = solvers.each_ref().map(Solver::cancellation_handle);
+
+        // Each worker loads the same prepared encoding into its own solver.
+        // The scope joins both workers before returning to the priority search.
+        thread::scope(|scope| {
+            let (tx, rx) = mpsc::channel();
+            for (index, solver) in solvers.into_iter().enumerate() {
+                let tx = tx.clone();
+                if let Err(error) = thread::Builder::new().spawn_scoped(scope, move || {
+                    let result = self.solve_with(solver);
+                    let _ = tx.send((index, result));
+                }) {
+                    for handle in cancellation {
+                        handle.cancel();
+                    }
+                    return Err(format!("could not start Kissat worker: {error}"));
+                }
+            }
+            drop(tx);
+
+            // SAT (with its decoded model) and UNSAT are both definitive.
+            let (index, result) = rx.recv().map_err(|_| "Kissat workers exited without a result".to_string())?;
+            if result.is_ok() {
+                cancellation[1 - index].cancel();
+                return result;
+            }
+            rx.recv().map_or(result, |(_, second)| second)
+        })
+    }
+
+    fn solve_with(&self, mut solver: Solver) -> Result<Option<HashSet<i32>>, String> {
         // Create a mapping from our variable indices to kissat variables
         let mut var_map = Vec::with_capacity(self.last_var as usize);
 
@@ -224,8 +262,8 @@ impl Encoding {
         }
 
         // solve the instance
-        match solver.sat() {
-            Some(solution) => {
+        match solver.solve() {
+            SolveOutcome::Sat(solution) => {
                 // problem is satisfiable, extract the true variables
                 let mut true_vars = HashSet::new();
 
@@ -239,10 +277,8 @@ impl Encoding {
 
                 Ok(Some(true_vars))
             }
-            None => {
-                // unsatisfiable
-                Ok(None)
-            }
+            SolveOutcome::Unsat => Ok(None),
+            SolveOutcome::Interrupted => Err("Kissat solve was interrupted".to_string()),
         }
     }
 }
@@ -250,5 +286,29 @@ impl Encoding {
 impl Default for Encoding {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Encoding, KissatMode};
+
+    #[test]
+    fn kissat_modes_return_a_model_or_prove_infeasibility() {
+        let mut encoding = Encoding::new();
+        let a = encoding.new_var();
+        let b = encoding.new_var();
+        encoding.add_clause(vec![a, b]);
+        encoding.add_clause(vec![-a, b]);
+        encoding.add_clause(vec![a, -b]);
+
+        for mode in [KissatMode::Default, KissatMode::Plain, KissatMode::Race] {
+            let model = encoding.solve(mode).unwrap().unwrap();
+            assert!(model.contains(&a) && model.contains(&b));
+
+            let mut impossible = encoding.clone();
+            impossible.add_clause(vec![-a, -b]);
+            assert!(impossible.solve(mode).unwrap().is_none());
+        }
     }
 }

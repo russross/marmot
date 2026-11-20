@@ -23,9 +23,11 @@
 //! }
 //! ```
 
-use std::mem;
+use std::cell::Cell;
+use std::marker::PhantomData;
 use std::ops::Not;
 use std::os::raw::{c_char, c_int};
+use std::sync::Arc;
 
 const MAX_VAR_ID: c_int = (1 << 30) - 1;
 
@@ -39,6 +41,7 @@ unsafe extern "C" {
     fn kissat_set_configuration(solver: *mut kissat, name: *const c_char) -> c_int;
     fn kissat_add(solver: *mut kissat, lit: c_int);
     fn kissat_solve(solver: *mut kissat) -> c_int;
+    fn kissat_terminate(solver: *mut kissat);
     fn kissat_value(solver: *mut kissat, lit: c_int) -> c_int;
     fn kissat_release(solver: *mut kissat);
 }
@@ -72,10 +75,42 @@ impl Not for Var {
     }
 }
 
+struct Instance(*mut kissat);
+
+// The Solver owns access to the native state. A cancellation handle shares its
+// lifetime and can only set the native atomic stop flag. Release runs once the
+// solver, any solution, and all cancellation handles are gone.
+unsafe impl Send for Instance {}
+unsafe impl Sync for Instance {}
+
+impl Drop for Instance {
+    fn drop(&mut self) {
+        unsafe { kissat_release(self.0) };
+    }
+}
+
+/// A handle that can request cooperative termination from another thread.
+pub struct CancellationHandle(Arc<Instance>);
+
+impl CancellationHandle {
+    pub fn cancel(&self) {
+        unsafe { kissat_terminate(self.0.0) };
+    }
+}
+
+/// The outcome of a solve that may be interrupted.
+pub enum SolveOutcome {
+    Sat(Solution),
+    Unsat,
+    Interrupted,
+}
+
 /// A SAT problem under construction
 pub struct Solver {
-    p: *mut kissat,
+    instance: Arc<Instance>,
     n_vars: c_int,
+    // Model lookup can mutate Kissat's native state during model extension.
+    _not_sync: PhantomData<Cell<()>>,
 }
 
 impl Solver {
@@ -84,7 +119,7 @@ impl Solver {
         unsafe {
             let p = kissat_init();
             assert!(!p.is_null());
-            Solver { p, n_vars: 0 }
+            Solver { instance: Arc::new(Instance(p)), n_vars: 0, _not_sync: PhantomData }
         }
     }
 
@@ -92,9 +127,13 @@ impl Solver {
     pub fn with_configuration(configuration: Configuration) -> Solver {
         let solver = Solver::new();
         unsafe {
-            assert_eq!(kissat_set_configuration(solver.p, configuration.name()), 1);
+            assert_eq!(kissat_set_configuration(solver.instance.0, configuration.name()), 1);
         }
         solver
+    }
+
+    pub fn cancellation_handle(&self) -> CancellationHandle {
+        CancellationHandle(Arc::clone(&self.instance))
     }
 
     /// Create a new literal
@@ -108,27 +147,27 @@ impl Solver {
     /// Assert a literal should be true in the solution
     pub fn add1(&mut self, a: Var) {
         unsafe {
-            kissat_add(self.p, a.id);
-            kissat_add(self.p, 0);
+            kissat_add(self.instance.0, a.id);
+            kissat_add(self.instance.0, 0);
         }
     }
 
     /// Assert `a or b` should be true in the solution
     pub fn add2(&mut self, a: Var, b: Var) {
         unsafe {
-            kissat_add(self.p, a.id);
-            kissat_add(self.p, b.id);
-            kissat_add(self.p, 0);
+            kissat_add(self.instance.0, a.id);
+            kissat_add(self.instance.0, b.id);
+            kissat_add(self.instance.0, 0);
         }
     }
 
     /// Assert `a or b or c` should be true in the solution
     pub fn add3(&mut self, a: Var, b: Var, c: Var) {
         unsafe {
-            kissat_add(self.p, a.id);
-            kissat_add(self.p, b.id);
-            kissat_add(self.p, c.id);
-            kissat_add(self.p, 0);
+            kissat_add(self.instance.0, a.id);
+            kissat_add(self.instance.0, b.id);
+            kissat_add(self.instance.0, c.id);
+            kissat_add(self.instance.0, 0);
         }
     }
 
@@ -136,26 +175,30 @@ impl Solver {
     pub fn add(&mut self, x: &[Var]) {
         unsafe {
             for v in x {
-                kissat_add(self.p, v.id);
+                kissat_add(self.instance.0, v.id);
             }
-            kissat_add(self.p, 0);
+            kissat_add(self.instance.0, 0);
         }
     }
 
     /// Solve the instance, returning either `Some(Solution)` if the problem is
     /// SAT or `None` if the problem is UNSAT.
+    ///
+    /// Use [`Self::solve`] when requesting cancellation.
     pub fn sat(self) -> Option<Solution> {
-        unsafe {
-            let ret = kissat_solve(self.p);
-            match ret {
-                10 => {
-                    let p = self.p;
-                    mem::forget(self);
-                    Some(Solution { p })
-                }
-                20 => None,
-                _ => unreachable!(),
-            }
+        match self.solve() {
+            SolveOutcome::Sat(solution) => Some(solution),
+            SolveOutcome::Unsat => None,
+            SolveOutcome::Interrupted => panic!("Kissat solve was interrupted"),
+        }
+    }
+
+    pub fn solve(self) -> SolveOutcome {
+        match unsafe { kissat_solve(self.instance.0) } {
+            10 => SolveOutcome::Sat(Solution { solver: self }),
+            20 => SolveOutcome::Unsat,
+            0 => SolveOutcome::Interrupted,
+            ret => unreachable!("unexpected Kissat result {ret}"),
         }
     }
 
@@ -210,17 +253,9 @@ impl Default for Solver {
     }
 }
 
-impl Drop for Solver {
-    fn drop(&mut self) {
-        unsafe {
-            kissat_release(self.p);
-        }
-    }
-}
-
 /// A solved SAT instance, for a problem which is satisfiable
 pub struct Solution {
-    p: *mut kissat,
+    solver: Solver,
 }
 
 impl Solution {
@@ -229,7 +264,7 @@ impl Solution {
     pub fn get(&self, x: Var) -> Option<bool> {
         let ret;
         unsafe {
-            ret = kissat_value(self.p, x.id);
+            ret = kissat_value(self.solver.instance.0, x.id);
         }
         match ret {
             i if i == x.id => Some(true),
@@ -240,17 +275,20 @@ impl Solution {
     }
 }
 
-impl Drop for Solution {
-    fn drop(&mut self) {
-        unsafe {
-            kissat_release(self.p);
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::Solver;
+    use super::{SolveOutcome, Solver};
+
+    #[test]
+    fn cancellation_from_another_thread_returns_interrupted() {
+        let mut solver = Solver::new();
+        let a = solver.var();
+        solver.add1(a);
+        let handle = solver.cancellation_handle();
+
+        std::thread::spawn(move || handle.cancel()).join().unwrap();
+        assert!(matches!(solver.solve(), SolveOutcome::Interrupted));
+    }
 
     #[test]
     fn sat() {

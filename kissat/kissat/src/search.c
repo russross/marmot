@@ -110,9 +110,11 @@ static void stop_search (kissat *solver) {
     solver->limited.decisions = false;
   }
 
-  if (solver->termination.flagged) {
+  if (atomic_load_explicit (&solver->termination.flagged,
+                            memory_order_relaxed)) {
     kissat_very_verbose (solver, "termination forced externally");
-    solver->termination.flagged = 0;
+    atomic_store_explicit (&solver->termination.flagged, 0,
+                           memory_order_relaxed);
   }
 
   if (solver->stable) {

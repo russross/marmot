@@ -33,6 +33,8 @@
 #include "vector.h"
 #include "watch.h"
 
+#include <stdatomic.h>
+
 typedef struct datarank datarank;
 
 struct datarank {
@@ -52,10 +54,11 @@ struct import {
 typedef struct termination termination;
 
 struct termination {
+  // A different thread may request termination while the solver is running.
 #ifdef COVERAGE
-  volatile uint64_t flagged;
+  _Atomic uint64_t flagged;
 #else
-  volatile bool flagged;
+  atomic_bool flagged;
 #endif
   volatile void *state;
   int (*volatile terminate) (void *);

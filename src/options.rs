@@ -6,6 +6,7 @@ pub struct SatOpts {
     pub stop_after_priority: Option<u8>,
     pub schedule_output: ScheduleOutput,
     pub sat_timings: bool,
+    pub kissat: KissatMode,
     pub totalizer_order: TotalizerOrder,
     pub room_conflict_encoding: RoomConflictEncoding,
     pub shuffle_seed: u64,
@@ -22,6 +23,7 @@ impl Default for SatOpts {
             stop_after_priority: None,
             schedule_output: ScheduleOutput::Problems,
             sat_timings: false,
+            kissat: KissatMode::Default,
             totalizer_order: TotalizerOrder::Cluster,
             room_conflict_encoding: RoomConflictEncoding::Proxy,
             shuffle_seed: 0,
@@ -30,6 +32,26 @@ impl Default for SatOpts {
             search: Search::Binary,
             balance_faculty_preferences: true,
             show_faculty_preference_priorities: false,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum KissatMode {
+    Default,
+    Plain,
+    Race,
+}
+
+impl std::str::FromStr for KissatMode {
+    type Err = &'static str;
+
+    fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
+        match value {
+            "default" => Ok(Self::Default),
+            "plain" => Ok(Self::Plain),
+            "race" => Ok(Self::Race),
+            _ => Err("expected default, plain, or race"),
         }
     }
 }

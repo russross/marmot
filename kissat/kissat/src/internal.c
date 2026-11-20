@@ -24,6 +24,7 @@ void kissat_reset_last_learned (kissat *solver) {
 
 kissat *kissat_init (void) {
   kissat *solver = kissat_calloc (0, 1, sizeof *solver);
+  atomic_init (&solver->termination.flagged, 0);
 #ifndef NOPTIONS
   kissat_init_options (&solver->options);
 #else
@@ -477,13 +478,25 @@ int kissat_solve (kissat *solver) {
   kissat_require (EMPTY_STACK (solver->clause),
                   "incomplete clause (terminating zero not added)");
   kissat_require (!GET (searches), "incremental solving not supported");
+  // Cancellation may arrive before the worker finishes adding clauses.
+  if (atomic_load_explicit (&solver->termination.flagged,
+                            memory_order_relaxed)) {
+    atomic_store_explicit (&solver->termination.flagged, 0,
+                           memory_order_relaxed);
+    return 0;
+  }
   return kissat_search (solver);
 }
 
 void kissat_terminate (kissat *solver) {
   kissat_require_initialized (solver);
-  solver->termination.flagged = ~(unsigned) 0;
-  assert (solver->termination.flagged);
+#ifdef COVERAGE
+  atomic_store_explicit (&solver->termination.flagged, UINT64_MAX,
+                         memory_order_relaxed);
+#else
+  atomic_store_explicit (&solver->termination.flagged, true,
+                         memory_order_relaxed);
+#endif
 }
 
 void kissat_set_terminate (kissat *solver, void *state,
