@@ -1,5 +1,4 @@
 use crate::error::Result;
-use crate::faculty_preferences::*;
 use crate::options::*;
 use crate::print::*;
 use crate::sat_solver::*;
@@ -42,12 +41,7 @@ pub fn run() -> ExitCode {
 fn dispatch_subcommands(args: &[String]) -> Result<()> {
     match parse_args(args) {
         Ok(Opts::Gen(config)) => {
-            let input = load_input(
-                &config.db_path,
-                &[],
-                config.faculty_preference_priority_policy(),
-                config.show_faculty_preference_priorities(),
-            )?;
+            let input = load_input(&config.db_path, &[], config.show_faculty_preference_priorities)?;
             let mut id = None;
             let mut schedule = if config.starting_id >= 0 {
                 let mut schedule = Schedule::new(&input);
@@ -76,12 +70,7 @@ fn dispatch_subcommands(args: &[String]) -> Result<()> {
         }
 
         Ok(Opts::Sat(config)) => {
-            let input = load_input(
-                &config.db_path,
-                &[],
-                config.faculty_preference_priority_policy(),
-                config.show_faculty_preference_priorities(),
-            )?;
+            let input = load_input(&config.db_path, &[], config.show_faculty_preference_priorities)?;
             let mut id = None;
             let schedule = generate_schedule(&config, &input, |schedule, message| {
                 if id.is_none() {
@@ -100,12 +89,7 @@ fn dispatch_subcommands(args: &[String]) -> Result<()> {
         }
 
         Ok(Opts::Dfs(config)) => {
-            let input = load_input(
-                &config.db_path,
-                &[],
-                config.faculty_preference_priority_policy(),
-                config.show_faculty_preference_priorities(),
-            )?;
+            let input = load_input(&config.db_path, &[], config.show_faculty_preference_priorities)?;
             let mut schedule = Schedule::new(&input);
             load_schedule(
                 &config.db_path,
@@ -144,12 +128,7 @@ fn dispatch_subcommands(args: &[String]) -> Result<()> {
         }
 
         Ok(Opts::Print(config)) => {
-            let input = load_input(
-                &config.db_path,
-                &[],
-                config.faculty_preference_priority_policy(),
-                config.show_faculty_preference_priorities(),
-            )?;
+            let input = load_input(&config.db_path, &[], config.show_faculty_preference_priorities)?;
             let mut schedule = Schedule::new(&input);
             load_schedule(
                 &config.db_path,
@@ -164,23 +143,13 @@ fn dispatch_subcommands(args: &[String]) -> Result<()> {
         }
 
         Ok(Opts::Dump(config)) => {
-            let input = load_input(
-                &config.db_path,
-                &[],
-                config.faculty_preference_priority_policy(),
-                config.show_faculty_preference_priorities(),
-            )?;
+            let input = load_input(&config.db_path, &[], config.show_faculty_preference_priorities)?;
             dump_input(&[], &input);
             Ok(())
         }
 
         Ok(Opts::Tweak(config)) => {
-            let input = load_input(
-                &config.db_path,
-                &[],
-                config.faculty_preference_priority_policy(),
-                config.show_faculty_preference_priorities(),
-            )?;
+            let input = load_input(&config.db_path, &[], config.show_faculty_preference_priorities)?;
             let mut schedule = Schedule::new(&input);
             load_schedule(
                 &config.db_path,
@@ -297,7 +266,6 @@ fn parse_args(args: &[String]) -> Result<Opts> {
             parser.float("-s", "--bias-step", &mut opts.bias_step)?;
             parser.uint("-p", "--dfs-depth", &mut opts.dfs_depth)?;
             parser.boolean("-f", "--fallback", &mut opts.fallback)?;
-            parser.boolean("", "--balance-faculty-preferences", &mut opts.balance_faculty_preferences)?;
             parser.boolean("", "--show-faculty-preference-priorities", &mut opts.show_faculty_preference_priorities)?;
             parser.leftover()?;
             Ok(Opts::Gen(opts))
@@ -321,7 +289,6 @@ fn parse_args(args: &[String]) -> Result<Opts> {
                 }
                 opts.stop_after_priority = Some(priority);
             }
-            parser.boolean("", "--balance-faculty-preferences", &mut opts.balance_faculty_preferences)?;
             parser.boolean("", "--show-faculty-preference-priorities", &mut opts.show_faculty_preference_priorities)?;
             parser.leftover()?;
             Ok(Opts::Sat(opts))
@@ -333,7 +300,6 @@ fn parse_args(args: &[String]) -> Result<Opts> {
             parser.int64("-i", "--id", &mut opts.starting_id)?;
             parser.uint("-p", "--dfs-depth", &mut opts.dfs_depth)?;
             parser.boolean("-r", "--repeat", &mut opts.repeat)?;
-            parser.boolean("", "--balance-faculty-preferences", &mut opts.balance_faculty_preferences)?;
             parser.boolean("", "--show-faculty-preference-priorities", &mut opts.show_faculty_preference_priorities)?;
             parser.leftover()?;
             Ok(Opts::Dfs(opts))
@@ -343,7 +309,6 @@ fn parse_args(args: &[String]) -> Result<Opts> {
             let mut opts = PrintOpts::default();
             parser.string("-d", "--db-path", &mut opts.db_path)?;
             parser.int64("-i", "--id", &mut opts.starting_id)?;
-            parser.boolean("", "--balance-faculty-preferences", &mut opts.balance_faculty_preferences)?;
             parser.boolean("", "--show-faculty-preference-priorities", &mut opts.show_faculty_preference_priorities)?;
             parser.leftover()?;
             Ok(Opts::Print(opts))
@@ -352,7 +317,6 @@ fn parse_args(args: &[String]) -> Result<Opts> {
         "dump" => {
             let mut opts = DumpOpts::default();
             parser.string("-d", "--db-path", &mut opts.db_path)?;
-            parser.boolean("", "--balance-faculty-preferences", &mut opts.balance_faculty_preferences)?;
             parser.boolean("", "--show-faculty-preference-priorities", &mut opts.show_faculty_preference_priorities)?;
             parser.leftover()?;
             Ok(Opts::Dump(opts))
@@ -362,7 +326,6 @@ fn parse_args(args: &[String]) -> Result<Opts> {
             let mut opts = TweakOpts::default();
             parser.string("-d", "--db-path", &mut opts.db_path)?;
             parser.int64("-i", "--id", &mut opts.starting_id)?;
-            parser.boolean("", "--balance-faculty-preferences", &mut opts.balance_faculty_preferences)?;
             parser.boolean("", "--show-faculty-preference-priorities", &mut opts.show_faculty_preference_priorities)?;
             while parser.tweak_specs("-t", "--tweak", &mut opts.tweaks)? {}
             if opts.tweaks.is_empty() {
@@ -388,34 +351,23 @@ enum Opts {
 pub struct PrintOpts {
     pub db_path: String,
     pub starting_id: i64,
-    pub balance_faculty_preferences: bool,
     pub show_faculty_preference_priorities: bool,
 }
 
 impl Default for PrintOpts {
     fn default() -> Self {
-        Self {
-            db_path: DEFAULT_DB_PATH.to_string(),
-            starting_id: 0,
-            balance_faculty_preferences: true,
-            show_faculty_preference_priorities: false,
-        }
+        Self { db_path: DEFAULT_DB_PATH.to_string(), starting_id: 0, show_faculty_preference_priorities: false }
     }
 }
 
 pub struct DumpOpts {
     pub db_path: String,
-    pub balance_faculty_preferences: bool,
     pub show_faculty_preference_priorities: bool,
 }
 
 impl Default for DumpOpts {
     fn default() -> Self {
-        Self {
-            db_path: DEFAULT_DB_PATH.to_string(),
-            balance_faculty_preferences: true,
-            show_faculty_preference_priorities: false,
-        }
+        Self { db_path: DEFAULT_DB_PATH.to_string(), show_faculty_preference_priorities: false }
     }
 }
 
@@ -430,7 +382,6 @@ pub struct TweakOpts {
     pub db_path: String,
     pub starting_id: i64,
     pub tweaks: Vec<TweakSpec>,
-    pub balance_faculty_preferences: bool,
     pub show_faculty_preference_priorities: bool,
 }
 
@@ -439,7 +390,6 @@ pub struct DfsOpts {
     pub starting_id: i64,
     pub dfs_depth: usize,
     pub repeat: bool,
-    pub balance_faculty_preferences: bool,
     pub show_faculty_preference_priorities: bool,
 }
 
@@ -449,7 +399,6 @@ impl Default for TweakOpts {
             db_path: DEFAULT_DB_PATH.to_string(),
             starting_id: 0,
             tweaks: Vec::new(),
-            balance_faculty_preferences: true,
             show_faculty_preference_priorities: false,
         }
     }
@@ -462,42 +411,10 @@ impl Default for DfsOpts {
             starting_id: 0,
             dfs_depth: 4,
             repeat: true,
-            balance_faculty_preferences: true,
             show_faculty_preference_priorities: false,
         }
     }
 }
-
-trait HasFacultyPreferencePriorityPolicy {
-    fn balance_faculty_preferences(&self) -> bool;
-    fn show_faculty_preference_priorities(&self) -> bool;
-
-    fn faculty_preference_priority_policy(&self) -> FacultyPreferencePriorityPolicy {
-        if self.balance_faculty_preferences() {
-            FacultyPreferencePriorityPolicy::EntropyBalancedV1
-        } else {
-            FacultyPreferencePriorityPolicy::Stated
-        }
-    }
-}
-
-macro_rules! impl_preference_policy {
-    ($($type:ty),+ $(,)?) => {
-        $(
-            impl HasFacultyPreferencePriorityPolicy for $type {
-                fn balance_faculty_preferences(&self) -> bool {
-                    self.balance_faculty_preferences
-                }
-
-                fn show_faculty_preference_priorities(&self) -> bool {
-                    self.show_faculty_preference_priorities
-                }
-            }
-        )+
-    };
-}
-
-impl_preference_policy!(GenOpts, SatOpts, DfsOpts, PrintOpts, DumpOpts, TweakOpts);
 
 fn print_usage(command: Option<String>) {
     match command.as_deref() {
@@ -536,7 +453,7 @@ fn print_usage(command: Option<String>) {
                 "  -f, --fallback <bool>          Rehome to fallback instead of new warmup (default: {})",
                 default.fallback
             );
-            print_preference_balance_usage(default.balance_faculty_preferences);
+            print_preference_balance_usage();
         }
 
         Some("sat") => {
@@ -557,7 +474,7 @@ fn print_usage(command: Option<String>) {
             eprintln!("      --room-conflict-encoding <proxy|direct>  Room overlap encoding (default: proxy)");
             eprintln!("      --shuffle-seed <u64>       Shuffle seed (default: 0)");
             eprintln!("      --min-hallpass <level:count,...>  First hallpass count to try at each priority level");
-            print_preference_balance_usage(default.balance_faculty_preferences);
+            print_preference_balance_usage();
         }
 
         Some("dfs") => {
@@ -569,7 +486,7 @@ fn print_usage(command: Option<String>) {
             eprintln!("  -i, --id <int>                 ID of schedule to start from (0 to use best in DB)");
             eprintln!("  -p, --dfs-depth <int>          DFS depth (default: {})", default.dfs_depth);
             eprintln!("  -r, --repeat <bool>            Repeat automatically on success (default: {})", default.repeat);
-            print_preference_balance_usage(default.balance_faculty_preferences);
+            print_preference_balance_usage();
         }
 
         Some("print") => {
@@ -582,7 +499,7 @@ fn print_usage(command: Option<String>) {
                 "  -i, --id <int>                 ID of schedule to use (0 to use best in DB, default: {})",
                 default.starting_id
             );
-            print_preference_balance_usage(default.balance_faculty_preferences);
+            print_preference_balance_usage();
         }
 
         Some("dump") => {
@@ -591,7 +508,7 @@ fn print_usage(command: Option<String>) {
             eprintln!();
             eprintln!("Options:");
             eprintln!("  -d, --db-path <path>           Database path (default: {})", default.db_path);
-            print_preference_balance_usage(default.balance_faculty_preferences);
+            print_preference_balance_usage();
         }
 
         Some("tweak") => {
@@ -602,7 +519,7 @@ fn print_usage(command: Option<String>) {
             eprintln!("  -d, --db-path <path>           Database path (default: {})", default.db_path);
             eprintln!("  -i, --id <int>                 ID of schedule to start from (0 to use best in DB)");
             eprintln!("  -t, --tweak <section,room,time> Move a section to specified room and time (repeatable)");
-            print_preference_balance_usage(default.balance_faculty_preferences);
+            print_preference_balance_usage();
             eprintln!();
             eprintln!("Examples:");
             eprintln!("  marmot tweak -i 123 -t \"CS 3400-01,Smith 108,MWF0900+50\" -t \"MATH 3400-01,-,TR1030+75\"");
@@ -624,8 +541,7 @@ fn print_usage(command: Option<String>) {
     }
 }
 
-fn print_preference_balance_usage(default: bool) {
-    eprintln!("      --balance-faculty-preferences <bool>  Entropy-balance faculty priorities (default: {default})");
+fn print_preference_balance_usage() {
     eprintln!(
         "      --show-faculty-preference-priorities <bool>  Show entropy redistribution details (default: false)"
     );

@@ -177,8 +177,7 @@ Also in `data/computingfaculty.py`, each faculty member gets:
 
 - `faculty_preferences(faculty, days_to_check, *preferences)`
 
-These are soft preferences, not hard requirements, unless the preference records
-hard unavailability.
+The list orders soft preferences. Seed input can also contain availability edits.
 
 ## Strings and naming conventions
 
@@ -268,7 +267,7 @@ times. HURCTR remains fixed pending instructor and travel information.
 Implementation details:
 
 - `section_room_tags` and `section_time_slot_tags` are pure allowed-set tables.
-- `faculty_section_room_preferences` and `faculty_section_time_slot_preferences` store faculty-authored soft restrictions for assigned sections.
+- `faculty_section_room_preferences` and `faculty_section_time_slot_preferences` expose faculty-authored soft restrictions for assigned sections.
 - Section-specific preferences do not add rooms or times to a section. The views apply them only to the concrete room/time intersection between the section tags and the preference tags.
 - Multiple positive priorities for the same effective room/time collapse with `MIN(priority)`.
 
@@ -293,22 +292,21 @@ This means:
 
 - faculty are available at those times
 - soft time penalties are stored separately by `AvoidTimeSlot`
-- unavailable time is represented by not covering it, or by explicitly excluding a concrete slot with `UnavailableTimeSlot`
+- unavailable minutes are gaps in the stored ranges
 
 Faculty availability intersects with section time tags. A time slot is available to a section only if:
 
 - the section is allowed in that slot, and
 - every assigned faculty member is available for the entire slot
-- no assigned faculty member has marked the concrete slot unavailable
 
 An explicit section time slot makes the assigned faculty available for that
-section at that time, but `UnavailableTimeSlot(...)` still excludes it.
+section at that time.
 
 Implementation details:
 
-- `faculty_availability` stores base teaching ranges only.
-- `faculty_time_slot_preferences` stores concrete slots from `AvoidTimeSlot`.
-- `faculty_unavailable_time_slots` stores concrete slots from `UnavailableTimeSlot`.
+- `faculty_availability` stores the union of available minutes as half-open daily ranges. The final five-minute cell starts at 23:55 and ends at 24:00. Weekly overlap approximates shared five-minute cells on actual semester dates.
+- `faculty_time_slot_preferences` exposes concrete slots from `AvoidTimeSlot`.
+- During seeding, `UnavailableTimeSlot` subtracts the named meeting’s weekday minutes from availability.
 - `assign_faculty_to_existing_section(...)` must not mutate availability. The explicit-section-time exception is applied in `time_slots_available_to_sections`.
 - `time_slots_available_to_faculty` intentionally does not know about section-specific explicit time slots.
 
@@ -318,11 +316,10 @@ Faculty preferences are created by `faculty_preferences(faculty, days_to_check, 
 
 `days_to_check` is a compact day string, usually `MT` in current computing data. It tells the solver which days should represent the weekly distribution pattern for preferences like day-off and evenly-spread requests.
 
-Priority behavior in `queries.py`:
+The seed and solver use the following ordering rules.
 
-- explicit and automatic stated faculty preference priorities live in the range
-  `10..99`; entropy balancing maps them to effective priorities `10..49`
-- if a preference omits `priority=...`, priorities are assigned in list order starting at `10`
+- Each request has a stable ID and unique position within its faculty list. Seed calls specify requests in order.
+- The database reads soft requests in position order and numbers them consecutively from 10 through at most 99. Entropy balancing assigns effective priorities from 10 through 49.
 - faculty preference rows only reach the solver for faculty who have at least one scheduleable section in `sections_to_be_scheduled`
 - `days_to_check` must contain at least two representative days for day-distribution preferences; `faculty_preferences(..., 'M', ...)` is not valid for `WantADayOff()`, `DoNotWantADayOff()`, or `WantClassesEvenlySpreadAcrossDays()`
 
@@ -386,16 +383,16 @@ Durations may be integers in minutes or strings like `2h45m`.
   Keeps the slot available but marks it as undesirable at the next faculty preference priority.
 
 - `UnavailableTimeSlot('TR1500+75')`
-  Removes the slot from faculty availability entirely. This is effectively a hard constraint.
+  Subtracts Tuesday and Thursday 15:00–16:15 from base availability during import. Any group-selected slot that overlaps those minutes becomes unavailable. An explicitly allowed section time still bypasses base availability for that section.
 
 ### Section-specific faculty preferences
 
 - `AvoidSectionInTimeSlots(section, [time_slot_or_tag, ...])`
-  Makes the listed time slots or time-slot tags undesirable for that specific section at the chosen preference priority.
+  Makes the listed time slots or time-slot tags undesirable for that specific section at its position in the preference list.
   Tags must resolve to existing time-slot tags or concrete time slots. The preference applies only to the intersection with the section's allowed time slots.
 
 - `AvoidSectionInRooms(section, [room_or_tag, ...])`
-  Makes the listed rooms or room tags undesirable for that specific section at the chosen preference priority.
+  Makes the listed rooms or room tags undesirable for that specific section at its position in the preference list.
   The preference applies only to the intersection with the section's allowed rooms.
 
 - `UseSameTimePattern([section_a, section_b, ...])`
@@ -403,10 +400,7 @@ Durations may be integers in minutes or strings like `2h45m`.
   In practice this compares section time patterns, not specific start times alone.
   Only use this when there are at least two sections and at least two distinct candidate time patterns across them; otherwise the SAT encoder treats it as invalid/trivial input.
 
-`UseSameTimePattern` is stored in `faculty_time_pattern_matches` and
-`faculty_time_pattern_match_sections` so the source faculty remains visible.
-Compatibility views named `time_pattern_matches` and
-`time_pattern_match_sections` keep the Rust input unchanged.
+Pattern requests own sets of sections in `preference_sections`. Solver-facing views identify each group by its request ID.
 
 ## Auditing input
 

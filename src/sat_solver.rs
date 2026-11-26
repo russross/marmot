@@ -591,7 +591,6 @@ mod tests {
             sections: vec![],
             criteria: vec![],
             time_slot_conflicts: vec![],
-            faculty_preference_priority_policy: crate::faculty_preferences::FacultyPreferencePriorityPolicy::Stated,
         };
         let criteria = SatCriteria::new();
         let mut limits = crate::score::Score::new();

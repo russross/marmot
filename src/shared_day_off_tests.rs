@@ -1,8 +1,8 @@
 #[cfg(feature = "sat")]
 use crate::cnf::Encoding;
+use crate::faculty_preferences::merge_shared_day_off_preferences;
 #[cfg(feature = "sat")]
 use crate::faculty_preferences::rebalance_faculty_preferences;
-use crate::faculty_preferences::{FacultyPreferencePriorityPolicy, merge_shared_day_off_preferences};
 use crate::input::{
     CreditHours, Days, Duration, Faculty, Input, Room, RoomWithOptionalPriority, Section, Time, TimeSlot,
     TimeSlotWithOptionalPriority,
@@ -60,7 +60,6 @@ pub fn owned_input() -> Input {
                 })
             })
             .collect(),
-        faculty_preference_priority_policy: FacultyPreferencePriorityPolicy::Stated,
         time_slot_conflicts: vec![vec![true, false, false], vec![false, true, false], vec![false, false, true]],
     }
 }
@@ -160,7 +159,6 @@ fn shared_day_off_sat_matches_scoring_with_one_joint_penalty() {
             preference.priority = 20;
         }
         if balanced {
-            input.faculty_preference_priority_policy = FacultyPreferencePriorityPolicy::EntropyBalancedV1;
             rebalance_faculty_preferences(&mut input, false).unwrap();
         }
         merge_shared_day_off_preferences(&mut input.criteria).unwrap();

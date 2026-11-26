@@ -13,7 +13,6 @@ pub struct SatOpts {
     pub search: Search,
     pub db_path: String,
     pub minimum_hallpasses: MinimumHallpasses,
-    pub balance_faculty_preferences: bool,
     pub show_faculty_preference_priorities: bool,
 }
 
@@ -30,7 +29,6 @@ impl Default for SatOpts {
             db_path: DEFAULT_DB_PATH.to_string(),
             minimum_hallpasses: MinimumHallpasses::default(),
             search: Search::Binary,
-            balance_faculty_preferences: true,
             show_faculty_preference_priorities: false,
         }
     }

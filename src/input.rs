@@ -1,7 +1,6 @@
 #![allow(clippy::collapsible_if)]
 
 use super::error::Result;
-use super::faculty_preferences::FacultyPreferencePriorityPolicy;
 use super::score::*;
 use std::fmt;
 use std::fmt::Write;
@@ -26,7 +25,6 @@ pub struct Input {
     pub faculty: Vec<Faculty>,
     pub sections: Vec<Section>,
     pub criteria: Vec<Criterion>,
-    pub faculty_preference_priority_policy: FacultyPreferencePriorityPolicy,
 
     // matrix of which time slots overlap which for fast lookup
     pub time_slot_conflicts: Vec<Vec<bool>>,

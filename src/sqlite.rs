@@ -1,9 +1,7 @@
 #![allow(clippy::collapsible_if)]
 
 use super::error::{Result, err};
-use super::faculty_preferences::{
-    FacultyPreferencePriorityPolicy, merge_shared_day_off_preferences, rebalance_faculty_preferences,
-};
+use super::faculty_preferences::{merge_shared_day_off_preferences, rebalance_faculty_preferences};
 use super::input::*;
 use super::preparation::*;
 use super::score::*;
@@ -13,17 +11,7 @@ use std::cmp::min;
 use std::collections::HashMap;
 use std::time::Instant;
 
-pub fn load_input(
-    db_path: &str,
-    departments: &[String],
-    faculty_preference_priority_policy: FacultyPreferencePriorityPolicy,
-    show_faculty_preference_priorities: bool,
-) -> Result<Input> {
-    if show_faculty_preference_priorities
-        && faculty_preference_priority_policy == FacultyPreferencePriorityPolicy::Stated
-    {
-        return err("--show-faculty-preference-priorities requires faculty preference balancing");
-    }
+pub fn load_input(db_path: &str, departments: &[String], show_faculty_preference_priorities: bool) -> Result<Input> {
     print!("loading input data");
     let start = Instant::now();
 
@@ -56,74 +44,26 @@ pub fn load_input(
         &mut criteria,
         departments,
     )?;
-    if faculty_preference_priority_policy == FacultyPreferencePriorityPolicy::EntropyBalancedV1 {
-        expand_bundled_faculty_preferences(&mut criteria);
-        load_owned_room_time_preferences(
-            &db,
-            &faculty,
-            &faculty_index,
-            &section_index,
-            &room_index,
-            &time_slot_index,
-            &mut criteria,
-            departments,
-        )?;
-    } else {
-        load_collapsed_room_time_preferences(&sections, &mut criteria);
-    }
-
+    expand_bundled_faculty_preferences(&mut criteria);
+    load_owned_room_time_preferences(
+        &db,
+        &faculty,
+        &faculty_index,
+        &section_index,
+        &room_index,
+        &time_slot_index,
+        &mut criteria,
+        departments,
+    )?;
     load_shared_day_off_preferences(&db, &faculty, &faculty_index, &mut criteria)?;
-    if faculty_preference_priority_policy == FacultyPreferencePriorityPolicy::Stated
-        && criteria.iter().any(|criterion| {
-            matches!(criterion,
-            Criterion::OwnedFacultyPreference(preference) if preference.priority > MAX_PRIORITY)
-        })
-    {
-        return err("faculty preference ranks above 49 require --balance-faculty-preferences true");
-    }
     println!(" took {}ms", start.elapsed().as_millis());
 
-    let mut input = Input {
-        term_name,
-        rooms,
-        time_slots,
-        faculty,
-        sections,
-        criteria,
-        faculty_preference_priority_policy,
-        time_slot_conflicts,
-    };
-    if faculty_preference_priority_policy == FacultyPreferencePriorityPolicy::EntropyBalancedV1 {
-        rebalance_faculty_preferences(&mut input, show_faculty_preference_priorities)?;
-    }
+    let mut input = Input { term_name, rooms, time_slots, faculty, sections, criteria, time_slot_conflicts };
+    rebalance_faculty_preferences(&mut input, show_faculty_preference_priorities)?;
     merge_shared_day_off_preferences(&mut input.criteria)?;
     compute_neighbors(&mut input.sections, &input.criteria);
 
     Ok(input)
-}
-
-fn load_collapsed_room_time_preferences(sections: &[Section], criteria: &mut Vec<Criterion>) {
-    for (section_index, section) in sections.iter().enumerate() {
-        let rooms_with_priorities: Vec<RoomWithPriority> = section
-            .rooms
-            .iter()
-            .filter_map(|option| option.priority.map(|priority| RoomWithPriority { room: option.room, priority }))
-            .collect();
-        if !rooms_with_priorities.is_empty() {
-            criteria.push(Criterion::RoomPreference { section: section_index, rooms_with_priorities });
-        }
-
-        let time_slots_with_priorities: Vec<TimeSlotWithPriority> = section
-            .time_slots
-            .iter()
-            .filter_map(|option| {
-                option.priority.map(|priority| TimeSlotWithPriority { time_slot: option.time_slot, priority })
-            })
-            .collect();
-        if !time_slots_with_priorities.is_empty() {
-            criteria.push(Criterion::TimeSlotPreference { section: section_index, time_slots_with_priorities });
-        }
-    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -973,7 +913,6 @@ pub fn save_schedule(
             SET score = ?,
             sort_score = ?,
             optimum_score_prefix = ?,
-            faculty_preference_priority_policy = ?,
             comment = ?,
             modified_at = DATETIME('now', 'localtime')
             WHERE placement_id = ?",
@@ -981,9 +920,8 @@ pub fn save_schedule(
         stmt.bind((1, format!("{}", schedule.score).as_str()))?;
         stmt.bind((2, schedule.score.sortable().as_str()))?;
         stmt.bind((3, optimum_score_prefix_json.as_str()))?;
-        stmt.bind((4, input.faculty_preference_priority_policy.database_name()))?;
-        stmt.bind((5, comment))?;
-        stmt.bind((6, id))?;
+        stmt.bind((4, comment))?;
+        stmt.bind((5, id))?;
         if stmt.next()? != State::Done {
             panic!("no rows expected for update");
         }
@@ -992,16 +930,15 @@ pub fn save_schedule(
         // create new base record and capture id
         let mut stmt = db.prepare(
             "INSERT INTO placements
-                (score, sort_score, optimum_score_prefix, faculty_preference_priority_policy,
+                (score, sort_score, optimum_score_prefix,
                  comment, created_at, modified_at)
-            VALUES (?, ?, ?, ?, ?, DATETIME('now', 'localtime'), DATETIME('now', 'localtime'))
+            VALUES (?, ?, ?, ?, DATETIME('now', 'localtime'), DATETIME('now', 'localtime'))
             RETURNING placement_id",
         )?;
         stmt.bind((1, format!("{}", schedule.score).as_str()))?;
         stmt.bind((2, schedule.score.sortable().as_str()))?;
         stmt.bind((3, optimum_score_prefix_json.as_str()))?;
-        stmt.bind((4, input.faculty_preference_priority_policy.database_name()))?;
-        stmt.bind((5, comment))?;
+        stmt.bind((4, comment))?;
         let mut id = -1;
         while stmt.next()? == State::Row {
             id = stmt.read(0)?;
@@ -1121,8 +1058,7 @@ pub fn load_schedule(
     let mut stmt = db.prepare(
         "SELECT placement_id, score, optimum_score_prefix
         FROM placements
-        WHERE faculty_preference_priority_policy = ?
-          AND (placement_id = ? OR ?)
+        WHERE placement_id = ? OR ?
         ORDER BY sort_score, modified_at DESC
         LIMIT 1",
     )?;
@@ -1131,20 +1067,15 @@ pub fn load_schedule(
     } else {
         (0, 1) // search by sort score
     };
-    stmt.bind((1, input.faculty_preference_priority_policy.database_name()))?;
-    stmt.bind((2, q_id))?;
-    stmt.bind((3, q_override))?;
+    stmt.bind((1, q_id))?;
+    stmt.bind((2, q_override))?;
 
     if let State::Row = stmt.next()? {
         placement_id = stmt.read(0)?;
         saved_score = stmt.read(1)?;
         optimum_score_prefix_json = stmt.read(2)?;
     } else {
-        return Err(format!(
-            "no placement found for faculty preference priority policy {}",
-            input.faculty_preference_priority_policy.database_name()
-        )
-        .into());
+        return err("no matching placement found");
     };
     if stmt.next()? != State::Done {
         panic!("multiple rows returned from single-row query");
@@ -1250,10 +1181,11 @@ mod shared_day_off_tests {
             "PRAGMA foreign_keys = ON;
             INSERT INTO departments VALUES ('Computing');
             INSERT INTO faculty VALUES ('A', 'Computing'), ('B', 'Computing');
-            INSERT INTO faculty_preferences VALUES
-                ('A', 'MT', NULL, NULL, NULL, NULL, NULL, 50),
-                ('B', 'MT', NULL, NULL, NULL, NULL, NULL, 50);
-            INSERT INTO faculty_shared_day_off_preferences VALUES ('A', 'B', 25), ('B', 'A', 21);
+            INSERT INTO faculty_preference_lists VALUES ('A', 'MT'), ('B', 'MT');
+            INSERT INTO faculty_preference_requests (faculty, position, kind)
+                VALUES ('A', 13, 'WantADayOff');
+            INSERT INTO faculty_preference_requests (faculty, position, kind, other_faculty)
+                VALUES ('A', 25, 'WantSameDayOffAs', 'B'), ('B', 21, 'WantSameDayOffAs', 'A');
             INSERT INTO courses VALUES ('CS 1000', 'Computing', 'Test', 3, 3);
             INSERT INTO sections VALUES ('CS 1000-01', 3), ('CS 1000-02', 3), ('CS 1000-03', 3);
             INSERT INTO time_slot_tags VALUES ('test');
@@ -1284,8 +1216,8 @@ mod shared_day_off_tests {
             unreachable!()
         };
         assert_eq!(*faculty, [0, 1]);
-        assert_eq!(*stated_priorities, [25, 21]);
-        assert_eq!(*priority, 25);
+        assert_eq!(*stated_priorities, [11, 10]);
+        assert_eq!(*priority, 11);
         assert_eq!(*sections, vec![0, 1, 2, 3]);
         assert!(input.sections.iter().all(|s| s.criteria == vec![0]));
         assert!(input.sections.iter().all(|s| s.neighbors.len() == 3));
@@ -1296,8 +1228,8 @@ mod shared_day_off_tests {
         let input = input();
         let names = HashMap::from([("A".to_string(), 0), ("B".to_string(), 1)]);
         for sql in [
-            "DELETE FROM faculty_shared_day_off_preferences WHERE faculty = 'B'",
-            "UPDATE faculty_preferences SET days_to_check = 'MW' WHERE faculty = 'B'",
+            "DELETE FROM faculty_preference_requests WHERE faculty = 'B'",
+            "UPDATE faculty_preference_lists SET days_to_check = 'MW' WHERE faculty = 'B'",
             "DELETE FROM section_time_slot_tags WHERE section = 'CS 1000-02'",
         ] {
             let db = database();

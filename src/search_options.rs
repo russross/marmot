@@ -12,7 +12,6 @@ pub struct GenOpts {
     pub bias_step: f64,
     pub dfs_depth: usize,
     pub fallback: bool,
-    pub balance_faculty_preferences: bool,
     pub show_faculty_preference_priorities: bool,
 }
 
@@ -31,7 +30,6 @@ impl Default for GenOpts {
             bias_step: 0.125,
             dfs_depth: 2,
             fallback: false,
-            balance_faculty_preferences: true,
             show_faculty_preference_priorities: false,
         }
     }

@@ -11,21 +11,6 @@ use std::time::Instant;
 
 const EFFECTIVE_PRIORITY_BUCKETS: usize = (MAX_PRIORITY - START_LEVEL_FOR_PREFERENCES + 1) as usize;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FacultyPreferencePriorityPolicy {
-    Stated,
-    EntropyBalancedV1,
-}
-
-impl FacultyPreferencePriorityPolicy {
-    pub fn database_name(self) -> &'static str {
-        match self {
-            Self::Stated => "stated",
-            Self::EntropyBalancedV1 => "entropy-balanced-v1",
-        }
-    }
-}
-
 #[derive(Clone)]
 struct PreferenceTier {
     faculty: usize,
@@ -1113,7 +1098,6 @@ mod tests {
                 preference(12, FacultyPreferenceKind::TooManyRooms { desired_max_rooms: 1 }),
                 preference(13, FacultyPreferenceKind::AvoidRooms { section: 0, rooms: vec![0] }),
             ],
-            faculty_preference_priority_policy: FacultyPreferencePriorityPolicy::EntropyBalancedV1,
             time_slot_conflicts: vec![vec![true, false, false], vec![false, true, false], vec![false, false, true]],
         };
         let tiers: Vec<PreferenceTier> = (0..4)

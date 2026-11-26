@@ -150,7 +150,7 @@ def build_faculty(db: DB) -> None:
     db.faculty_preferences('Jay Sneddon', 'MT',
         UnavailableTimeSlot('TR1500+75'),
         UnavailableTimeSlot('TR1630+75'),
-        AvoidTimeSlot('MWF0900+50', priority=11),
+        AvoidTimeSlot('MWF0900+50'),
         AvoidTimeSlot('MWF1000+50'),
         AvoidTimeSlot('MWF1100+50'),
         DoNotWantADayOff(),

@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from posted_schedule import PostedMeeting, supplemental_offerings
-from queries import DB
+from queries import AvoidSectionInRooms, AvoidTimeSlot, DB, TimeInterval, UnavailableTimeSlot
 from rooms import build_rooms, science_lecture_tag
 from timeslots import build_time_slots
 
@@ -27,6 +27,83 @@ class SchedulingInputTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.db.db.close()
         self.directory.cleanup()
+
+    def test_last_five_minutes_of_the_day(self) -> None:
+        self.db.make_faculty('Night', 'Test', [TimeInterval('M', '2355', '2400')])
+        for slot in ('M2350+5', 'M2355+5', 'M2350+10', 'T0000+5'):
+            self.db.make_time_slot(slot, [])
+        available = self.db.db.execute('SELECT time_slot FROM time_slots_available_to_faculty').fetchall()
+        self.assertEqual(available, [('M2355+5',)])
+        conflicts = self.db.db.execute(
+            "SELECT time_slot_b FROM conflicting_time_slots WHERE time_slot_a = 'M2355+5' ORDER BY time_slot_b"
+        ).fetchall()
+        self.assertEqual(conflicts, [('M2350+10',), ('M2355+5',)])
+
+        # Adjacent ranges cover the whole day, including the final cell.
+        self.db.make_faculty('All day', 'Test', [TimeInterval('M', 0, 1435), TimeInterval('M', 1435, 1440)])
+        self.assertEqual(self.db.db.execute(
+            "SELECT readable, duration FROM faculty_availability WHERE faculty = 'All day'"
+        ).fetchone(), ('M0000-2400', 1440))
+        for start, end in [('2400', '2405'), ('2355', '2355'), ('2360', '2400'), ('2356', '2400')]:
+            with self.assertRaises(ValueError):
+                TimeInterval('M', start, end)
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db.db.execute("INSERT INTO time_slots VALUES ('M2400+5')")
+
+    def test_edit_ordered_requests(self) -> None:
+        self.db.make_building('Hall')
+        self.db.make_room('Hall 1', 20, ['lab'])
+        self.db.make_time_slot('M0900+50', [])
+        self.db.make_time_slot('M1000+50', [])
+        self.db.make_faculty('Owner', 'Test', [TimeInterval('M', '0900', '1100')])
+        self.db.make_faculty_section('Owner', 'BIO 1000-01', 'M0900+50', 'lab')
+        self.db.faculty_preferences('Owner', 'MT',
+            AvoidSectionInRooms('BIO 1000-01', ['lab', 'Hall 1']),
+            UnavailableTimeSlot('M1000+50'),
+            AvoidTimeSlot('M0900+50'), AvoidTimeSlot('M0900+50'),
+        )
+        sql = self.db.db
+        request_id = sql.execute("SELECT request_id FROM faculty_preference_requests WHERE position = 1").fetchone()[0]
+        self.assertEqual(sql.execute(
+            'SELECT room_tag FROM preference_room_tags WHERE request_id = ? ORDER BY room_tag', (request_id,)
+        ).fetchall(), [('Hall 1',), ('lab',)])
+
+        # Move a multi-target request past both soft time requests. Gaps in
+        # positions do not affect the consecutive ranks.
+        sql.execute('UPDATE faculty_preference_requests SET position = 200 WHERE request_id = ?', (request_id,))
+        self.assertEqual(sql.execute(
+            'SELECT position, priority FROM ranked_faculty_requests ORDER BY position'
+        ).fetchall(), [(2, 10), (3, 11), (200, 12)])
+        self.assertEqual(sql.execute(
+            'SELECT preference_priority FROM faculty_time_preferences_to_be_scheduled ORDER BY preference_priority'
+        ).fetchall(), [(10,), (11,)])
+        self.assertEqual(sql.execute(
+            'SELECT preference_priority FROM faculty_room_preferences_to_be_scheduled'
+        ).fetchall(), [(12,)])
+
+        # Reject a tied position. Removing the first avoidance leaves the
+        # second one effective, and its rank is recomputed on the next read.
+        with self.assertRaises(sqlite3.IntegrityError):
+            sql.execute('UPDATE faculty_preference_requests SET position = 2 WHERE position = 3')
+        sql.execute('DELETE FROM faculty_preference_requests WHERE position = 2')
+        self.assertEqual(sql.execute('SELECT time_slot_priority FROM faculty_time_slot_preferences').fetchall(), [(10,)])
+
+    def test_import_subtracts_overlapping_minutes(self) -> None:
+        self.db.make_faculty('Owner', 'Test', [TimeInterval('MTW', '2300', '2400')])
+        for slot in ('MW2330+30', 'M2325+10', 'M2300+30', 'T2330+30'):
+            self.db.make_time_slot(slot, ['late'])
+        self.db.make_faculty_section('Owner', 'BIO 1000-01', 'late')
+        self.db.make_faculty_section('Owner', 'BIO 1000-02', 'M2325+10')
+        self.db.faculty_preferences('Owner', 'MT', UnavailableTimeSlot('MW2330+30'))
+
+        # Monday and Wednesday lose their final half hour; Tuesday is untouched.
+        sql = self.db.db
+        self.assertEqual(sql.execute('SELECT readable FROM faculty_availability ORDER BY day_of_week').fetchall(),
+                         [('M2300-2330',), ('T2300-2400',), ('W2300-2330',)])
+        self.assertEqual(sql.execute('SELECT COUNT(*) FROM faculty_preference_requests').fetchone(), (0,))
+        self.assertEqual(sql.execute(
+            'SELECT section, time_slot FROM time_slots_available_to_sections ORDER BY section, time_slot'
+        ).fetchall(), [('BIO 1000-01', 'M2300+30'), ('BIO 1000-01', 'T2330+30'), ('BIO 1000-02', 'M2325+10')])
 
     def test_supplemental_meetings_follow_shared_lecture(self) -> None:
         self.db.make_section_with_no_faculty('BIO 1000-01', 'MWF0900+50')

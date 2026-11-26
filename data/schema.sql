@@ -64,7 +64,7 @@ CREATE TABLE time_slots (
 
     CHECK (start_time >= 0 AND start_time % 5 = 0),
     CHECK (duration > 0 AND duration % 5 = 0),
-    CHECK (start_time + duration < 24*60),
+    CHECK (start_time + duration <= 24*60),
     CHECK (LENGTH(days) > 0 AND INSTR(days, '$') = 0 AND
         REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE('$'||days,
             '$M','$'), '$T','$'), '$W','$'), '$R','$'), '$F','$'), '$S','$'), '$U','$') = '$'),
@@ -121,101 +121,80 @@ CREATE TABLE faculty_availability (
     CHECK (day_of_week IN ('M', 'T', 'W', 'R', 'F', 'S', 'U')),
     CHECK (start_time >= 0 AND start_time % 5 = 0),
     CHECK (duration > 0 AND duration % 5 = 0),
-    CHECK (start_time + duration < 24*60),
+    CHECK (start_time + duration <= 24*60),
 
     PRIMARY KEY (faculty, day_of_week, start_time),
     FOREIGN KEY (faculty) REFERENCES faculty (faculty) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
 
--- Hard exclusions are concrete time slots, not intervals. Keeping them at the
--- same granularity as solver assignments makes the exclusion auditable and
--- lets explicit section times obey hard blocks.
-CREATE TABLE faculty_unavailable_time_slots (
-    faculty                     TEXT NOT NULL,
-    time_slot                   TEXT NOT NULL,
-
-    PRIMARY KEY (faculty, time_slot),
-    FOREIGN KEY (faculty) REFERENCES faculty (faculty) ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (time_slot) REFERENCES time_slots (time_slot) ON DELETE CASCADE ON UPDATE CASCADE
-) WITHOUT ROWID;
-
--- General faculty time preferences apply to concrete time slots, independent
--- of any one section. Section-specific time preferences are kept separately so
--- explicit section assignments can be audited without mutating availability.
-CREATE TABLE faculty_time_slot_preferences (
-    faculty                     TEXT NOT NULL,
-    time_slot                   TEXT NOT NULL,
-    time_slot_priority          INTEGER NOT NULL,
-
-    CHECK (time_slot_priority >= 10 AND time_slot_priority < 100),
-
-    PRIMARY KEY (faculty, time_slot),
-    FOREIGN KEY (faculty) REFERENCES faculty (faculty) ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (time_slot) REFERENCES time_slots (time_slot) ON DELETE CASCADE ON UPDATE CASCADE
-) WITHOUT ROWID;
-
--- One row stores the scalar faculty preferences that apply across the faculty
--- member's schedulable sections. Interval-shaped preferences are separated
--- below because a faculty member can have several gap/cluster rules.
-CREATE TABLE faculty_preferences (
-    faculty                     TEXT PRIMARY KEY,
-    days_to_check               TEXT NOT NULL,
-    days_off                    INTEGER,
-    days_off_priority           INTEGER,
-    evenly_spread_priority      INTEGER,
-    no_room_switch_priority     INTEGER,
-    too_many_rooms_priority     INTEGER,
-    max_gap_within_cluster      INTEGER NOT NULL,
-
+-- A list header also represents a faculty member who submitted an empty list.
+CREATE TABLE faculty_preference_lists (
+    faculty TEXT PRIMARY KEY REFERENCES faculty ON DELETE CASCADE ON UPDATE CASCADE,
+    days_to_check TEXT NOT NULL,
     CHECK (INSTR(days_to_check, '$') = 0 AND
         REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE('$'||days_to_check,
-            '$M','$'), '$T','$'), '$W','$'), '$R','$'), '$F','$'), '$S','$'), '$U','$') = '$'),
-    CHECK (days_off IS NULL OR days_off >= 0 AND days_off < 7),
-    CHECK (days_off_priority IS NULL OR days_off_priority >= 10 AND days_off_priority < 100),
-    CHECK (days_off_priority IS NULL AND days_off IS NULL OR days_off_priority IS NOT NULL AND days_off IS NOT NULL),
-    CHECK (days_off_priority IS NULL OR LENGTH(days_to_check) > 1),
-    CHECK (evenly_spread_priority IS NULL OR evenly_spread_priority >= 10 AND evenly_spread_priority < 100),
-    CHECK (evenly_spread_priority IS NULL OR LENGTH(days_to_check) > 1),
-    CHECK (no_room_switch_priority IS NULL OR no_room_switch_priority >= 10 AND no_room_switch_priority < 100),
-    CHECK (too_many_rooms_priority IS NULL OR too_many_rooms_priority >= 10 AND too_many_rooms_priority < 100),
-    CHECK (max_gap_within_cluster >= 0 AND max_gap_within_cluster < 120),
-
-    FOREIGN KEY (faculty) REFERENCES faculty (faculty) ON DELETE CASCADE ON UPDATE CASCADE
+            '$M','$'), '$T','$'), '$W','$'), '$R','$'), '$F','$'), '$S','$'), '$U','$') = '$')
 ) WITHOUT ROWID;
 
--- Each participant retains their own stated rank. A faculty member may belong
--- to only one reciprocal pair. The partner may be created later in the same
--- input transaction.
-CREATE TABLE faculty_shared_day_off_preferences (
-    faculty                     TEXT NOT NULL,
-    other_faculty               TEXT NOT NULL,
-    priority                    INTEGER NOT NULL CHECK (priority BETWEEN 10 AND 99),
-    PRIMARY KEY (faculty),
-    CHECK (faculty <> other_faculty),
-    FOREIGN KEY (faculty) REFERENCES faculty_preferences (faculty)
-        ON DELETE CASCADE ON UPDATE CASCADE DEFERRABLE INITIALLY DEFERRED,
-    FOREIGN KEY (other_faculty) REFERENCES faculty_preferences (faculty)
-        ON DELETE CASCADE ON UPDATE CASCADE DEFERRABLE INITIALLY DEFERRED
-) WITHOUT ROWID;
+-- Positions order the original requests. Target sets below belong to a request
+-- ID, so moving a request does not change its contents.
+CREATE TABLE faculty_preference_requests (
+    request_id INTEGER PRIMARY KEY,
+    faculty TEXT NOT NULL REFERENCES faculty_preference_lists ON DELETE CASCADE ON UPDATE CASCADE,
+    position INTEGER NOT NULL CHECK (typeof(position) = 'integer' AND position > 0),
+    kind TEXT NOT NULL CHECK (kind IN (
+        'WantADayOff', 'DoNotWantADayOff', 'WantSameDayOffAs',
+        'WantClassesEvenlySpreadAcrossDays', 'WantBackToBackClassesInTheSameRoom',
+        'WantClassesPackedIntoAsFewRoomsAsPossible', 'AvoidTimeSlot',
+        'AvoidSectionInRooms', 'AvoidSectionInTimeSlots', 'UseSameTimePattern',
+        'AvoidGapBetweenClassClustersShorterThan', 'AvoidGapBetweenClassClustersLongerThan',
+        'AvoidClassClusterShorterThan', 'AvoidClassClusterLongerThan'
+    )),
+    time_slot TEXT REFERENCES time_slots ON DELETE CASCADE ON UPDATE CASCADE,
+    section TEXT,
+    other_faculty TEXT REFERENCES faculty_preference_lists ON DELETE CASCADE ON UPDATE CASCADE DEFERRABLE INITIALLY DEFERRED,
+    minutes INTEGER,
+    UNIQUE (faculty, position),
+    UNIQUE (request_id, kind),
+    FOREIGN KEY (faculty, section) REFERENCES faculty_sections ON DELETE CASCADE ON UPDATE CASCADE,
+    CHECK ((time_slot IS NOT NULL) = (kind = 'AvoidTimeSlot')),
+    CHECK ((section IS NOT NULL) = (kind IN ('AvoidSectionInRooms', 'AvoidSectionInTimeSlots'))),
+    CHECK ((other_faculty IS NOT NULL) = (kind = 'WantSameDayOffAs') AND other_faculty IS NOT faculty),
+    CHECK ((minutes IS NOT NULL) = (kind IN (
+        'AvoidGapBetweenClassClustersShorterThan', 'AvoidGapBetweenClassClustersLongerThan',
+        'AvoidClassClusterShorterThan', 'AvoidClassClusterLongerThan'
+    )) AND (minutes IS NULL OR (typeof(minutes) = 'integer' AND minutes BETWEEN 51 AND 719)))
+);
 
--- Gap and cluster preferences share one compact shape. is_cluster chooses the
--- measured object, and is_too_short chooses which side of interval_minutes is a
--- violation.
-CREATE TABLE faculty_preference_intervals (
-    faculty                     TEXT NOT NULL,
-    is_cluster                  BOOLEAN NOT NULL,       -- true => cluster, false => gap
-    is_too_short                BOOLEAN NOT NULL,       -- true => too short, false => too long
-    interval_minutes            INTEGER NOT NULL,
-    interval_priority           INTEGER,
-    -- e.g., cluster shorter than 110 minutes with priority 16,
-    -- or    gap     longer  than 105 minutes with priority 11
+CREATE UNIQUE INDEX one_shared_day_off_request ON faculty_preference_requests (faculty)
+    WHERE kind = 'WantSameDayOffAs';
 
-    CHECK (interval_minutes > 0 AND interval_minutes < 24*60),
-    CHECK (interval_priority IS NULL OR interval_priority >= 10 AND interval_priority < 100),
+-- Validate the list after individual edits, including changes to its checked
+-- days. The current solver input accepts ninety soft ranks (10 through 99).
+CREATE VIEW invalid_faculty_preference_lists AS
+    SELECT faculty FROM faculty_preference_lists JOIN faculty_preference_requests USING (faculty)
+    GROUP BY faculty
+    HAVING COUNT(*) > 90
+        OR (LENGTH(days_to_check) < 2 AND COUNT(*) FILTER (WHERE kind IN
+            ('WantADayOff', 'DoNotWantADayOff', 'WantClassesEvenlySpreadAcrossDays', 'WantSameDayOffAs')) > 0);
 
-    PRIMARY KEY (faculty, is_cluster, is_too_short, interval_minutes),
-    FOREIGN KEY (faculty) REFERENCES faculty_preferences (faculty)
-) WITHOUT ROWID;
+CREATE TRIGGER validate_preference_insert AFTER INSERT ON faculty_preference_requests
+WHEN EXISTS (SELECT 1 FROM invalid_faculty_preference_lists WHERE faculty = NEW.faculty)
+BEGIN
+    SELECT RAISE(ABORT, 'faculty list exceeds 90 soft requests or lacks two days for a distribution request');
+END;
+
+CREATE TRIGGER validate_preference_update AFTER UPDATE OF kind, faculty ON faculty_preference_requests
+WHEN EXISTS (SELECT 1 FROM invalid_faculty_preference_lists WHERE faculty = NEW.faculty)
+BEGIN
+    SELECT RAISE(ABORT, 'faculty list exceeds 90 soft requests or lacks two days for a distribution request');
+END;
+
+CREATE TRIGGER validate_preference_days AFTER UPDATE OF days_to_check ON faculty_preference_lists
+WHEN EXISTS (SELECT 1 FROM invalid_faculty_preference_lists WHERE faculty = NEW.faculty)
+BEGIN
+    SELECT RAISE(ABORT, 'faculty list exceeds 90 soft requests or lacks two days for a distribution request');
+END;
 
 -- Courses own the department relationship used by solver filtering. The
 -- prefix and course_number generated columns keep catalog parsing local to the
@@ -311,7 +290,7 @@ CREATE TABLE section_room_tags (
 
 -- Section time tags define allowed time slots. A concrete time_slot used as a
 -- tag is an explicit section assignment; views decide how that interacts with
--- faculty availability and hard unavailable slots.
+-- faculty availability.
 CREATE TABLE section_time_slot_tags (
     section                     TEXT NOT NULL,
     time_slot_tag               TEXT NOT NULL,
@@ -335,34 +314,28 @@ CREATE TABLE faculty_sections (
 
 CREATE INDEX faculty_sections_section ON faculty_sections (section, faculty);
 
--- Section tags define which rooms/times are possible. These tables record
--- faculty-authored soft restrictions against those possible choices. The tag
--- can be broader or narrower than the section tag; views apply the preference
--- only to the actual room/time intersection.
-CREATE TABLE faculty_section_room_preferences (
-    faculty                     TEXT NOT NULL,
-    section                     TEXT NOT NULL,
-    room_tag                    TEXT NOT NULL,
-    room_priority               INTEGER NOT NULL,
-
-    CHECK (room_priority >= 10 AND room_priority < 100),
-
-    PRIMARY KEY (faculty, section, room_tag),
-    FOREIGN KEY (faculty, section) REFERENCES faculty_sections (faculty, section) ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (room_tag) REFERENCES room_tags (room_tag) ON DELETE CASCADE ON UPDATE CASCADE
+CREATE TABLE preference_room_tags (
+    request_id INTEGER NOT NULL,
+    room_tag TEXT NOT NULL REFERENCES room_tags ON DELETE CASCADE ON UPDATE CASCADE,
+    kind TEXT GENERATED ALWAYS AS ('AvoidSectionInRooms') VIRTUAL,
+    FOREIGN KEY (request_id, kind) REFERENCES faculty_preference_requests (request_id, kind) ON DELETE CASCADE,
+    PRIMARY KEY (request_id, room_tag)
 ) WITHOUT ROWID;
 
-CREATE TABLE faculty_section_time_slot_preferences (
-    faculty                     TEXT NOT NULL,
-    section                     TEXT NOT NULL,
-    time_slot_tag               TEXT NOT NULL,
-    time_slot_priority          INTEGER NOT NULL,
+CREATE TABLE preference_time_slot_tags (
+    request_id INTEGER NOT NULL,
+    time_slot_tag TEXT NOT NULL REFERENCES time_slot_tags ON DELETE CASCADE ON UPDATE CASCADE,
+    kind TEXT GENERATED ALWAYS AS ('AvoidSectionInTimeSlots') VIRTUAL,
+    FOREIGN KEY (request_id, kind) REFERENCES faculty_preference_requests (request_id, kind) ON DELETE CASCADE,
+    PRIMARY KEY (request_id, time_slot_tag)
+) WITHOUT ROWID;
 
-    CHECK (time_slot_priority >= 10 AND time_slot_priority < 100),
-
-    PRIMARY KEY (faculty, section, time_slot_tag),
-    FOREIGN KEY (faculty, section) REFERENCES faculty_sections (faculty, section) ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (time_slot_tag) REFERENCES time_slot_tags (time_slot_tag) ON DELETE CASCADE ON UPDATE CASCADE
+CREATE TABLE preference_sections (
+    request_id INTEGER NOT NULL,
+    section TEXT NOT NULL REFERENCES sections ON DELETE CASCADE ON UPDATE CASCADE,
+    kind TEXT GENERATED ALWAYS AS ('UseSameTimePattern') VIRTUAL,
+    FOREIGN KEY (request_id, kind) REFERENCES faculty_preference_requests (request_id, kind) ON DELETE CASCADE,
+    PRIMARY KEY (request_id, section)
 ) WITHOUT ROWID;
 
 -- Cross-listing data is split so the primary section is explicitly declared
@@ -411,29 +384,6 @@ CREATE TABLE anti_conflict_courses (
 
     PRIMARY KEY (anti_conflict_single, anti_conflict_course),
     FOREIGN KEY (anti_conflict_single) REFERENCES anti_conflicts (anti_conflict_single) ON DELETE CASCADE ON UPDATE CASCADE
-) WITHOUT ROWID;
-
--- Faculty time-pattern groups keep faculty provenance in the raw tables. The
--- compatibility views below derive global group names for the Rust input shape.
-CREATE TABLE faculty_time_pattern_matches (
-    faculty                     TEXT NOT NULL,
-    time_pattern_match_name     TEXT NOT NULL,
-    time_pattern_match_priority INTEGER NOT NULL,
-
-    CHECK (time_pattern_match_priority >= 10 AND time_pattern_match_priority < 100),
-
-    PRIMARY KEY (faculty, time_pattern_match_name),
-    FOREIGN KEY (faculty) REFERENCES faculty (faculty) ON DELETE CASCADE ON UPDATE CASCADE
-) WITHOUT ROWID;
-
-CREATE TABLE faculty_time_pattern_match_sections (
-    faculty                     TEXT NOT NULL,
-    time_pattern_match_name     TEXT NOT NULL,
-    time_pattern_match_section  TEXT NOT NULL,
-
-    PRIMARY KEY (faculty, time_pattern_match_name, time_pattern_match_section),
-    FOREIGN KEY (faculty, time_pattern_match_name) REFERENCES faculty_time_pattern_matches (faculty, time_pattern_match_name) ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (time_pattern_match_section) REFERENCES sections (section) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
 
 -- A conflict group is a named rule within one program. boost_priority means
@@ -572,12 +522,9 @@ CREATE TABLE placements (
     score                       TEXT NOT NULL,
     sort_score                  TEXT NOT NULL,
     optimum_score_prefix        TEXT NOT NULL,
-    faculty_preference_priority_policy TEXT NOT NULL DEFAULT 'stated',
     comment                     TEXT NOT NULL,
     created_at                  TEXT NOT NULL,
-    modified_at                 TEXT NOT NULL,
-
-    CHECK (faculty_preference_priority_policy IN ('stated', 'entropy-balanced-v1'))
+    modified_at                 TEXT NOT NULL
 );
 
 CREATE TABLE placement_sections (
@@ -806,6 +753,58 @@ END;
 -- faculty member can teach sections owned by another department.
 --
 
+-- The solver receives consecutive soft ranks starting at ten. Sparse UI
+-- positions are valid.
+CREATE VIEW ranked_faculty_requests AS
+    SELECT *, 9 + ROW_NUMBER() OVER (PARTITION BY faculty ORDER BY position) AS priority
+    FROM faculty_preference_requests;
+
+CREATE VIEW faculty_time_slot_preferences AS
+    SELECT faculty, time_slot, priority AS time_slot_priority FROM ranked_faculty_requests WHERE kind = 'AvoidTimeSlot';
+
+CREATE VIEW faculty_section_room_preferences AS
+    SELECT faculty, section, room_tag, priority AS room_priority
+    FROM ranked_faculty_requests JOIN preference_room_tags USING (request_id, kind);
+
+CREATE VIEW faculty_section_time_slot_preferences AS
+    SELECT faculty, section, time_slot_tag, priority AS time_slot_priority
+    FROM ranked_faculty_requests JOIN preference_time_slot_tags USING (request_id, kind);
+
+CREATE VIEW faculty_shared_day_off_preferences AS
+    SELECT faculty, other_faculty, priority FROM ranked_faculty_requests WHERE kind = 'WantSameDayOffAs';
+
+CREATE VIEW faculty_preference_intervals AS
+    SELECT faculty, kind LIKE 'AvoidClassCluster%' AS is_cluster, kind LIKE '%ShorterThan' AS is_too_short,
+           minutes AS interval_minutes, priority AS interval_priority
+    FROM ranked_faculty_requests WHERE minutes IS NOT NULL;
+
+-- Each scalar setting takes the last request for that setting, as in the
+-- seed API. Both directions of the day-off setting use the same rank.
+CREATE VIEW faculty_preferences AS
+    WITH settings AS (
+        SELECT faculty, days_to_check,
+               MAX(priority) FILTER (WHERE kind = 'WantADayOff') AS want,
+               MAX(priority) FILTER (WHERE kind = 'DoNotWantADayOff') AS avoid,
+               MAX(priority) FILTER (WHERE kind = 'WantClassesEvenlySpreadAcrossDays') AS evenly_spread_priority,
+               MAX(priority) FILTER (WHERE kind = 'WantBackToBackClassesInTheSameRoom') AS no_room_switch_priority,
+               MAX(priority) FILTER (WHERE kind = 'WantClassesPackedIntoAsFewRoomsAsPossible') AS too_many_rooms_priority
+        FROM faculty_preference_lists LEFT JOIN ranked_faculty_requests USING (faculty)
+        GROUP BY faculty
+    )
+    SELECT faculty, days_to_check,
+           CASE WHEN want IS NOT NULL OR avoid IS NOT NULL THEN COALESCE(want, 0) > COALESCE(avoid, 0) END AS days_off,
+           COALESCE(MAX(want, avoid), want, avoid) AS days_off_priority,
+           evenly_spread_priority, no_room_switch_priority, too_many_rooms_priority, 50 AS max_gap_within_cluster
+    FROM settings;
+
+CREATE VIEW faculty_time_pattern_matches AS
+    SELECT faculty, CAST(request_id AS TEXT) AS time_pattern_match_name, priority AS time_pattern_match_priority
+    FROM ranked_faculty_requests WHERE kind = 'UseSameTimePattern';
+
+CREATE VIEW faculty_time_pattern_match_sections AS
+    SELECT faculty, CAST(request_id AS TEXT) AS time_pattern_match_name, member.section AS time_pattern_match_section
+    FROM faculty_preference_requests JOIN preference_sections AS member USING (request_id, kind);
+
 -- Solver input keeps the old time-pattern shape. The raw tables keep faculty
 -- provenance, and the derived name prevents groups from different faculty from
 -- accidentally collapsing together.
@@ -849,7 +848,7 @@ CREATE VIEW faculty_time_preferences_to_be_scheduled
 
 CREATE VIEW faculty_room_preferences_to_be_scheduled
         (faculty, department, section, room, preference_priority) AS
-    SELECT pref.faculty, scheduled.department, scheduled.section,
+    SELECT DISTINCT pref.faculty, scheduled.department, scheduled.section,
            concrete.room, pref.room_priority
     FROM faculty_section_room_preferences AS pref
     JOIN faculty_sections_to_be_scheduled AS scheduled
@@ -950,7 +949,7 @@ CREATE VIEW sections_to_be_scheduled (
 
 -- The time slots that a section can be assigned to and the associated soft
 -- priority. Section tags define the allowed set. Faculty base availability,
--- hard unavailable slots, general time preferences, and section-specific time
+-- general time preferences, and section-specific time
 -- preferences are merged here into the solver-facing shape.
 --
 -- A row exists only when the concrete time slot is allowed by the section and
@@ -970,8 +969,7 @@ CREATE VIEW time_slots_available_to_sections (
 ) AS
     -- Expand section time-slot tags to concrete time slots. A tag that is
     -- identical to a concrete time_slot is an explicit assignment. Explicit
-    -- assignments can bypass base faculty availability for that section only,
-    -- but they do not bypass hard unavailability.
+    -- assignments can bypass base faculty availability for that section only.
     WITH section_time_slots (
         department,
         section,
@@ -1007,10 +1005,6 @@ CREATE VIEW time_slots_available_to_sections (
     -- sources of time penalties:
     --   * faculty_time_slot_priority from general faculty time preferences;
     --   * section_time_slot_priority from section-specific preferences.
-    --
-    -- time_slots_available_to_faculty excludes hard unavailable slots for base
-    -- availability. blocked is checked again here because explicit section
-    -- assignments can skip the base-availability row.
     per_faculty_inputs (department, section, faculty, time_slot, faculty_time_slot_priority, section_time_slot_priority) AS (
         SELECT  st.department,
                 st.section,
@@ -1023,9 +1017,6 @@ CREATE VIEW time_slots_available_to_sections (
         LEFT OUTER JOIN time_slots_available_to_faculty AS ft
             ON  ft.faculty = fs.faculty
             AND ft.time_slot = st.time_slot
-        LEFT OUTER JOIN faculty_unavailable_time_slots AS blocked
-            ON  blocked.faculty = fs.faculty
-            AND blocked.time_slot = st.time_slot
         -- General time preferences still apply when an explicit section time
         -- bypasses base faculty availability and therefore has no ft row.
         LEFT OUTER JOIN faculty_time_slot_preferences AS direct_pref
@@ -1036,10 +1027,8 @@ CREATE VIEW time_slots_available_to_sections (
             AND pref.section = st.section
             AND pref.time_slot = st.time_slot
         -- Explicit section times make the assigned faculty available for that
-        -- section/time without mutating base availability. Hard unavailable
-        -- slots still win and remove the option entirely.
-        WHERE blocked.faculty IS NULL
-        AND (ft.faculty IS NOT NULL OR st.explicitly_assigned = 1)
+        -- section/time without mutating base availability.
+        WHERE ft.faculty IS NOT NULL OR st.explicitly_assigned = 1
     ),
 
     -- Collapse the two penalty sources for one faculty member. NULL has
@@ -1061,9 +1050,9 @@ CREATE VIEW time_slots_available_to_sections (
 
     -- A section with multiple faculty can use a time only if every assigned
     -- faculty member has a row in per_faculty. This CTE counts the faculty who
-    -- survived availability and hard-unavailability filtering.
+    -- meet the availability condition.
     group_faculty (department, section, time_slot, time_slot_priority, faculty_assigned) AS (
-        SELECT department, section, time_slot, MIN(time_slot_priority), COUNT(faculty)
+        SELECT department, section, time_slot, MIN(time_slot_priority), COUNT(DISTINCT faculty)
         FROM per_faculty
         GROUP BY department, section, time_slot
     ),
@@ -1158,7 +1147,7 @@ CREATE VIEW rooms_used_by_departments (department, room, building, room_number, 
     
 -- Time slots that a course-owning department uses in solver input. Unlike
 -- rooms_used_by_departments, this uses time_slots_available_to_sections, so the
--- set is already filtered by faculty availability and hard unavailable slots.
+-- set is already filtered by faculty availability.
 -- Rust therefore loads only time slots that can actually be assigned to at
 -- least one selected section.
 CREATE VIEW time_slots_used_by_departments (department, time_slot, days, start_time, duration, first_day) AS
@@ -1173,8 +1162,7 @@ CREATE VIEW time_slots_used_by_departments (department, time_slot, days, start_t
 -- Raw faculty_availability stores day/time intervals. This view converts them
 -- to concrete time_slot rows only when the intervals cover every meeting minute
 -- of the time slot across all days in that time_slot. Partial coverage is not
--- enough. General faculty time preferences become penalties here; hard
--- unavailable concrete slots remove rows.
+-- enough. General faculty time preferences supply the penalties for covered slots.
 CREATE VIEW time_slots_available_to_faculty (faculty, time_slot, faculty_time_slot_priority) AS
     -- Compute how many meeting minutes of each concrete time_slot are covered
     -- by each overlapping availability interval.
@@ -1223,14 +1211,9 @@ CREATE VIEW time_slots_available_to_faculty (faculty, time_slot, faculty_time_sl
 
     SELECT base.faculty, base.time_slot, MIN(pref.time_slot_priority)
     FROM base_available AS base
-    LEFT OUTER JOIN faculty_unavailable_time_slots AS blocked
-        ON  blocked.faculty = base.faculty
-        AND blocked.time_slot = base.time_slot
     LEFT OUTER JOIN faculty_time_slot_preferences AS pref
         ON  pref.faculty = base.faculty
         AND pref.time_slot = base.time_slot
-    -- UnavailableTimeSlot is a hard exclusion, not a priority-0 penalty.
-    WHERE blocked.faculty IS NULL
     GROUP BY base.faculty, base.time_slot;
 
 -- Faculty assigned to schedulable sections. department is the course-owning

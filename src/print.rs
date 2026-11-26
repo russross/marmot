@@ -402,7 +402,6 @@ pub fn sec_to_string(seconds: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::faculty_preferences::FacultyPreferencePriorityPolicy;
 
     fn test_input(time_slots: &[(&str, u16, u16)]) -> Input {
         let time_slots: Vec<TimeSlot> = time_slots
@@ -438,7 +437,6 @@ mod tests {
             faculty: Vec::new(),
             sections,
             criteria: Vec::new(),
-            faculty_preference_priority_policy: FacultyPreferencePriorityPolicy::Stated,
             time_slot_conflicts: vec![vec![false; time_slot_count]; time_slot_count],
         }
     }

@@ -2326,7 +2326,6 @@ fn encode_faculty_too_many_rooms(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::faculty_preferences::FacultyPreferencePriorityPolicy;
     use crate::input::{Faculty, Room, Section, Time, TimeSlot, TimeSlotWithOptionalPriority};
 
     fn section(name: &str, time_slot: usize, rooms: &[usize]) -> Section {
@@ -2377,7 +2376,6 @@ mod tests {
             faculty: vec![Faculty { name: "Faculty".to_string(), sections: vec![0, 1, 2] }],
             sections: vec![section("A", 0, &[0, 1]), section("B", 1, &[]), section("C", 2, &[0, 1])],
             criteria: vec![],
-            faculty_preference_priority_policy: FacultyPreferencePriorityPolicy::Stated,
             time_slot_conflicts: vec![vec![true, false, false], vec![false, true, false], vec![false, false, true]],
         };
         let mut encoding = Encoding::new();
@@ -2425,7 +2423,6 @@ mod tests {
             faculty: vec![Faculty { name: "Faculty".to_string(), sections: vec![0, 1, 2] }],
             sections: vec![section("A", 0, &[0, 1]), section("B", 1, &[0, 1]), section("C", 2, &[0, 1])],
             criteria: vec![],
-            faculty_preference_priority_policy: FacultyPreferencePriorityPolicy::Stated,
             time_slot_conflicts: vec![vec![true, false, false], vec![false, true, false], vec![false, false, true]],
         };
         let mut encoding = Encoding::new();

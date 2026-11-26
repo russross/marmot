@@ -107,10 +107,7 @@ A “cluster” is a run of one or more sections with no break longer than 50 mi
 ### Time preferences for a faculty's overall schedule
 
 *   AvoidTimeSlot('MWF0900+50'): prefer not to teach in this specific time slot. Each request names one existing time slot; list multiple requests in priority order to avoid several slots. This does not cover other slots that happen to overlap it.
-*   UnavailableTimeSlot('TR1500+75'): make a concrete time slot
-    unavailable. This is a hard exclusion, not a soft preference.
-    If a section is explicitly assigned to that slot, the unavailable
-    request still wins and the audit should catch the conflict. Like AvoidTimeSlot, this names a specific slot rather than blocking every overlapping slot. It is a requirement rather than a preference to balance against other faculty's requests.
+*   UnavailableTimeSlot('TR1500+75') removes Tuesdays and Thursdays from 15:00 up to 16:15 from your availability during import. This also rules out group-selected meetings that overlap any of those minutes. A meeting time explicitly listed for an individual section still takes precedence for that section.
 
 
 ### Section-specific requests
