@@ -104,6 +104,11 @@ CREATE TABLE programs (
 CREATE TABLE faculty (
     faculty                     TEXT PRIMARY KEY,
     affiliation                 TEXT NOT NULL,
+    faculty_id                  TEXT CHECK (length(CAST(faculty_id AS BLOB)) = 8 AND faculty_id GLOB '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'),
+    phone                       TEXT,
+    minimum_workload_credits    REAL CHECK (typeof(minimum_workload_credits) IN ('null', 'real') AND minimum_workload_credits >= 0),
+    maximum_workload_credits    REAL CHECK (typeof(maximum_workload_credits) IN ('null', 'real') AND maximum_workload_credits >= 0),
+    CHECK (minimum_workload_credits <= maximum_workload_credits),
 
     FOREIGN KEY (affiliation) REFERENCES departments (department) ON DELETE CASCADE ON UPDATE CASCADE
 ) WITHOUT ROWID;
@@ -196,6 +201,15 @@ BEGIN
     SELECT RAISE(ABORT, 'faculty list exceeds 90 soft requests or lacks two days for a distribution request');
 END;
 
+-- Multipliers suggest faculty credits and 50-minute meeting hours per student
+-- credit. Scheduling still depends on the section's actual room and time tags.
+CREATE TABLE course_formats (
+    course_format               TEXT PRIMARY KEY,
+    workload_multiplier         REAL CHECK (typeof(workload_multiplier) IN ('null', 'real') AND workload_multiplier >= 0),
+    meeting_time_multiplier     REAL CHECK (typeof(meeting_time_multiplier) IN ('null', 'real') AND meeting_time_multiplier >= 0),
+    has_scheduled_meetings      INTEGER CHECK (has_scheduled_meetings IN (0, 1))
+) WITHOUT ROWID;
+
 -- Courses own the department relationship used by solver filtering. The
 -- prefix and course_number generated columns keep catalog parsing local to the
 -- natural course key instead of duplicating it in input data.
@@ -205,6 +219,7 @@ CREATE TABLE courses (
     course_name                 TEXT NOT NULL,
     minimum_credit_hours        REAL NOT NULL,
     maximum_credit_hours        REAL NOT NULL,
+    course_format               TEXT REFERENCES course_formats ON UPDATE CASCADE,
     prefix                      TEXT GENERATED ALWAYS AS (SUBSTR(course, 1, INSTR(course, ' ') - 1)) VIRTUAL NOT NULL,
     course_number               TEXT GENERATED ALWAYS AS (SUBSTR(course, INSTR(course, ' ') + 1)) VIRTUAL NOT NULL,
 
@@ -254,11 +269,15 @@ CREATE TABLE coreqs (
 -- COURSE-SECTION string.
 CREATE TABLE sections (
     section                     TEXT PRIMARY KEY,
-    credit_hours                REAL NOT NULL,
+    credit_hours                REAL,
+    workload_factor             REAL CHECK (typeof(workload_factor) IN ('null', 'real') AND workload_factor >= 0),
+    seats_capacity              INTEGER CHECK (typeof(seats_capacity) IN ('null', 'integer') AND seats_capacity >= 0),
+    waitlist_capacity           INTEGER CHECK (typeof(waitlist_capacity) IN ('null', 'integer') AND waitlist_capacity >= 0),
+    campus                      TEXT,
     course                      TEXT GENERATED ALWAYS AS (SUBSTR(section, 1, INSTR(section, '-') - 1)) VIRTUAL NOT NULL,
     section_number              TEXT GENERATED ALWAYS AS (SUBSTR(section, INSTR(section, '-') + 1)) VIRTUAL NOT NULL,
 
-    CHECK (credit_hours >= 0),
+    CHECK (typeof(credit_hours) IN ('null', 'real') AND credit_hours >= 0),
     CHECK (LENGTH(course) >= 6),
     CHECK (LENGTH(section_number) >= 2),
     CHECK (course || '-' || section_number = section),

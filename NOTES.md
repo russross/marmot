@@ -59,9 +59,13 @@ The inspected `data/timetable.db` contains 334 courses, 82 sections, 61 distinct
 
 `data/scrape` fetches course descriptions for the configured prefixes, extracts credits, rotations, and referenced prerequisite/corequisite course codes, adds corrections, and emits `courses.py`. It flattens prerequisite Boolean expressions into edges. Concurrently permitted prerequisites are represented in both `prereqs` and `coreqs`. Senior-project prerequisite additions and ECE/MTRN corequisite corrections live inside the scraper. These corrections are policy/data inputs that must become visible records.
 
-`data/queries.py` populates SQLite through a transaction. Section names encode their course; fixed-credit courses infer section credits, while variable-credit courses require a value. Room/time tags define allowed sets. Exact time-slot tags can bypass an assigned faculty member's base availability for that section only. All assigned faculty must be available. Soft room/time preferences intersect allowed options and never add options.
+`data/queries.py` populates SQLite through a transaction. Section names encode their course; omitting credits infers the fixed catalog value when one exists. Explicit NULL records unknown credits. Room/time tags define allowed sets. Exact time-slot tags can bypass an assigned faculty member's base availability for that section only. All assigned faculty must be available. Soft room/time preferences intersect allowed options and never add options.
 
 `sections_to_be_scheduled` selects sections with time tags and maps cross-listed aliases to their primary section. Sections without time tags remain in the database and count toward multiple-section discounts. Secondary cross-listed sections cannot own faculty, room tags, or time tags. The present model has one repeated weekly meeting pattern and at most one assigned room per scheduled section.
+
+Faculty IDs preserve eight digits including leading zeros. Faculty phone and workload bounds, course format, and section credits, actual workload, capacities, and campus are optional planning inputs. Each format can supply faculty workload credits and 50-minute meeting hours per student credit and indicate whether meetings are normally scheduled. An editor can suggest credits times the workload multiplier. The saved section workload is the total, can differ from that suggestion, and survives later format edits. Meeting flags, workload, and capacities do not change placement domains or scores.
+
+The spreadsheet exporter uses each registration listing's own credits, workload, capacities, campus, and course format, and the primary instructor's ID. Unknown credits and workload export as blank. Missing capacities, campus, format, and ID retain the exporter's existing defaults where available.
 
 ### Curriculum to conflict pairs
 

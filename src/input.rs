@@ -54,7 +54,7 @@ pub struct Section {
     // e.g.,: "CS 1410-02"
     pub name: String,
 
-    pub credit_hours: CreditHours,
+    pub credit_hours: Option<CreditHours>,
 
     // rooms (if any) and times available for this section
     pub rooms: Vec<RoomWithOptionalPriority>,

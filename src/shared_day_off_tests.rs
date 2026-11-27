@@ -38,7 +38,7 @@ pub fn owned_input() -> Input {
         sections: (0..4)
             .map(|i| Section {
                 name: format!("S{i}"),
-                credit_hours: CreditHours::new(3.0),
+                credit_hours: Some(CreditHours::new(3.0)),
                 rooms: (0..2).map(|room| RoomWithOptionalPriority { room, priority: None }).collect(),
                 time_slots: (0..3)
                     .map(|time_slot| TimeSlotWithOptionalPriority { time_slot, priority: None })

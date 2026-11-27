@@ -135,7 +135,8 @@ The current computing input uses four layers of data.
 `data/courses.py` creates departments and courses with:
 
 - `make_department(department)`
-- `make_course(department, course, course_name, minimum_credit_hours, maximum_credit_hours)`
+- `make_course_format(course_format, *, workload_multiplier=None, meeting_time_multiplier=None, has_scheduled_meetings=None)`
+- `make_course(department, course, course_name, minimum_credit_hours, maximum_credit_hours, *, course_format=None)`
 - `add_course_rotation(course, rotation)`
 - optionally prereqs/coreqs
 
@@ -167,8 +168,8 @@ This file is the department-wide constraint vocabulary that faculty input builds
 The main calls are:
 
 - `make_faculty(name, department, available_intervals)`
-- `make_faculty_section(faculty, section, *tags, credit_hours=None)`
-- `make_section_with_no_faculty(section, *tags, credit_hours=None)`
+- `make_faculty_section(faculty, section, *tags, **section_metadata)`
+- `make_section_with_no_faculty(section, *tags, **section_metadata)`
 - `assign_faculty_to_existing_section(faculty, section)`
 
 ### 4. Faculty preferences
@@ -274,10 +275,7 @@ Implementation details:
 Section credit hours
 --------------------
 
-Every section stores one exact credit value. The section creation handlers infer it for a
-fixed-credit catalog course. A variable-credit course must pass `credit_hours=...`; input
-validation rejects a missing value or one outside the catalog range. Faculty assignment to
-an existing shared section does not set credits because the section creator owns that value.
+Section creation infers fixed catalog credits when the argument is omitted. Omitted variable credits and explicit `credit_hours=None` store NULL. Supplied numbers must be within the catalog range. Each listing owns its actual workload total, including any override of the expected credits times course-format multiplier.
 
 ## Faculty availability input
 

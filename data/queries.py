@@ -1,11 +1,17 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
+from enum import Enum, auto
 from functools import wraps
 import math
 import sqlite3
 from typing import Callable, Concatenate, TypeVar, Optional, ParamSpec, Protocol
 
 MIN_PREF_PRIORITY = 10
+
+# Omitted credits can use a fixed catalog value. Explicit None records unknown credits.
+class CreditDefault(Enum):
+    CATALOG = auto()
+
 
 @dataclass
 class FacultyPreferences:
@@ -262,8 +268,16 @@ class DB:
             self.db.execute('INSERT INTO faculty_availability VALUES (?, ?, ?, ?)', (faculty, letter, start_minute, duration))
 
     @rollback_on_exception
-    def make_faculty(self, faculty: str, department: str, available: list[TimeInterval]) -> None:
-        self.db.execute('INSERT INTO faculty VALUES (?, ?)', (faculty, department))
+    def make_faculty(
+        self, faculty: str, department: str, available: list[TimeInterval], *,
+        faculty_id: str | None = None, phone: str | None = None,
+        minimum_workload_credits: float | None = None, maximum_workload_credits: float | None = None,
+    ) -> None:
+        self.db.execute(
+            'INSERT INTO faculty (faculty, affiliation, faculty_id, phone, minimum_workload_credits, maximum_workload_credits) '
+            'VALUES (?, ?, ?, ?, ?, ?)',
+            (faculty, department, faculty_id, phone, minimum_workload_credits, maximum_workload_credits),
+        )
         self._update_availability(faculty, available)
 
     @rollback_on_exception
@@ -335,6 +349,17 @@ class DB:
                 raise ValueError(f'{label} requires schedulable sections for both faculty')
 
     @rollback_on_exception
+    def make_course_format(
+        self, course_format: str, *, workload_multiplier: float | None = None,
+        meeting_time_multiplier: float | None = None, has_scheduled_meetings: bool | None = None,
+    ) -> None:
+        self.db.execute(
+            'INSERT INTO course_formats (course_format, workload_multiplier, meeting_time_multiplier, has_scheduled_meetings) '
+            'VALUES (?, ?, ?, ?)',
+            (course_format, workload_multiplier, meeting_time_multiplier, has_scheduled_meetings),
+        )
+
+    @rollback_on_exception
     def make_course(
         self,
         department: str,
@@ -342,10 +367,12 @@ class DB:
         course_name: str,
         minimum_credit_hours: float,
         maximum_credit_hours: float,
+        *, course_format: str | None = None,
     ) -> None:
         self.db.execute(
-            'INSERT INTO courses VALUES (?, ?, ?, ?, ?)',
-            (course, department, course_name, minimum_credit_hours, maximum_credit_hours),
+            'INSERT INTO courses (course, department, course_name, minimum_credit_hours, maximum_credit_hours, course_format) '
+            'VALUES (?, ?, ?, ?, ?, ?)',
+            (course, department, course_name, minimum_credit_hours, maximum_credit_hours, course_format),
         )
 
     @rollback_on_exception
@@ -367,7 +394,11 @@ class DB:
         self,
         section: str,
         *tags: str,
-        credit_hours: float | None = None,
+        credit_hours: float | None | CreditDefault = CreditDefault.CATALOG,
+        workload_factor: float | None = None,
+        seats_capacity: int | None = None,
+        waitlist_capacity: int | None = None,
+        campus: str | None = None,
     ) -> None:
         course, separator, section_number = section.rpartition('-')
         if not separator or not section_number:
@@ -379,24 +410,24 @@ class DB:
         if row is None:
             raise RuntimeError(f'section {section!r} uses unknown course {course!r}')
         minimum_credit_hours, maximum_credit_hours = row
-        if credit_hours is None:
-            if minimum_credit_hours != maximum_credit_hours:
+        if isinstance(credit_hours, CreditDefault):
+            credit_hours = minimum_credit_hours if minimum_credit_hours == maximum_credit_hours else None
+        if credit_hours is not None:
+            if isinstance(credit_hours, bool) or not isinstance(credit_hours, (int, float)):
+                raise RuntimeError(f'section {section!r} credit_hours must be a number')
+            credit_hours = float(credit_hours)
+            if not math.isfinite(credit_hours):
+                raise RuntimeError(f'section {section!r} credit_hours must be finite')
+            if not minimum_credit_hours <= credit_hours <= maximum_credit_hours:
                 raise RuntimeError(
-                    f'section {section!r} must specify credit_hours between '
-                    f'{minimum_credit_hours:g} and {maximum_credit_hours:g}'
+                    f'section {section!r} credit_hours {credit_hours:g} is outside the catalog '
+                    f'range {minimum_credit_hours:g}-{maximum_credit_hours:g}'
                 )
-            credit_hours = minimum_credit_hours
-        if isinstance(credit_hours, bool) or not isinstance(credit_hours, (int, float)):
-            raise RuntimeError(f'section {section!r} credit_hours must be a number')
-        credit_hours = float(credit_hours)
-        if not math.isfinite(credit_hours):
-            raise RuntimeError(f'section {section!r} credit_hours must be finite')
-        if not minimum_credit_hours <= credit_hours <= maximum_credit_hours:
-            raise RuntimeError(
-                f'section {section!r} credit_hours {credit_hours:g} is outside the catalog '
-                f'range {minimum_credit_hours:g}-{maximum_credit_hours:g}'
-            )
-        self.db.execute('INSERT INTO sections VALUES (?, ?)', (section, credit_hours))
+        self.db.execute(
+            'INSERT INTO sections (section, credit_hours, workload_factor, seats_capacity, waitlist_capacity, campus) '
+            'VALUES (?, ?, ?, ?, ?, ?)',
+            (section, credit_hours, workload_factor, seats_capacity, waitlist_capacity, campus),
+        )
         for tag in tags:
             (room_tags,) = self.db.execute('SELECT COUNT(1) FROM room_tags WHERE room_tag = ?', (tag,)).fetchone()
             (time_slot_tags,) = self.db.execute('SELECT COUNT(1) FROM time_slot_tags WHERE time_slot_tag = ?', (tag,)).fetchone()
@@ -437,9 +468,16 @@ class DB:
         faculty: str,
         section: str,
         *tags: str,
-        credit_hours: float | None = None,
+        credit_hours: float | None | CreditDefault = CreditDefault.CATALOG,
+        workload_factor: float | None = None,
+        seats_capacity: int | None = None,
+        waitlist_capacity: int | None = None,
+        campus: str | None = None,
     ) -> None:
-        self.make_section_with_no_faculty(section, *tags, credit_hours=credit_hours)
+        self.make_section_with_no_faculty(
+            section, *tags, credit_hours=credit_hours, workload_factor=workload_factor,
+            seats_capacity=seats_capacity, waitlist_capacity=waitlist_capacity, campus=campus,
+        )
         self.assign_faculty_to_existing_section(faculty, section)
 
     @rollback_on_exception

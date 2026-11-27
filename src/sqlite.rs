@@ -317,7 +317,7 @@ pub fn load_sections(
             let new_section_name: String = stmt.read(0)?;
             let time_slot_name: String = stmt.read(1)?;
             let priority: Option<i64> = stmt.read(2)?;
-            let credit_hours = CreditHours::new(stmt.read(3)?);
+            let credit_hours = stmt.read::<Option<f64>, _>(3)?.map(CreditHours::new);
 
             // is this a new section?
             if new_section_name != section_name {
@@ -1180,14 +1180,14 @@ mod shared_day_off_tests {
         db.execute(
             "PRAGMA foreign_keys = ON;
             INSERT INTO departments VALUES ('Computing');
-            INSERT INTO faculty VALUES ('A', 'Computing'), ('B', 'Computing');
+            INSERT INTO faculty (faculty, affiliation) VALUES ('A', 'Computing'), ('B', 'Computing');
             INSERT INTO faculty_preference_lists VALUES ('A', 'MT'), ('B', 'MT');
             INSERT INTO faculty_preference_requests (faculty, position, kind)
                 VALUES ('A', 13, 'WantADayOff');
             INSERT INTO faculty_preference_requests (faculty, position, kind, other_faculty)
                 VALUES ('A', 25, 'WantSameDayOffAs', 'B'), ('B', 21, 'WantSameDayOffAs', 'A');
-            INSERT INTO courses VALUES ('CS 1000', 'Computing', 'Test', 3, 3);
-            INSERT INTO sections VALUES ('CS 1000-01', 3), ('CS 1000-02', 3), ('CS 1000-03', 3);
+            INSERT INTO courses (course, department, course_name, minimum_credit_hours, maximum_credit_hours) VALUES ('CS 1000', 'Computing', 'Test', 3, 3);
+            INSERT INTO sections (section, credit_hours) VALUES ('CS 1000-01', 3), ('CS 1000-02', 3), ('CS 1000-03', 3);
             INSERT INTO time_slot_tags VALUES ('test');
             INSERT INTO section_time_slot_tags VALUES ('CS 1000-01', 'test'), ('CS 1000-02', 'test');
             INSERT INTO faculty_sections VALUES ('A', 'CS 1000-01'), ('B', 'CS 1000-02'), ('B', 'CS 1000-03');",

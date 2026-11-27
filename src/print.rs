@@ -293,7 +293,7 @@ pub fn dump_input(departments: &[String], input: &Input) {
         print!(
             "section {} ({}), with {} rooms and {} times",
             section.name,
-            section.credit_hours,
+            section.credit_hours.map_or_else(|| "credits unknown".to_string(), |credits| credits.to_string()),
             section.rooms.len(),
             section.time_slots.len()
         );
@@ -416,7 +416,7 @@ mod tests {
         let sections = (0..time_slots.len())
             .map(|index| Section {
                 name: format!("Section {index}"),
-                credit_hours: CreditHours::new(3.0),
+                credit_hours: Some(CreditHours::new(3.0)),
                 rooms: Vec::new(),
                 time_slots: Vec::new(),
                 faculty: Vec::new(),

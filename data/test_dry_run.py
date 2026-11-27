@@ -28,6 +28,30 @@ class SchedulingInputTests(unittest.TestCase):
         self.db.db.close()
         self.directory.cleanup()
 
+    def test_advisory_fields_do_not_control_placement(self) -> None:
+        self.db.make_course_format('INV', workload_multiplier=0.75, meeting_time_multiplier=0, has_scheduled_meetings=False)
+        self.db.make_course('Test', 'BIO 3000', 'Directed study', 1, 3, course_format='INV')
+        self.db.make_faculty('A', 'Test', [], faculty_id='00001234', phone='ext. 24', maximum_workload_credits=0)
+        self.db.make_faculty_section('A', 'BIO 3000-01', 'M0900+50', credit_hours=3, workload_factor=2.25,
+                                     seats_capacity=0, waitlist_capacity=7, campus='A01')
+        self.db.make_section_with_no_faculty('BIO 3000-02', 'M0900+50')
+        self.db.make_section_with_no_faculty('BIO 1000-01', 'M0900+50', credit_hours=None)
+
+        # Editing the course default leaves the saved workload and placement choices intact.
+        sql = self.db.db
+        sql.execute("UPDATE course_formats SET workload_multiplier = 1 WHERE course_format = 'INV'")
+        self.assertEqual(sql.execute('SELECT faculty_id, phone, minimum_workload_credits, maximum_workload_credits FROM faculty').fetchone(),
+                         ('00001234', 'ext. 24', None, 0))
+        self.assertEqual(sql.execute("SELECT workload_factor, seats_capacity, waitlist_capacity, campus FROM sections WHERE section = 'BIO 3000-01'").fetchone(),
+                         (2.25, 0, 7, 'A01'))
+        self.assertEqual(sql.execute('SELECT section, credit_hours FROM time_slots_available_to_sections ORDER BY section').fetchall(),
+                         [('BIO 1000-01', None), ('BIO 3000-01', 3), ('BIO 3000-02', None)])
+        for invalid_id in ('1234567', '123456789', '1234567A'):
+            with self.assertRaises(sqlite3.IntegrityError):
+                sql.execute('UPDATE faculty SET faculty_id = ?', (invalid_id,))
+        with self.assertRaises(sqlite3.IntegrityError):
+            sql.execute("UPDATE courses SET course_format = 'unknown'")
+
     def test_last_five_minutes_of_the_day(self) -> None:
         self.db.make_faculty('Night', 'Test', [TimeInterval('M', '2355', '2400')])
         for slot in ('M2350+5', 'M2355+5', 'M2350+10', 'T0000+5'):

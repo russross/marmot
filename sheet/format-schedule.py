@@ -154,7 +154,18 @@ from xlsxwriter.format import Format
 from xlsxwriter.worksheet import Worksheet
 
 type BlockSessions = tuple[str, str]
-type RawSection = tuple[str | None, str, str | None, str | None, str, str, float]
+@dataclass(frozen=True)
+class Listing:
+    title: str
+    credits: float | None
+    workload: float | None
+    seats: int | None
+    waitlist: int | None
+    campus: str | None
+    course_format: str | None
+
+
+type RawSection = tuple[str | None, str, str | None, str | None, str, Listing, str | None]
 
 YELLOW = '#FFFF50'
 GREEN = '#63BB36'
@@ -243,8 +254,22 @@ def get_new(filename: str, id: int) -> tuple[list[RawSection], BlockSessions]:
         print(f'Error: {error}')
         sys.exit(1)
 
-    course_titles = dict(db.execute('SELECT course, course_name FROM courses'))
-    section_credits = dict(db.execute('SELECT section, credit_hours FROM sections'))
+    # Older saved placements predate the optional planning columns.
+    columns = {row[1] for row in db.execute('PRAGMA table_info(sections)')}
+    planning_columns = (
+        's.workload_factor, s.seats_capacity, s.waitlist_capacity, s.campus, c.course_format'
+        if 'workload_factor' in columns else 'NULL, NULL, NULL, NULL, NULL'
+    )
+    listings = {
+        section: Listing(*fields)
+        for section, *fields in db.execute(f"""
+            SELECT s.section, c.course_name, s.credit_hours, {planning_columns}
+            FROM sections AS s JOIN courses AS c USING (course)
+        """)
+    }
+    faculty_ids: dict[str, str] = {}
+    if 'faculty_id' in {row[1] for row in db.execute('PRAGMA table_info(faculty)')}:
+        faculty_ids.update(db.execute('SELECT faculty, faculty_id FROM faculty WHERE faculty_id IS NOT NULL'))
     cross_listings: dict[str, list[str]] = {}
     for secondary, primary in db.execute('''
             SELECT section, primary_section
@@ -309,27 +334,24 @@ def get_new(filename: str, id: int) -> tuple[list[RawSection], BlockSessions]:
                     xlist += '; '
                 xlist += f'team teach w/{name}'
 
-        course_key = section[:section.index('-')]
-        title = course_titles.get(course_key, '')
+        faculty_id = faculty_ids.get(primary) if primary else None
         secondary_sections = cross_listings.get(section, [])
         primary_annotations = [xlist] if xlist else []
         primary_annotations.extend(f'xlist with {secondary}' for secondary in secondary_sections)
-        lst.append((primary, section, room, time_slot, '; '.join(primary_annotations), title,
-                    section_credits[section]))
+        lst.append((primary, section, room, time_slot, '; '.join(primary_annotations), listings[section], faculty_id))
 
         for secondary in secondary_sections:
-            secondary_course = secondary[:secondary.index('-')]
             annotations = [annotation for annotation in (xlist, f'xlist with {section}')
                            if annotation]
             lst.append((primary, secondary, room, time_slot, '; '.join(annotations),
-                        course_titles.get(secondary_course, ''), section_credits[secondary]))
+                        listings[secondary], faculty_id))
     print(f'read placement {id} with {len(lst)} placements')
     db.close()
     return (lst, block_sessions)
 
 def split_fields(row: RawSection, block_sessions: BlockSessions) -> list[str] | None:
-    (raw_instructor, raw_course, raw_room, raw_time, xlist_annotation, course_title,
-     credit_hours) = row
+    (raw_instructor, raw_course, raw_room, raw_time, xlist_annotation, listing,
+     faculty_id) = row
 
     # skip sections that are included just to force conflicts
     # but are not actually ours
@@ -358,11 +380,10 @@ def split_fields(row: RawSection, block_sessions: BlockSessions) -> list[str] | 
     # Skip placeholder faculty in the output (leave name fields blank)
     if is_placeholder_faculty(raw_instructor):
         (fname, lname) = ('', '')
-    if f'{fname} {lname}' in FACULTY_IDS:
-        out[FID] = FACULTY_IDS[f'{fname} {lname}']
+    out[FID] = faculty_id or FACULTY_IDS.get(f'{fname} {lname}', '')
     (out[FNAME], out[LNAME]) = (fname, lname)
     # Store course title from database for use in merge
-    out.append(course_title)  # Temporary field at end, will be removed in merge
+    out.append(listing.title)  # Temporary field at end, will be removed in merge
 
     space = raw_course.index(' ')
     hyphen = raw_course.index('-')
@@ -376,7 +397,7 @@ def split_fields(row: RawSection, block_sessions: BlockSessions) -> list[str] | 
     out[SUBJECT] = subject
     out[COURSE] = course
     out[SECTION] = section_n
-    credits = f'{credit_hours:g}'
+    credits = '' if listing.credits is None else f'{listing.credits:g}'
 
     if raw_room is not None and raw_time is None:
         print(f'section {raw_course} has room {raw_room} but no time')
@@ -392,14 +413,12 @@ def split_fields(row: RawSection, block_sessions: BlockSessions) -> list[str] | 
             out[BLDG] = 'ONLINE'
             out[CAMPUS] = 'O01'
             out[LEC] = 'LEC'
-            out[WLF] = credits
             out[DELIVERY] = 'I'
         else:
             # individual
             out[CAP] = get_capacity_individual(raw_course)
             out[CAMPUS] = 'A01'
             out[LEC] = 'INV'
-            out[WLF] = '0'
             out[DELIVERY] = 'P'
     else:
         # lecture class
@@ -411,14 +430,13 @@ def split_fields(row: RawSection, block_sessions: BlockSessions) -> list[str] | 
             out[ROOM] = room
             if raw_room in CAPACITY_MAP:
                 out[CAP] = CAPACITY_MAP[raw_room]
-            else:
+            elif listing.seats is None:
                 print('unknown room capacity:', row)
                 sys.exit(1)
         (out[DAYS], out[BEGTIME], out[ENDTIME]) = split_time(raw_time)
         out[CAMPUS] = 'A01'
         out[LEC] = 'LEC'
         out[DELIVERY] = 'P'
-        out[WLF] = credits
 
     # Apply LEC type overrides (check course number, then "SUBJECT COURSE")
     if course in LEC_TYPE_MAP:
@@ -426,9 +444,15 @@ def split_fields(row: RawSection, block_sessions: BlockSessions) -> list[str] | 
     elif f'{subject} {course}' in LEC_TYPE_MAP:
         out[LEC] = LEC_TYPE_MAP[f'{subject} {course}']
 
-    # Internships have 0 WLF
-    if out[LEC] == 'INT':
-        out[WLF] = '0'
+    # Apply stored listing values after the legacy presentation defaults.
+    # A missing workload stays blank until an actual workload is recorded.
+    if listing.course_format is not None:
+        out[LEC] = listing.course_format
+    if listing.campus is not None:
+        out[CAMPUS] = listing.campus
+    if listing.seats is not None:
+        out[CAP] = str(listing.seats)
+    out[WLF] = '' if listing.workload is None else f'{listing.workload:g}'
 
     if section_n.endswith('A'):
         out[SESSION] = block_sessions[0]
@@ -441,7 +465,7 @@ def split_fields(row: RawSection, block_sessions: BlockSessions) -> list[str] | 
     out[CREDITS] = credits
     out[BUD] = 'BA'
     out[ENROLL] = '0'
-    out[WAITCAP] = '10'
+    out[WAITCAP] = '10' if listing.waitlist is None else str(listing.waitlist)
     out[WAITACT] = '0'
 
     return out
@@ -617,7 +641,7 @@ def main():
     new = [split_fields(row, block_sessions) for row in raw_sections]
     new = [row for row in new if row is not None]
     end_marker = split_fields(
-        ('', 'ZZ 1111-11', 'Smith 109', 'MWF0700+50', '', '', 3.0),
+        (None, 'ZZ 1111-11', 'Smith 109', 'MWF0700+50', '', Listing('', None, None, None, None, None, None), None),
         block_sessions)
     if end_marker is None:
         raise RuntimeError('could not create the schedule end marker')
